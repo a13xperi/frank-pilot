@@ -18,6 +18,7 @@ import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
 import adverseActionRoutes from "./modules/adverse-action/routes";
 import userRoutes from "./modules/users/routes";
+import propertyRoutes from "./modules/properties/routes";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000");
@@ -95,6 +96,9 @@ app.use("/api/applications", adverseActionRoutes);
 
 // User management (system_admin: create/deactivate/reset-pw; senior_manager+: view)
 app.use("/api/users", userRoutes);
+
+// Property management (asset_manager+: create/update; all roles: view)
+app.use("/api/properties", propertyRoutes);
 
 // Audit log
 app.get(

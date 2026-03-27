@@ -699,6 +699,65 @@ requiring shell access. Now exposed via REST API.
 
 ---
 
+## Loop 24 — Property Management API + CLI (Implementation)
+
+### ✅ Implement `src/modules/properties/service.ts` + `routes.ts`
+### ✅ Mount property routes in `src/index.ts`
+### ✅ Add `list-properties` and `view-property` CLI commands
+### ✅ Update `src/db/schema.ts` (new enum values: property_created, property_updated)
+### ✅ Write `src/__tests__/property-service.test.ts` — 14 tests
+
+**Gap closed:** `property:manage` (asset_manager, system_admin) and `property:view`
+(all roles) RBAC permissions were defined but had no backing module or API routes.
+
+**Schema changes:**
+- Added `property_created`, `property_updated` to `audit_action` enum
+
+**PropertyService — 4 methods:**
+
+`list()`:
+- SELECT all properties, ORDER BY name
+- Returns PropertyRecord[]
+
+`getById(propertyId)`:
+- Returns null on miss; mapped PropertyRecord on hit
+
+`create(input, actorId, actorRole)`:
+- INSERT with optional fields (addressLine2, onesitePropertyId, loftPropertyId) defaulting to null
+- Writes `property_created` audit log
+
+`update(propertyId, input, actorId, actorRole)`:
+- Dynamic SET clause — only provided fields included (same pattern as UserService.list filters)
+- addressLine1, city, state, zip are immutable (coordinate with OneSite)
+- Throws "No fields provided for update" on empty input
+- Throws "Property not found: X" when UPDATE returns 0 rows
+- Writes `property_updated` audit log with changed fields
+
+**Routes** (`/api/properties`):
+- `GET /`               — `property:view` (all roles including leasing_agent)
+- `GET /:propertyId`   — `property:view`; 404 on miss
+- `POST /`             — `property:manage` (asset_manager, system_admin); Zod validation; 201
+- `PATCH /:propertyId` — `property:manage`; Zod validation; note: address fields excluded from UpdatePropertySchema
+
+**CLI commands:**
+- `list-properties` — prints console.table of all properties
+- `view-property -i <id>` — prints JSON detail for one property
+
+**Tests — 14 passing:**
+- list(): empty; mapped array; ORDER BY name verified
+- getById(): null on miss; correct mapping; queries by propertyId
+- create(): inserts and returns record; optional fields default to null (positions 2, 8, 9); audit log written
+- update(): throws on empty input (no DB call); throws on not-found; dynamic SET clause (only provided fields in SET portion); returns updated record; audit log with changed fields
+- **Gotcha:** RETURNING clause contains all column names — test for absent SET fields must split SQL on WHERE and check only the SET portion:
+  ```typescript
+  const setPart = sql.split(/WHERE/i)[0]!;
+  expect(setPart).not.toMatch(/ami_area/);
+  ```
+
+**TypeScript:** `tsc --noEmit` clean. 588 tests, 24 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`

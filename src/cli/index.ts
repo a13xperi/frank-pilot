@@ -11,6 +11,7 @@ import { PaymentService } from "../modules/payment/service";
 import { DecisionMatrixService } from "../modules/decision-matrix/service";
 import { LeaseService } from "../modules/lease/service";
 import { UserService } from "../modules/users/service";
+import { PropertyService } from "../modules/properties/service";
 import { queryAuditLog } from "../middleware/audit";
 import bcrypt from "bcrypt";
 
@@ -452,6 +453,57 @@ program
       const ap = autoPayResult.rows[0];
       const rate = ap.total_onboarded > 0 ? ((ap.auto_pay_count / ap.total_onboarded) * 100).toFixed(1) : "N/A";
       console.log(`\nAuto-Pay Enrollment: ${ap.auto_pay_count}/${ap.total_onboarded} (${rate}%)`);
+    } catch (err) {
+      console.error("Error:", (err as Error).message);
+    } finally {
+      await pool.end();
+    }
+  });
+
+// ============================================================
+// Property commands
+// ============================================================
+
+program
+  .command("list-properties")
+  .description("List all properties")
+  .action(async () => {
+    try {
+      const svc = new PropertyService();
+      const properties = await svc.list();
+      console.log(`\nTotal: ${properties.length} properties\n`);
+      console.table(
+        properties.map((p) => ({
+          id: p.id.substring(0, 8) + "...",
+          name: p.name,
+          city: p.city,
+          state: p.state,
+          units: p.unitCount,
+          amiArea: p.amiArea.substring(0, 30),
+          onesite: p.onesitePropertyId || "-",
+        }))
+      );
+    } catch (err) {
+      console.error("Error:", (err as Error).message);
+    } finally {
+      await pool.end();
+    }
+  });
+
+program
+  .command("view-property")
+  .description("View property details including AMI area and integration IDs")
+  .requiredOption("-i, --id <id>", "Property ID")
+  .action(async (opts) => {
+    try {
+      const svc = new PropertyService();
+      const property = await svc.getById(opts.id);
+      if (!property) {
+        console.error("Property not found");
+        process.exit(1);
+      }
+      console.log("\n=== Property Details ===\n");
+      console.log(JSON.stringify(property, null, 2));
     } catch (err) {
       console.error("Error:", (err as Error).message);
     } finally {
