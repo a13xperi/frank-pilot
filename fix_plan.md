@@ -921,6 +921,33 @@ inferred TypeScript OUTPUT type (`z.infer<typeof schema>`). Tests that pass
 
 ---
 
+## Loop 29 — household_size Compliance Fix Tests
+
+### ✅ Add householdSize tests to compliance.test.ts — 4 new tests
+### ✅ Add household_size forwarding tests to screening-service.test.ts — 2 new tests
+
+**Context:** Loop 28 added `household_size` to the applications table and wired
+it through the screening pipeline. These tests verify the fix works correctly
+and prevent regression.
+
+**compliance.test.ts (4 new tests):**
+- `householdSize=4` passed as third param in AMI query (parameterized SQL verified)
+- `householdSize=4` + 4-person limit ($62k) → `pass` for $55k income
+- `householdSize=1` + 1-person limit ($38k) → `fail` for same $55k income
+  (documents the exact regression this fix prevents)
+- `householdSize=3` propagated through both current-year AND prev-year fallback
+  queries when current year has no AMI data
+
+**screening-service.test.ts (2 new tests):**
+- `household_size: 4` on application row → `householdSize: 4` forwarded to
+  `compliance.runCheck()` (verifies the `app.household_size || 1` path)
+- `household_size: null` on application row → `householdSize: 1` (fallback
+  default for rows created before the migration)
+
+**TypeScript:** `tsc --noEmit` clean. 673 tests, 27 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`

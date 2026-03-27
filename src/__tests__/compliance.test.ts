@@ -245,4 +245,79 @@ describe("ComplianceService.runCheck", () => {
     const amiQueryCall = mockQuery.mock.calls[1];
     expect(amiQueryCall[1]).toContain(1); // third param is householdSize
   });
+
+  // ── householdSize=4 uses higher AMI limit (core LIHTC fix) ────────────────
+  //
+  // This block verifies the Loop 28 compliance fix. A 4-person household has
+  // a significantly higher 60% AMI limit than a 1-person household. Without
+  // household_size propagation, a $52,000/year 4-person household would be
+  // evaluated against a $38,000 1-person limit and incorrectly denied.
+
+  it("passes householdSize=4 as the third AMI query parameter", async () => {
+    mockQuery
+      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV") as any)
+      .mockResolvedValueOnce(makeAmiRows(62000) as any); // 4-person 60% AMI
+
+    await service.runCheck({
+      propertyId: "prop-lv",
+      annualIncome: 55000,
+      householdSize: 4,
+    });
+
+    const amiQueryCall = mockQuery.mock.calls[1]!;
+    // Params: [amiArea, year, householdSize]
+    expect(amiQueryCall[1]![2]).toBe(4);
+  });
+
+  it("returns pass for householdSize=4 using the 4-person AMI limit", async () => {
+    // 4-person limit: $62,000 — income $55,000 → pass
+    mockQuery
+      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV") as any)
+      .mockResolvedValueOnce(makeAmiRows(62000) as any);
+
+    const result = await service.runCheck({
+      propertyId: "prop-lv",
+      annualIncome: 55000,
+      householdSize: 4,
+    });
+
+    expect(result.result).toBe("pass");
+    expect(result.details.incomeWithinLimits).toBe(true);
+    expect(result.details.applicableAMILimit).toBe(62000);
+  });
+
+  it("would fail the same income under householdSize=1 (demonstrates fix value)", async () => {
+    // 1-person limit: $38,000 — income $55,000 → fail
+    mockQuery
+      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV") as any)
+      .mockResolvedValueOnce(makeAmiRows(38000) as any);
+
+    const result = await service.runCheck({
+      propertyId: "prop-lv",
+      annualIncome: 55000,
+      householdSize: 1,
+    });
+
+    expect(result.result).toBe("fail");
+    expect(result.details.incomeWithinLimits).toBe(false);
+  });
+
+  it("passes householdSize through the previous-year fallback query when current year is missing", async () => {
+    mockQuery
+      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV") as any)
+      .mockResolvedValueOnce({ rows: [] } as any)        // current year miss
+      .mockResolvedValueOnce(makeAmiRows(60000) as any); // prev year hit
+
+    await service.runCheck({
+      propertyId: "prop-lv",
+      annualIncome: 50000,
+      householdSize: 3,
+    });
+
+    // Both AMI queries (current year and fallback) must include householdSize=3
+    const currentYearCall = mockQuery.mock.calls[1]!;
+    const prevYearCall = mockQuery.mock.calls[2]!;
+    expect(currentYearCall[1]![2]).toBe(3);
+    expect(prevYearCall[1]![2]).toBe(3);
+  });
 });

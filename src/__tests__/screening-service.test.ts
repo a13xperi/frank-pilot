@@ -346,6 +346,34 @@ describe("ScreeningService.runFullScreening", () => {
       expect.objectContaining({ annualIncome: 0 })
     );
   });
+
+  // ── householdSize forwarded from application row (Loop 28 fix) ───────────
+
+  it("forwards household_size from application row to compliance.runCheck", async () => {
+    mockQuery.mockReset();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [makeApp({ household_size: 4 })] } as any)
+      .mockResolvedValue({ rows: [] } as any);
+
+    await service.runFullScreening("app-001", "user-1", "senior_manager");
+
+    expect(mockCompliance.runCheck).toHaveBeenCalledWith(
+      expect.objectContaining({ householdSize: 4, propertyId: "prop-001" })
+    );
+  });
+
+  it("defaults householdSize to 1 when household_size is null on application row", async () => {
+    mockQuery.mockReset();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [makeApp({ household_size: null })] } as any)
+      .mockResolvedValue({ rows: [] } as any);
+
+    await service.runFullScreening("app-001", "user-1", "senior_manager");
+
+    expect(mockCompliance.runCheck).toHaveBeenCalledWith(
+      expect.objectContaining({ householdSize: 1 })
+    );
+  });
 });
 
 // ── getResults ────────────────────────────────────────────────────────────────
