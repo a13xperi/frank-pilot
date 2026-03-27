@@ -220,6 +220,26 @@
 
 ---
 
+## Loop 12 — Payment Route Tests
+
+### ✅ Write tests: `src/modules/payment/routes.ts` — 25 tests
+- Mock `PaymentService` at module level; also mock `stripe` as virtual module to prevent load errors
+- Auth strategy: real JWT tokens + mock users DB query for `authenticate`
+- Test: POST /:applicationId/customer — 401/403 enforced (leasing_agent blocked), 200 happy path
+- Test: createCustomer — correct full args object forwarded (applicationId, email, firstName, lastName, actorId, actorRole)
+- Test: createCustomer — 400 when service throws
+- Test: POST /:applicationId/method — 401/403 enforced, Zod validation (missing paymentMethodId, invalid paymentType enum)
+- Test: setupPaymentMethod — all 4 valid paymentType values accepted (ach, credit_card, debit_card, bank_transfer)
+- Test: setupPaymentMethod — correct args forwarded; 400 on service throw
+- Test: POST /:applicationId/auto-pay — 401/403 enforced, 200 happy path with monthlyDiscount
+- Test: enrollAutoPay — correct args forwarded; 400 on service throw
+- Test: GET /:applicationId — leasing_agent allowed (payment:view is open to all roles)
+- Test: getPaymentStatus — 404 on null, 200 with full status object, correct applicationId forwarded; 500 on throw
+
+**Result:** 25 tests, all passing (346 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
