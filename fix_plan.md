@@ -1053,6 +1053,26 @@ so the service always receives an explicit integer (never `undefined`).
 
 ---
 
+## Loop 33 — householdSize Validation Schema Tests
+
+### ✅ Add householdSize tests to `src/__tests__/application-validation.test.ts` — 6 new tests
+
+**Gap closed:** `householdSize: z.number().int().min(1).max(8).default(1)` was added
+to `createApplicationSchema` in Loop 28 but the validation test file (Loop 4) was
+never updated to cover the new field.
+
+**New tests (createApplicationSchema):**
+- Defaults to 1 when omitted (`.default(1)` behavior verified on parsed output)
+- Accepts 1 (minimum — single-occupant)
+- Accepts 8 (maximum — 8-person HUD household limit)
+- Rejects 0 (below minimum)
+- Rejects 9 (exceeds HUD 8-person maximum, documents compliance constraint)
+- Rejects 2.5 (non-integer — must be whole number of persons)
+
+**TypeScript:** `tsc --noEmit` clean. 709 tests, 29 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`

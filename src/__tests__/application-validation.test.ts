@@ -211,6 +211,49 @@ describe("createApplicationSchema", () => {
     ).toBe(false);
   });
 
+  // ── householdSize — LIHTC household-size-specific AMI limits (Loop 28) ──────
+  //
+  // HUD LIHTC §42 income limits differ by household size (1–8 persons).
+  // householdSize defaults to 1; any value 1–8 is valid; integers only.
+
+  it("defaults householdSize to 1 when omitted", () => {
+    const result = createApplicationSchema.safeParse(minimalValid());
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.householdSize).toBe(1);
+    }
+  });
+
+  it("accepts householdSize of 1 (minimum — single-occupant)", () => {
+    expect(
+      createApplicationSchema.safeParse({ ...minimalValid(), householdSize: 1 }).success
+    ).toBe(true);
+  });
+
+  it("accepts householdSize of 8 (maximum — 8-person household)", () => {
+    expect(
+      createApplicationSchema.safeParse({ ...minimalValid(), householdSize: 8 }).success
+    ).toBe(true);
+  });
+
+  it("rejects householdSize of 0 (below minimum)", () => {
+    expect(
+      createApplicationSchema.safeParse({ ...minimalValid(), householdSize: 0 }).success
+    ).toBe(false);
+  });
+
+  it("rejects householdSize of 9 (exceeds HUD 8-person maximum)", () => {
+    expect(
+      createApplicationSchema.safeParse({ ...minimalValid(), householdSize: 9 }).success
+    ).toBe(false);
+  });
+
+  it("rejects non-integer householdSize (must be whole number of persons)", () => {
+    expect(
+      createApplicationSchema.safeParse({ ...minimalValid(), householdSize: 2.5 }).success
+    ).toBe(false);
+  });
+
   // ── currentState must be exactly 2 characters ─────────────────────────────
 
   it("accepts 2-character state code", () => {
