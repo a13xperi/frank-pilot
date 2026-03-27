@@ -240,6 +240,28 @@
 
 ---
 
+## Loop 13 — Decision Matrix Route Tests
+
+### ✅ Write tests: `src/modules/decision-matrix/routes.ts` — 26 tests
+- Mock `DecisionMatrixService` at module level (instantiated at route scope)
+- Auth strategy: real JWT tokens + mock users DB query for `authenticate`
+- Test: POST /:applicationId — 401 no token, 401 bad token, Zod validation (missing modificationType, missing description, invalid enum)
+- Test: all 5 modificationType enum values accepted (rent_increase, tenant_substitution, lease_term_change, pet_policy_change, other)
+- Test: 201 happy path; correct full args forwarded including optional originalValue/requestedValue
+- Test: optional fields (originalValue, requestedValue) are truly optional — absent from service call when not sent
+- Test: 400 when service.requestModification throws
+- Test: POST /decide/:modificationId — 401 no token, Zod validation (missing decision, missing notes, invalid enum)
+- Test: decide endpoint has NO requirePermission guard — leasing_agent reaches service (gets 400 from service, not 403 from middleware)
+- Test: 200 approve by senior_manager, 200 deny by regional_manager; correct args forwarded
+- Test: 400 when service.decideModification throws (already decided)
+- Test: GET /:applicationId — leasing_agent blocked (lease:modify), 403 verified
+- Test: 200 empty array, 200 with 2 modifications, correct applicationId forwarded, regional_manager allowed
+- Test: 500 when service.listModifications throws
+
+**Result:** 26 tests, all passing (372 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
