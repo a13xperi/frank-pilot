@@ -20,15 +20,16 @@
 
 ## Loop 2 — Screening Module Tests
 
-### ⬜ Write tests: `src/modules/screening/compliance.ts`
+### ✅ Write tests: `src/modules/screening/compliance.ts` — 13 tests
 - Mock `query` from `../../config/database`
 - Test: property not found → review_required
 - Test: AMI limit found → pass when income within limits
 - Test: AMI limit found → fail when income exceeds limits
 - Test: asset threshold logic (>$5000 → review_required)
 - Test: falls back to prior year AMI when current year missing
+- Note: use `toContainEqual(expect.stringMatching(...))` for array element regex checks
 
-### ⬜ Write tests: `src/modules/screening/fraud-detection.ts`
+### ✅ Write tests: `src/modules/screening/fraud-detection.ts` — 14 tests
 - Mock `query` from `../../config/database`
 - Test: checkDuplicateSSN — duplicate found
 - Test: checkDuplicateSSN — no duplicate
@@ -37,6 +38,8 @@
 - Test: checkIncomeMismatch — >30% discrepancy → high severity
 - Test: checkApprovalSpeed — < 5 min → flags anomaly
 - Test: checkApprovalSpeed — >= 5 min → no flag
+
+**Result:** 27 tests, all passing (85 total across all loops).
 
 ---
 
