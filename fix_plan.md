@@ -300,6 +300,41 @@
 
 ---
 
+## Loop 15 — Screening Integration Service Tests
+
+### ✅ Write tests: `src/modules/screening/background-check.ts` + `credit-check.ts` — 20 tests
+- Both services tested in one file (`screening-integrations.test.ts`)
+- Testing strategy: `jest.spyOn(service as any, 'callScreeningAPI')` / `callCreditAPI` to inject
+  controlled API responses — tests full `evaluateResults()` logic without real network calls
+- Stub path tested via real no-key path (both services return clean/680 stub data)
+
+**BackgroundCheckService** — 10 tests:
+- Stub path → pass (clean record, riskScore=0)
+- felonies > 0 → fail, riskScore=100
+- sexOffenses=true → fail (auto-fail criterion)
+- violentCrimes=true → fail (auto-fail criterion)
+- misdemeanors.length >= 3 → review_required, riskScore=75
+- misdemeanors.length == 2 → pass, riskScore=50 (below review threshold)
+- misdemeanors.length == 1 → pass, riskScore=25
+- API throws → review_required, riskScore=-1, rawResponse error message (safe fallback)
+- All detail fields propagated correctly
+- 0 misdemeanors → riskScore=0
+
+**CreditCheckService** — 10 tests:
+- Stub path → pass (creditScore=680)
+- evictions > 0 → fail (FCRA auto-fail)
+- bankruptcies > 0 → fail (auto-fail)
+- creditScore exactly 600 → pass (boundary test)
+- creditScore 720 → pass; creditScore 599 → review_required (NOT auto-fail — LIHTC exceptions)
+- creditScore 450 → review_required
+- API throws → review_required, creditScore=0, safe fallback message
+- All detail fields (paymentHistory, outstandingDebts, collections) propagated
+- evictions override low score: both present → fail beats review_required
+
+**Result:** 20 tests, all passing (423 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
