@@ -225,6 +225,53 @@ npm run cli -- stats
   compliance audit report at `GET /api/compliance/fair-housing` (Regional Manager+)
 - **PCI DSS** — Stripe tokenization; no raw card data on our servers
 
+## Project Status (as of 2026-03-27)
+
+**CI:** Passing — [GitHub Actions](../../actions)
+**Tests:** 703 passing across 29 suites
+**Build:** Clean TypeScript compilation, zero errors
+
+### Completed
+
+- [x] Application intake pipeline (create, update, submit, cancel)
+- [x] Screening engine (background check, credit check, fraud detection, HUD/AMI compliance)
+- [x] 3-tier approval workflow (Senior Manager → Regional Manager → Asset Manager)
+- [x] Payment processing (Stripe stub — customer, payment method, auto-pay enrollment)
+- [x] Decision matrix for lease modifications
+- [x] Lease generation + tenant onboarding state machine (OneSite/Loft stubs)
+- [x] FCRA adverse action notices (15 U.S.C. § 1681m) — auto-generate on denial + manual resend
+- [x] Fair Housing Act compliance report (42 U.S.C. §§ 3601–3619)
+- [x] User management API + CLI (system_admin CRUD)
+- [x] Property management API + CLI (asset_manager+)
+- [x] RBAC with separation of duties
+- [x] AES-256-GCM encryption for PII at rest
+- [x] PII filtering on all log output
+- [x] Immutable audit trail
+- [x] Admin CLI tool (login, user/property CRUD, screening, approvals, lease, audit, stats)
+- [x] CI/CD pipeline (GitHub Actions — Node 18/20/22)
+- [x] Full unit + route test coverage for all modules (703 tests)
+
+### Pending
+
+- [ ] **Database setup** — No `.env` or live PostgreSQL instance configured; migrations not run against a real DB
+- [ ] **Integration API keys** — OneSite, Loft, Twilio, Stripe, screening provider are all stubs
+- [ ] **End-to-end integration tests** — All current tests mock the DB layer; no tests against a real Postgres
+- [ ] **OpenAPI/Swagger documentation** — No browseable API docs endpoint
+- [ ] **Deployment infrastructure** — No hosting, no Docker, no Terraform/IaC
+- [ ] **Error handling edge cases** — Expired JWT behavior, DB connection pool exhaustion, rate limiting
+- [ ] **Frontend** — This is API-only; no tenant-facing UI exists
+
+### Known Integration Stubs (require real API keys for production)
+
+| Integration | File | What it needs |
+|-------------|------|---------------|
+| Stripe | `src/modules/payment/service.ts` | `STRIPE_SECRET_KEY` env var |
+| OneSite | `src/modules/integrations/onesite.ts` | `ONESITE_API_URL`, `ONESITE_API_KEY` |
+| Loft | `src/modules/integrations/loft.ts` | `LOFT_API_URL`, `LOFT_API_KEY` |
+| Twilio | `src/modules/integrations/twilio.ts` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE` |
+| Background Check | `src/modules/screening/background-check.ts` | Third-party screening API |
+| Credit Check | `src/modules/screening/credit-check.ts` | Third-party credit bureau API |
+
 ## Deployment
 
 ```bash
