@@ -1030,6 +1030,29 @@ passes since the value is unchanged). README is documentation only.
 
 ---
 
+## Loop 32 — householdSize Route Coverage
+
+### ✅ Add householdSize acceptance tests to `src/__tests__/application-routes.test.ts` — 5 new tests
+
+**Gap closed:** Loop 28 added `householdSize` to the application schema with
+`.default(1)`, and Loop 29 verified the compliance pipeline passes it correctly.
+However, the route layer had no HTTP contract tests for the new field.
+
+**New tests (POST /applications):**
+- `householdSize: 4` accepted and forwarded to `service.create` via Zod parse
+- `householdSize` omitted → Zod `.default(1)` → service receives `{ householdSize: 1 }`
+- `householdSize: 0` → 400 validation failed (below min of 1)
+- `householdSize: 9` → 400 validation failed (above max of 8)
+
+**Note — Zod `.default()` behavior at the route layer:** The `createApplicationSchema`
+applies `.default(1)` so when `householdSize` is absent from the request body, Zod
+produces `1` in the parsed output. The route forwards the parsed result to the service,
+so the service always receives an explicit integer (never `undefined`).
+
+**TypeScript:** `tsc --noEmit` clean. 703 tests, 29 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`

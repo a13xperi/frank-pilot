@@ -225,6 +225,63 @@ describe("POST /applications", () => {
     expect(res.status).toBe(500);
     expect(res.body.error).toMatch(/failed to create application/i);
   });
+
+  it("accepts householdSize 1–8 and forwards it to service.create", async () => {
+    mockAuthQuery(testUser);
+    mockCreate.mockResolvedValue({ id: "app-001", status: "draft" });
+
+    const res = await request(app)
+      .post("/applications")
+      .set("Authorization", tokenFor(testUser))
+      .send({ ...validBody(), householdSize: 4 });
+
+    expect(res.status).toBe(201);
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ householdSize: 4 }),
+      testUser.id,
+      testUser.role
+    );
+  });
+
+  it("defaults householdSize to 1 when not provided", async () => {
+    mockAuthQuery(testUser);
+    mockCreate.mockResolvedValue({ id: "app-001", status: "draft" });
+
+    await request(app)
+      .post("/applications")
+      .set("Authorization", tokenFor(testUser))
+      .send(validBody()); // no householdSize
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ householdSize: 1 }),
+      testUser.id,
+      testUser.role
+    );
+  });
+
+  it("returns 400 when householdSize is below 1", async () => {
+    mockAuthQuery(testUser);
+
+    const res = await request(app)
+      .post("/applications")
+      .set("Authorization", tokenFor(testUser))
+      .send({ ...validBody(), householdSize: 0 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/validation failed/i);
+  });
+
+  it("returns 400 when householdSize exceeds 8", async () => {
+    mockAuthQuery(testUser);
+
+    const res = await request(app)
+      .post("/applications")
+      .set("Authorization", tokenFor(testUser))
+      .send({ ...validBody(), householdSize: 9 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/validation failed/i);
+  });
 });
 
 // ── GET / — list applications ─────────────────────────────────────────────────
