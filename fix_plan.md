@@ -262,6 +262,44 @@
 
 ---
 
+## Loop 14 — Application Service Tests
+
+### ✅ Write tests: `src/modules/application/service.ts` — 31 tests
+- Mock `query`, `transaction`, `encrypt`/`hashSSN`/`maskSSN`, `writeAuditLog`, `FraudDetectionService`
+- **Gotcha:** TypeScript enforces full `PoolClient` shape on mock clients — cast partial mocks with `as any`
+
+**create()** — 9 tests:
+- SSN and DOB encrypted before INSERT (PCI-DSS compliance verified)
+- Encrypted values (not plaintext) appear at correct param indices in INSERT query
+- Duplicate SSN check fires before insert; hash value passed to checkDuplicateSSN
+- high-severity fraud flag raised via raiseFraudFlag when duplicate found; skipped when clean
+- Address fraud check fires when currentAddressLine1 present; skipped when absent
+- Audit log written with masked SSN; returns created row
+
+**submit()** — 4 tests:
+- Status updated to submitted; query uses `AND status = 'draft'` guard
+- Throws "not found or not in draft status" when rows empty
+- Audit log written with application_submitted action; returns updated row
+
+**getById()** — 4 tests:
+- Returns null when not found
+- ssn_encrypted and date_of_birth_encrypted stripped from response (PCI-DSS/FCRA)
+- ssn_masked added via maskSSN; property JOIN fields (property_name, address) intact
+- Queries by applicationId
+
+**list()** — 6 tests:
+- Returns applications + total count; empty result; propertyId filter; status filter
+- Default limit=50 / offset=0; custom limit/offset; combined filters with correct param ordering
+
+**update()** — 5 tests:
+- Throws "no fields to update" without querying DB; throws when not found/not draft
+- Returns updated row; maps camelCase → snake_case columns; partial update only sets provided fields
+- WHERE clause restricts to `status = 'draft'`
+
+**Result:** 31 tests, all passing (403 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
