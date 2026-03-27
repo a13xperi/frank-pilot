@@ -200,6 +200,26 @@
 
 ---
 
+## Loop 11 — Screening Route Tests
+
+### ✅ Write tests: `src/modules/screening/routes.ts` — 26 tests
+- Mock `ScreeningService` and `FraudDetectionService` at module level
+- Auth strategy: real JWT tokens + mock users DB query for `authenticate`
+- Test: POST /:applicationId/screen — 401 no token, 401 bad token, 403 leasing_agent blocked
+- Test: initiate screening — 200 happy path; correct args (applicationId, userId, role) forwarded
+- Test: initiate screening — 400 when service throws (wrong status)
+- Test: GET /:applicationId/results — 401/403 enforced, 404 on null, 200 on found
+- Test: results — correct applicationId forwarded; 500 on unexpected throw
+- Test: GET /:applicationId/fraud-flags — 401/403 enforced, empty array, populated array
+- Test: fraud-flags — correct applicationId forwarded; 500 on throw
+- Test: POST /fraud-flags/:flagId/resolve — 401/403/400 enforced (leasing_agent, senior_manager both blocked — fraud:resolve requires regional_manager+)
+- Test: resolve — 400 when notes missing, 200 happy path, correct args (flagId, userId, notes) forwarded
+- Test: resolve — 500 when fraudService.resolveFlag throws
+
+**Result:** 26 tests, all passing (321 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
