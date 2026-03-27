@@ -11,6 +11,7 @@ Replaces manual, fragmented affordable housing tenant onboarding with a structur
 - **Digital-First Application Pipeline** — Standardized qualification criteria, encrypted PII
 - **Screening & Compliance Engine** — Criminal background, credit check, HUD AMI tax credit compliance
 - **FCRA Adverse Action Notices** — Automatic and manual notice generation per 15 U.S.C. § 1681m
+- **Fair Housing Compliance Report** — Auditable outcome statistics and objective criteria documentation
 - **PCI-Compliant Payment Processing** — ACH/card via Stripe, $25/mo auto-pay incentive
 - **Role-Based Access Control** — Zero-trust, separation of duties, no single-person control
 - **3-Tier Approval Workflow** — Senior Manager → Regional Manager → Asset Manager
@@ -140,6 +141,12 @@ All passwords: `password123`
 - `PATCH /api/users/:userId/activate` — Reactivate account (System Admin only)
 - `POST /api/users/:userId/reset-password` — Admin password reset, no old password required (System Admin only)
 
+### Compliance Reports
+- `GET /api/compliance/fair-housing` — Fair Housing Act compliance report (Regional Manager+)
+  - Optional `?propertyId=<uuid>` to scope to a single property
+  - Returns decision outcome statistics, FCRA adverse action notice completeness,
+    and the documented objective screening criteria (42 U.S.C. §§ 3601–3619)
+
 ### Audit
 - `GET /api/audit` — Query audit log (Regional Manager+)
 
@@ -211,11 +218,12 @@ npm run cli -- stats
 
 ## Compliance
 
-- HUD Area Median Income (AMI) limits enforced
-- IRS Form 8609/8586 tax credit compliance
-- FCRA adverse action notice requirements
-- Fair Housing Act compliance in screening criteria
-- PCI DSS for payment data handling
+- **HUD AMI** — Income limits enforced per property area and household size (1–8 persons)
+- **LIHTC §42** — IRS Form 8609/8586; 60% AMI threshold; TIC required annually
+- **FCRA §1681m** — Automatic adverse action notices on all denials; manual resend endpoint
+- **Fair Housing Act §§ 3601–3619** — Objective criteria only; no protected class data collected;
+  compliance audit report at `GET /api/compliance/fair-housing` (Regional Manager+)
+- **PCI DSS** — Stripe tokenization; no raw card data on our servers
 
 ## Deployment
 
@@ -258,6 +266,7 @@ src/
 │   ├── adverse-action/         # FCRA adverse action notices (15 U.S.C. § 1681m)
 │   ├── properties/             # Property registry (asset_manager+)
 │   ├── users/                  # Staff user management (system_admin only)
+│   ├── compliance/             # FHA compliance report (42 U.S.C. §§ 3601–3619)
 │   └── integrations/           # OneSite, Loft, Twilio stubs (do not modify)
 ├── utils/
 │   ├── encryption.ts           # AES-256-GCM encryption

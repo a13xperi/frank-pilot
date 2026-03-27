@@ -5,6 +5,14 @@ import { FraudDetectionService } from "../screening/fraud-detection";
 import { AdverseActionService } from "../adverse-action/service";
 import { logger } from "../../utils/logger";
 
+/**
+ * Monthly rent threshold above which Tier 2 (Regional Manager) review is required.
+ * This is a policy decision — tracked in git history for audit purposes.
+ * Change requires approval from Asset Management and updating the LIHTC compliance
+ * documentation, since LIHTC rents are capped by HUD payment standards.
+ */
+export const TIER2_RENT_THRESHOLD = 1500;
+
 export type ApprovalDecision = "pass" | "fail";
 
 export interface ApprovalInput {
@@ -19,7 +27,7 @@ export interface ApprovalInput {
  * 3-Tier Approval Workflow:
  *
  * Tier 1: Senior Manager — all applications that pass screening
- * Tier 2: Regional Manager — leases >$1500/mo or exceptions
+ * Tier 2: Regional Manager — leases >TIER2_RENT_THRESHOLD/mo or exceptions
  * Tier 3: Asset Manager — final sign-off on exceptions only
  *
  * Separation of duties enforced: no single person can submit AND approve.
@@ -123,7 +131,7 @@ export class ApprovalService {
 
   /**
    * Tier 2: Regional Manager review.
-   * Required for leases >$1500/mo or any exceptions.
+   * Required for leases >TIER2_RENT_THRESHOLD/mo or any exceptions.
    */
   async tier2Review(input: ApprovalInput): Promise<any> {
     const app = await this.getApplication(input.applicationId);
@@ -296,13 +304,13 @@ export class ApprovalService {
   }
 
   private requiresTier2(app: any): boolean {
-    // Tier 2 required if: lease >$1500/mo OR screening had review_required items
+    // Tier 2 required if: lease exceeds rent threshold OR screening had review_required items
     const rentAmount = parseFloat(app.requested_rent_amount || "0");
     const hasExceptions =
       app.background_check_result === "review_required" ||
       app.credit_check_result === "review_required" ||
       app.compliance_check_result === "review_required";
-    return rentAmount > 1500 || hasExceptions;
+    return rentAmount > TIER2_RENT_THRESHOLD || hasExceptions;
   }
 
   private requiresTier3(app: any): boolean {

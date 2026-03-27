@@ -1005,6 +1005,31 @@ provide 3 `mockResolvedValueOnce` values in call order:
 
 ---
 
+## Loop 31 — TIER2_RENT_THRESHOLD constant + README compliance update
+
+### ✅ Extract $1500 magic number as `TIER2_RENT_THRESHOLD` exported constant
+### ✅ Update README: /api/compliance/fair-housing, compliance module, FHA section
+
+**TIER2_RENT_THRESHOLD = 1500 (approval/service.ts):**
+- Exported const with audit comment explaining it is a policy decision tracked in git
+- `requiresTier2()` now references the constant rather than the literal
+- JSDoc comments updated to reference the constant name
+- No behavioral change — pure auditability improvement
+
+**README updates:**
+- Key Features: added "Fair Housing Compliance Report" bullet
+- API Endpoints: new "Compliance Reports" section with GET /api/compliance/fair-housing
+- Compliance section: expanded with statute citations and links to endpoints
+- Project Structure: added `compliance/` module entry
+
+**No new tests needed** — TIER2_RENT_THRESHOLD is used only in `requiresTier2()`
+which is already tested in approval-service.test.ts (the $1500 boundary test still
+passes since the value is unchanged). README is documentation only.
+
+**TypeScript:** `tsc --noEmit` clean. 699 tests, 29 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
