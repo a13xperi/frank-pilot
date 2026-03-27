@@ -580,6 +580,67 @@ npm run cli -- lease-status -i <app-id>
 
 ---
 
+## Loop 22 — FCRA Adverse Action Notice Module (Implementation)
+
+### ✅ Implement `src/modules/adverse-action/service.ts` + `routes.ts`
+### ✅ Update `src/db/schema.ts` (new table + enum value + UNIQUE constraint)
+### ✅ Wire into `ScreeningService` + `ApprovalService` (all tier denials)
+### ✅ Write `src/__tests__/adverse-action-service.test.ts` — 14 tests
+
+**Compliance gap closed:** Federal law (15 U.S.C. § 1681m) requires an adverse action
+notice whenever an applicant is denied based in whole or in part on consumer report
+data. Previously no notice mechanism existed; applications could reach `screening_failed`
+or `tier*_denied` with no legally required disclosure to the applicant.
+
+**Schema changes:**
+- Added `adverse_action_notice_sent` to `audit_action` enum
+- Added `UNIQUE(address_line1, city, state, zip)` to `known_problem_addresses`
+  (required for seed's `ON CONFLICT DO NOTHING` added in Loop 21 to work)
+- Added `adverse_action_notices` table:
+  `(id, application_id, sent_by, reason, reason_detail, notice_text, sent_via, sms_delivered)`
+
+**AdverseActionService — 2 methods:**
+
+`sendNotice(applicationId, actorId, actorRole, reason, reasonDetail?)`:
+- Fetches applicant name + property from DB (JOIN applications + properties)
+- Builds FCRA-compliant notice text with CRA name/address/phone, FCRA rights disclosure
+- Inserts record into `adverse_action_notices` (authoritative legal evidence, always written)
+- Writes `adverse_action_notice_sent` audit log with noticeId, reason, applicantName
+- Fires non-blocking `TwilioService.notifyDenied()` SMS — SMS failure never propagates
+- Skips SMS (warns to log) when applicant has no phone number on file
+- CRA details configurable via env vars: `CRA_NAME`, `CRA_ADDRESS`, `CRA_PHONE`
+
+`getNotice(applicationId)`:
+- Returns most recently sent notice (ORDER BY created_at DESC LIMIT 1)
+- Returns null if no notice has been sent
+
+**Auto-trigger wiring:**
+- `ScreeningService.runFullScreening()` — fires non-blocking when `overallResult === 'fail'`
+  with `reason='screening_failed'` and `reasonDetail` listing failed checks
+- `ApprovalService.tier1Review()` — fires non-blocking when `decision === 'fail'`
+  with `reason='tier1_denied'` and notes as reasonDetail
+- `ApprovalService.tier2Review()` — same for tier2 denial
+- `ApprovalService.tier3Review()` — same for tier3 denial
+
+**Routes** (`/api/applications`):
+- `GET  /:applicationId/adverse-action`         — `screening:view` (senior_manager+); 404 on miss
+- `POST /:applicationId/adverse-action/resend`  — `approval:tier1` (senior_manager+); manual resend
+
+**Tests — 14 passing:**
+- Throws when application not found (no INSERT)
+- INSERT written with correct params (applicationId, actorId, reason, reasonDetail=null, noticeText)
+- reasonDetail included in INSERT when provided; null when absent
+- Audit log written with `adverse_action_notice_sent`, correct actorId/role, resourceId=noticeId
+- Returns { noticeId, applicationId, sentAt, reason }
+- Twilio SMS sent when phone present; skipped when phone=null
+- SMS failure does NOT throw (non-blocking fire-and-forget)
+- Notice text contains FCRA rights language (FREE copy, Dispute, CRA, property name)
+- getNotice: null on miss; correct shape on hit; null reasonDetail when DB is null; correct query
+
+**TypeScript:** `tsc --noEmit` clean. 552 tests, 22 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`

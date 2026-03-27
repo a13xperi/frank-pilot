@@ -75,6 +75,7 @@ CREATE TYPE audit_action AS ENUM (
   'lease_modification_approved',
   'lease_modification_denied',
   'fraud_flag_raised',
+  'adverse_action_notice_sent',
   'user_login',
   'user_logout',
   'permission_change'
@@ -282,6 +283,22 @@ CREATE TABLE known_problem_addresses (
   zip VARCHAR(10),
   reason TEXT NOT NULL,
   reported_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(address_line1, city, state, zip)
+);
+
+-- FCRA Adverse Action Notices (15 U.S.C. § 1681m)
+-- Required whenever adverse action is taken based on consumer report information.
+-- Records are immutable; use resend to create a new record instead of updating.
+CREATE TABLE adverse_action_notices (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id UUID NOT NULL REFERENCES applications(id),
+  sent_by UUID REFERENCES users(id),
+  reason VARCHAR(100) NOT NULL,       -- e.g. 'screening_failed', 'tier1_denied'
+  reason_detail TEXT,                 -- human-readable denial reason from results
+  notice_text TEXT NOT NULL,          -- full FCRA-compliant notice text (PII-safe for log)
+  sent_via VARCHAR(50) DEFAULT 'sms',
+  sms_delivered BOOLEAN,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -381,6 +398,7 @@ CREATE TRIGGER trg_audit_log_immutable
 `;
 
 export const DROP_SCHEMA_SQL = `
+DROP TABLE IF EXISTS adverse_action_notices CASCADE;
 DROP TABLE IF EXISTS audit_log CASCADE;
 DROP TABLE IF EXISTS lease_modifications CASCADE;
 DROP TABLE IF EXISTS fraud_flags CASCADE;

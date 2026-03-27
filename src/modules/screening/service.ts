@@ -5,11 +5,13 @@ import { decrypt } from "../../utils/encryption";
 import { BackgroundCheckService } from "./background-check";
 import { CreditCheckService } from "./credit-check";
 import { ComplianceService } from "./compliance";
+import { AdverseActionService } from "../adverse-action/service";
 
 export class ScreeningService {
   private backgroundCheck = new BackgroundCheckService();
   private creditCheck = new CreditCheckService();
   private compliance = new ComplianceService();
+  private adverseAction = new AdverseActionService();
 
   /**
    * Run full automated screening pipeline:
@@ -128,6 +130,33 @@ export class ScreeningService {
       "UPDATE applications SET overall_screening_result = $2, status = $3 WHERE id = $1",
       [applicationId, overallResult, newStatus]
     );
+
+    // FCRA § 1681m: send adverse action notice when screening result is fail.
+    // Non-blocking — notice failure must not prevent the screening result from being returned.
+    if (overallResult === "fail") {
+      const failedChecks = [
+        backgroundResult.result === "fail" ? "background check" : null,
+        creditResult.result === "fail" ? "credit check" : null,
+        complianceResult.result === "fail" ? "compliance check" : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      this.adverseAction
+        .sendNotice(
+          applicationId,
+          initiatedBy,
+          initiatorRole,
+          "screening_failed",
+          `Automated screening denial: failed ${failedChecks}`
+        )
+        .catch((err: Error) =>
+          logger.error("Failed to send FCRA adverse action notice after screening failure", {
+            error: err.message,
+            applicationId,
+          })
+        );
+    }
 
     // Audit each check completion
     await Promise.all([

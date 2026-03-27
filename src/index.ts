@@ -16,6 +16,7 @@ import approvalRoutes from "./modules/approval/routes";
 import paymentRoutes from "./modules/payment/routes";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
+import adverseActionRoutes from "./modules/adverse-action/routes";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000");
@@ -87,6 +88,9 @@ app.use("/api/modifications", decisionMatrixRoutes);
 
 // Lease generation and onboarding
 app.use("/api/leases", leaseRoutes);
+
+// FCRA Adverse action notices (nested under /api/applications)
+app.use("/api/applications", adverseActionRoutes);
 
 // Audit log
 app.get(

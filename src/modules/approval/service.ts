@@ -2,6 +2,7 @@ import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { enforceSeparationOfDuties } from "../../middleware/rbac";
 import { FraudDetectionService } from "../screening/fraud-detection";
+import { AdverseActionService } from "../adverse-action/service";
 import { logger } from "../../utils/logger";
 
 export type ApprovalDecision = "pass" | "fail";
@@ -25,6 +26,7 @@ export interface ApprovalInput {
  */
 export class ApprovalService {
   private fraudDetection = new FraudDetectionService();
+  private adverseAction = new AdverseActionService();
 
   /**
    * Tier 1: Senior Manager review.
@@ -86,6 +88,24 @@ export class ApprovalService {
         requiresTier2,
       },
     });
+
+    // FCRA § 1681m: send adverse action notice on human denial (non-blocking)
+    if (input.decision === "fail") {
+      this.adverseAction
+        .sendNotice(
+          input.applicationId,
+          input.reviewerId,
+          input.reviewerRole,
+          "tier1_denied",
+          `Tier 1 review denial: ${input.notes}`
+        )
+        .catch((err: Error) =>
+          logger.error("Failed to send FCRA adverse action notice after Tier 1 denial", {
+            error: err.message,
+            applicationId: input.applicationId,
+          })
+        );
+    }
 
     logger.info("Tier 1 review completed", {
       applicationId: input.applicationId,
@@ -152,6 +172,24 @@ export class ApprovalService {
       },
     });
 
+    // FCRA § 1681m: send adverse action notice on human denial (non-blocking)
+    if (input.decision === "fail") {
+      this.adverseAction
+        .sendNotice(
+          input.applicationId,
+          input.reviewerId,
+          input.reviewerRole,
+          "tier2_denied",
+          `Tier 2 review denial: ${input.notes}`
+        )
+        .catch((err: Error) =>
+          logger.error("Failed to send FCRA adverse action notice after Tier 2 denial", {
+            error: err.message,
+            applicationId: input.applicationId,
+          })
+        );
+    }
+
     return {
       applicationId: input.applicationId,
       decision: input.decision,
@@ -196,6 +234,24 @@ export class ApprovalService {
       applicationId: input.applicationId,
       details: { decision: input.decision, notes: input.notes },
     });
+
+    // FCRA § 1681m: send adverse action notice on human denial (non-blocking)
+    if (input.decision === "fail") {
+      this.adverseAction
+        .sendNotice(
+          input.applicationId,
+          input.reviewerId,
+          input.reviewerRole,
+          "tier3_denied",
+          `Tier 3 review denial: ${input.notes}`
+        )
+        .catch((err: Error) =>
+          logger.error("Failed to send FCRA adverse action notice after Tier 3 denial", {
+            error: err.message,
+            applicationId: input.applicationId,
+          })
+        );
+    }
 
     return {
       applicationId: input.applicationId,
