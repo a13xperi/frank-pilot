@@ -15,6 +15,7 @@ import screeningRoutes from "./modules/screening/routes";
 import approvalRoutes from "./modules/approval/routes";
 import paymentRoutes from "./modules/payment/routes";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
+import leaseRoutes from "./modules/lease/routes";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000");
@@ -83,6 +84,9 @@ app.use("/api/payments", paymentRoutes);
 
 // Decision Matrix (Lease Modifications)
 app.use("/api/modifications", decisionMatrixRoutes);
+
+// Lease generation and onboarding
+app.use("/api/leases", leaseRoutes);
 
 // Audit log
 app.get(

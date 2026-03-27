@@ -372,6 +372,47 @@
 
 ---
 
+## Loop 17 — Lease Generation + Onboarding Module (Implementation)
+
+### ✅ Implement `src/modules/lease/service.ts` + `src/modules/lease/routes.ts`
+
+**Context:** Applications could reach `tier1/2/3_approved` status but had no path to
+`lease_generated` → `onboarded`. OneSite, Loft, and Twilio stubs were all in place but
+nothing orchestrated them.
+
+**LeaseService** — 3 methods:
+
+`generateLease(applicationId, actorId, actorRole)`:
+- Validates application exists and is in an APPROVABLE_STATUSES set
+  (`tier1_approved | tier2_approved | tier3_approved`)
+- Guards against missing `requested_rent_amount` (prevents lease with no rent)
+- Calls `OneSiteService.generateLease()` → gets `{ leaseId, documentUrl }`
+- Writes `lease_generated` audit log (OneSite handles status transition internally)
+- Fires `TwilioService.notifyLeaseReady()` non-blocking — SMS failure is logged but does
+  not fail the request
+
+`completeOnboarding(applicationId, actorId, actorRole)`:
+- Validates `status === 'lease_generated'` and `onesite_lease_id` present
+- Calls `LoftService.createTenant()` to register in payment platform
+- If `auto_pay_enrolled && stripe_payment_method_id` → calls `LoftService.setupAutoPay()`
+- Calls `OneSiteService.syncTenant()` for data sync
+- Updates `status = 'onboarded'` and stores `loft_tenant_id`
+- Writes `tenant_onboarded` audit log with loftTenantId, onesiteLeaseId, autoPayEnrolled
+- Fires `TwilioService.notifyApproved()` non-blocking
+
+`getLeaseStatus(applicationId)`:
+- Returns `{ applicationId, status, onesiteLeaseId, loftTenantId, autoPayEnrolled }` or null
+
+**Routes** (`/api/leases`):
+- `POST /:applicationId/generate` — `lease:generate` (senior_manager+); 400 on service error
+- `POST /:applicationId/onboard`  — `lease:generate` (senior_manager+); 400 on service error
+- `GET  /:applicationId`          — `application:read` (all roles); 404 on null; 500 on throw
+
+**Wired into:** `src/index.ts` at `/api/leases`
+**TypeScript:** `tsc --noEmit` clean; all 451 existing tests still passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
