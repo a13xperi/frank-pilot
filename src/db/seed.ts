@@ -94,7 +94,8 @@ async function seed() {
     for (const addr of problemAddresses) {
       await query(
         `INSERT INTO known_problem_addresses (address_line1, city, state, zip, reason)
-         VALUES ($1, $2, $3, $4, $5)`,
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (address_line1, city, state, zip) DO NOTHING`,
         [addr.address, addr.city, addr.state, addr.zip, addr.reason]
       );
     }

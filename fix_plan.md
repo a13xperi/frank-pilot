@@ -531,6 +531,55 @@ nothing orchestrated them.
 
 ---
 
+## Loop 21 — Lease CLI Commands + Seed Fix (Implementation)
+
+### ✅ Add lease CLI commands to `src/cli/index.ts`
+### ✅ Fix `src/db/seed.ts` idempotency bug
+
+**Gap:** After Loop 17 implemented `LeaseService`, the CLI had no commands to drive
+applications through the lease generation → onboarding workflow. Operators could not
+complete the pipeline from the command line.
+
+**New CLI commands:**
+
+`generate-lease -i <applicationId> -u <userId>`:
+- Looks up actor role from DB (same pattern as `run-screening`)
+- Calls `LeaseService.generateLease()` with applicationId, userId, role
+- Prints leaseId and documentUrl on success; exits 1 on error
+
+`onboard -i <applicationId> -u <userId>`:
+- Looks up actor role from DB
+- Calls `LeaseService.completeOnboarding()` with applicationId, userId, role
+- Prints `onboarded: true` and loftTenantId on success; exits 1 on error
+
+`lease-status -i <applicationId>`:
+- Calls `LeaseService.getLeaseStatus()` — no auth required (read-only)
+- Prints status, onesiteLeaseId, loftTenantId, autoPayEnrolled in human-readable format
+- Exits 1 with "Application not found" on null result
+
+`deactivate-user -e <email>`:
+- Sets `is_active = false` for the given user email
+- Exits 1 if user not found
+
+**Bug fix — `src/db/seed.ts`:**
+- `known_problem_addresses` INSERT lacked `ON CONFLICT DO NOTHING`
+- Re-running `npm run seed` would fail with unique constraint violation
+- Added `ON CONFLICT (address_line1, city, state, zip) DO NOTHING` to make seed idempotent
+
+**Full workflow now operational from CLI:**
+```bash
+npm run cli -- login -e senior@cdpc.test -p password123
+npm run cli -- run-screening -i <app-id> -u <user-id>
+npm run cli -- approval-status -i <app-id>
+npm run cli -- generate-lease -i <app-id> -u <user-id>
+npm run cli -- onboard -i <app-id> -u <user-id>
+npm run cli -- lease-status -i <app-id>
+```
+
+**TypeScript:** `tsc --noEmit` clean. All 538 tests still passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`

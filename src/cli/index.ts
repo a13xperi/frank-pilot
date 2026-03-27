@@ -9,6 +9,7 @@ import { ScreeningService } from "../modules/screening/service";
 import { ApprovalService } from "../modules/approval/service";
 import { PaymentService } from "../modules/payment/service";
 import { DecisionMatrixService } from "../modules/decision-matrix/service";
+import { LeaseService } from "../modules/lease/service";
 import { queryAuditLog } from "../middleware/audit";
 import bcrypt from "bcrypt";
 
@@ -82,6 +83,28 @@ program
         "SELECT id, email, first_name, last_name, role, is_active, last_login FROM users ORDER BY role, email"
       );
       console.table(result.rows);
+    } catch (err) {
+      console.error("Error:", (err as Error).message);
+    } finally {
+      await pool.end();
+    }
+  });
+
+program
+  .command("deactivate-user")
+  .description("Deactivate a user account (prevents login)")
+  .requiredOption("-e, --email <email>", "User email to deactivate")
+  .action(async (opts) => {
+    try {
+      const result = await query(
+        "UPDATE users SET is_active = false WHERE email = $1 RETURNING id, email, role",
+        [opts.email]
+      );
+      if (result.rows.length === 0) {
+        console.error("User not found:", opts.email);
+        process.exit(1);
+      }
+      console.log("User deactivated:", result.rows[0]);
     } catch (err) {
       console.error("Error:", (err as Error).message);
     } finally {
@@ -193,6 +216,86 @@ program
       console.log(JSON.stringify(result, null, 2));
     } catch (err) {
       console.error("Error:", (err as Error).message);
+    } finally {
+      await pool.end();
+    }
+  });
+
+// ============================================================
+// Lease commands
+// ============================================================
+
+program
+  .command("generate-lease")
+  .description("Generate a lease document for an approved application (senior_manager+)")
+  .requiredOption("-i, --id <id>", "Application ID")
+  .requiredOption("-u, --user-id <userId>", "Actor user ID")
+  .action(async (opts) => {
+    try {
+      const userResult = await query("SELECT role FROM users WHERE id = $1", [opts.userId]);
+      if (userResult.rows.length === 0) {
+        console.error("User not found");
+        process.exit(1);
+      }
+      const service = new LeaseService();
+      const result = await service.generateLease(opts.id, opts.userId, userResult.rows[0].role);
+      console.log("\n=== Lease Generated ===\n");
+      console.log(`Lease ID:     ${result.leaseId}`);
+      console.log(`Document URL: ${result.documentUrl}`);
+    } catch (err) {
+      console.error("Error:", (err as Error).message);
+      process.exit(1);
+    } finally {
+      await pool.end();
+    }
+  });
+
+program
+  .command("onboard")
+  .description("Complete tenant onboarding after lease is signed (senior_manager+)")
+  .requiredOption("-i, --id <id>", "Application ID")
+  .requiredOption("-u, --user-id <userId>", "Actor user ID")
+  .action(async (opts) => {
+    try {
+      const userResult = await query("SELECT role FROM users WHERE id = $1", [opts.userId]);
+      if (userResult.rows.length === 0) {
+        console.error("User not found");
+        process.exit(1);
+      }
+      const service = new LeaseService();
+      const result = await service.completeOnboarding(opts.id, opts.userId, userResult.rows[0].role);
+      console.log("\n=== Onboarding Complete ===\n");
+      console.log(`Onboarded:     ${result.onboarded}`);
+      console.log(`Loft Tenant ID: ${result.loftTenantId}`);
+    } catch (err) {
+      console.error("Error:", (err as Error).message);
+      process.exit(1);
+    } finally {
+      await pool.end();
+    }
+  });
+
+program
+  .command("lease-status")
+  .description("View lease and onboarding status for an application")
+  .requiredOption("-i, --id <id>", "Application ID")
+  .action(async (opts) => {
+    try {
+      const service = new LeaseService();
+      const result = await service.getLeaseStatus(opts.id);
+      if (!result) {
+        console.error("Application not found");
+        process.exit(1);
+      }
+      console.log("\n=== Lease Status ===\n");
+      console.log(`Application ID:  ${result.applicationId}`);
+      console.log(`Status:          ${result.status}`);
+      console.log(`OneSite Lease:   ${result.onesiteLeaseId || "(not yet generated)"}`);
+      console.log(`Loft Tenant:     ${result.loftTenantId || "(not yet onboarded)"}`);
+      console.log(`Auto-Pay:        ${result.autoPayEnrolled ? "enrolled" : "not enrolled"}`);
+    } catch (err) {
+      console.error("Error:", (err as Error).message);
+      process.exit(1);
     } finally {
       await pool.end();
     }
