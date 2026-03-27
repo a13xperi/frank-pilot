@@ -483,6 +483,54 @@ nothing orchestrated them.
 
 ---
 
+## Loop 20 — Auth Middleware + App-Level Route Tests
+
+### ✅ Write tests: `src/middleware/auth.ts` + `src/index.ts` routes — 30 tests
+- Covers the last two untested areas: auth middleware and the 3 routes defined in index.ts
+- bcrypt mocked via `jest.mock('bcrypt')` since login() uses dynamic import
+- Build minimal Express app replicating index.ts handlers — avoids `app.listen()` port conflicts
+
+**authenticate middleware** — 8 tests:
+- 401: no Authorization header; non-Bearer header; malformed token; wrong-secret token
+- 401: user not found in DB; user is_active=false
+- 200: valid token + active user → req.user populated correctly
+- DB values override token payload for req.user (role taken from DB, not JWT claims)
+
+**login()** — 6 tests:
+- null: user not found; user inactive; wrong password (bcrypt returns false)
+- Success: returns `{ token, user }` with correct fields
+- Updates `last_login` timestamp on success (UPDATE query verified)
+- Returned JWT is decodable with dev secret
+
+**GET /health** — 2 tests:
+- 200 with `{ status: 'ok', service: 'frank-pilot', timestamp }`
+- Timestamp is a valid ISO 8601 string
+
+**POST /api/auth/login** — 6 tests:
+- 400: missing email; missing password; both missing
+- 401: login() returns null (invalid credentials)
+- 200: successful login returns token + user object
+- 500: unexpected DB throw
+
+**GET /api/audit** — 8 tests:
+- 401: no token; invalid token
+- 403: leasing_agent blocked; senior_manager blocked (audit:view = regional_manager+)
+- 200: regional_manager gets logs array
+- Query params (applicationId, actorId, action, limit, offset) forwarded correctly
+- Default limit=100/offset=0 when not specified
+- 500: queryAuditLog throws
+
+**Result:** 30 tests, all passing (538 total across 21 test suites).
+
+**Coverage now complete** — every module with non-trivial logic has dedicated test coverage:
+- All middleware: rbac, auth (authenticate + login), audit ✅
+- All services: application, screening, approval, payment, decision-matrix, lease ✅
+- All routes: application, screening, approval, payment, decision-matrix, lease, audit ✅
+- All utilities: encryption, pii-filter, params ✅
+- All compliance logic: LIHTC/HUD compliance, fraud detection ✅
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
