@@ -159,6 +159,27 @@
 
 ---
 
+## Loop 9 — Application Route Tests
+
+### ✅ Write tests: `src/modules/application/routes.ts` — 24 tests
+- Install: `supertest` + `@types/supertest` (not previously in project)
+- Auth strategy: real JWT tokens via `generateToken` + mock the users DB query
+  that `authenticate` runs — exercises actual auth middleware, not a stub
+- Service strategy: mock `ApplicationService` at module level (instantiated at route scope)
+- Test: 401 with no token, malformed Bearer, wrong-secret token
+- Test: 400 on Zod validation errors (missing fields, invalid SSN, non-UUID propertyId)
+- Test: 400 on negative annualIncome in PATCH
+- Test: 201 POST / happy path; service.create receives user ID + role
+- Test: 500 when service.create throws
+- Test: GET / — 200, query params forwarded to service.list
+- Test: GET /:id — 404 when service returns null, 200 when found
+- Test: PATCH /:id — 400 on validation, 200 on valid partial update
+- Test: POST /:id/submit — 200 happy path, 400 on service error, correct args
+
+**Result:** 24 tests, all passing (263 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
