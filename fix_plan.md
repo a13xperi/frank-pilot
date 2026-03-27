@@ -137,6 +137,28 @@
 
 ---
 
+## Loop 8 — Payment Service Tests
+
+### ✅ Write tests: `src/modules/payment/service.ts` — 24 tests
+- Mock `query`, `writeAuditLog`, `stripe` (virtual module mock for dynamic require)
+- Test: createCustomer stub path (no key / placeholder key) — cus_stub_ ID, DB write, no audit log
+- Test: createCustomer live path — stripe.customers.create called, DB write, audit log written
+- Test: setupPaymentMethod — no stripe_customer_id → throws
+- Test: setupPaymentMethod stub path — DB update, audit log, success:true returned
+- Test: setupPaymentMethod live path — attach + setDefault called on Stripe
+- Test: enrollAutoPay — no stripe_payment_method_id → throws
+- Test: enrollAutoPay — DB update, audit log with monthlyDiscount:25, returns enrolled:true
+- Test: getPaymentStatus — null on miss; effectiveRent = rent when no auto-pay;
+  effectiveRent = rent-25 when enrolled; floor at $0; hasPaymentMethod/hasCustomer flags;
+  null rent defaults to 0
+- **Note:** Stripe is `require()`d dynamically in the constructor — mock with
+  `jest.mock('stripe', factory, { virtual: true })` and control the path via
+  `process.env.STRIPE_SECRET_KEY` before `new PaymentService()`.
+
+**Result:** 24 tests, all passing (239 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
