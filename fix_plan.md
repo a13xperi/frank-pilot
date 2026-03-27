@@ -335,6 +335,43 @@
 
 ---
 
+## Loop 16 — Audit Middleware + Params Utility Tests
+
+### ✅ Write tests: `src/middleware/audit.ts` + `src/utils/params.ts` — 28 tests
+- Mock `query` (database), `sanitizeObject` (pii-filter), `logger`
+- **Gotcha:** `mockQuery.mock.calls[0][1]` needs `!` non-null assertions for TypeScript to
+  accept indexing — use `(mockQuery.mock.calls[0]![1]! as unknown[])[idx]`
+
+**writeAuditLog()** — 7 tests:
+- Inserts all fields at correct param positions in INSERT query
+- PII-sanitizes details via `sanitizeObject` before DB write; sanitized value stored (not raw)
+- Optional fields (actorId, actorRole, applicationId, etc.) default to null when absent
+- Empty details → stores `{}` JSON; details → stored as JSON string
+- DB failure → re-throws (audit failures never silently swallowed)
+- DB failure → logs error with action name before re-throw
+
+**auditMiddleware()** — 6 tests:
+- Calls `next()` synchronously; attaches `req.audit` function to request
+- `req.audit()` writes audit log with actorId/actorRole from `req.user`
+- `req.audit()` falls back to `req.params.applicationId` when applicationId not passed
+- Explicit applicationId arg overrides `req.params.applicationId`
+- IP address and user-agent captured from request headers
+
+**queryAuditLog()** — 8 tests:
+- Returns rows array; no WHERE clause when no filters
+- Individual filters: applicationId, actorId, action, startDate/endDate
+- Default limit=100 / offset=0; custom limit/offset respected
+- Combined filters use correct `$N` param indices (no collision with limit/offset at end)
+- Results ordered by `created_at DESC`
+
+**param()** — 5 tests:
+- String → returns string; undefined → returns ""; empty string → returns ""
+- Array → returns first element; single-element array → returns element
+
+**Result:** 28 tests, all passing (451 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
