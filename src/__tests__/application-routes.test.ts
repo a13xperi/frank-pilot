@@ -30,6 +30,7 @@ const mockList = jest.fn();
 const mockGetById = jest.fn();
 const mockUpdate = jest.fn();
 const mockSubmit = jest.fn();
+const mockCancel = jest.fn();
 
 jest.mock("../modules/application/service", () => ({
   ApplicationService: jest.fn().mockImplementation(() => ({
@@ -38,6 +39,7 @@ jest.mock("../modules/application/service", () => ({
     getById: mockGetById,
     update: mockUpdate,
     submit: mockSubmit,
+    cancel: mockCancel,
   })),
 }));
 
@@ -482,5 +484,94 @@ describe("RBAC — role without permission is rejected", () => {
       .send(validBody());
 
     expect(res.status).toBe(201); // leasing_agent has application:create
+  });
+});
+
+// ── PATCH /:id/cancel — cancel application ────────────────────────────────
+//
+// Permission: screening:initiate (senior_manager+)
+// leasing_agent cannot cancel (they cannot see screening results either)
+
+describe("PATCH /applications/:id/cancel", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("returns 401 when no token provided", async () => {
+    const res = await request(app).patch("/applications/app-001/cancel");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 401 when token is invalid", async () => {
+    const res = await request(app)
+      .patch("/applications/app-001/cancel")
+      .set("Authorization", "Bearer bad.token.here");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 403 when leasing_agent attempts to cancel (screening:initiate required)", async () => {
+    mockAuthQuery(testUser); // testUser is leasing_agent
+
+    const res = await request(app)
+      .patch("/applications/app-001/cancel")
+      .set("Authorization", tokenFor(testUser));
+
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 200 with cancelled application when senior_manager cancels", async () => {
+    mockAuthQuery(managerUser);
+    mockCancel.mockResolvedValue({ id: "app-001", status: "cancelled" });
+
+    const res = await request(app)
+      .patch("/applications/app-001/cancel")
+      .set("Authorization", tokenFor(managerUser));
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("cancelled");
+  });
+
+  it("passes applicationId, actorId, actorRole, and reason to service.cancel", async () => {
+    mockAuthQuery(managerUser);
+    mockCancel.mockResolvedValue({ id: "app-001", status: "cancelled" });
+
+    await request(app)
+      .patch("/applications/app-abc/cancel")
+      .set("Authorization", tokenFor(managerUser))
+      .send({ reason: "applicant withdrew" });
+
+    expect(mockCancel).toHaveBeenCalledWith(
+      "app-abc",
+      managerUser.id,
+      managerUser.role,
+      "applicant withdrew"
+    );
+  });
+
+  it("passes undefined reason when body has no reason field", async () => {
+    mockAuthQuery(managerUser);
+    mockCancel.mockResolvedValue({ id: "app-001", status: "cancelled" });
+
+    await request(app)
+      .patch("/applications/app-001/cancel")
+      .set("Authorization", tokenFor(managerUser))
+      .send({});
+
+    expect(mockCancel).toHaveBeenCalledWith(
+      "app-001",
+      managerUser.id,
+      managerUser.role,
+      undefined
+    );
+  });
+
+  it("returns 400 when service throws (e.g. already approved status)", async () => {
+    mockAuthQuery(managerUser);
+    mockCancel.mockRejectedValue(new Error("Application not found or cannot be cancelled from its current status"));
+
+    const res = await request(app)
+      .patch("/applications/app-001/cancel")
+      .set("Authorization", tokenFor(managerUser));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/cannot be cancelled/i);
   });
 });

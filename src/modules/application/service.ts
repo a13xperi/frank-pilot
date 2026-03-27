@@ -193,6 +193,62 @@ export class ApplicationService {
     };
   }
 
+  /**
+   * Cancel an application.
+   *
+   * Allowed from any non-terminal status (i.e. not already approved, denied,
+   * lease_generated, onboarded, or cancelled). Used when an applicant withdraws
+   * or a manager administratively closes the application.
+   *
+   * Cancelled applications are excluded from duplicate-SSN checks, allowing
+   * the same applicant to reapply in the future.
+   */
+  async cancel(
+    applicationId: string,
+    actorId: string,
+    actorRole: string,
+    reason?: string
+  ): Promise<any> {
+    const CANCELLABLE_STATUSES = [
+      "draft",
+      "submitted",
+      "screening",
+      "screening_passed",
+      "screening_failed",
+      "tier1_review",
+      "tier2_review",
+      "tier3_review",
+    ];
+
+    const result = await query(
+      `UPDATE applications
+       SET status = 'cancelled'
+       WHERE id = $1 AND status = ANY($2::application_status[])
+       RETURNING id, status`,
+      [applicationId, CANCELLABLE_STATUSES]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error(
+        "Application not found or cannot be cancelled from its current status"
+      );
+    }
+
+    await writeAuditLog({
+      action: "application_cancelled",
+      actorId,
+      actorRole,
+      applicationId,
+      resourceType: "application",
+      resourceId: applicationId,
+      details: { reason: reason || null },
+    });
+
+    logger.info("Application cancelled", { applicationId, actorId, reason });
+
+    return result.rows[0];
+  }
+
   async update(applicationId: string, input: UpdateApplicationInput): Promise<any> {
     const setClauses: string[] = [];
     const params: unknown[] = [];

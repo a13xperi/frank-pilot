@@ -1073,6 +1073,62 @@ never updated to cover the new field.
 
 ---
 
+## Loop 34 — Application Cancellation (Implementation + Tests)
+
+### ✅ Add `application_cancelled` audit action to schema
+### ✅ Implement `ApplicationService.cancel()` + `PATCH /:id/cancel` route
+### ✅ Write 11 tests (6 service + 7 route) — 722 total
+
+**Gap closed:** The `cancelled` status existed in the `application_status` enum
+but had no implementation. Applications with fraud flags or applicant withdrawals
+could never be administratively closed, and the duplicate-SSN check would
+permanently block the same applicant from reapplying.
+
+**Implementation:**
+
+`src/db/schema.ts`:
+- Added `'application_cancelled'` to `audit_action` enum
+
+`ApplicationService.cancel(applicationId, actorId, actorRole, reason?)`:
+- Cancellable from: `draft`, `submitted`, `screening`, `screening_passed`,
+  `screening_failed`, `tier1_review`, `tier2_review`, `tier3_review`
+- NOT cancellable from: `tier*_approved`, `tier*_denied`, `lease_generated`,
+  `onboarded`, `cancelled` — these are terminal states
+- Uses `ANY($2::application_status[])` — clean array param, no SQL injection risk
+- Writes `application_cancelled` audit log with optional reason
+- Throws "not found or cannot be cancelled" when UPDATE returns 0 rows
+
+Route: `PATCH /api/applications/:id/cancel` — `screening:initiate` permission
+(senior_manager+). Leasing agents cannot cancel; once an application has been
+submitted it is in the management pipeline.
+
+**Compliance impact:** Cancelled apps are excluded from duplicate-SSN checks
+(see `checkDuplicateSSN`: `status NOT IN ('cancelled')`). This means a
+withdrawn application does not permanently block the same applicant from
+reapplying with a clean record.
+
+**Tests — 13 new:**
+
+Service (6):
+- Returns `{ id, status: 'cancelled' }` on success
+- Throws when not found or non-cancellable status (UPDATE returns 0 rows)
+- SQL uses `ANY(...)` to check cancellable status list
+- `application_cancelled` audit log written with actorId/actorRole
+- Reason included in audit log details when provided
+- `null` reason stored when reason is omitted
+
+Route (7):
+- 401 no token; 401 invalid token
+- 403 leasing_agent blocked (screening:initiate required)
+- 200 senior_manager success; status=cancelled in response
+- applicationId, actorId, actorRole, reason all forwarded to service
+- undefined reason forwarded when body has no reason field
+- 400 when service throws (e.g. already in tier2_approved)
+
+**TypeScript:** `tsc --noEmit` clean. 722 tests, 29 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`

@@ -76,6 +76,7 @@ CREATE TYPE audit_action AS ENUM (
   'lease_modification_denied',
   'fraud_flag_raised',
   'adverse_action_notice_sent',
+  'application_cancelled',
   'property_created',
   'property_updated',
   'user_login',

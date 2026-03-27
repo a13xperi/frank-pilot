@@ -1,7 +1,7 @@
 /**
  * Service-layer tests for src/modules/application/service.ts
  *
- * Tests all five methods: create, submit, getById, list, update.
+ * Tests all six methods: create, submit, getById, list, update, cancel.
  *
  * Key dependencies mocked:
  *   - query / transaction  (../../config/database)
@@ -564,5 +564,93 @@ describe("ApplicationService.update()", () => {
 
     const sqlQuery = mockQuery.mock.calls[0][0] as string;
     expect(sqlQuery).toContain("status = 'draft'");
+  });
+});
+
+// ── cancel() ───────────────────────────────────────────────────────────────
+//
+// The 'cancelled' status enables applicant withdrawals and administrative
+// closures. Cancelled apps are excluded from duplicate-SSN checks, allowing
+// the same applicant to reapply without triggering a fraud flag.
+
+describe("ApplicationService.cancel()", () => {
+  beforeEach(() => mockQuery.mockReset());
+
+  it("sets status to cancelled and returns the updated row", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "cancelled" }] } as any) // UPDATE
+      .mockResolvedValueOnce({ rows: [] } as any); // writeAuditLog (via query mock)
+
+    const service = makeService();
+    const result = await service.cancel("app-001", "user-mgr-001", "senior_manager");
+
+    expect(result.id).toBe("app-001");
+    expect(result.status).toBe("cancelled");
+  });
+
+  it("throws when application is not found or status is not cancellable", async () => {
+    mockQuery.mockResolvedValue({ rows: [] } as any);
+
+    const service = makeService();
+    await expect(
+      service.cancel("app-999", "user-mgr-001", "senior_manager")
+    ).rejects.toThrow(/not found or cannot be cancelled/i);
+  });
+
+  it("uses ANY($2::application_status[]) to check cancellable statuses", async () => {
+    mockQuery.mockResolvedValue({ rows: [] } as any);
+
+    const service = makeService();
+    try {
+      await service.cancel("app-001", "user-mgr-001", "senior_manager");
+    } catch {
+      // expected
+    }
+
+    const sql = mockQuery.mock.calls[0]![0] as string;
+    expect(sql).toContain("status = ANY(");
+    expect(sql).toContain("'cancelled'");
+  });
+
+  it("writes application_cancelled audit log with actorId and actorRole", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-001", status: "cancelled" }] } as any);
+
+    const service = makeService();
+    await service.cancel("app-001", "user-mgr-001", "senior_manager", "applicant withdrew");
+
+    expect(mockWriteAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "application_cancelled",
+        actorId: "user-mgr-001",
+        actorRole: "senior_manager",
+        applicationId: "app-001",
+      })
+    );
+  });
+
+  it("includes reason in audit log details when provided", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-001", status: "cancelled" }] } as any);
+
+    const service = makeService();
+    await service.cancel("app-001", "user-001", "regional_manager", "duplicate application");
+
+    expect(mockWriteAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: expect.objectContaining({ reason: "duplicate application" }),
+      })
+    );
+  });
+
+  it("stores null reason in audit log when reason is omitted", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-001", status: "cancelled" }] } as any);
+
+    const service = makeService();
+    await service.cancel("app-001", "user-001", "senior_manager");
+
+    expect(mockWriteAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: expect.objectContaining({ reason: null }),
+      })
+    );
   });
 });

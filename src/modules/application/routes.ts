@@ -92,6 +92,29 @@ router.patch(
   }
 );
 
+// Cancel application (Senior Manager+ — screening:initiate permission level)
+// Cancellable from: draft, submitted, screening, screening_passed/failed, tier*_review
+// Not cancellable from: tier*_approved, tier*_denied, lease_generated, onboarded, cancelled
+router.patch(
+  "/:id/cancel",
+  authenticate,
+  requirePermission("screening:initiate"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const result = await service.cancel(
+        param(req.params.id),
+        req.user!.id,
+        req.user!.role,
+        req.body.reason
+      );
+      res.json(result);
+    } catch (err: any) {
+      logger.error("Failed to cancel application", { error: err.message });
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
 // Submit application for screening
 router.post(
   "/:id/submit",
