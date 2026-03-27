@@ -116,6 +116,27 @@
 
 ---
 
+## Loop 7 — Screening Orchestration Tests
+
+### ✅ Write tests: `src/modules/screening/service.ts` — 22 tests
+- Mock `query`, `writeAuditLog`, `decrypt`, `BackgroundCheckService`, `CreditCheckService`, `ComplianceService`
+- Test: application not found/not submitted → throws
+- Test: all pass → overallResult=pass, status=screening_passed
+- Test: each individual check fail → overallResult=fail, status=screening_failed
+- Test: review_required (no fail) → overallResult=review_required, status=screening_passed
+- Test: fail takes precedence over review_required
+- Test: SSN decrypted, only last 4 passed to check services (PCI-DSS)
+- Test: DOB decrypted and passed through; falls back to "NV" when state missing
+- Test: annualIncome parsed from string; defaults to 0 for null (LIHTC zero-income)
+- Test: audit log written for screening_initiated, each check completion, and screening_completed
+- Test: getResults returns null on miss, row on hit, queries by applicationId
+- **Note:** TypeScript enforces full return-type shapes on mocked methods — use `as any`
+  on mock helper return values when the full details object is not relevant to the test.
+
+**Result:** 22 tests, all passing (215 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
