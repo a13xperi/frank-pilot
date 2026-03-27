@@ -450,6 +450,39 @@ nothing orchestrated them.
 
 ---
 
+## Loop 19 — Lease Route Tests
+
+### ✅ Write tests: `src/modules/lease/routes.ts` — 25 tests
+- Mock `LeaseService` at module level (instantiated at route scope)
+- Auth strategy: real JWT tokens + mock users DB query for `authenticate`
+- `lease:generate` RBAC: leasing_agent → 403; senior_manager/regional_manager → 200
+
+**POST /:applicationId/generate** — 9 tests:
+- 401 no token; 401 bad token; 403 leasing_agent blocked
+- 200 happy path for senior_manager (leaseId + documentUrl returned)
+- 200 happy path for regional_manager
+- Correct args forwarded: (applicationId, actorId, actorRole)
+- 400 on wrong status error; 400 on not found; 400 on missing rent amount
+
+**POST /:applicationId/onboard** — 9 tests:
+- 401 no token; 401 bad token; 403 leasing_agent blocked
+- 200 happy path for senior_manager (onboarded=true + loftTenantId returned)
+- 200 happy path for regional_manager
+- Correct args forwarded: (applicationId, actorId, actorRole)
+- 400 on wrong status (not lease_generated); 400 on missing onesite_lease_id; 400 on not found
+
+**GET /:applicationId** — 7 tests:
+- 401 no token; 401 bad token
+- 200 for leasing_agent (application:read open to all roles) with full status object
+- 200 for senior_manager with onboarded status + loftTenantId + autoPayEnrolled
+- 404 when getLeaseStatus returns null
+- 500 on unexpected service throw
+- Correct applicationId forwarded to service
+
+**Result:** 25 tests, all passing (508 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
