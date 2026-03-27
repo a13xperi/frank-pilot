@@ -102,6 +102,20 @@
 
 ---
 
+## Loop 6 — Bug Fix: Decision Matrix Mutation
+
+### ✅ Fix mutation bug in `src/modules/decision-matrix/service.ts`
+- **Bug:** `rule.requiredRole = "senior_manager"` mutated the shared `MODIFICATION_RULES`
+  constant, causing all subsequent `rent_increase` requests (even >10%) to use
+  `senior_manager` instead of `regional_manager` for the lifetime of the process.
+- **Fix:** Introduced local `let requiredRole = rule.requiredRole` variable; the shared
+  constant is never written to.
+- Updated decision-matrix tests: removed ordering workarounds, converted the
+  "documents the bug" test to a proper regression test asserting correct behaviour.
+- All 193 tests still passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`

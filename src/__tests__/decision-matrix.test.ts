@@ -7,12 +7,6 @@
  * Compliance note: HUD/LIHTC §42 and internal controls require that
  * material lease changes have documented approval from the appropriate
  * management tier. Tenant substitutions always trigger full FCRA re-screening.
- *
- * Implementation note: `requestModification` mutates the shared
- * `MODIFICATION_RULES` object when a rent increase is ≤10%.
- * Tests that depend on the original `regional_manager` rule for
- * `rent_increase` must run BEFORE any ≤10% test in the same worker.
- * The suites below are ordered accordingly.
  */
 
 import { DecisionMatrixService } from "../modules/decision-matrix/service";
@@ -123,7 +117,7 @@ describe("DecisionMatrixService.requestModification", () => {
     expect(insertArgs).toContain("senior_manager");
   });
 
-  // ── Rent increase: >10% threshold — MUST run before the ≤10% test ────────
+  // ── Rent increase threshold ───────────────────────────────────────────────
 
   it("rent_increase >10% routes to regional_manager", async () => {
     await service.requestModification({
@@ -137,9 +131,7 @@ describe("DecisionMatrixService.requestModification", () => {
     expect(insertArgs).toContain("regional_manager");
   });
 
-  it("rent_increase exactly 10% also routes to regional_manager (boundary: not >10%)", async () => {
-    // Note: rule says "rent increase >10%" triggers regional_manager.
-    // Exactly 10% should still drop to senior_manager (≤10%).
+  it("rent_increase exactly 10% routes to senior_manager (boundary: ≤10%)", async () => {
     await service.requestModification({
       ...baseRequest,
       modificationType: "rent_increase",
@@ -151,38 +143,29 @@ describe("DecisionMatrixService.requestModification", () => {
     expect(insertArgs).toContain("senior_manager");
   });
 
-  // After the ≤10% test above the module-level rule is mutated to senior_manager.
-  // The test below re-verifies that >10% still uses regional_manager — it will
-  // because increasePercent > 10 doesn't enter the mutation branch.
-  it("rent_increase >10% still uses regional_manager after a ≤10% mutation", async () => {
+  it("rent_increase >10% still routes to regional_manager after a prior ≤10% call", async () => {
+    // Regression test for the former mutation bug: a ≤10% call must not affect
+    // the shared MODIFICATION_RULES constant for subsequent >10% calls.
     await service.requestModification({
       ...baseRequest,
       modificationType: "rent_increase",
       originalValue: "1000",
-      requestedValue: "1150", // 15%
+      requestedValue: "1150", // 15% — should still be regional_manager
     });
 
-    // Even though the shared rule was mutated to senior_manager, increasePercent >10
-    // means we don't re-enter the mutation branch — but the rule object was already
-    // mutated to senior_manager, so this call will actually use senior_manager.
-    // This test documents the existing mutation bug in the source.
     const insertArgs = mockQuery.mock.calls[0][1] as unknown[];
-    // After ≤10% mutation the rule is "senior_manager" even for >10% (bug documented):
-    expect(insertArgs).toContain("senior_manager");
+    expect(insertArgs).toContain("regional_manager");
   });
 
-  it("rent_increase without originalValue/requestedValue uses the default rule", async () => {
-    // No values provided → skips the >10% check; uses whatever the current rule is
+  it("rent_increase without values uses the default rule (regional_manager)", async () => {
+    // No values provided → skips the >10% check → falls back to rule default.
     await service.requestModification({
       ...baseRequest,
       modificationType: "rent_increase",
-      // no originalValue / requestedValue
     });
 
-    // Just verify the INSERT is called and audit log is written — rule value is
-    // state-dependent (see mutation note above).
-    expect(mockQuery).toHaveBeenCalledTimes(1);
-    expect(mockAuditLog).toHaveBeenCalledTimes(1);
+    const insertArgs = mockQuery.mock.calls[0][1] as unknown[];
+    expect(insertArgs).toContain("regional_manager");
   });
 
   // ── Side effects ──────────────────────────────────────────────────────────

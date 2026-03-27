@@ -65,7 +65,9 @@ export class DecisionMatrixService {
       throw new Error(`Unknown modification type: ${input.modificationType}`);
     }
 
-    // For rent increases, verify if it's actually >10%
+    // For rent increases, verify if it's actually >10%.
+    // Use a local variable so the shared MODIFICATION_RULES constant is never mutated.
+    let requiredRole = rule.requiredRole;
     if (input.modificationType === "rent_increase" && input.originalValue && input.requestedValue) {
       const original = parseFloat(input.originalValue);
       const requested = parseFloat(input.requestedValue);
@@ -73,7 +75,7 @@ export class DecisionMatrixService {
 
       if (increasePercent <= 10) {
         // Under 10% — Senior Manager can approve
-        rule.requiredRole = "senior_manager";
+        requiredRole = "senior_manager";
       }
     }
 
@@ -90,7 +92,7 @@ export class DecisionMatrixService {
         input.description,
         input.originalValue || null,
         input.requestedValue || null,
-        rule.requiredRole,
+        requiredRole,
         rule.requiresRescreening,
       ]
     );
@@ -104,7 +106,7 @@ export class DecisionMatrixService {
       resourceId: result.rows[0].id,
       details: {
         modificationType: input.modificationType,
-        requiredRole: rule.requiredRole,
+        requiredRole,
         requiresRescreening: rule.requiresRescreening,
       },
     });
@@ -113,7 +115,7 @@ export class DecisionMatrixService {
       modificationId: result.rows[0].id,
       applicationId: input.applicationId,
       type: input.modificationType,
-      requiredRole: rule.requiredRole,
+      requiredRole,
     });
 
     return {
