@@ -180,6 +180,26 @@
 
 ---
 
+## Loop 10 — Approval Route Tests
+
+### ✅ Write tests: `src/modules/approval/routes.ts` — 32 tests
+- Mock `ApprovalService` at module level (instantiated at route scope)
+- Auth strategy: real JWT tokens + mock users DB query for `authenticate`
+- Test: 401 with no token / invalid token across all four endpoints
+- Test: tier RBAC enforcement — leasing_agent blocked from tier1/tier2/tier3
+- Test: senior_manager blocked from tier2/tier3 (approval:tier2 requires regional_manager+)
+- Test: regional_manager blocked from tier3 (approval:tier3 requires asset_manager+)
+- Test: Zod validation — missing decision, missing notes, empty notes, invalid enum value
+- Test: 200 happy path for senior_manager on tier1, regional_manager on tier2, asset_manager on tier3
+- Test: correct args forwarded to tier1Review/tier2Review/tier3Review (applicationId, decision, notes, reviewerId, reviewerRole)
+- Test: 400 when service throws (wrong status, separation of duties violations)
+- Test: GET /:applicationId/status — accessible by all roles (application:read is universal)
+- Test: getApprovalStatus receives correct applicationId; 400 on service error
+
+**Result:** 32 tests, all passing (295 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
