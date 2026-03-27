@@ -413,6 +413,43 @@ nothing orchestrated them.
 
 ---
 
+## Loop 18 — LeaseService Test Coverage
+
+### ✅ Write tests: `src/modules/lease/service.ts` — 32 tests
+- Mock `query`, `writeAuditLog`, `OneSiteService`, `LoftService`, `TwilioService`
+- Non-blocking SMS pattern tested: Twilio rejections must NOT propagate (`.catch()` swallows them)
+
+**generateLease()** — 15 tests:
+- Not found → throws; wrong status (draft, submitted, lease_generated) → throws
+- Missing rent amount → throws
+- All 3 approved statuses accepted: tier1_approved, tier2_approved, tier3_approved (test.each)
+- Correct args to OneSiteService.generateLease (applicationId, propertyId, unitNumber, rentAmount, actorId/role)
+- lease_generated audit log written with leaseId
+- Returns { leaseId, documentUrl } from OneSite
+- Twilio SMS sent when phone present; skipped when phone null
+- Twilio failure does NOT throw (non-blocking fire-and-forget)
+- unit_number=null → 'TBD' used as unitNumber
+
+**completeOnboarding()** — 13 tests:
+- Not found → throws; status≠lease_generated → throws; no onesite_lease_id → throws
+- LoftService.createTenant called with correct args (firstName, lastName, email, rentAmount, actorId/role)
+- setupAutoPay called when auto_pay_enrolled=true AND stripe_payment_method_id present
+- setupAutoPay skipped when auto_pay_enrolled=false (even with payment method)
+- setupAutoPay skipped when stripe_payment_method_id=null (even if enrolled)
+- OneSiteService.syncTenant called with applicationId and onesiteLeaseId
+- application UPDATE: status='onboarded' + loft_tenant_id stored
+- tenant_onboarded audit log written with loftTenantId + onesiteLeaseId
+- Returns { onboarded: true, loftTenantId }
+- Twilio failure does NOT throw (non-blocking); phone=null skips notification
+
+**getLeaseStatus()** — 4 tests:
+- null on miss; full status object with correct fields on hit
+- null onesiteLeaseId/loftTenantId when not yet set; queries by applicationId
+
+**Result:** 32 tests, all passing (483 total across all loops).
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
