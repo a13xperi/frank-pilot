@@ -654,3 +654,103 @@ describe("ApplicationService.cancel()", () => {
     );
   });
 });
+
+// ── verifyIncome() ─────────────────────────────────────────────────────────
+//
+// LIHTC §42 requires income verification through third-party sources
+// (W-2, pay stubs, employer letter) before lease generation.
+// This method sets income_verified = true and optionally updates annual_income.
+
+describe("ApplicationService.verifyIncome()", () => {
+  beforeEach(() => mockQuery.mockReset());
+
+  it("throws when application is not found", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // SELECT not found
+
+    const service = makeService();
+    await expect(
+      service.verifyIncome("app-999", "user-mgr-001", "senior_manager")
+    ).rejects.toThrow(/application not found/i);
+  });
+
+  it("throws when application status is terminal (e.g. cancelled)", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: "app-001", status: "cancelled", annual_income: "40000" }],
+    } as any);
+
+    const service = makeService();
+    await expect(
+      service.verifyIncome("app-001", "user-mgr-001", "senior_manager")
+    ).rejects.toThrow(/cannot be verified.*status/i);
+  });
+
+  it("sets income_verified=true and returns updated row", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "tier1_approved", annual_income: "40000" }] } as any)
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "tier1_approved", income_verified: true, annual_income: "40000" }] } as any);
+
+    const service = makeService();
+    const result = await service.verifyIncome("app-001", "user-mgr-001", "senior_manager");
+
+    expect(result.income_verified).toBe(true);
+  });
+
+  it("UPDATE includes income_verified=true, income_verified_by, income_verified_at", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "screening_passed", annual_income: "35000" }] } as any)
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", income_verified: true, annual_income: "35000" }] } as any);
+
+    const service = makeService();
+    await service.verifyIncome("app-001", "user-mgr-001", "senior_manager");
+
+    const sql = mockQuery.mock.calls[1]![0] as string;
+    expect(sql).toMatch(/income_verified = true/);
+    expect(sql).toMatch(/income_verified_by/);
+    expect(sql).toMatch(/income_verified_at = NOW\(\)/);
+  });
+
+  it("includes verified income amount in UPDATE when verifiedIncome is provided", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "tier1_approved", annual_income: "35000" }] } as any)
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", income_verified: true, annual_income: "37500" }] } as any);
+
+    const service = makeService();
+    await service.verifyIncome("app-001", "user-mgr-001", "senior_manager", 37500);
+
+    const sql = mockQuery.mock.calls[1]![0] as string;
+    const params = mockQuery.mock.calls[1]![1] as unknown[];
+    expect(sql).toMatch(/annual_income = \$\d/);
+    expect(params).toContain(37500);
+  });
+
+  it("does NOT include annual_income in UPDATE when verifiedIncome is omitted", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "draft", annual_income: "40000" }] } as any)
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", income_verified: true, annual_income: "40000" }] } as any);
+
+    const service = makeService();
+    await service.verifyIncome("app-001", "user-mgr-001", "senior_manager");
+
+    const sql = mockQuery.mock.calls[1]![0] as string;
+    expect(sql).not.toMatch(/annual_income = \$/);
+  });
+
+  it("writes income_verified audit log with actorId, actorRole, and previousIncome", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "tier1_approved", annual_income: "42000" }] } as any)
+      .mockResolvedValueOnce({ rows: [{ id: "app-001", income_verified: true, annual_income: "44000" }] } as any);
+
+    const service = makeService();
+    await service.verifyIncome("app-001", "user-mgr-001", "regional_manager", 44000);
+
+    expect(mockWriteAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "income_verified",
+        actorId: "user-mgr-001",
+        actorRole: "regional_manager",
+        applicationId: "app-001",
+        details: expect.objectContaining({ verifiedIncome: 44000, previousIncome: 42000 }),
+      })
+    );
+  });
+});

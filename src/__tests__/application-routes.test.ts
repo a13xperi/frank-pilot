@@ -31,6 +31,7 @@ const mockGetById = jest.fn();
 const mockUpdate = jest.fn();
 const mockSubmit = jest.fn();
 const mockCancel = jest.fn();
+const mockVerifyIncome = jest.fn();
 
 jest.mock("../modules/application/service", () => ({
   ApplicationService: jest.fn().mockImplementation(() => ({
@@ -40,6 +41,7 @@ jest.mock("../modules/application/service", () => ({
     update: mockUpdate,
     submit: mockSubmit,
     cancel: mockCancel,
+    verifyIncome: mockVerifyIncome,
   })),
 }));
 
@@ -573,5 +575,87 @@ describe("PATCH /applications/:id/cancel", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/cannot be cancelled/i);
+  });
+});
+
+// ── PATCH /:id/verify-income — income verification (LIHTC §42) ───────────
+//
+// Permission: screening:initiate (senior_manager+)
+// Must be called before a lease can be generated.
+
+describe("PATCH /applications/:id/verify-income", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("returns 401 when no token provided", async () => {
+    const res = await request(app).patch("/applications/app-001/verify-income");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 403 when leasing_agent attempts to verify income", async () => {
+    mockAuthQuery(testUser); // testUser is leasing_agent
+
+    const res = await request(app)
+      .patch("/applications/app-001/verify-income")
+      .set("Authorization", tokenFor(testUser));
+
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 200 with updated application when senior_manager verifies income", async () => {
+    mockAuthQuery(managerUser);
+    mockVerifyIncome.mockResolvedValue({ id: "app-001", status: "tier1_approved", income_verified: true, annual_income: "42000" });
+
+    const res = await request(app)
+      .patch("/applications/app-001/verify-income")
+      .set("Authorization", tokenFor(managerUser));
+
+    expect(res.status).toBe(200);
+    expect(res.body.income_verified).toBe(true);
+  });
+
+  it("passes applicationId, actorId, actorRole, and verifiedIncome to service", async () => {
+    mockAuthQuery(managerUser);
+    mockVerifyIncome.mockResolvedValue({ id: "app-abc", income_verified: true, annual_income: "45000" });
+
+    await request(app)
+      .patch("/applications/app-abc/verify-income")
+      .set("Authorization", tokenFor(managerUser))
+      .send({ verifiedIncome: 45000 });
+
+    expect(mockVerifyIncome).toHaveBeenCalledWith(
+      "app-abc",
+      managerUser.id,
+      managerUser.role,
+      45000
+    );
+  });
+
+  it("passes undefined verifiedIncome when body has no verifiedIncome field", async () => {
+    mockAuthQuery(managerUser);
+    mockVerifyIncome.mockResolvedValue({ id: "app-001", income_verified: true });
+
+    await request(app)
+      .patch("/applications/app-001/verify-income")
+      .set("Authorization", tokenFor(managerUser))
+      .send({});
+
+    expect(mockVerifyIncome).toHaveBeenCalledWith(
+      "app-001",
+      managerUser.id,
+      managerUser.role,
+      undefined
+    );
+  });
+
+  it("returns 400 when service throws (e.g. application not found)", async () => {
+    mockAuthQuery(managerUser);
+    mockVerifyIncome.mockRejectedValue(new Error("Application not found"));
+
+    const res = await request(app)
+      .patch("/applications/app-999/verify-income")
+      .set("Authorization", tokenFor(managerUser));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/application not found/i);
   });
 });

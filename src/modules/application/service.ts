@@ -249,6 +249,92 @@ export class ApplicationService {
     return result.rows[0];
   }
 
+  /**
+   * Verify applicant income (LIHTC §42 compliance).
+   *
+   * Must be called by a manager after reviewing third-party income evidence
+   * (pay stubs, W-2, employer letter, or HUD-approved verification form)
+   * before a lease can be generated.
+   *
+   * If verifiedIncome is provided and differs from self-reported income,
+   * the annual_income field is updated to the verified value before the
+   * compliance check runs against AMI limits.
+   */
+  async verifyIncome(
+    applicationId: string,
+    actorId: string,
+    actorRole: string,
+    verifiedIncome?: number
+  ): Promise<any> {
+    const existing = await query(
+      "SELECT id, status, annual_income FROM applications WHERE id = $1",
+      [applicationId]
+    );
+
+    if (existing.rows.length === 0) {
+      throw new Error("Application not found");
+    }
+
+    const app = existing.rows[0];
+
+    // Only allow verification on active (non-terminal) applications
+    const VERIFIABLE_STATUSES = [
+      "draft",
+      "submitted",
+      "screening",
+      "screening_passed",
+      "screening_failed",
+      "tier1_review",
+      "tier1_approved",
+      "tier2_review",
+      "tier2_approved",
+      "tier3_review",
+      "tier3_approved",
+    ];
+
+    if (!VERIFIABLE_STATUSES.includes(app.status)) {
+      throw new Error(
+        `Income cannot be verified on an application with status: ${app.status}`
+      );
+    }
+
+    const updates: string[] = [
+      "income_verified = true",
+      "income_verified_by = $2",
+      "income_verified_at = NOW()",
+    ];
+    const params: unknown[] = [applicationId, actorId];
+
+    if (verifiedIncome !== undefined) {
+      updates.push(`annual_income = $${params.length + 1}`);
+      params.push(verifiedIncome);
+    }
+
+    const result = await query(
+      `UPDATE applications SET ${updates.join(", ")}
+       WHERE id = $1
+       RETURNING id, status, income_verified, annual_income`,
+      params
+    );
+
+    await writeAuditLog({
+      action: "income_verified",
+      actorId,
+      actorRole,
+      applicationId,
+      resourceType: "application",
+      resourceId: applicationId,
+      details: {
+        verifiedIncome: verifiedIncome ?? null,
+        previousIncome: parseFloat(app.annual_income || "0"),
+      },
+    });
+
+    logger.info("Income verified", { applicationId, actorId, verifiedIncome });
+
+    return result.rows[0];
+  }
+
   async update(applicationId: string, input: UpdateApplicationInput): Promise<any> {
     const setClauses: string[] = [];
     const params: unknown[] = [];

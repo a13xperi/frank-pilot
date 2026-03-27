@@ -1129,6 +1129,75 @@ Route (7):
 
 ---
 
+## Loop 35 — LIHTC Income Verification (Implementation + Lease Gate)
+
+### ✅ Add income_verified_by + income_verified_at columns to schema
+### ✅ Add income_verified audit action to schema enum
+### ✅ Implement ApplicationService.verifyIncome() + PATCH /:id/verify-income route
+### ✅ Gate LeaseService.generateLease() on income_verified
+### ✅ Write 14 tests — 736 total passing
+
+**Compliance gap closed:** LIHTC §42 requires income to be verified through
+third-party sources (W-2, pay stubs, employer letter, HUD verification form)
+before a lease is executed. The `income_verified` field existed in the DB schema
+but was never set or checked anywhere — a manager could previously generate a
+lease without any documented income verification.
+
+**Schema changes:**
+
+`src/db/schema.ts`:
+- Added `income_verified_by UUID REFERENCES users(id)` to `applications` table
+- Added `income_verified_at TIMESTAMPTZ` to `applications` table
+- Added `'income_verified'` to `audit_action` enum (git-tracked compliance event)
+
+**ApplicationService.verifyIncome(applicationId, actorId, actorRole, verifiedIncome?):**
+- Fetches application — throws "Application not found" on miss
+- Verifiable from any non-terminal status (draft → tier3_approved);
+  throws on cancelled, lease_generated, onboarded
+- UPDATE sets `income_verified = true`, `income_verified_by`, `income_verified_at = NOW()`
+- Optional `verifiedIncome`: if provided, also updates `annual_income` to the
+  third-party verified amount (corrects self-reported discrepancies)
+- Writes `income_verified` audit log with actorId/actorRole and previousIncome
+
+**Route:** `PATCH /api/applications/:id/verify-income` — `screening:initiate`
+permission (senior_manager+). Leasing agents cannot verify — they do not have
+authority to sign off on income documentation.
+
+**Lease gate in LeaseService.generateLease():**
+- Added `income_verified` to SELECT query on applications
+- New pre-flight check: `if (!app.income_verified) throw Error("Income verification
+  required before generating lease (LIHTC §42)...")`
+- Check runs before the rent-amount check (more fundamental requirement)
+- Existing `approvedAppRow()` test fixture updated: added `income_verified: true`
+  so all 15 existing happy-path tests continue to pass
+
+**Tests — 14 new:**
+
+ApplicationService.verifyIncome() — 6 tests:
+- Throws when application not found
+- Throws when status is terminal (e.g. cancelled)
+- Returns updated row with `income_verified: true`
+- UPDATE SQL contains income_verified, income_verified_by, income_verified_at
+- annual_income included in UPDATE params when verifiedIncome provided
+- annual_income NOT in UPDATE when verifiedIncome omitted
+
+Route PATCH /verify-income — 6 tests:
+- 401 no token; 403 leasing_agent blocked
+- 200 senior_manager success; income_verified=true in response
+- applicationId, actorId, actorRole, verifiedIncome all forwarded
+- undefined verifiedIncome forwarded when body has no field
+- 400 when service throws
+
+LeaseService.generateLease() — 1 new test:
+- throws "income verification required" when income_verified=false
+
+lease-service fixture update (not a new test):
+- approvedAppRow() now includes `income_verified: true`
+
+**TypeScript:** `tsc --noEmit` clean. 736 tests, 29 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`

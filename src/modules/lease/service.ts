@@ -35,7 +35,8 @@ export class LeaseService {
     const appResult = await query(
       `SELECT id, status, property_id, unit_number,
               first_name, last_name, email, phone,
-              requested_lease_term_months, requested_rent_amount, requested_move_in_date
+              requested_lease_term_months, requested_rent_amount, requested_move_in_date,
+              income_verified
        FROM applications WHERE id = $1`,
       [applicationId]
     );
@@ -49,6 +50,13 @@ export class LeaseService {
     if (!APPROVABLE_STATUSES.has(app.status)) {
       throw new Error(
         `Application must be in an approved status to generate a lease. Current status: ${app.status}`
+      );
+    }
+
+    // LIHTC §42: income must be verified through third-party sources before lease execution
+    if (!app.income_verified) {
+      throw new Error(
+        "Income verification required before generating lease (LIHTC §42). Use PATCH /applications/:id/verify-income to complete verification."
       );
     }
 

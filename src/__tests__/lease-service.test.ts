@@ -84,6 +84,8 @@ function approvedAppRow(overrides: Record<string, unknown> = {}) {
     requested_lease_term_months: 12,
     requested_rent_amount: "1200.00",
     requested_move_in_date: new Date("2026-05-01"),
+    // LIHTC §42: income must be verified before lease generation
+    income_verified: true,
     ...overrides,
   };
 }
@@ -150,6 +152,17 @@ describe("LeaseService.generateLease()", () => {
     await expect(
       service.generateLease("app-001", "user-001", "senior_manager")
     ).rejects.toThrow(/approved status/i);
+  });
+
+  it("throws when income_verified is false (LIHTC §42 compliance gate)", async () => {
+    mockQuery.mockResolvedValue({
+      rows: [approvedAppRow({ income_verified: false })],
+    } as any);
+
+    const service = makeService();
+    await expect(
+      service.generateLease("app-001", "user-001", "senior_manager")
+    ).rejects.toThrow(/income verification required/i);
   });
 
   it("throws when requested_rent_amount is missing", async () => {

@@ -77,6 +77,7 @@ CREATE TYPE audit_action AS ENUM (
   'fraud_flag_raised',
   'adverse_action_notice_sent',
   'application_cancelled',
+  'income_verified',
   'property_created',
   'property_updated',
   'user_login',
@@ -165,6 +166,8 @@ CREATE TABLE applications (
   annual_income DECIMAL(12,2),
   household_size INTEGER DEFAULT 1,
   income_verified BOOLEAN DEFAULT false,
+  income_verified_by UUID REFERENCES users(id),
+  income_verified_at TIMESTAMPTZ,
 
   -- Rental history
   previous_landlord_name VARCHAR(255),

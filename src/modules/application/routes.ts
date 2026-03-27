@@ -92,6 +92,33 @@ router.patch(
   }
 );
 
+// Verify income (LIHTC §42 — third-party income verification required before lease generation)
+// verifiedIncome (optional): if provided, updates annual_income to the verified value
+router.patch(
+  "/:id/verify-income",
+  authenticate,
+  requirePermission("screening:initiate"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const verifiedIncome =
+        req.body.verifiedIncome !== undefined
+          ? Number(req.body.verifiedIncome)
+          : undefined;
+
+      const result = await service.verifyIncome(
+        param(req.params.id),
+        req.user!.id,
+        req.user!.role,
+        verifiedIncome
+      );
+      res.json(result);
+    } catch (err: any) {
+      logger.error("Failed to verify income", { error: err.message });
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
 // Cancel application (Senior Manager+ — screening:initiate permission level)
 // Cancellable from: draft, submitted, screening, screening_passed/failed, tier*_review
 // Not cancellable from: tier*_approved, tier*_denied, lease_generated, onboarded, cancelled
