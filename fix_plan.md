@@ -758,6 +758,63 @@ requiring shell access. Now exposed via REST API.
 
 ---
 
+## Loop 25 — Property Routes + User Routes Tests
+
+### ✅ Write `src/__tests__/property-routes.test.ts` — 26 tests
+### ✅ Write `src/__tests__/user-routes.test.ts` — 38 tests
+
+**Gap closed:** PropertyService and UserService had service-level tests but no
+route-layer tests. HTTP contract (status codes, auth, RBAC, Zod, delegation,
+errors) was untested for both modules.
+
+**property-routes.test.ts — 26 tests:**
+
+`GET /` (list all — property:view, all roles):
+- 401 no auth; 401 invalid token; 200 leasing_agent (all roles have property:view);
+  200 properties array + total count; 500 service throws
+
+`GET /:propertyId` (property:view):
+- 401; 200 with property; 404 when getById returns null;
+  propertyId forwarded to service; 500
+
+`POST /` (property:manage — asset_manager, system_admin):
+- 401; 403 leasing_agent; 403 senior_manager; 400 missing fields;
+  400 state not 2 chars; 400 negative unitCount; 201 success;
+  actorId+actorRole forwarded; 400 service throws
+
+`PATCH /:propertyId` (property:manage):
+- 401; 403 leasing_agent; 400 non-integer unitCount;
+  200 success; all args forwarded; 400 not found; 400 no fields
+
+**user-routes.test.ts — 38 tests:**
+
+`GET /` (user:view — senior_manager+):
+- 401; 403 leasing_agent; 200 for senior_manager; role filter forwarded;
+  isActive=true and isActive=false forwarded as booleans; 500
+
+`GET /:userId` (user:view):
+- 401; 403 leasing_agent; 200 found; 404 null; userId forwarded
+
+`POST /` (user:manage — system_admin only):
+- 401; 403 senior_manager; 403 asset_manager; 400 missing fields;
+  400 password too short; 400 invalid email; 400 invalid role enum;
+  201 success; actorId+actorRole forwarded; 400 service throws
+
+`PATCH /:userId/deactivate` (user:manage):
+- 401; 403 asset_manager; 200 + isActive=false; setActive called with false;
+  400 user not found
+
+`PATCH /:userId/activate` (user:manage):
+- 401; 403 senior_manager; 200 + isActive=true; setActive called with true
+
+`POST /:userId/reset-password` (user:manage):
+- 401; 403 asset_manager; 400 password too short; 400 missing newPassword;
+  200 success message; all args forwarded; 400 user not found
+
+**TypeScript:** `tsc --noEmit` clean. 652 tests, 26 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
