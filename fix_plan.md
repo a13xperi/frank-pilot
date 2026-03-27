@@ -45,16 +45,21 @@
 
 ## Loop 3 — Approval Service Tests
 
-### ⬜ Write tests: `src/modules/approval/service.ts`
-- Mock `query` and `writeAuditLog`
+### ✅ Write tests: `src/modules/approval/service.ts` — 41 tests
+- Mock `query`, `writeAuditLog`, `enforceSeparationOfDuties`, `FraudDetectionService`
 - Test: tier1Review — wrong status → throws
 - Test: tier1Review — separation of duties violation → throws
 - Test: tier1Review — unresolved fraud flags + pass decision → throws
 - Test: tier1Review — pass + high rent → routes to tier2_review
 - Test: tier1Review — deny → tier1_denied
-- Test: requiresTier2 logic (rent >$1500, review_required checks)
-- Test: requiresTier3 logic (exceptions only)
-- Test: getNextAction returns correct string for each status
+- Test: requiresTier2 logic (rent >$1500, review_required checks) via test.each
+- Test: requiresTier3 logic (exceptions only) via tier2Review
+- Test: getNextAction returns correct string for each status via test.each
+- **Gotcha:** Use `mockQuery.mockReset()` (not `clearAllMocks`) in beforeEach for
+  test.each suites — `clearAllMocks` does NOT flush `mockResolvedValueOnce` queues,
+  causing queue items to leak across iterations.
+
+**Result:** 41 tests, all passing (126 total across all loops).
 
 ---
 
