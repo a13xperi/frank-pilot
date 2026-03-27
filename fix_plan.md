@@ -850,6 +850,37 @@ route-level test coverage:
 
 ---
 
+## Loop 27 — README Documentation Update
+
+### ✅ Update README.md with all modules added in Loops 17–26
+
+**Sections updated:**
+
+Key Features (added):
+- FCRA Adverse Action Notices (15 U.S.C. § 1681m)
+- Property Management (Asset Manager registry with OneSite/Loft IDs)
+- User Management API (system-admin CRUD, bcrypt passwords)
+
+API Endpoints (added):
+- Lease & Onboarding — POST generate, POST onboard, GET status
+- Adverse Action Notices (FCRA) — GET notice, POST resend
+- Properties — GET/, GET/:id, POST/, PATCH/:id with immutability note
+- Users — GET/, GET/:id, POST/, PATCH deactivate/activate, POST reset-password
+
+CLI (added):
+- activate-user, deactivate-user (upgraded), reset-password
+- list-properties, view-property
+- generate-lease, onboard, lease-status
+
+Project Structure (updated):
+- Added lease/, adverse-action/, properties/, users/ module entries
+- Added FCRA statute reference to adverse-action entry
+- Added "(do not modify)" note to integrations/
+
+**No code changes — documentation only. 667 tests, 27 suites still passing.**
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`

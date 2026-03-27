@@ -10,11 +10,14 @@ Replaces manual, fragmented affordable housing tenant onboarding with a structur
 
 - **Digital-First Application Pipeline** — Standardized qualification criteria, encrypted PII
 - **Screening & Compliance Engine** — Criminal background, credit check, HUD AMI tax credit compliance
+- **FCRA Adverse Action Notices** — Automatic and manual notice generation per 15 U.S.C. § 1681m
 - **PCI-Compliant Payment Processing** — ACH/card via Stripe, $25/mo auto-pay incentive
 - **Role-Based Access Control** — Zero-trust, separation of duties, no single-person control
 - **3-Tier Approval Workflow** — Senior Manager → Regional Manager → Asset Manager
 - **Decision Matrix** — Automated routing for lease modifications
 - **Fraud Detection** — Duplicate SSN, address flags, income mismatches, approval speed anomalies
+- **Property Management** — Asset manager–controlled property registry with OneSite/Loft IDs
+- **User Management API** — System-admin CRUD for staff accounts; bcrypt-hashed passwords
 - **Immutable Audit Trail** — Every action logged, PII-filtered, non-repudiable
 
 ## Architecture
@@ -113,6 +116,30 @@ All passwords: `password123`
 - `POST /api/modifications/decide/:modificationId` — Approve/deny modification
 - `GET /api/modifications/:applicationId` — List modifications
 
+### Lease & Onboarding
+- `POST /api/lease/:applicationId/generate` — Generate lease via OneSite (Asset Manager+)
+- `POST /api/lease/:applicationId/onboard` — Complete onboarding via Loft (Asset Manager+)
+- `GET /api/lease/:applicationId/status` — View lease and onboarding status
+
+### Adverse Action Notices (FCRA)
+- `GET /api/applications/:applicationId/adverse-action` — Retrieve most recent notice (Senior Manager+)
+- `POST /api/applications/:applicationId/adverse-action/resend` — Manually resend FCRA notice (Senior Manager+)
+
+### Properties
+- `GET /api/properties` — List all properties (all roles)
+- `GET /api/properties/:propertyId` — Get property detail (all roles)
+- `POST /api/properties` — Create property (Asset Manager, System Admin)
+- `PATCH /api/properties/:propertyId` — Update mutable property fields (Asset Manager, System Admin)
+  - Note: `addressLine1`, `city`, `state`, `zip` are immutable after creation
+
+### Users
+- `GET /api/users` — List staff users, optional `?role=X&isActive=true/false` (Senior Manager+)
+- `GET /api/users/:userId` — Get user detail (Senior Manager+)
+- `POST /api/users` — Create staff user (System Admin only)
+- `PATCH /api/users/:userId/deactivate` — Deactivate account (System Admin only)
+- `PATCH /api/users/:userId/activate` — Reactivate account (System Admin only)
+- `POST /api/users/:userId/reset-password` — Admin password reset, no old password required (System Admin only)
+
 ### Audit
 - `GET /api/audit` — Query audit log (Regional Manager+)
 
@@ -128,6 +155,13 @@ npm run cli -- login -e agent@cdpc.test -p password123
 # User management
 npm run cli -- create-user -e new@cdpc.test -p pass123 -f John -l Doe -r leasing_agent
 npm run cli -- list-users
+npm run cli -- activate-user -i <user-id> -u <actor-id>
+npm run cli -- deactivate-user -e <email> -u <actor-id>
+npm run cli -- reset-password -i <user-id> -p <new-password> -u <actor-id>
+
+# Property management
+npm run cli -- list-properties
+npm run cli -- view-property -i <property-id>
 
 # Applications
 npm run cli -- list-applications
@@ -139,6 +173,11 @@ npm run cli -- run-screening -i <application-id> -u <user-id>
 
 # Approval status
 npm run cli -- approval-status -i <application-id>
+
+# Lease & onboarding
+npm run cli -- generate-lease -i <application-id> -u <user-id>
+npm run cli -- onboard -i <application-id> -u <user-id>
+npm run cli -- lease-status -i <application-id>
 
 # Audit log
 npm run cli -- audit
@@ -204,7 +243,7 @@ src/
 ├── db/
 │   ├── schema.ts               # Full database schema
 │   ├── migrate.ts              # Migration runner
-│   └── seed.ts                 # Test data seeder
+│   └── seed.ts                 # Test data seeder (idempotent)
 ├── middleware/
 │   ├── auth.ts                 # JWT authentication
 │   ├── rbac.ts                 # Role-based access control
@@ -215,7 +254,11 @@ src/
 │   ├── approval/               # 3-tier approval workflow
 │   ├── payment/                # Stripe payment processing
 │   ├── decision-matrix/        # Lease modification rules
-│   └── integrations/           # OneSite, Loft, Twilio stubs
+│   ├── lease/                  # Lease generation & onboarding orchestration
+│   ├── adverse-action/         # FCRA adverse action notices (15 U.S.C. § 1681m)
+│   ├── properties/             # Property registry (asset_manager+)
+│   ├── users/                  # Staff user management (system_admin only)
+│   └── integrations/           # OneSite, Loft, Twilio stubs (do not modify)
 ├── utils/
 │   ├── encryption.ts           # AES-256-GCM encryption
 │   ├── logger.ts               # Winston logger (PII-safe)
