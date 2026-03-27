@@ -19,6 +19,7 @@ import leaseRoutes from "./modules/lease/routes";
 import adverseActionRoutes from "./modules/adverse-action/routes";
 import userRoutes from "./modules/users/routes";
 import propertyRoutes from "./modules/properties/routes";
+import complianceRoutes from "./modules/compliance/routes";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000");
@@ -99,6 +100,9 @@ app.use("/api/users", userRoutes);
 
 // Property management (asset_manager+: create/update; all roles: view)
 app.use("/api/properties", propertyRoutes);
+
+// Compliance reports (Fair Housing Act — audit:view / Regional Manager+)
+app.use("/api/compliance", complianceRoutes);
 
 // Audit log
 app.get(

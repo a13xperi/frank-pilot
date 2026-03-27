@@ -948,6 +948,63 @@ and prevent regression.
 
 ---
 
+## Loop 30 — Fair Housing Act Compliance Report (Implementation)
+
+### ✅ Implement `src/modules/compliance/fair-housing.ts` + `routes.ts`
+### ✅ Mount `/api/compliance` router in `src/index.ts`
+### ✅ Write `src/__tests__/fair-housing-service.test.ts` — 18 tests
+### ✅ Write `src/__tests__/fair-housing-routes.test.ts` — 8 tests
+
+**Compliance gap closed:** README listed "Fair Housing Act compliance in screening
+criteria" but zero FHA implementation existed. Now closed.
+
+**FairHousingService — 1 method:**
+
+`generateReport(propertyId: string | null)`:
+- Makes 3 DB queries (via Promise.all for the two fetch methods):
+  1. Decision stats aggregate on applications table
+  2. Count of denied applications (screening_failed / tier*_denied statuses)
+  3. Count of denials WITH at least one adverse action notice on file
+- Returns `FairHousingReport` shape:
+  - `decisions`: totalApplications, screening (passed/failed/reviewRequired/pending),
+    approvals (approved/denied/inProgress)
+  - `adverseActionCompleteness`: totalDenials, noticesOnFile, completenessPercent,
+    missingNotices (FCRA §1681m audit trail)
+  - `objectiveCriteria`: exported `OBJECTIVE_SCREENING_CRITERIA` readonly const
+    (auditable list of all criteria applied uniformly per FHA §3604)
+  - `protectedClassNotice`: statement that no race/color/religion/sex/disability/
+    familial status/national origin data is collected
+
+`OBJECTIVE_SCREENING_CRITERIA` (exported const):
+- Lists all 8 criteria applied identically to every applicant
+- Includes household-size-specific AMI limits (links to Loop 28 fix)
+- Commit-tracked — any change to criteria is visible in git history
+
+**Route:** `GET /api/compliance/fair-housing?propertyId=<uuid>`
+- Permission: `audit:view` (regional_manager+) — same gate as audit log
+- Optional `propertyId` scopes to one property
+- Used by compliance officers, regional managers, HUD auditors
+
+**Gotcha — mock queue bleed between test sections:** When both service unit tests
+and route tests are in the same file, `mockResolvedValueOnce` values queued in
+service tests (where FairHousingService is mocked and real query() is never called)
+carry over to route tests even with `jest.clearAllMocks()` in `beforeEach`.
+`clearAllMocks()` does NOT flush the one-time return value queue — `resetAllMocks()`
+does. Solution: use `jest.resetAllMocks()` in service test `beforeEach`, or keep
+service tests and route tests in separate files (adopted here — cleaner pattern).
+
+**Gotcha — 3 queries per generateReport():** `fetchDecisionStats` makes 1 query;
+`fetchAdverseActionCompleteness` makes 2 separate queries (denial count + notice count).
+Total = 3. Both fetch methods run concurrently via `Promise.all` — mock setup must
+provide 3 `mockResolvedValueOnce` values in call order:
+1. Decision stats
+2. Denial count (`{ total: N }`)
+3. Notice count (`{ with_notice: N }`)
+
+**TypeScript:** `tsc --noEmit` clean. 699 tests, 29 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
