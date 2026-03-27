@@ -815,6 +815,41 @@ errors) was untested for both modules.
 
 ---
 
+## Loop 26 — Adverse Action Routes Tests
+
+### ✅ Write `src/__tests__/adverse-action-routes.test.ts` — 15 tests
+
+**Gap closed:** AdverseActionService had service tests; the route layer
+(GET + POST/resend mounted at /api/applications) had no HTTP contract coverage.
+
+**adverse-action-routes.test.ts — 15 tests:**
+
+`GET /:applicationId/adverse-action` (screening:view — senior_manager+):
+- 401 no auth; 401 invalid token; 403 leasing_agent; 200 with notice shape;
+  404 when getNotice returns null; applicationId forwarded to service; 500 on throw
+
+`POST /:applicationId/adverse-action/resend` (approval:tier1 — senior_manager+):
+- 401 no auth; 401 invalid token; 403 leasing_agent; 200 with result;
+  defaults reason to 'manual_resend' when body is empty;
+  custom reason + reasonDetail forwarded when provided;
+  applicationId + actorId + actorRole forwarded; 400 on service throw
+
+**FCRA compliance note in test:** GET endpoint provides visibility into legally
+required notices; POST/resend creates a new notice record without overwriting
+prior notices (immutable audit trail per 15 U.S.C. § 1681m).
+
+**TypeScript:** `tsc --noEmit` clean. 667 tests, 27 suites, all passing.
+
+**Coverage now complete** — every route module has both service-level and
+route-level test coverage:
+- application, screening, approval, payment, decision-matrix, lease ✅
+- adverse-action (service + routes) ✅
+- properties (service + routes) ✅
+- users (service + routes) ✅
+- auth middleware + app-level routes ✅
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
