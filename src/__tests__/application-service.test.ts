@@ -72,6 +72,7 @@ function minimalInput() {
     lastName: "Doe",
     ssn: "123-45-6789",
     dateOfBirth: "1990-06-15",
+    householdSize: 1,
     requestedLeaseTermMonths: 12,
   };
 }

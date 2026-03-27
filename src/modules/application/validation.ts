@@ -24,6 +24,7 @@ export const createApplicationSchema = z.object({
   employerPhone: z.string().max(20).optional(),
   employmentStartDate: z.string().optional(),
   annualIncome: z.number().min(0).optional(),
+  householdSize: z.number().int().min(1).max(8).default(1),
 
   // Rental history
   previousLandlordName: z.string().max(255).optional(),

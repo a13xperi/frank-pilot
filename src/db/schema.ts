@@ -162,6 +162,7 @@ CREATE TABLE applications (
   employer_phone VARCHAR(20),
   employment_start_date DATE,
   annual_income DECIMAL(12,2),
+  household_size INTEGER DEFAULT 1,
   income_verified BOOLEAN DEFAULT false,
 
   -- Rental history

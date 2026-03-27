@@ -83,6 +83,7 @@ export class ScreeningService {
       this.compliance.runCheck({
         propertyId: app.property_id,
         annualIncome: parseFloat(app.annual_income || "0"),
+        householdSize: app.household_size || 1,
       }),
     ]);
 

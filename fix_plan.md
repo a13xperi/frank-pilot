@@ -881,6 +881,46 @@ Project Structure (updated):
 
 ---
 
+## Loop 28 — LIHTC Household Size Compliance Fix (Implementation)
+
+### ✅ Add `household_size` to applications table + propagate through screening
+
+**Compliance gap fixed:** LIHTC income limits are household-size specific per HUD
+regulations. Without `household_size`, `ComplianceService.runCheck()` always
+looked up the 1-person AMI limit — incorrectly failing or flagging for review
+eligible multi-person households (a 4-person household's 60% AMI limit can be
+40-50% higher than a 1-person limit).
+
+**Files changed:**
+
+`src/db/schema.ts`:
+- Added `household_size INTEGER DEFAULT 1` to `applications` table (under Employment & Income section)
+
+`src/modules/application/validation.ts`:
+- Added `householdSize: z.number().int().min(1).max(8).default(1)` to `createApplicationSchema`
+- Automatically included in `updateApplicationSchema` via `.partial()` inherit
+
+`src/modules/application/service.ts`:
+- Added `household_size` to INSERT column list and params array (position after `annual_income`)
+- Added `householdSize: "household_size"` to the UPDATE `fieldMap`
+
+`src/modules/screening/service.ts`:
+- Added `householdSize: app.household_size || 1` to `compliance.runCheck()` call
+- The `|| 1` fallback handles rows created before this migration
+
+`src/__tests__/application-service.test.ts`:
+- Added `householdSize: 1` to `minimalInput()` fixture (required by TypeScript
+  after `.default(1)` makes it required in the inferred output type)
+
+**Gotcha — Zod `.default()` and TypeScript:** `z.number().default(1)` makes the
+field optional in Zod's parse input (omitting it → 1) but required in the
+inferred TypeScript OUTPUT type (`z.infer<typeof schema>`). Tests that pass
+`CreateApplicationInput` directly to the service must include `householdSize`.
+
+**TypeScript:** `tsc --noEmit` clean. 667 tests, 27 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
