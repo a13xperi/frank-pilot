@@ -10,6 +10,7 @@ import { ApprovalService } from "../modules/approval/service";
 import { PaymentService } from "../modules/payment/service";
 import { DecisionMatrixService } from "../modules/decision-matrix/service";
 import { LeaseService } from "../modules/lease/service";
+import { UserService } from "../modules/users/service";
 import { queryAuditLog } from "../middleware/audit";
 import bcrypt from "bcrypt";
 
@@ -94,19 +95,95 @@ program
   .command("deactivate-user")
   .description("Deactivate a user account (prevents login)")
   .requiredOption("-e, --email <email>", "User email to deactivate")
+  .requiredOption("-u, --actor-id <actorId>", "System admin user ID performing the action")
   .action(async (opts) => {
     try {
-      const result = await query(
-        "UPDATE users SET is_active = false WHERE email = $1 RETURNING id, email, role",
-        [opts.email]
-      );
-      if (result.rows.length === 0) {
-        console.error("User not found:", opts.email);
+      const actorResult = await query("SELECT id, role FROM users WHERE id = $1", [opts.actorId]);
+      if (actorResult.rows.length === 0) {
+        console.error("Actor user not found:", opts.actorId);
         process.exit(1);
       }
-      console.log("User deactivated:", result.rows[0]);
+      const targetResult = await query("SELECT id FROM users WHERE email = $1", [opts.email]);
+      if (targetResult.rows.length === 0) {
+        console.error("Target user not found:", opts.email);
+        process.exit(1);
+      }
+      const svc = new UserService();
+      const user = await svc.setActive(
+        targetResult.rows[0].id,
+        false,
+        actorResult.rows[0].id,
+        actorResult.rows[0].role
+      );
+      console.log("User deactivated:", { id: user.id, email: user.email, role: user.role });
     } catch (err) {
       console.error("Error:", (err as Error).message);
+    } finally {
+      await pool.end();
+    }
+  });
+
+program
+  .command("activate-user")
+  .description("Reactivate a deactivated user account")
+  .requiredOption("-e, --email <email>", "User email to activate")
+  .requiredOption("-u, --actor-id <actorId>", "System admin user ID performing the action")
+  .action(async (opts) => {
+    try {
+      const actorResult = await query("SELECT id, role FROM users WHERE id = $1", [opts.actorId]);
+      if (actorResult.rows.length === 0) {
+        console.error("Actor user not found:", opts.actorId);
+        process.exit(1);
+      }
+      const targetResult = await query("SELECT id FROM users WHERE email = $1", [opts.email]);
+      if (targetResult.rows.length === 0) {
+        console.error("Target user not found:", opts.email);
+        process.exit(1);
+      }
+      const svc = new UserService();
+      const user = await svc.setActive(
+        targetResult.rows[0].id,
+        true,
+        actorResult.rows[0].id,
+        actorResult.rows[0].role
+      );
+      console.log("User activated:", { id: user.id, email: user.email, role: user.role });
+    } catch (err) {
+      console.error("Error:", (err as Error).message);
+    } finally {
+      await pool.end();
+    }
+  });
+
+program
+  .command("reset-password")
+  .description("Reset a user's password (admin operation — no old password required)")
+  .requiredOption("-e, --email <email>", "Email of the user whose password to reset")
+  .requiredOption("-p, --new-password <newPassword>", "New password (min 8 characters)")
+  .requiredOption("-u, --actor-id <actorId>", "System admin user ID performing the reset")
+  .action(async (opts) => {
+    try {
+      const actorResult = await query("SELECT id, role FROM users WHERE id = $1", [opts.actorId]);
+      if (actorResult.rows.length === 0) {
+        console.error("Actor user not found:", opts.actorId);
+        process.exit(1);
+      }
+      const targetResult = await query("SELECT id FROM users WHERE email = $1", [opts.email]);
+      if (targetResult.rows.length === 0) {
+        console.error("Target user not found:", opts.email);
+        process.exit(1);
+      }
+      const svc = new UserService();
+      await svc.resetPassword(
+        targetResult.rows[0].id,
+        opts.newPassword,
+        actorResult.rows[0].id,
+        actorResult.rows[0].role
+      );
+      console.log(`Password reset successfully for: ${opts.email}`);
+    } catch (err) {
+      console.error("Error:", (err as Error).message);
+      process.exit(1);
     } finally {
       await pool.end();
     }

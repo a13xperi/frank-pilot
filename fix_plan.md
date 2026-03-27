@@ -641,6 +641,64 @@ or `tier*_denied` with no legally required disclosure to the applicant.
 
 ---
 
+## Loop 23 — User Management API + CLI (Implementation)
+
+### ✅ Implement `src/modules/users/service.ts` + `routes.ts`
+### ✅ Add `reset-password`, `activate-user` CLI commands; upgrade `deactivate-user`
+### ✅ Write `src/__tests__/user-service.test.ts` — 22 tests
+
+**Gap closed:** `user:manage` (system_admin) and `user:view` (senior_manager+) RBAC
+permissions were defined but had no API routes. User management was CLI-only,
+requiring shell access. Now exposed via REST API.
+
+**UserService — 5 methods:**
+
+`list(filters?)`:
+- Optional `role` + `isActive` filters generate dynamic WHERE clause
+- Returns UserRecord[] sorted by role, last_name, first_name
+
+`getById(userId)`:
+- Returns null on miss; mapped UserRecord on hit
+
+`create(input, actorId, actorRole)`:
+- Validates role against VALID_ROLES set — throws before any DB write on invalid role
+- bcrypt.hash(password, 10) — plaintext never logged or stored
+- Inserts into users; writes `permission_change` audit log with `action: 'user_created'`
+
+`setActive(userId, isActive, actorId, actorRole)`:
+- Throws `User not found` on miss
+- Writes `permission_change` audit log with `action: 'user_activated'` or `'user_deactivated'`
+
+`resetPassword(userId, newPassword, actorId, actorRole)`:
+- Admin reset — no old password required
+- bcrypt.hash — plaintext never stored
+- Writes `permission_change` audit log with `action: 'password_reset'`
+- Throws `User not found` on miss
+
+**Routes** (`/api/users`):
+- `GET /`                     — `user:view` (senior_manager+); optional ?role=X&isActive=true/false
+- `GET /:userId`              — `user:view`; 404 on miss
+- `POST /`                    — `user:manage` (system_admin); Zod validation; 201 on success
+- `PATCH /:userId/deactivate` — `user:manage`; 400 on not-found
+- `PATCH /:userId/activate`   — `user:manage`; 400 on not-found
+- `POST /:userId/reset-password` — `user:manage`; Zod: newPassword min 8 chars
+
+**CLI upgrades:**
+- `deactivate-user` — upgraded to use UserService + audit log (now requires -u actorId)
+- `activate-user`   — new command (reactivate a deactivated user)
+- `reset-password`  — new command (admin reset, no old password needed)
+
+**Tests — 22 passing:**
+- list(): all users; role filter; isActive filter; combined AND filters; null lastLogin
+- getById(): null on miss; correct mapping; queries by userId
+- create(): invalid role throws before DB; bcrypt hash used not plaintext; audit log written; returns record; null propertyIds defaults to []
+- setActive(): not found throws; false/true written correctly; deactivated/activated audit logs
+- resetPassword(): not found throws; plaintext not stored; password_reset audit log; resolves undefined
+
+**TypeScript:** `tsc --noEmit` clean. 574 tests, 23 suites, all passing.
+
+---
+
 ## Notes
 
 - DO NOT modify integration stubs in `src/modules/integrations/`
