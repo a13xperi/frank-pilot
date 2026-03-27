@@ -65,11 +65,21 @@
 
 ## Loop 4 — Application Module Tests
 
-### ⬜ Write tests: `src/modules/application/validation.ts`
-- Test: valid application schema passes
-- Test: invalid SSN format → fails
-- Test: missing required fields → fails
-- Test: income edge cases
+### ✅ Write tests: `src/modules/application/validation.ts` — 45 tests
+- Test: minimal + full valid payloads pass
+- Test: each required field missing → fails (propertyId, firstName, lastName, ssn, dateOfBirth)
+- Test: propertyId must be UUID
+- Test: SSN — dashes optional (123456789 valid), spaces/wrong-grouping/letters → fail
+- Test: dateOfBirth — YYYY-MM-DD only; MM/DD/YYYY and freeform rejected
+- Test: annualIncome — 0 accepted (LIHTC zero-income households), negative fails
+- Test: requestedLeaseTermMonths — 1–60 inclusive, non-integer rejects
+- Test: currentState — exactly 2 chars
+- Test: previousRentalDurationMonths — 0 accepted (first-time renters), negative fails
+- Test: submitApplicationSchema — UUID required
+- Test: updateApplicationSchema — SSN omitted (immutable), all fields optional, validation still applies
+- No mocks needed — pure Zod schema tests
+
+**Result:** 45 tests, all passing (171 total across all loops).
 
 ---
 
