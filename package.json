@@ -10,6 +10,7 @@
     "cli": "ts-node src/cli/index.ts",
     "migrate": "ts-node src/db/migrate.ts",
     "seed": "ts-node src/db/seed.ts",
+    "seed:demo": "ts-node src/db/seed-demo.ts",
     "test": "jest --passWithNoTests"
   },
   "dependencies": {

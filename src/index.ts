@@ -126,6 +126,23 @@ app.get(
   }
 );
 
+// Demo data seeding (system_admin only)
+app.post(
+  "/api/demo/seed",
+  authenticate,
+  requirePermission("user:manage"),
+  async (_req: AuthRequest, res) => {
+    try {
+      const { seedDemoData } = await import("./db/seed-demo");
+      const result = await seedDemoData();
+      res.json({ success: true, ...result });
+    } catch (err) {
+      logger.error("Demo seed failed", { error: (err as Error).message });
+      res.status(500).json({ error: "Demo seed failed: " + (err as Error).message });
+    }
+  }
+);
+
 // ============================================================
 // Error handling
 // ============================================================
