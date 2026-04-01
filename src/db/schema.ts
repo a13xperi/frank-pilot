@@ -82,7 +82,15 @@ CREATE TYPE audit_action AS ENUM (
   'property_updated',
   'user_login',
   'user_logout',
-  'permission_change'
+  'permission_change',
+  'recertification_created',
+  'recertification_reminder_sent',
+  'recertification_submitted',
+  'recertification_approved',
+  'recertification_denied',
+  'recertification_overdue',
+  'market_rent_applied',
+  'recertification_reset'
 );
 
 CREATE TYPE fraud_flag_type AS ENUM (
@@ -99,6 +107,23 @@ CREATE TYPE modification_type AS ENUM (
   'lease_term_change',
   'pet_policy_change',
   'other'
+);
+
+CREATE TYPE property_type AS ENUM ('senior', 'family', 'mixed_use');
+
+CREATE TYPE recertification_type AS ENUM ('annual', 'interim');
+
+CREATE TYPE recertification_status AS ENUM (
+  'pending',
+  'reminder_120',
+  'reminder_90',
+  'reminder_60',
+  'submitted',
+  'under_review',
+  'approved',
+  'denied',
+  'overdue',
+  'market_rent_applied'
 );
 
 -- ============================================================
@@ -133,6 +158,24 @@ CREATE TABLE properties (
   ami_area VARCHAR(100) NOT NULL,
   onesite_property_id VARCHAR(100),
   loft_property_id VARCHAR(100),
+
+  -- Extended property profile (Module 15)
+  phone VARCHAR(20),
+  email VARCHAR(255),
+  property_manager VARCHAR(200),
+  property_type property_type DEFAULT 'family',
+  lihtc_type VARCHAR(50),
+  ami_set_aside VARCHAR(100),
+  compliance_period_start DATE,
+  compliance_period_end DATE,
+  has_lura BOOLEAN DEFAULT false,
+  has_mortgage BOOLEAN DEFAULT false,
+  jurisdiction VARCHAR(100),
+  unit_mix JSONB DEFAULT '{}',
+  rent_schedule JSONB DEFAULT '{}',
+  total_vacancy INTEGER DEFAULT 0,
+  waiting_list_enabled BOOLEAN DEFAULT false,
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

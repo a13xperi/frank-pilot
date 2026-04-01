@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
@@ -10,13 +11,11 @@ import { logger } from "../../utils/logger";
  * PCI-compliant: tokenized via Stripe, no physical card capture.
  */
 export class PaymentService {
-  private stripe: any;
+  private stripe?: Stripe;
 
   constructor() {
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (stripeKey && stripeKey !== "sk_test_changeme") {
-      // Lazy-load Stripe to avoid errors when key not configured
-      const Stripe = require("stripe");
       this.stripe = new Stripe(stripeKey);
     }
   }
