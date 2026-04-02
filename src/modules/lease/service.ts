@@ -4,6 +4,7 @@ import { logger } from "../../utils/logger";
 import { OneSiteService } from "../integrations/onesite";
 import { LoftService } from "../integrations/loft";
 import { TwilioService } from "../integrations/twilio";
+import { RecertificationService } from "../recertification/service";
 
 /**
  * Set of application statuses that are eligible for lease generation.
@@ -19,6 +20,7 @@ export class LeaseService {
   private oneSite = new OneSiteService();
   private loft = new LoftService();
   private twilio = new TwilioService();
+  private recertification = new RecertificationService();
 
   /**
    * Generate a lease document in OneSite for an approved application.
@@ -176,11 +178,27 @@ export class LeaseService {
       onesiteLeaseId: app.onesite_lease_id,
     });
 
-    // Update status to onboarded
+    // Update status to onboarded, set lease dates + security deposit
+    const termMonths = app.requested_lease_term_months || 12;
+    const rentAmount = parseFloat(app.requested_rent_amount || "0");
     await query(
-      "UPDATE applications SET status = 'onboarded', loft_tenant_id = $2 WHERE id = $1",
-      [applicationId, loftResult.loftTenantId]
+      `UPDATE applications SET status = 'onboarded', loft_tenant_id = $2,
+         lease_start_date = CURRENT_DATE,
+         lease_end_date = CURRENT_DATE + ($3 || ' months')::INTERVAL,
+         security_deposit_amount = $4
+       WHERE id = $1`,
+      [applicationId, loftResult.loftTenantId, termMonths, rentAmount]
     );
+
+    // Auto-create first annual recertification
+    try {
+      await this.recertification.createForApplication(applicationId, actorId, actorRole);
+    } catch (recertErr) {
+      logger.warn("Failed to auto-create recertification (non-blocking)", {
+        error: (recertErr as Error).message,
+        applicationId,
+      });
+    }
 
     await writeAuditLog({
       action: "tenant_onboarded",

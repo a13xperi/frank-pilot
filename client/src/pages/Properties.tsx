@@ -10,15 +10,23 @@ import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
 import type { Property, PropertyListResponse } from '@/types';
 
+const TYPE_LABELS: Record<string, string> = { senior: 'Senior', family: 'Family', mixed_use: 'Mixed' };
+
 const columns: Column<Property>[] = [
   { key: 'name', header: 'Name' },
   {
+    key: 'type',
+    header: 'Type',
+    render: (r) => TYPE_LABELS[r.propertyType] || r.propertyType,
+  },
+  {
     key: 'address',
     header: 'Address',
-    render: (r) => `${r.addressLine1}, ${r.city}, ${r.state} ${r.zip}`,
+    render: (r) => `${r.addressLine1}, ${r.city}`,
   },
   { key: 'unitCount', header: 'Units', className: 'text-right' },
-  { key: 'amiArea', header: 'AMI Area' },
+  { key: 'totalVacancy', header: 'Vacant', className: 'text-right' },
+  { key: 'jurisdiction', header: 'Jurisdiction' },
 ];
 
 const EMPTY_FORM = {

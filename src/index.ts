@@ -20,6 +20,14 @@ import adverseActionRoutes from "./modules/adverse-action/routes";
 import userRoutes from "./modules/users/routes";
 import propertyRoutes from "./modules/properties/routes";
 import complianceRoutes from "./modules/compliance/routes";
+import recertificationRoutes from "./modules/recertification/routes";
+import ledgerRoutes from "./modules/ledger/routes";
+import evictionRoutes from "./modules/eviction/routes";
+import inspectionRoutes from "./modules/inspections/routes";
+import maintenanceRoutes from "./modules/maintenance/routes";
+import renewalRoutes from "./modules/renewal/routes";
+import moveoutRoutes from "./modules/moveout/routes";
+import { startScheduler } from "./scheduler";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000");
@@ -103,6 +111,13 @@ app.use("/api/properties", propertyRoutes);
 
 // Compliance reports (Fair Housing Act — audit:view / Regional Manager+)
 app.use("/api/compliance", complianceRoutes);
+app.use("/api/recertifications", recertificationRoutes);
+app.use("/api/ledger", ledgerRoutes);
+app.use("/api/evictions", evictionRoutes);
+app.use("/api/inspections", inspectionRoutes);
+app.use("/api/maintenance", maintenanceRoutes);
+app.use("/api/renewals", renewalRoutes);
+app.use("/api/moveouts", moveoutRoutes);
 
 // Audit log
 app.get(
@@ -160,9 +175,11 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 // Start server
 // ============================================================
 
-app.listen(PORT, () => {
-  logger.info(`Frank Pilot server running on port ${PORT}`);
-  console.log(`
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    logger.info(`Frank Pilot server running on port ${PORT}`);
+    startScheduler();
+    console.log(`
   ╔══════════════════════════════════════════════════╗
   ║  Frank Pilot — Tenant Onboarding Module          ║
   ║  Community Development Programs Center of Nevada  ║
@@ -171,6 +188,7 @@ app.listen(PORT, () => {
   ║  Health: http://localhost:${PORT}/health              ║
   ╚══════════════════════════════════════════════════╝
   `);
-});
+  });
+}
 
 export default app;

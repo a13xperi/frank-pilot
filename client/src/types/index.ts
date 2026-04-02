@@ -80,6 +80,8 @@ export interface ApplicationListResponse {
 
 // ── Property types ────────────────────────────────────────────────
 
+export type PropertyType = 'senior' | 'family' | 'mixed_use';
+
 export interface Property {
   id: string;
   name: string;
@@ -92,6 +94,21 @@ export interface Property {
   amiArea: string;
   onesitePropertyId: string | null;
   loftPropertyId: string | null;
+  phone: string | null;
+  email: string | null;
+  propertyManager: string | null;
+  propertyType: PropertyType;
+  lihtcType: string | null;
+  amiSetAside: string | null;
+  compliancePeriodStart: string | null;
+  compliancePeriodEnd: string | null;
+  hasLura: boolean;
+  hasMortgage: boolean;
+  jurisdiction: string | null;
+  unitMix: Record<string, number>;
+  rentSchedule: Record<string, number>;
+  totalVacancy: number;
+  waitingListEnabled: boolean;
   createdAt: string;
 }
 
@@ -198,6 +215,221 @@ export interface AdverseActionNotice {
   reasonDetail: string | null;
   sentAt: string;
   sentVia: string;
+}
+
+// ── Recertification types ────────────────────────────────────────
+
+export interface Recertification {
+  id: string;
+  applicationId: string;
+  propertyId: string;
+  propertyName: string | null;
+  tenantName: string;
+  type: 'annual' | 'interim';
+  status: string;
+  anniversaryDate: string;
+  cutoffDate: string;
+  tracsDeadline: string;
+  reminder120SentAt: string | null;
+  reminder90SentAt: string | null;
+  reminder60SentAt: string | null;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewDecision: string | null;
+  reviewNotes: string | null;
+  previousAnnualIncome: number | null;
+  newAnnualIncome: number | null;
+  rentAdjustment: number | null;
+  createdAt: string;
+}
+
+export interface RecertificationListResponse {
+  recertifications: Recertification[];
+  total: number;
+}
+
+// ── Ledger types ─────────────────────────────────────────────────
+
+export interface LedgerEntry {
+  id: string;
+  applicationId: string;
+  propertyId: string;
+  entryType: string;
+  status: string;
+  description: string;
+  amount: number;
+  balanceAfter: number;
+  billingPeriod: string | null;
+  dueDate: string | null;
+  referenceId: string | null;
+  createdAt: string;
+}
+
+export interface LedgerResponse {
+  entries: LedgerEntry[];
+  total: number;
+}
+
+export interface LedgerBalanceResponse {
+  applicationId: string;
+  balance: number;
+  lastPaymentDate: string | null;
+  nextDueDate: string | null;
+}
+
+export interface DelinquencyRecord {
+  applicationId: string;
+  tenantName: string;
+  propertyName: string;
+  balance: number;
+  oldestUnpaidDate: string | null;
+  daysOverdue: number;
+  latePaymentCount12Mo: number;
+  evictionTrigger: boolean;
+}
+
+export interface DelinquencyResponse {
+  delinquencies: DelinquencyRecord[];
+}
+
+// ── Inspection types ─────────────────────────────────────────────
+
+export interface Inspection {
+  id: string;
+  property_id: string;
+  property_name: string;
+  unit_number: string | null;
+  inspection_type: string;
+  status: string;
+  scheduled_date: string;
+  completed_date: string | null;
+  inspector_name: string | null;
+  notes: string | null;
+  smoke_detector_ok: boolean | null;
+  hqs_compliant: boolean | null;
+  follow_up_required: boolean;
+  created_at: string;
+}
+
+export interface WorkOrder {
+  id: string;
+  property_id: string;
+  property_name: string;
+  unit_number: string | null;
+  title: string;
+  description: string;
+  priority: string;
+  status: string;
+  category: string | null;
+  is_emergency: boolean;
+  submitted_by_name: string | null;
+  assigned_to_name: string | null;
+  completed_at: string | null;
+  completion_notes: string | null;
+  created_at: string;
+}
+
+// ── Renewal types ────────────────────────────────────────────────
+
+export interface LeaseRenewal {
+  id: string;
+  application_id: string;
+  tenant_name: string;
+  property_name: string;
+  status: string;
+  current_rent: number;
+  proposed_rent: number;
+  rent_change_amount: number;
+  proposed_term_months: number;
+  tenant_response: string | null;
+  counter_rent: number | null;
+  offered_at: string | null;
+  response_at: string | null;
+  response_deadline: string | null;
+  approved_at: string | null;
+  lease_end_date: string | null;
+  created_at: string;
+}
+
+// ── Move-Out types ───────────────────────────────────────────────
+
+export interface MoveOut {
+  id: string;
+  application_id: string;
+  tenant_name: string;
+  property_name: string;
+  status: string;
+  notice_date: string;
+  expected_vacate_date: string;
+  actual_vacate_date: string | null;
+  forwarding_address: string | null;
+  pre_inspection_date: string | null;
+  pre_inspection_notes: string | null;
+  final_inspection_date: string | null;
+  final_inspection_notes: string | null;
+  deposit_amount: number | null;
+  deductions_total: number | null;
+  deductions_detail: Record<string, number>;
+  refund_amount: number | null;
+  deposit_deadline: string | null;
+  unpaid_rent_balance: number | null;
+  created_at: string;
+}
+
+// ── Eviction types ───────────────────────────────────────────────
+
+export interface Violation {
+  id: string;
+  application_id: string;
+  property_id: string;
+  tenant_name: string;
+  property_name: string;
+  violation_type: string;
+  status: string;
+  description: string;
+  occurred_at: string;
+  is_material_breach: boolean;
+  vawa_flagged: boolean;
+  warning_issued_at: string | null;
+  notice_served_at: string | null;
+  cure_deadline: string | null;
+  resolved_at: string | null;
+  resolution_notes: string | null;
+  created_at: string;
+}
+
+export interface EvictionNotice {
+  id: string;
+  application_id: string;
+  violation_id: string | null;
+  notice_type: string;
+  status: string;
+  tenant_name: string;
+  property_address: string;
+  unit_number: string | null;
+  amount_owed: number | null;
+  notice_text: string;
+  serve_date: string | null;
+  expiration_date: string | null;
+  certificate_of_mailing: boolean;
+  cares_act_applicable: boolean;
+  created_at: string;
+}
+
+export interface EvictionCase {
+  id: string;
+  application_id: string;
+  tenant_name: string;
+  property_name: string;
+  status: string;
+  case_number: string | null;
+  jurisdiction: string | null;
+  filing_date: string | null;
+  hearing_date: string | null;
+  judgment_date: string | null;
+  judgment_amount: number | null;
+  notes: string | null;
+  created_at: string;
 }
 
 // ── Compliance types ─────────────────────────────────────────────

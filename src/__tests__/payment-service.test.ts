@@ -29,16 +29,19 @@ const mockStripeCustomersUpdate = jest.fn();
 const mockStripePaymentMethodsAttach = jest.fn();
 
 jest.mock("stripe", () => {
-  return jest.fn().mockImplementation(() => ({
-    customers: {
-      create: mockStripeCustomersCreate,
-      update: mockStripeCustomersUpdate,
-    },
-    paymentMethods: {
-      attach: mockStripePaymentMethodsAttach,
-    },
-  }));
-}, { virtual: true });
+  return {
+    __esModule: true,
+    default: jest.fn().mockImplementation(() => ({
+      customers: {
+        create: mockStripeCustomersCreate,
+        update: mockStripeCustomersUpdate,
+      },
+      paymentMethods: {
+        attach: mockStripePaymentMethodsAttach,
+      },
+    })),
+  };
+});
 
 import { query } from "../config/database";
 import { writeAuditLog } from "../middleware/audit";
@@ -70,7 +73,11 @@ describe("PaymentService.createCustomer — stub (Stripe not configured)", () =>
   let service: PaymentService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockQuery.mockReset();
+    mockAuditLog.mockReset();
+    mockStripeCustomersCreate.mockReset();
+    mockStripeCustomersUpdate.mockReset();
+    mockStripePaymentMethodsAttach.mockReset();
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY; // ensure stub path
     mockAuditLog.mockResolvedValue(undefined);
@@ -143,7 +150,11 @@ describe("PaymentService.createCustomer — live Stripe path", () => {
   let service: PaymentService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockQuery.mockReset();
+    mockAuditLog.mockReset();
+    mockStripeCustomersCreate.mockReset();
+    mockStripeCustomersUpdate.mockReset();
+    mockStripePaymentMethodsAttach.mockReset();
     process.env = { ...originalEnv, STRIPE_SECRET_KEY: "sk_test_real123" };
     mockAuditLog.mockResolvedValue(undefined);
     mockQuery.mockResolvedValue({ rows: [] } as any);
@@ -224,7 +235,11 @@ describe("PaymentService.setupPaymentMethod", () => {
   let service: PaymentService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockQuery.mockReset();
+    mockAuditLog.mockReset();
+    mockStripeCustomersCreate.mockReset();
+    mockStripeCustomersUpdate.mockReset();
+    mockStripePaymentMethodsAttach.mockReset();
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY; // stub mode — no Stripe calls
     mockAuditLog.mockResolvedValue(undefined);
@@ -341,7 +356,11 @@ describe("PaymentService.enrollAutoPay", () => {
   let service: PaymentService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockQuery.mockReset();
+    mockAuditLog.mockReset();
+    mockStripeCustomersCreate.mockReset();
+    mockStripeCustomersUpdate.mockReset();
+    mockStripePaymentMethodsAttach.mockReset();
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY;
     mockAuditLog.mockResolvedValue(undefined);
@@ -364,7 +383,9 @@ describe("PaymentService.enrollAutoPay", () => {
   });
 
   it("returns enrolled:true and monthlyDiscount:25", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [makeApp()] } as any);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [makeApp()] } as any)
+      .mockResolvedValueOnce({ rows: [] } as any);
 
     const result = await service.enrollAutoPay({
       applicationId: "app-001",
@@ -375,7 +396,9 @@ describe("PaymentService.enrollAutoPay", () => {
   });
 
   it("sets auto_pay_enrolled=true in DB", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [makeApp()] } as any);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [makeApp()] } as any)
+      .mockResolvedValueOnce({ rows: [] } as any);
 
     await service.enrollAutoPay({ applicationId: "app-001", ...baseActor });
 
@@ -387,7 +410,9 @@ describe("PaymentService.enrollAutoPay", () => {
   });
 
   it("writes auto_pay_enrolled audit log with monthlyDiscount:25", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [makeApp()] } as any);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [makeApp()] } as any)
+      .mockResolvedValueOnce({ rows: [] } as any);
 
     await service.enrollAutoPay({ applicationId: "app-001", ...baseActor });
 
@@ -407,7 +432,11 @@ describe("PaymentService.getPaymentStatus", () => {
   let service: PaymentService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockQuery.mockReset();
+    mockAuditLog.mockReset();
+    mockStripeCustomersCreate.mockReset();
+    mockStripeCustomersUpdate.mockReset();
+    mockStripePaymentMethodsAttach.mockReset();
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY;
     service = new PaymentService();

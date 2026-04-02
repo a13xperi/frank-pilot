@@ -90,7 +90,35 @@ CREATE TYPE audit_action AS ENUM (
   'recertification_denied',
   'recertification_overdue',
   'market_rent_applied',
-  'recertification_reset'
+  'recertification_reset',
+  'ledger_rent_posted',
+  'ledger_payment_recorded',
+  'ledger_late_fee_assessed',
+  'ledger_credit_applied',
+  'ledger_entry_reversed',
+  'violation_reported',
+  'violation_warning_issued',
+  'violation_notice_served',
+  'violation_resolved',
+  'violation_dismissed',
+  'eviction_notice_generated',
+  'eviction_case_filed',
+  'eviction_case_updated',
+  'renewal_offered',
+  'renewal_accepted',
+  'renewal_declined',
+  'renewal_counter_offered',
+  'renewal_approved',
+  'moveout_initiated',
+  'moveout_inspection_completed',
+  'deposit_disposition_calculated',
+  'deposit_refund_sent',
+  'collections_referred',
+  'inspection_scheduled',
+  'inspection_completed',
+  'work_order_created',
+  'work_order_assigned',
+  'work_order_completed'
 );
 
 CREATE TYPE fraud_flag_type AS ENUM (
@@ -112,6 +140,66 @@ CREATE TYPE modification_type AS ENUM (
 CREATE TYPE property_type AS ENUM ('senior', 'family', 'mixed_use');
 
 CREATE TYPE recertification_type AS ENUM ('annual', 'interim');
+
+CREATE TYPE ledger_entry_type AS ENUM (
+  'rent_charge', 'late_fee', 'nsf_fee', 'payment', 'credit',
+  'concession', 'adjustment', 'pro_rated_rent', 'extended_guest_fee',
+  'early_termination_fee'
+);
+
+CREATE TYPE ledger_entry_status AS ENUM ('posted', 'reversed', 'pending');
+
+CREATE TYPE violation_type AS ENUM (
+  'nonpayment', 'late_payment_pattern', 'lease_violation',
+  'noise_disturbance', 'property_damage', 'unauthorized_occupant',
+  'drug_violation', 'criminal_activity', 'unauthorized_pet',
+  'health_safety', 'other'
+);
+
+CREATE TYPE violation_status AS ENUM (
+  'reported', 'warning_issued', 'notice_served',
+  'cure_period', 'escalated', 'resolved', 'dismissed'
+);
+
+CREATE TYPE notice_type AS ENUM (
+  'pay_or_quit_7day', 'perform_or_quit_5day', 'quit_tenancy_at_will_5day',
+  'unlawful_detainer_5day', 'no_cause_7day', 'no_cause_30day',
+  'nonpayment_cares_30day', 'nuisance_quit_3day', 'cure_or_quit_5day',
+  'rent_increase_30day'
+);
+
+CREATE TYPE renewal_status AS ENUM (
+  'pending_offer', 'offered', 'accepted', 'declined',
+  'counter_offered', 'approved', 'expired'
+);
+
+CREATE TYPE inspection_type AS ENUM (
+  'monthly', 'move_in', 'move_out', 'annual', 'emergency', 'hqs', 'smoke_detector'
+);
+
+CREATE TYPE inspection_status AS ENUM (
+  'scheduled', 'notice_sent', 'in_progress', 'completed', 'cancelled', 'overdue'
+);
+
+CREATE TYPE work_order_status AS ENUM (
+  'submitted', 'assigned', 'in_progress', 'completed', 'cancelled', 'on_hold'
+);
+
+CREATE TYPE work_order_priority AS ENUM (
+  'emergency', 'urgent', 'routine', 'low'
+);
+
+CREATE TYPE moveout_status AS ENUM (
+  'notice_received', 'pre_inspection_scheduled', 'pre_inspection_complete',
+  'vacated', 'final_inspection_complete', 'deposit_calculated',
+  'deposit_sent', 'closed', 'collections'
+);
+
+CREATE TYPE eviction_case_status AS ENUM (
+  'pre_filing', 'notice_served', 'notice_expired',
+  'filed', 'hearing_scheduled', 'judgment',
+  'writ_issued', 'executed', 'dismissed', 'settled'
+);
 
 CREATE TYPE recertification_status AS ENUM (
   'pending',
@@ -227,6 +315,9 @@ CREATE TABLE applications (
   requested_lease_term_months INTEGER DEFAULT 12,
   requested_rent_amount DECIMAL(10,2),
   requested_move_in_date DATE,
+  lease_start_date DATE,
+  lease_end_date DATE,
+  security_deposit_amount DECIMAL(10,2),
 
   -- Status
   status application_status DEFAULT 'draft',
@@ -352,6 +443,237 @@ CREATE TABLE adverse_action_notices (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Inspections (Module 10)
+CREATE TABLE inspections (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id UUID NOT NULL REFERENCES properties(id),
+  application_id UUID REFERENCES applications(id),
+  unit_number VARCHAR(20),
+  inspection_type inspection_type NOT NULL,
+  status inspection_status NOT NULL DEFAULT 'scheduled',
+  scheduled_date DATE NOT NULL,
+  completed_date DATE,
+  inspector_id UUID REFERENCES users(id),
+  notice_sent_at TIMESTAMPTZ,
+  notes TEXT,
+  room_details JSONB DEFAULT '{}',
+  photos JSONB DEFAULT '[]',
+  appliance_inventory JSONB DEFAULT '{}',
+  smoke_detector_ok BOOLEAN,
+  hqs_compliant BOOLEAN,
+  follow_up_required BOOLEAN DEFAULT false,
+  follow_up_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Work Orders (Module 10)
+CREATE TABLE work_orders (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id UUID NOT NULL REFERENCES properties(id),
+  application_id UUID REFERENCES applications(id),
+  unit_number VARCHAR(20),
+  title VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  priority work_order_priority NOT NULL DEFAULT 'routine',
+  status work_order_status NOT NULL DEFAULT 'submitted',
+  category VARCHAR(100),
+  is_emergency BOOLEAN DEFAULT false,
+  submitted_by UUID REFERENCES users(id),
+  assigned_to UUID REFERENCES users(id),
+  assigned_at TIMESTAMPTZ,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  completed_by UUID REFERENCES users(id),
+  completion_notes TEXT,
+  photos JSONB DEFAULT '[]',
+  estimated_cost DECIMAL(10,2),
+  actual_cost DECIMAL(10,2),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Lease Renewals (Module 8)
+CREATE TABLE lease_renewals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id UUID NOT NULL REFERENCES applications(id),
+  property_id UUID NOT NULL REFERENCES properties(id),
+  status renewal_status NOT NULL DEFAULT 'pending_offer',
+  current_rent DECIMAL(10,2) NOT NULL,
+  proposed_rent DECIMAL(10,2) NOT NULL,
+  rent_change_amount DECIMAL(10,2),
+  proposed_term_months INTEGER DEFAULT 12,
+  tenant_response VARCHAR(20),
+  counter_rent DECIMAL(10,2),
+  counter_term_months INTEGER,
+  offered_at TIMESTAMPTZ,
+  response_at TIMESTAMPTZ,
+  response_deadline DATE,
+  approved_by UUID REFERENCES users(id),
+  approved_at TIMESTAMPTZ,
+  reminder_60_sent_at TIMESTAMPTZ,
+  reminder_30_sent_at TIMESTAMPTZ,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Move-Outs (Module 8)
+CREATE TABLE move_outs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id UUID NOT NULL REFERENCES applications(id),
+  property_id UUID NOT NULL REFERENCES properties(id),
+  status moveout_status NOT NULL DEFAULT 'notice_received',
+  notice_date DATE NOT NULL,
+  expected_vacate_date DATE NOT NULL,
+  actual_vacate_date DATE,
+  forwarding_address TEXT,
+  pre_inspection_date DATE,
+  pre_inspection_notes TEXT,
+  final_inspection_date DATE,
+  final_inspection_notes TEXT,
+  deposit_amount DECIMAL(10,2),
+  deductions_total DECIMAL(10,2),
+  deductions_detail JSONB DEFAULT '{}',
+  refund_amount DECIMAL(10,2),
+  deposit_disposition_date DATE,
+  deposit_deadline DATE,
+  unpaid_rent_balance DECIMAL(10,2),
+  collections_referred_at TIMESTAMPTZ,
+  notes TEXT,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Lease Violations (Module 9: Eviction & Violation Workflow)
+CREATE TABLE lease_violations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id UUID NOT NULL REFERENCES applications(id),
+  property_id UUID NOT NULL REFERENCES properties(id),
+  violation_type violation_type NOT NULL,
+  status violation_status NOT NULL DEFAULT 'reported',
+  description TEXT NOT NULL,
+  occurred_at DATE NOT NULL,
+  reported_by UUID REFERENCES users(id),
+  evidence_notes TEXT,
+  warning_issued_at TIMESTAMPTZ,
+  notice_served_at TIMESTAMPTZ,
+  cure_deadline DATE,
+  resolved_at TIMESTAMPTZ,
+  resolved_by UUID REFERENCES users(id),
+  resolution_notes TEXT,
+  is_material_breach BOOLEAN DEFAULT false,
+  vawa_flagged BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Eviction Notices (NV Regional Justice Center form templates)
+CREATE TABLE eviction_notices (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id UUID NOT NULL REFERENCES applications(id),
+  violation_id UUID REFERENCES lease_violations(id),
+  notice_type notice_type NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'draft',
+  tenant_name VARCHAR(200) NOT NULL,
+  property_address TEXT NOT NULL,
+  unit_number VARCHAR(20),
+  amount_owed DECIMAL(12,2),
+  notice_text TEXT NOT NULL,
+  serve_date DATE,
+  expiration_date DATE,
+  served_by UUID REFERENCES users(id),
+  certificate_of_mailing BOOLEAN DEFAULT false,
+  cares_act_applicable BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Eviction Cases (court filing and execution tracking)
+CREATE TABLE eviction_cases (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id UUID NOT NULL REFERENCES applications(id),
+  property_id UUID NOT NULL REFERENCES properties(id),
+  notice_id UUID REFERENCES eviction_notices(id),
+  status eviction_case_status NOT NULL DEFAULT 'pre_filing',
+  case_number VARCHAR(50),
+  jurisdiction VARCHAR(100),
+  filing_date DATE,
+  hearing_date DATE,
+  judgment_date DATE,
+  judgment_amount DECIMAL(12,2),
+  writ_issued_date DATE,
+  execution_date DATE,
+  constable_instructions TEXT,
+  notes TEXT,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tenant Ledger (Module 6: Double-entry financial tracking)
+CREATE TABLE tenant_ledger (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id UUID NOT NULL REFERENCES applications(id),
+  property_id UUID NOT NULL REFERENCES properties(id),
+  entry_type ledger_entry_type NOT NULL,
+  status ledger_entry_status NOT NULL DEFAULT 'posted',
+  description TEXT NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  balance_after DECIMAL(12,2) NOT NULL DEFAULT 0,
+  billing_period VARCHAR(7),
+  due_date DATE,
+  reference_id VARCHAR(100),
+  posted_by UUID REFERENCES users(id),
+  reversed_by_id UUID REFERENCES tenant_ledger(id),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Recertifications (Module 7: Annual/Interim HUD recertification tracking)
+CREATE TABLE recertifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id UUID NOT NULL REFERENCES applications(id),
+  property_id UUID NOT NULL REFERENCES properties(id),
+  tenant_name VARCHAR(200) NOT NULL,
+
+  -- Type and status
+  type recertification_type NOT NULL DEFAULT 'annual',
+  status recertification_status NOT NULL DEFAULT 'pending',
+
+  -- HUD deadlines
+  anniversary_date DATE NOT NULL,
+  cutoff_date DATE NOT NULL,         -- 10th day of 11th month
+  tracs_deadline DATE NOT NULL,      -- anniversary + 15 months
+
+  -- Reminder tracking
+  reminder_120_sent_at TIMESTAMPTZ,
+  reminder_90_sent_at TIMESTAMPTZ,
+  reminder_60_sent_at TIMESTAMPTZ,
+
+  -- Submission
+  submitted_at TIMESTAMPTZ,
+  submitted_by UUID REFERENCES users(id),
+
+  -- Review
+  reviewer_id UUID REFERENCES users(id),
+  reviewed_at TIMESTAMPTZ,
+  review_notes TEXT,
+  review_decision screening_result,
+
+  -- Income
+  previous_annual_income DECIMAL(12,2),
+  new_annual_income DECIMAL(12,2),
+  rent_adjustment DECIMAL(10,2),
+
+  -- Market rent enforcement
+  market_rent_applied_at TIMESTAMPTZ,
+  market_rent_amount DECIMAL(10,2),
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Audit Log (immutable, append-only)
 CREATE TABLE audit_log (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -405,6 +727,40 @@ CREATE INDEX idx_lease_modifications_status ON lease_modifications(status);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_email ON users(email);
 
+CREATE INDEX idx_inspections_property ON inspections(property_id);
+CREATE INDEX idx_inspections_status ON inspections(status);
+CREATE INDEX idx_inspections_scheduled ON inspections(scheduled_date);
+CREATE INDEX idx_work_orders_property ON work_orders(property_id);
+CREATE INDEX idx_work_orders_status ON work_orders(status);
+CREATE INDEX idx_work_orders_priority ON work_orders(priority);
+
+CREATE INDEX idx_renewals_application ON lease_renewals(application_id);
+CREATE INDEX idx_renewals_status ON lease_renewals(status);
+CREATE INDEX idx_moveouts_application ON move_outs(application_id);
+CREATE INDEX idx_moveouts_status ON move_outs(status);
+CREATE INDEX idx_moveouts_deadline ON move_outs(deposit_deadline);
+
+CREATE INDEX idx_violations_application ON lease_violations(application_id);
+CREATE INDEX idx_violations_property ON lease_violations(property_id);
+CREATE INDEX idx_violations_status ON lease_violations(status);
+CREATE INDEX idx_violations_type ON lease_violations(violation_type);
+CREATE INDEX idx_eviction_notices_application ON eviction_notices(application_id);
+CREATE INDEX idx_eviction_notices_type ON eviction_notices(notice_type);
+CREATE INDEX idx_eviction_cases_application ON eviction_cases(application_id);
+CREATE INDEX idx_eviction_cases_status ON eviction_cases(status);
+
+CREATE INDEX idx_ledger_application ON tenant_ledger(application_id);
+CREATE INDEX idx_ledger_property ON tenant_ledger(property_id);
+CREATE INDEX idx_ledger_billing_period ON tenant_ledger(billing_period);
+CREATE INDEX idx_ledger_entry_type ON tenant_ledger(entry_type);
+CREATE INDEX idx_ledger_due_date ON tenant_ledger(due_date);
+
+CREATE INDEX idx_recertifications_application ON recertifications(application_id);
+CREATE INDEX idx_recertifications_property ON recertifications(property_id);
+CREATE INDEX idx_recertifications_status ON recertifications(status);
+CREATE INDEX idx_recertifications_anniversary ON recertifications(anniversary_date);
+CREATE INDEX idx_recertifications_cutoff ON recertifications(cutoff_date);
+
 -- ============================================================
 -- TRIGGERS
 -- ============================================================
@@ -434,6 +790,34 @@ CREATE TRIGGER trg_lease_modifications_updated_at
   BEFORE UPDATE ON lease_modifications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+CREATE TRIGGER trg_recertifications_updated_at
+  BEFORE UPDATE ON recertifications
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_inspections_updated_at
+  BEFORE UPDATE ON inspections
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_work_orders_updated_at
+  BEFORE UPDATE ON work_orders
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_renewals_updated_at
+  BEFORE UPDATE ON lease_renewals
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_moveouts_updated_at
+  BEFORE UPDATE ON move_outs
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_violations_updated_at
+  BEFORE UPDATE ON lease_violations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_eviction_cases_updated_at
+  BEFORE UPDATE ON eviction_cases
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- Prevent audit log modification (immutability)
 CREATE OR REPLACE FUNCTION prevent_audit_modification()
 RETURNS TRIGGER AS $$
@@ -448,6 +832,15 @@ CREATE TRIGGER trg_audit_log_immutable
 `;
 
 export const DROP_SCHEMA_SQL = `
+DROP TABLE IF EXISTS work_orders CASCADE;
+DROP TABLE IF EXISTS inspections CASCADE;
+DROP TABLE IF EXISTS move_outs CASCADE;
+DROP TABLE IF EXISTS lease_renewals CASCADE;
+DROP TABLE IF EXISTS eviction_cases CASCADE;
+DROP TABLE IF EXISTS eviction_notices CASCADE;
+DROP TABLE IF EXISTS lease_violations CASCADE;
+DROP TABLE IF EXISTS tenant_ledger CASCADE;
+DROP TABLE IF EXISTS recertifications CASCADE;
 DROP TABLE IF EXISTS adverse_action_notices CASCADE;
 DROP TABLE IF EXISTS audit_log CASCADE;
 DROP TABLE IF EXISTS lease_modifications CASCADE;
@@ -458,6 +851,21 @@ DROP TABLE IF EXISTS applications CASCADE;
 DROP TABLE IF EXISTS properties CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
+DROP TYPE IF EXISTS work_order_priority CASCADE;
+DROP TYPE IF EXISTS work_order_status CASCADE;
+DROP TYPE IF EXISTS inspection_status CASCADE;
+DROP TYPE IF EXISTS inspection_type CASCADE;
+DROP TYPE IF EXISTS moveout_status CASCADE;
+DROP TYPE IF EXISTS renewal_status CASCADE;
+DROP TYPE IF EXISTS eviction_case_status CASCADE;
+DROP TYPE IF EXISTS notice_type CASCADE;
+DROP TYPE IF EXISTS violation_status CASCADE;
+DROP TYPE IF EXISTS violation_type CASCADE;
+DROP TYPE IF EXISTS ledger_entry_status CASCADE;
+DROP TYPE IF EXISTS ledger_entry_type CASCADE;
+DROP TYPE IF EXISTS recertification_status CASCADE;
+DROP TYPE IF EXISTS recertification_type CASCADE;
+DROP TYPE IF EXISTS property_type CASCADE;
 DROP TYPE IF EXISTS modification_type CASCADE;
 DROP TYPE IF EXISTS fraud_flag_type CASCADE;
 DROP TYPE IF EXISTS audit_action CASCADE;

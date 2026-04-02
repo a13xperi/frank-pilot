@@ -1,16 +1,23 @@
-# CDPC Compliance Hub — Stakeholder Demo Script
+# CDPC Compliance Hub — Stakeholder Demo Script (v2)
 
-**Duration:** ~15 minutes
+**Duration:** ~25 minutes
 **Presenter:** Facilitator with screen share
 **URL:** http://localhost:5173
 
-> **Before starting:** Click "Load Demo" on the login page to populate 13 sample applications across every pipeline stage. The green confirmation banner will appear. All demo accounts use password: `password123`
+> **Before starting:** Click "Load Demo" on the login page to populate 13 sample applications across every pipeline stage, plus recertifications, ledger entries, eviction records, a renewal offer, and a move-out. The green confirmation banner will appear. All demo accounts use password: `password123`
+
+---
+
+> **OPEN DECISION — FLAG FOR FRANK:**
+> Our late fee engine uses **$50 + $10/day** (from the GPMGLV lease template). However, HUD standard for subsidized LIHTC housing is **$5 + $1/day, max $30**. Which applies to GPMGLV properties? This must be resolved before go-live.
 
 ---
 
 ## Act 1: The Problem (1 min — talk track only)
 
 > "Today a single tenant qualification takes 30 days of paper shuffling between leasing agents, managers, and compliance officers. HUD audits catch missing documentation months after the fact. We built the CDPC Compliance Hub to compress that to 30 minutes — with every compliance check automated, every decision auditable, and every role scoped to exactly what they're authorized to do."
+>
+> "But it's not just onboarding. The system now covers the **entire tenant lifecycle**: application, screening, approval, lease generation, rent collection, recertification, lease renewal, move-out with deposit disposition, and eviction enforcement. Every step is audited, VAWA-checked, and HUD-compliant."
 
 ---
 
@@ -18,21 +25,15 @@
 
 **Login as:** `agent@cdpc.test`
 
-1. **Dashboard** — Point out stat cards: active applications, pending counts. Note the agent sees *fewer* nav items than managers (no Screening, Approvals, Compliance, Audit).
+1. **Dashboard** — Point out stat cards. Note the agent sees fewer nav items (no Screening, Approvals, Evictions, etc.).
 
-2. **Applications list** — Click "Applications" in sidebar.
-   - Show tab filters: All / Draft / Submitted / Screening / In Approval / Approved / Denied
-   - Point out each tab shows a live count badge
-   - Click into **Marcus Rivera** (status: Draft) to show the detail view
+2. **Properties** — Click "Properties" — show all **16 GPMGLV properties** with Type (Senior/Family/Mixed), Jurisdiction (Las Vegas/Henderson/North Las Vegas), vacancy counts.
 
-3. **Create a new application** — Click "+ New Application" button.
-   - Fill out the form (8 sections): property select, applicant info, address, employment, household, rental history, emergency contact, lease preferences
-   - **Key talking point:** "The form collects raw data. All compliance math — AMI thresholds, asset imputation, passbook rate — happens server-side. No human judgment in the formula."
-   - Submit the form → status becomes "draft"
+3. **Applications list** — Click "Applications". Show tab filters with live count badges. Click into **Marcus Rivera** (Draft) to show detail view.
 
-4. **Submit for screening** — From the application detail page, click "Submit for Screening"
-   - Status changes to "submitted"
-   - "The agent's job is done. They can't run screening, can't approve. Separation of duties is enforced by the system."
+4. **Create a new application** → "+ New Application". 8-section form. **Key talking point:** "All compliance math happens server-side. No human judgment in the formula."
+
+5. **Submit for Screening** from detail page. "The agent's job is done. They can't run screening, can't approve."
 
 **Log out.**
 
@@ -42,101 +43,99 @@
 
 **Login as:** `senior@cdpc.test`
 
-1. **Dashboard** — Senior sees more stats: pending screening count, pending approval count.
+1. **Screening page** — Queue tab shows submitted applications. Click "Screen" on **Priya Patel**. Results: green/red chips for background, credit, compliance, fraud. **"Background, credit, and AMI compliance are all automated."**
 
-2. **Screening page** — Click "Screening" in sidebar.
-   - **Queue tab** shows submitted applications awaiting screening
-   - Click "Screen" on **Priya Patel** (submitted)
-   - System runs automated checks: background, credit, compliance (60% AMI), fraud detection
-   - Results appear: green pass/red fail chips for each check
-   - **Key talking point:** "Background check, credit pull, and AMI compliance are all automated. No manual lookup. The fraud engine cross-references income against employer records and flags discrepancies."
-   - Switch to **Completed tab** → show Aisha Johnson has a fraud flag (income mismatch, medium severity)
+2. **Fraud flags** — Switch to Completed tab. Aisha Johnson has income mismatch flag (medium severity). "Fraud flags require Regional+ to resolve."
 
-3. **Approvals page** — Click "Approvals" in sidebar.
-   - **Tier 1 tab** is active (Senior Manager's domain)
-   - Click "Review" on a screening-passed application
-   - Modal shows application summary, requires typed notes
-   - Click "Approve" → application advances to next stage
-   - **Denied path:** Click "Review" on another → type denial reason → "Deny"
-   - "The system auto-generates an FCRA adverse action notice on denial. No one forgets to send it."
+3. **Approvals** — Tier 1 tab. Review + Approve with mandatory notes. Show denial path too — "The system auto-generates an FCRA adverse action notice on denial."
 
-4. **Show separation of duties** — If the senior manager submitted the application, the Approve button is disabled with a tooltip explaining why.
+4. **Application Detail — Pipeline Completion** — Click **Elena Vasquez** (tier3_approved):
+   - Income Verification card: green checkmark (pre-verified)
+   - Click **Generate Lease** → shows OneSite lease ID
+   - Click **Complete Onboarding** → status = onboarded, recertification auto-created
 
 **Log out.**
 
 ---
 
-## Act 4: Regional Manager — Tier-2 & Compliance (3 min)
+## Act 4: Regional Manager — Compliance & Financial (4 min)
 
 **Login as:** `regional@cdpc.test`
 
-1. **Approvals → Tier 2 tab** — Show applications that passed Tier 1 and require regional review (rent > $1,500 or flagged).
-   - Review and approve **Lydia Zhang** (rent $1,600 triggered Tier 2)
-   - "Regional review is only triggered when thresholds are exceeded. Most applications skip straight from Tier 1 to Tier 3."
+1. **Tenant Ledger** — Click "Ledger" in sidebar. Delinquency dashboard:
+   - **Keisha Williams**: $0 balance (all paid, current)
+   - **Tomasz Kowalski**: $1,950 delinquent with late fee, **eviction trigger flagged** (4+ late payments)
+   - Click into Tomasz → full ledger: rent charges, payments, late fee entries
+   - **Record Payment** button → enter amount → balance updates instantly
 
-2. **Screening → Fraud flags** — Navigate to Screening page, find Aisha Johnson.
-   - Click into results → show the income mismatch flag
-   - Regional manager can resolve the flag with notes
-   - "Fraud flags require Regional+ to resolve. The agent and senior manager can see them but can't dismiss them."
+2. **Evictions** — Click "Evictions" in sidebar. Three tabs:
+   - **Violations**: Tomasz has nonpayment violation (notice_served)
+   - **Notices**: 7-Day Pay-or-Quit notice with full NRS 40.253 text, certificate of mailing
+   - **Cases**: (empty — show that filing a case is the next step after notice expires)
+   - "Every eviction action is VAWA-checked. If a tenant has a DV flag, eviction is hard-blocked."
 
-3. **Compliance page** — Click "Compliance" in sidebar.
-   - Fair Housing report: approval/denial rates, FCRA notice completeness, objective criteria adherence
-   - "This is the report HUD auditors ask for. It's generated in real-time from the decision data, not assembled manually."
+3. **Compliance page** — Fair Housing report: approval/denial rates, FCRA notice completeness, objective criteria.
 
-4. **Audit Log** — Click "Audit Log" in sidebar.
-   - Every action is logged: who did what, when, to which application
-   - Filter by application ID or action type
-   - "This is an immutable log. A database trigger prevents deletion or modification. Even a system admin can't erase history."
+4. **Audit Log** — Every action logged. Immutable. "Even a system admin can't erase history."
 
 **Log out.**
 
 ---
 
-## Act 5: Asset Manager — Final Sign-off (2 min)
+## Act 5: Asset Manager — Renewals, Move-Outs & Final Sign-off (4 min)
 
 **Login as:** `asset@cdpc.test`
 
-1. **Approvals → Tier 3 tab** — Show applications awaiting final sign-off.
-   - Review and approve **David Okafor**
-   - "Three independent reviewers, three different roles, zero ability for any one person to push an application through alone."
+1. **Lease Renewals** — Click "Renewals" in sidebar.
+   - Keisha Williams has a renewal offer: $1,300 → $1,339 (3% increase)
+   - Show rent comparison, response deadline
+   - Click **Accept** → then **Approve & Extend Lease** → lease_end_date extends
 
-2. **Properties page** — Click "Properties" in sidebar.
-   - Show property list: Desert Oasis Apartments, Sunrise Gardens
-   - Click "New Property" → show create form (name, address, units, AMI area)
-   - Edit an existing property → note address is locked (immutable after creation)
+2. **Move-Outs** — Click "Move-Outs" in sidebar.
+   - Tomasz Kowalski: pre-inspection complete, deposit deadline countdown
+   - Show inspection notes, forwarding address
+   - Click into detail → **Deposit Calculator**: enter itemized deductions (keys: $25, cleaning: $150, carpet: $200)
+   - System calculates refund: $950 deposit - $375 deductions - $1,950 unpaid rent = $0 refund
+   - **21-day countdown timer** (NV law NRS 118A.242) visible
 
-3. **Application detail — fully approved** — Navigate to Applications, click **Elena Vasquez** (tier3_approved).
-   - Show the complete approval chain: all three tiers with timestamps and reviewer names
-   - "From intake to final approval, everything is traced. The lease generation step comes next."
+3. **Recertifications** — Click "Recertifications" in sidebar.
+   - Summary cards: Pending, Overdue, Due in 30/60 days
+   - Keisha: reminder_90 status (approaching anniversary)
+   - Tomasz: submitted, ready for review → click → Approve with notes
+
+4. **Approvals → Tier 3** — Final sign-off on applications.
 
 **Log out.**
 
 ---
 
-## Act 6: System Admin — User Management (1 min)
+## Act 6: System Admin — User Management & Controls (1 min)
 
 **Login as:** `admin@cdpc.test`
 
-1. **Users page** — Show all staff accounts with role badges.
-   - Filter by role, filter by active/inactive
-   - Create a new user → select role from dropdown
-   - Deactivate a user → they can no longer log in
-   - Reset password
-   - "Only system admins can manage user accounts. Even asset managers can't create users."
+1. **Users page** — All staff accounts with role badges. Create, deactivate, reset password.
+2. **Demo Controls** — "Post Rent" and "Process Late Fees" buttons on Ledger page (admin only) for manual trigger.
 
 ---
 
-## Closing (1 min)
+## Closing (2 min)
 
-> "What you just saw is the entire tenant qualification pipeline:
+> "What you just saw is the **complete tenant lifecycle**:
 > 1. Agent collects application data (no compliance math)
 > 2. System runs automated screening (background, credit, AMI, fraud)
 > 3. Three independent approval tiers with mandatory notes
-> 4. FCRA adverse action notices generated automatically on denial
-> 5. Immutable audit log for HUD compliance
-> 6. Real-time Fair Housing reporting
+> 4. Income verification → lease generation → tenant onboarding
+> 5. Monthly rent posting with auto-pay discounts
+> 6. Late fee engine ($50 Day 6, +$10/day) with 4-late-payment eviction trigger
+> 7. Annual recertification with 120/90/60-day automated reminders
+> 8. Lease renewal offers auto-generated 90 days before expiry
+> 9. Move-out with 21-day deposit disposition countdown
+> 10. NV eviction workflow with VAWA pre-check and CARES Act detection
+> 11. FCRA adverse action notices auto-generated on every denial
+> 12. Immutable audit log for HUD compliance
+> 13. Real-time Fair Housing reporting
 >
-> Every role sees only what they need. Every action is logged. Every compliance check is automated. 30 days → 30 minutes."
+> **16 properties. 1,500+ units. Every role sees only what they need. Every action is logged. Every compliance check is automated. 30 days → 30 minutes.**"
 
 ---
 
@@ -144,31 +143,28 @@
 
 | Email | Role | Can Do |
 |-------|------|--------|
-| `agent@cdpc.test` | Leasing Agent | Create/submit applications, view properties |
-| `senior@cdpc.test` | Senior Manager | Run screening, Tier-1 approvals, view fraud flags |
-| `regional@cdpc.test` | Regional Manager | Tier-2 approvals, resolve fraud flags, compliance reports, audit log |
-| `asset@cdpc.test` | Asset Manager | Tier-3 approvals, manage properties, all of the above |
-| `admin@cdpc.test` | System Admin | Manage users, load demo data, everything above |
+| `agent@cdpc.test` | Leasing Agent | Create/submit applications, view properties, view ledger |
+| `senior@cdpc.test` | Senior Manager | Screening, Tier-1 approvals, fraud flags, ledger payments |
+| `regional@cdpc.test` | Regional Manager | Tier-2, fraud resolution, evictions, compliance, audit log |
+| `asset@cdpc.test` | Asset Manager | Tier-3, property management, renewals, move-outs, everything above |
+| `admin@cdpc.test` | System Admin | User management, demo controls, everything above |
 
 ## Demo Data Highlights
 
-| Applicant | Status | Why It's Interesting |
-|-----------|--------|---------------------|
-| Marcus Rivera | Draft | Ready to submit — show the submit flow |
-| Priya Patel | Submitted | Ready to screen — show screening results |
-| Aisha Johnson | Screening Passed | Has a **fraud flag** (income mismatch) |
-| Lydia Zhang | Tier-1 Approved | Triggered Tier-2 review (rent $1,600 > $1,500 threshold) |
-| David Okafor | Tier-2 Approved | Ready for Tier-3 final sign-off |
-| Elena Vasquez | Tier-3 Approved | Fully approved — ready for lease generation |
-| Omar Hassan | Lease Generated | Awaiting onboarding |
-| Keisha Williams | Onboarded | Complete end-to-end example |
-| Rachel Kim | Tier-1 Denied | Has **adverse action notice** (income over AMI) |
-| Steven Park | Cancelled | Shows cancellation path |
+| Applicant | Status | What to Show |
+|-----------|--------|-------------|
+| Marcus Rivera | Draft | Submit flow |
+| Priya Patel | Submitted | Run screening |
+| Aisha Johnson | Screening Passed | **Fraud flag** (income mismatch) |
+| Elena Vasquez | Tier-3 Approved | **Full pipeline**: verify income → generate lease → onboard |
+| Keisha Williams | Onboarded | **Current**: $0 balance, **renewal offer** ($1,300→$1,339), recertification approaching |
+| Tomasz Kowalski | Onboarded | **Delinquent**: $1,950 balance, late fee, **eviction trigger**, 7-day notice, **move-out** with deposit calc |
+| Rachel Kim | Tier-1 Denied | **Adverse action notice** (income over AMI) |
 
 ## Pre-Demo Checklist
 
 - [ ] Backend running: `cd frank-pilot && npm run dev` (port 3002)
 - [ ] Frontend running: `cd frank-pilot/client && npm run dev` (port 5173)
-- [ ] Database seeded: base seed (`npm run seed`) + demo seed (click "Load Demo" on login page)
-- [ ] Browser zoom at 100%, incognito/private window recommended
-- [ ] Close other browser tabs to avoid notification distractions
+- [ ] Database seeded: `npm run seed` + click "Load Demo" on login page
+- [ ] Browser at 100% zoom, incognito recommended
+- [ ] Close other tabs to avoid distractions

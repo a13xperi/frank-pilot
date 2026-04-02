@@ -8,6 +8,24 @@ import { logger } from "../../utils/logger";
 const router = Router();
 const service = new PropertyService();
 
+const extendedFields = {
+  phone: z.string().max(20).optional(),
+  email: z.string().email().max(255).optional(),
+  propertyManager: z.string().max(200).optional(),
+  propertyType: z.enum(["senior", "family", "mixed_use"]).optional(),
+  lihtcType: z.string().max(50).optional(),
+  amiSetAside: z.string().max(100).optional(),
+  compliancePeriodStart: z.string().optional(),
+  compliancePeriodEnd: z.string().optional(),
+  hasLura: z.boolean().optional(),
+  hasMortgage: z.boolean().optional(),
+  jurisdiction: z.string().max(100).optional(),
+  unitMix: z.record(z.string(), z.number()).optional(),
+  rentSchedule: z.record(z.string(), z.number()).optional(),
+  totalVacancy: z.number().int().min(0).optional(),
+  waitingListEnabled: z.boolean().optional(),
+};
+
 const CreatePropertySchema = z.object({
   name: z.string().min(1).max(255),
   addressLine1: z.string().min(1).max(255),
@@ -19,6 +37,7 @@ const CreatePropertySchema = z.object({
   amiArea: z.string().min(1).max(100),
   onesitePropertyId: z.string().max(100).optional(),
   loftPropertyId: z.string().max(100).optional(),
+  ...extendedFields,
 });
 
 const UpdatePropertySchema = z.object({
@@ -28,6 +47,7 @@ const UpdatePropertySchema = z.object({
   amiArea: z.string().min(1).max(100).optional(),
   onesitePropertyId: z.string().max(100).optional(),
   loftPropertyId: z.string().max(100).optional(),
+  ...extendedFields,
 });
 
 /**

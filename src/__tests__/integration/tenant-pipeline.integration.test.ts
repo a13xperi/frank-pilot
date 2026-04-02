@@ -5,8 +5,13 @@
  *   Login → Create Application → Submit → Screen → Tier-1 Approve →
  *   Tier-2 Approve → Tier-3 Approve → Generate Lease → Onboard
  *
- * Requires: DATABASE_URL pointing to a seeded frank_pilot database.
- * Skip with: SKIP_INTEGRATION=1 npm test
+ * Requires:
+ *   - DATABASE_URL pointing to a seeded frank_pilot database
+ *   - RUN_INTEGRATION=1 to opt into the live DB flow
+ *
+ * Skip with:
+ *   - SKIP_INTEGRATION=1
+ *   - or by omitting RUN_INTEGRATION=1
  */
 
 jest.setTimeout(30000);
@@ -15,7 +20,9 @@ import request from "supertest";
 import { pool, query } from "../../config/database";
 
 const SKIP =
-  process.env.SKIP_INTEGRATION === "1" || !process.env.DATABASE_URL;
+  process.env.SKIP_INTEGRATION === "1" ||
+  process.env.RUN_INTEGRATION !== "1" ||
+  !process.env.DATABASE_URL;
 
 const describeIf = SKIP ? describe.skip : describe;
 
@@ -41,6 +48,10 @@ async function cleanTestData() {
   );
   await query(
     "DELETE FROM lease_modifications WHERE application_id IN (SELECT id FROM applications WHERE email = $1)",
+    [TEST_EMAIL]
+  );
+  await query(
+    "DELETE FROM recertifications WHERE application_id IN (SELECT id FROM applications WHERE email = $1)",
     [TEST_EMAIL]
   );
   await query("DELETE FROM applications WHERE email = $1", [TEST_EMAIL]);

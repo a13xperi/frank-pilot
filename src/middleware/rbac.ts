@@ -50,6 +50,31 @@ const PERMISSIONS: Record<string, string[]> = {
   "modification:approve_regional": ["regional_manager", "asset_manager", "system_admin"],
   "modification:approve_asset": ["asset_manager", "system_admin"],
 
+  // Inspections & Maintenance
+  "inspection:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "inspection:manage": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "maintenance:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "maintenance:manage": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
+
+  // Renewal & Move-Out
+  "renewal:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "renewal:manage": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "moveout:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "moveout:manage": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+
+  // Eviction
+  "eviction:view": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "eviction:manage": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+
+  // Ledger
+  "ledger:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "ledger:manage": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+
+  // Recertification
+  "recertification:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "recertification:manage": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "recertification:review": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+
   // Audit
   "audit:view": ["regional_manager", "asset_manager", "system_admin"],
 

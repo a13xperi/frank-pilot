@@ -11,6 +11,11 @@ import { Properties } from '@/pages/Properties';
 import { UsersPage } from '@/pages/Users';
 import { Compliance } from '@/pages/Compliance';
 import { AuditLog } from '@/pages/AuditLog';
+import { Recertifications } from '@/pages/Recertifications';
+import { LedgerOverview, LedgerDetail } from '@/pages/Ledger';
+import { Evictions } from '@/pages/Evictions';
+import { Renewals } from '@/pages/Renewals';
+import { MoveOuts } from '@/pages/MoveOuts';
 import { ApplicationForm } from '@/pages/ApplicationForm';
 import { ApplicationDetail } from '@/pages/ApplicationDetail';
 
@@ -28,8 +33,14 @@ export default function App() {
               <Route path="applications/:id" element={<ApplicationDetail />} />
               <Route path="screening" element={<Screening />} />
               <Route path="approvals" element={<Approvals />} />
+              <Route path="ledger" element={<LedgerOverview />} />
+              <Route path="ledger/:applicationId" element={<LedgerDetail />} />
+              <Route path="evictions" element={<Evictions />} />
+              <Route path="renewals" element={<Renewals />} />
+              <Route path="moveouts" element={<MoveOuts />} />
               <Route path="properties" element={<Properties />} />
               <Route path="users" element={<UsersPage />} />
+              <Route path="recertifications" element={<Recertifications />} />
               <Route path="compliance" element={<Compliance />} />
               <Route path="audit-log" element={<AuditLog />} />
               <Route path="*" element={<Navigate to="/" replace />} />
