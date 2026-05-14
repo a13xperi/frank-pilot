@@ -58,6 +58,14 @@ export async function verifyMagicLink(rawToken: string): Promise<{ token: string
   );
   await query(`UPDATE users SET last_login = NOW() WHERE id = $1`, [row.user_id]);
 
+  // WARN #2: this is the moment email control is proven. Stamp it once —
+  // subsequent magic-link logins don't bump the timestamp.
+  await query(
+    `UPDATE users SET email_verified_at = NOW()
+     WHERE id = $1 AND email_verified_at IS NULL`,
+    [row.user_id]
+  );
+
   const authUser: AuthUser = {
     id: row.user_id,
     email: row.email,
@@ -65,9 +73,10 @@ export async function verifyMagicLink(rawToken: string): Promise<{ token: string
     firstName: row.first_name,
     lastName: row.last_name,
     propertyIds: [],
+    emailVerified: true,
   };
 
-  return { token: generateToken(authUser), user: authUser };
+  return { token: generateToken(authUser, { emailVerified: true }), user: authUser };
 }
 
 export function logMagicLink(email: string, link: string): void {

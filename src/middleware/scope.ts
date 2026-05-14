@@ -44,6 +44,41 @@ export async function scopeToOwnApplications(
 }
 
 /**
+ * Middleware: blocks applicants/tenants whose email hasn't been proven.
+ * Staff roles bypass — they authenticate by password (already a proof of
+ * account control). Returns 401 if unauthenticated, 403 with a stable
+ * `code: "EMAIL_UNVERIFIED"` if the user exists but hasn't verified.
+ *
+ * The truth for "verified" is `req.user.emailVerified`, which is sourced
+ * from `users.email_verified_at` in the DB by authenticate() — a stolen
+ * pre-verification token never gains verification status on re-issue.
+ */
+export function requireEmailVerified(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  // Staff bypass — non-applicant non-tenant roles authenticate via password,
+  // which is itself proof of account control.
+  if (!["applicant", "tenant"].includes(req.user.role)) {
+    next();
+    return;
+  }
+  if (!req.user.emailVerified) {
+    res.status(403).json({
+      error: "Email verification required",
+      code: "EMAIL_UNVERIFIED",
+    });
+    return;
+  }
+  next();
+}
+
+/**
  * Middleware: requires applicant or tenant role. Use on portal-only routes.
  */
 export function requireTenantRole(

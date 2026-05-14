@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { api, setToken } from '@/api/client';
-import { CheckCircle } from 'lucide-react';
+import { requestMagicLink } from '@/api/auth';
+import { CheckCircle, Mail } from 'lucide-react';
 
 interface Property {
   id: string;
@@ -11,11 +12,13 @@ interface Property {
   state?: string;
 }
 
-type Step = 1 | 2;
+// Step 1: register → Step "verify": check email (polls /auth/me) → Step 2: details.
+type Step = 1 | 'verify' | 2;
 
 export function Apply() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>(1);
+  const [search] = useSearchParams();
+  const [step, setStep] = useState<Step>(search.get('step') === '2' ? 2 : 1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -26,7 +29,7 @@ export function Apply() {
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
 
-  // Properties for dropdown
+  // Properties for dropdown (loaded in step 2)
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(false);
   const [propertiesFailed, setPropertiesFailed] = useState(false);
@@ -46,32 +49,70 @@ export function Apply() {
   const [householdSize, setHouseholdSize] = useState('1');
   const [moveInDate, setMoveInDate] = useState('');
 
+  // Verify-stage state
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+
+  // Poll /auth/me while in the verify stage; advance when the server reports
+  // emailVerified=true (the user clicked the magic link, here or in another tab).
+  useEffect(() => {
+    if (step !== 'verify') return;
+    let cancelled = false;
+    async function check() {
+      try {
+        const res = await api.get<{ user?: { email: string; emailVerified: boolean } }>('/auth/me');
+        if (cancelled) return;
+        if (res.user?.emailVerified) setStep(2);
+      } catch {
+        // ignored — 401 will be handled by client.ts redirect
+      }
+    }
+    check();
+    const interval = setInterval(check, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [step]);
+
+  // Once we land on step 2 (either via verify polling or via ?step=2 deep link),
+  // fetch properties so the applicant can pick one.
+  useEffect(() => {
+    if (step !== 2 || properties.length > 0 || propertiesLoading) return;
+    let cancelled = false;
+    (async () => {
+      setPropertiesLoading(true);
+      try {
+        const data = await api.get<{ properties: Property[] } | Property[]>('/applicants/properties');
+        if (cancelled) return;
+        const list = Array.isArray(data) ? data : (data as { properties: Property[] }).properties ?? [];
+        setProperties(list);
+      } catch {
+        if (!cancelled) setPropertiesFailed(true);
+      } finally {
+        if (!cancelled) setPropertiesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step, properties.length, propertiesLoading]);
+
   async function handleStep1(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const res = await api.post<any>('/applicants/register', {
+      const res = await api.post<{ token?: string }>('/applicants/register', {
         email,
         firstName,
         lastName,
         phone: phone || undefined,
       });
       if (res.token) setToken(res.token);
-
-      // Fetch properties now that we have a token
-      setPropertiesLoading(true);
-      try {
-        const data = await api.get<{ properties: Property[] } | Property[]>('/applicants/properties');
-        const list = Array.isArray(data) ? data : (data as any).properties ?? [];
-        setProperties(list);
-      } catch {
-        setPropertiesFailed(true);
-      } finally {
-        setPropertiesLoading(false);
-      }
-
-      setStep(2);
+      // The token is emailVerified=false — go to the verify stage. The user
+      // must click the magic link in their inbox before /apply will accept us.
+      setStep('verify');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -92,7 +133,7 @@ export function Apply() {
     setError(null);
     setLoading(true);
     try {
-      await api.post<any>('/applicants/apply', {
+      await api.post('/applicants/apply', {
         propertyId: propertyId || undefined,
         unitNumber: unitNumber || undefined,
         firstName,
@@ -120,6 +161,20 @@ export function Apply() {
     }
   }
 
+  async function handleResend() {
+    if (!email) return;
+    setResending(true);
+    setError(null);
+    try {
+      await requestMagicLink(email);
+      setResent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not resend link');
+    } finally {
+      setResending(false);
+    }
+  }
+
   if (done) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
@@ -132,18 +187,22 @@ export function Apply() {
     );
   }
 
+  // Progress indicator — verify shares position with step 1 (it's a sub-state
+  // of the "Account" phase, before the form details start).
+  const progressActive: 1 | 2 = step === 2 ? 2 : 1;
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="mx-auto max-w-md space-y-6 py-8">
         {/* Progress */}
         <div className="flex items-center gap-2">
-          {([1, 2] as Step[]).map(s => (
+          {([1, 2] as const).map(s => (
             <div key={s} className="flex items-center gap-2">
               <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold
-                ${step === s ? 'bg-emerald-600 text-white' : step > s ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
+                ${progressActive === s ? 'bg-emerald-600 text-white' : progressActive > s ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
                 {s}
               </div>
-              <span className={`text-xs ${step === s ? 'font-medium text-gray-900' : 'text-gray-400'}`}>
+              <span className={`text-xs ${progressActive === s ? 'font-medium text-gray-900' : 'text-gray-400'}`}>
                 {s === 1 ? 'Account' : 'Application'}
               </span>
               {s < 2 && <div className="mx-1 h-px w-8 bg-gray-300" />}
@@ -183,6 +242,39 @@ export function Apply() {
                 </button>
               </form>
             </>
+          )}
+
+          {step === 'verify' && (
+            <div className="space-y-4 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100">
+                <Mail className="h-6 w-6 text-emerald-700" />
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">Check your email</h1>
+              <p className="text-sm text-gray-500">
+                We sent a verification link to{' '}
+                <span className="font-medium text-gray-900">{email}</span>. Click
+                it to continue your application. This page will advance
+                automatically.
+              </p>
+              {resent && (
+                <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
+                  Link resent
+                </div>
+              )}
+              <button
+                onClick={handleResend}
+                disabled={resending || !email}
+                className="btn-primary w-full"
+              >
+                {resending ? 'Resending…' : 'Resend link'}
+              </button>
+              <button
+                onClick={() => setStep(1)}
+                className="text-sm text-gray-500 hover:text-gray-700 hover:underline"
+              >
+                Use a different email
+              </button>
+            </div>
           )}
 
           {step === 2 && (

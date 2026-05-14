@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { createMagicLink, verifyMagicLink, logMagicLink } from "./magic-link-service";
+import { authenticate, AuthRequest } from "../../middleware/auth";
 import { logger } from "../../utils/logger";
 
 const router: Router = Router();
@@ -67,6 +68,14 @@ router.post("/magic-link/verify", async (req, res) => {
     logger.error("Magic-link verify failed", { error: (err as Error).message });
     res.status(500).json({ error: "Verification failed" });
   }
+});
+
+// WARN #2: lightweight self-check so the client can poll for verification
+// status during the post-register "check your email" stage. Returns the
+// resolved AuthUser from authenticate() — which reads email_verified_at
+// from the DB on every call, so verification status is always live.
+router.get("/me", authenticate, (req: AuthRequest, res) => {
+  res.json({ user: req.user });
 });
 
 export default router;
