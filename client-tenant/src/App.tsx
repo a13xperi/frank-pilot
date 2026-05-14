@@ -4,6 +4,7 @@ import { Layout } from '@/components/Layout';
 import { Login } from '@/pages/Login';
 import { Apply } from '@/pages/Apply';
 import { AuthCallback } from '@/pages/AuthCallback';
+import { VerifyPending } from '@/pages/VerifyPending';
 import { Dashboard } from '@/pages/Dashboard';
 import { Pay } from '@/pages/Pay';
 import { Ledger } from '@/pages/Ledger';
@@ -22,6 +23,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/apply" element={<Apply />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/verify-pending" element={<VerifyPending />} />
 
       <Route element={<AuthGuard />}>
         <Route element={<Layout />}>

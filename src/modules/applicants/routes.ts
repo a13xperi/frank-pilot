@@ -3,6 +3,7 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { query, transaction } from "../../config/database";
 import { authenticate, AuthRequest, generateToken, AuthUser } from "../../middleware/auth";
+import { requireEmailVerified } from "../../middleware/scope";
 import { createMagicLink, logMagicLink } from "../auth/magic-link-service";
 import { ApplicationService } from "../application/service";
 import { createApplicationSchema } from "../application/validation";
@@ -72,7 +73,12 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     logger.info("Applicant registered", { userId, email, isNew });
 
     if (isNew) {
-      // Brand-new account: issue a session JWT so the applicant lands in the portal.
+      // Brand-new account: issue a session JWT so the applicant lands in the
+      // portal — but mark it emailVerified:false. The applicant can view
+      // public/account UI; PII + state-changing routes (/apply, /me/applications)
+      // are gated by requireEmailVerified until the magic link is clicked.
+      // This closes WARN #2: an attacker registering victim@x can no longer
+      // act as victim with the returned token.
       const userRow = await query(
         "SELECT id, email, role, first_name, last_name FROM users WHERE id = $1",
         [userId]
@@ -85,8 +91,9 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
         firstName: u.first_name,
         lastName: u.last_name,
         propertyIds: [],
+        emailVerified: false,
       };
-      const token = generateToken(authUser);
+      const token = generateToken(authUser, { emailVerified: false });
       const payload: Record<string, unknown> = {
         ok: true,
         message: "If this email is registered, a verification link has been sent.",
@@ -116,9 +123,9 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
   }
 });
 
-// Authenticated as applicant: submit the application form. Creates the
-// application via ApplicationService then links it to the user.
-router.post("/apply", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+// Authenticated as applicant with a verified email: submit the application
+// form. requireEmailVerified gates this — see WARN #2.
+router.post("/apply", authenticate, requireEmailVerified, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
       res.status(403).json({ error: "Applicant role required" });
@@ -168,8 +175,10 @@ router.get("/properties", async (_req: Request, res: Response): Promise<void> =>
   }
 });
 
-// Authenticated as applicant: list my applications.
-router.get("/me/applications", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+// Authenticated as applicant with a verified email: list my applications.
+// PII surface — requireEmailVerified prevents enumeration via stolen
+// pre-verification token.
+router.get("/me/applications", authenticate, requireEmailVerified, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
       res.status(403).json({ error: "Applicant role required" });

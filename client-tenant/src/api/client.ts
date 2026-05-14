@@ -37,6 +37,18 @@ async function request<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
+    // WARN #2: an unverified applicant hitting a gated route gets 403 +
+    // code "EMAIL_UNVERIFIED". Bounce to the verify-pending page rather
+    // than surfacing a raw error — the user just needs to click their link.
+    if (
+      res.status === 403 &&
+      body?.code === "EMAIL_UNVERIFIED" &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/verify-pending")
+    ) {
+      window.location.href = "/verify-pending";
+      throw new Error("Email verification required");
+    }
     let msg = body.error || `Request failed: ${res.status}`;
     if (Array.isArray(body.details) && body.details.length > 0) {
       const fields = body.details

@@ -66,6 +66,7 @@ const testUser: AuthUser = {
   firstName: "Alice",
   lastName: "Agent",
   propertyIds: ["prop-001"],
+  emailVerified: true,
 };
 
 /** A valid senior_manager user. */
@@ -76,6 +77,7 @@ const managerUser: AuthUser = {
   firstName: "Bob",
   lastName: "Manager",
   propertyIds: ["prop-001"],
+  emailVerified: true,
 };
 
 function tokenFor(user: AuthUser): string {

@@ -221,6 +221,9 @@ CREATE TYPE recertification_status AS ENUM (
 -- ============================================================
 
 -- Users (staff + applicants + tenants — magic-link users have null password_hash)
+-- email_verified_at is the persistent proof an account holder controls the email:
+-- stamped by verifyMagicLink (and by password-login backfill on existing accounts);
+-- gates state-changing/PII routes via requireEmailVerified middleware.
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
@@ -232,6 +235,7 @@ CREATE TABLE users (
   phone VARCHAR(20),
   is_active BOOLEAN DEFAULT true,
   last_login TIMESTAMPTZ,
+  email_verified_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
