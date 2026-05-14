@@ -20,7 +20,7 @@ router.get(
         propertyId: req.query.propertyId as string | undefined,
         limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
         offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
-      });
+      }, req);
       res.json(result);
     } catch (err: any) {
       logger.error("Failed to list recertifications", { error: err.message });
@@ -37,7 +37,7 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const days = req.query.days ? parseInt(req.query.days as string) : 60;
-      const recertifications = await service.getUpcoming(days);
+      const recertifications = await service.getUpcoming(days, req);
       res.json({ recertifications });
     } catch (err: any) {
       logger.error("Failed to get upcoming recertifications", { error: err.message });
@@ -53,7 +53,7 @@ router.get(
   requirePermission("recertification:view"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const recert = await service.getById(req.params.id as string);
+      const recert = await service.getById(req.params.id as string, req);
       if (!recert) {
         res.status(404).json({ error: "Recertification not found" });
         return;

@@ -2,6 +2,8 @@ import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 import { TwilioService } from "../integrations/twilio";
+import { AuthRequest } from "../../middleware/auth";
+import { buildPropertyScope } from "../../middleware/scope";
 
 export class RecertificationService {
   private twilio = new TwilioService();
@@ -273,8 +275,18 @@ export class RecertificationService {
     }
   }
 
-  async getById(recertId: string): Promise<RecertificationRecord | null> {
-    const result = await query(`SELECT * FROM recertifications WHERE id = $1`, [recertId]);
+  async getById(recertId: string, req?: AuthRequest): Promise<RecertificationRecord | null> {
+    const conditions = ["id = $1"];
+    const params: unknown[] = [recertId];
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "property_id");
+      if (scope.denyAll) return null;
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
+    const result = await query(
+      `SELECT * FROM recertifications WHERE ${conditions.join(" AND ")}`,
+      params
+    );
     if (result.rows.length === 0) return null;
     return this.rowToRecord(result.rows[0]);
   }
@@ -284,7 +296,7 @@ export class RecertificationService {
     propertyId?: string;
     limit?: number;
     offset?: number;
-  } = {}): Promise<{ recertifications: RecertificationRecord[]; total: number }> {
+  } = {}, req?: AuthRequest): Promise<{ recertifications: RecertificationRecord[]; total: number }> {
     const conditions: string[] = [];
     const params: unknown[] = [];
 
@@ -295,6 +307,12 @@ export class RecertificationService {
     if (filters.propertyId) {
       params.push(filters.propertyId);
       conditions.push(`r.property_id = $${params.length}`);
+    }
+
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "r.property_id");
+      if (scope.denyAll) return { recertifications: [], total: 0 };
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -322,15 +340,24 @@ export class RecertificationService {
     };
   }
 
-  async getUpcoming(days: number = 60): Promise<RecertificationRecord[]> {
+  async getUpcoming(days: number = 60, req?: AuthRequest): Promise<RecertificationRecord[]> {
+    const conditions = [
+      "r.status NOT IN ('approved', 'denied', 'market_rent_applied')",
+      "r.anniversary_date <= (CURRENT_DATE + $1 * INTERVAL '1 day')",
+    ];
+    const params: unknown[] = [days];
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "r.property_id");
+      if (scope.denyAll) return [];
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
     const result = await query(
       `SELECT r.*, p.name as property_name
        FROM recertifications r
        JOIN properties p ON r.property_id = p.id
-       WHERE r.status NOT IN ('approved', 'denied', 'market_rent_applied')
-         AND r.anniversary_date <= (CURRENT_DATE + $1 * INTERVAL '1 day')
+       WHERE ${conditions.join(" AND ")}
        ORDER BY r.anniversary_date ASC`,
-      [days]
+      params
     );
     return result.rows.map(this.rowToRecord);
   }

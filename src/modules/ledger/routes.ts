@@ -8,6 +8,98 @@ import { logger } from "../../utils/logger";
 const router = Router();
 const service = new LedgerService();
 
+// ─────────────────────────────────────────────────────────────
+// STATIC routes MUST come before any dynamic `/:applicationId`
+// routes — otherwise Express matches `/delinquencies` as an
+// applicationId. (Audit: ledger/routes.ts:12 vs :180 — 500 on
+// /api/ledger/delinquencies.)
+// ─────────────────────────────────────────────────────────────
+
+// Delinquency report
+router.get(
+  "/delinquencies",
+  authenticate,
+  requirePermission("ledger:view"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const result = await service.getDelinquencyReport(
+        req.query.propertyId as string | undefined,
+        req
+      );
+      res.json(result);
+    } catch (err: any) {
+      logger.error("Failed to get delinquency report", { error: err.message });
+      res.status(500).json({ error: "Failed to get delinquency report" });
+    }
+  }
+);
+
+// Manual trigger: post monthly rent (system_admin)
+router.post(
+  "/post-rent",
+  authenticate,
+  requirePermission("user:manage"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const result = await service.processMonthlyRentPostings();
+      res.json(result);
+    } catch (err: any) {
+      logger.error("Failed to post rent", { error: err.message });
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// Manual trigger: process late fees (system_admin)
+router.post(
+  "/process-late-fees",
+  authenticate,
+  requirePermission("user:manage"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const result = await service.processLateFees();
+      res.json(result);
+    } catch (err: any) {
+      logger.error("Failed to process late fees", { error: err.message });
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// Reverse an entry (static prefix `/entry/...` — not a dynamic param)
+const ReverseSchema = z.object({
+  reason: z.string().min(1, "Reason is required"),
+});
+
+router.post(
+  "/entry/:entryId/reverse",
+  authenticate,
+  requirePermission("ledger:manage"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const parsed = ReverseSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const entry = await service.reverseEntry(
+        req.params.entryId as string,
+        parsed.data.reason,
+        req.user!.id,
+        req.user!.role
+      );
+      res.json(entry);
+    } catch (err: any) {
+      logger.error("Failed to reverse entry", { error: err.message });
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────
+// DYNAMIC `/:applicationId` routes below this line.
+// ─────────────────────────────────────────────────────────────
+
 // Get ledger entries for a tenant
 router.get(
   "/:applicationId",
@@ -15,12 +107,16 @@ router.get(
   requirePermission("ledger:view"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const result = await service.getLedger(req.params.applicationId as string, {
-        billingPeriod: req.query.billingPeriod as string | undefined,
-        entryType: req.query.entryType as string | undefined,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
-        offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
-      });
+      const result = await service.getLedger(
+        req.params.applicationId as string,
+        {
+          billingPeriod: req.query.billingPeriod as string | undefined,
+          entryType: req.query.entryType as string | undefined,
+          limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+          offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
+        },
+        req
+      );
       res.json(result);
     } catch (err: any) {
       logger.error("Failed to get ledger", { error: err.message });
@@ -36,7 +132,7 @@ router.get(
   requirePermission("ledger:view"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const result = await service.getBalance(req.params.applicationId as string);
+      const result = await service.getBalance(req.params.applicationId as string, req);
       res.json(result);
     } catch (err: any) {
       logger.error("Failed to get balance", { error: err.message });
@@ -141,84 +237,6 @@ router.post(
     } catch (err: any) {
       logger.error("Failed to post charge", { error: err.message });
       res.status(400).json({ error: err.message });
-    }
-  }
-);
-
-// Reverse an entry
-const ReverseSchema = z.object({
-  reason: z.string().min(1, "Reason is required"),
-});
-
-router.post(
-  "/entry/:entryId/reverse",
-  authenticate,
-  requirePermission("ledger:manage"),
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    const parsed = ReverseSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
-      return;
-    }
-    try {
-      const entry = await service.reverseEntry(
-        req.params.entryId as string,
-        parsed.data.reason,
-        req.user!.id,
-        req.user!.role
-      );
-      res.json(entry);
-    } catch (err: any) {
-      logger.error("Failed to reverse entry", { error: err.message });
-      res.status(400).json({ error: err.message });
-    }
-  }
-);
-
-// Delinquency report
-router.get(
-  "/delinquencies",
-  authenticate,
-  requirePermission("ledger:view"),
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const result = await service.getDelinquencyReport(req.query.propertyId as string | undefined);
-      res.json(result);
-    } catch (err: any) {
-      logger.error("Failed to get delinquency report", { error: err.message });
-      res.status(500).json({ error: "Failed to get delinquency report" });
-    }
-  }
-);
-
-// Manual trigger: post monthly rent (system_admin)
-router.post(
-  "/post-rent",
-  authenticate,
-  requirePermission("user:manage"),
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const result = await service.processMonthlyRentPostings();
-      res.json(result);
-    } catch (err: any) {
-      logger.error("Failed to post rent", { error: err.message });
-      res.status(500).json({ error: err.message });
-    }
-  }
-);
-
-// Manual trigger: process late fees (system_admin)
-router.post(
-  "/process-late-fees",
-  authenticate,
-  requirePermission("user:manage"),
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const result = await service.processLateFees();
-      res.json(result);
-    } catch (err: any) {
-      logger.error("Failed to process late fees", { error: err.message });
-      res.status(500).json({ error: err.message });
     }
   }
 );

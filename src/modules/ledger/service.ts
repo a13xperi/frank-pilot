@@ -1,6 +1,8 @@
-import { query } from "../../config/database";
+import { query, transaction } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
+import { AuthRequest } from "../../middleware/auth";
+import { buildPropertyScope } from "../../middleware/scope";
 
 // Late fee rules per Master Build List (Module 6)
 const GRACE_PERIOD_DAYS = 5;     // Rent due 1st, late on 6th
@@ -30,14 +32,35 @@ export interface LedgerEntryRecord {
 
 export class LedgerService {
   /**
-   * Get running balance for a tenant.
+   * Get running balance for a tenant. When `req` is provided, the lookup is
+   * scoped to properties the caller may access; cross-tenant access returns
+   * a zeroed balance with `accessible=false` so callers can return 404/empty.
    */
-  async getBalance(applicationId: string): Promise<{
+  async getBalance(
+    applicationId: string,
+    req?: AuthRequest
+  ): Promise<{
     applicationId: string;
     balance: number;
     lastPaymentDate: string | null;
     nextDueDate: string | null;
   }> {
+    if (req) {
+      const scope = buildPropertyScope(req, 2, "a.property_id");
+      if (scope.denyAll) {
+        return { applicationId, balance: 0, lastPaymentDate: null, nextDueDate: null };
+      }
+      if (scope.sql) {
+        const check = await query(
+          `SELECT 1 FROM applications a WHERE a.id = $1 AND ${scope.sql} LIMIT 1`,
+          [applicationId, scope.param]
+        );
+        if (check.rows.length === 0) {
+          return { applicationId, balance: 0, lastPaymentDate: null, nextDueDate: null };
+        }
+      }
+    }
+
     const balResult = await query(
       `SELECT COALESCE(SUM(amount), 0) as balance FROM tenant_ledger
        WHERE application_id = $1 AND status = 'posted'`,
@@ -68,12 +91,26 @@ export class LedgerService {
   }
 
   /**
-   * Get paginated ledger entries for a tenant.
+   * Get paginated ledger entries for a tenant. When `req` is provided, the
+   * application is scoped to properties the caller may access.
    */
   async getLedger(
     applicationId: string,
-    filters: { billingPeriod?: string; entryType?: string; limit?: number; offset?: number } = {}
+    filters: { billingPeriod?: string; entryType?: string; limit?: number; offset?: number } = {},
+    req?: AuthRequest
   ): Promise<{ entries: LedgerEntryRecord[]; total: number }> {
+    if (req) {
+      const scope = buildPropertyScope(req, 2, "a.property_id");
+      if (scope.denyAll) return { entries: [], total: 0 };
+      if (scope.sql) {
+        const check = await query(
+          `SELECT 1 FROM applications a WHERE a.id = $1 AND ${scope.sql} LIMIT 1`,
+          [applicationId, scope.param]
+        );
+        if (check.rows.length === 0) return { entries: [], total: 0 };
+      }
+    }
+
     const conditions = ["l.application_id = $1"];
     const params: unknown[] = [applicationId];
 
@@ -171,6 +208,11 @@ export class LedgerService {
 
   /**
    * Record a payment against a tenant's balance.
+   *
+   * Wrapped in a transaction with an advisory lock keyed on application_id so
+   * concurrent writers serialise per-tenant. Without this, two simultaneous
+   * payments can both read the same `currentBalance` and write conflicting
+   * `balance_after` rows.
    */
   async recordPayment(
     applicationId: string,
@@ -180,35 +222,48 @@ export class LedgerService {
     postedByRole: string,
     notes?: string
   ): Promise<LedgerEntryRecord> {
-    const app = await query(
-      `SELECT property_id FROM applications WHERE id = $1`,
-      [applicationId]
-    );
-    if (app.rows.length === 0) throw new Error("Application not found");
+    const record = await transaction(async (client) => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        `ledger:${applicationId}`,
+      ]);
 
-    const currentBalance = await this.getBalanceAmount(applicationId);
-    const newBalance = currentBalance - amount;
-    const now = new Date();
-    const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const app = await client.query(
+        `SELECT property_id FROM applications WHERE id = $1`,
+        [applicationId]
+      );
+      if (app.rows.length === 0) throw new Error("Application not found");
 
-    const result = await query(
-      `INSERT INTO tenant_ledger
-         (application_id, property_id, entry_type, description, amount, balance_after,
-          billing_period, reference_id, posted_by, notes)
-       VALUES ($1, $2, 'payment', $3, $4, $5, $6, $7, $8, $9)
-       RETURNING *`,
-      [
-        applicationId,
-        app.rows[0].property_id,
-        `Payment received`,
-        -amount, // Negative = reduces balance
-        newBalance,
-        billingPeriod,
-        referenceId || null,
-        postedBy,
-        notes || null,
-      ]
-    );
+      const balRes = await client.query(
+        `SELECT COALESCE(SUM(amount), 0) as balance FROM tenant_ledger
+         WHERE application_id = $1 AND status = 'posted'`,
+        [applicationId]
+      );
+      const currentBalance = parseFloat(balRes.rows[0].balance);
+      const newBalance = currentBalance - amount;
+      const now = new Date();
+      const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+      const insert = await client.query(
+        `INSERT INTO tenant_ledger
+           (application_id, property_id, entry_type, description, amount, balance_after,
+            billing_period, reference_id, posted_by, notes)
+         VALUES ($1, $2, 'payment', $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [
+          applicationId,
+          app.rows[0].property_id,
+          `Payment received`,
+          -amount, // Negative = reduces balance
+          newBalance,
+          billingPeriod,
+          referenceId || null,
+          postedBy,
+          notes || null,
+        ]
+      );
+
+      return insert.rows[0];
+    });
 
     await writeAuditLog({
       action: "ledger_payment_recorded",
@@ -216,15 +271,17 @@ export class LedgerService {
       actorRole: postedByRole,
       applicationId,
       resourceType: "tenant_ledger",
-      resourceId: result.rows[0].id,
+      resourceId: record.id,
       details: { amount, referenceId },
     });
 
-    return this.rowToRecord(result.rows[0]);
+    return this.rowToRecord(record);
   }
 
   /**
    * Apply a credit (concession, adjustment, auto-pay discount).
+   *
+   * Transactional + advisory-locked per application_id (see recordPayment).
    */
   async applyCredit(
     applicationId: string,
@@ -233,25 +290,38 @@ export class LedgerService {
     postedBy: string,
     postedByRole: string
   ): Promise<LedgerEntryRecord> {
-    const app = await query(
-      `SELECT property_id FROM applications WHERE id = $1`,
-      [applicationId]
-    );
-    if (app.rows.length === 0) throw new Error("Application not found");
+    const record = await transaction(async (client) => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        `ledger:${applicationId}`,
+      ]);
 
-    const currentBalance = await this.getBalanceAmount(applicationId);
-    const newBalance = currentBalance - amount;
-    const now = new Date();
-    const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const app = await client.query(
+        `SELECT property_id FROM applications WHERE id = $1`,
+        [applicationId]
+      );
+      if (app.rows.length === 0) throw new Error("Application not found");
 
-    const result = await query(
-      `INSERT INTO tenant_ledger
-         (application_id, property_id, entry_type, description, amount, balance_after,
-          billing_period, posted_by)
-       VALUES ($1, $2, 'credit', $3, $4, $5, $6, $7)
-       RETURNING *`,
-      [applicationId, app.rows[0].property_id, description, -amount, newBalance, billingPeriod, postedBy]
-    );
+      const balRes = await client.query(
+        `SELECT COALESCE(SUM(amount), 0) as balance FROM tenant_ledger
+         WHERE application_id = $1 AND status = 'posted'`,
+        [applicationId]
+      );
+      const currentBalance = parseFloat(balRes.rows[0].balance);
+      const newBalance = currentBalance - amount;
+      const now = new Date();
+      const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+      const insert = await client.query(
+        `INSERT INTO tenant_ledger
+           (application_id, property_id, entry_type, description, amount, balance_after,
+            billing_period, posted_by)
+         VALUES ($1, $2, 'credit', $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [applicationId, app.rows[0].property_id, description, -amount, newBalance, billingPeriod, postedBy]
+      );
+
+      return insert.rows[0];
+    });
 
     await writeAuditLog({
       action: "ledger_credit_applied",
@@ -259,15 +329,17 @@ export class LedgerService {
       actorRole: postedByRole,
       applicationId,
       resourceType: "tenant_ledger",
-      resourceId: result.rows[0].id,
+      resourceId: record.id,
       details: { amount, description },
     });
 
-    return this.rowToRecord(result.rows[0]);
+    return this.rowToRecord(record);
   }
 
   /**
    * Post a manual charge (e.g. extended guest fee, early termination).
+   *
+   * Transactional + advisory-locked per application_id (see recordPayment).
    */
   async postCharge(
     applicationId: string,
@@ -277,31 +349,47 @@ export class LedgerService {
     postedBy: string,
     postedByRole: string
   ): Promise<LedgerEntryRecord> {
-    const app = await query(
-      `SELECT property_id FROM applications WHERE id = $1`,
-      [applicationId]
-    );
-    if (app.rows.length === 0) throw new Error("Application not found");
+    const record = await transaction(async (client) => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        `ledger:${applicationId}`,
+      ]);
 
-    const currentBalance = await this.getBalanceAmount(applicationId);
-    const newBalance = currentBalance + amount;
-    const now = new Date();
-    const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const app = await client.query(
+        `SELECT property_id FROM applications WHERE id = $1`,
+        [applicationId]
+      );
+      if (app.rows.length === 0) throw new Error("Application not found");
 
-    const result = await query(
-      `INSERT INTO tenant_ledger
-         (application_id, property_id, entry_type, description, amount, balance_after,
-          billing_period, posted_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [applicationId, app.rows[0].property_id, entryType, description, amount, newBalance, billingPeriod, postedBy]
-    );
+      const balRes = await client.query(
+        `SELECT COALESCE(SUM(amount), 0) as balance FROM tenant_ledger
+         WHERE application_id = $1 AND status = 'posted'`,
+        [applicationId]
+      );
+      const currentBalance = parseFloat(balRes.rows[0].balance);
+      const newBalance = currentBalance + amount;
+      const now = new Date();
+      const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-    return this.rowToRecord(result.rows[0]);
+      const insert = await client.query(
+        `INSERT INTO tenant_ledger
+           (application_id, property_id, entry_type, description, amount, balance_after,
+            billing_period, posted_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [applicationId, app.rows[0].property_id, entryType, description, amount, newBalance, billingPeriod, postedBy]
+      );
+
+      return insert.rows[0];
+    });
+
+    return this.rowToRecord(record);
   }
 
   /**
    * Reverse a ledger entry (creates offsetting entry, never deletes).
+   *
+   * Transactional + advisory-locked per application_id so concurrent reversals
+   * cannot double-flip status or compute stale balances.
    */
   async reverseEntry(
     entryId: string,
@@ -309,55 +397,81 @@ export class LedgerService {
     postedBy: string,
     postedByRole: string
   ): Promise<LedgerEntryRecord> {
-    const original = await query(`SELECT * FROM tenant_ledger WHERE id = $1`, [entryId]);
-    if (original.rows.length === 0) throw new Error("Ledger entry not found");
-    if (original.rows[0].status === "reversed") throw new Error("Entry already reversed");
+    // Resolve the application first so we can lock on it.
+    const lookup = await query(`SELECT application_id FROM tenant_ledger WHERE id = $1`, [entryId]);
+    if (lookup.rows.length === 0) throw new Error("Ledger entry not found");
+    const applicationId: string = lookup.rows[0].application_id;
 
-    const orig = original.rows[0];
-    const currentBalance = await this.getBalanceAmount(orig.application_id);
-    const newBalance = currentBalance - orig.amount;
+    const { record, origAppId } = await transaction(async (client) => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        `ledger:${applicationId}`,
+      ]);
 
-    // Mark original as reversed
-    await query(`UPDATE tenant_ledger SET status = 'reversed' WHERE id = $1`, [entryId]);
+      // Re-fetch + lock the original row inside the txn.
+      const original = await client.query(
+        `SELECT * FROM tenant_ledger WHERE id = $1 FOR UPDATE`,
+        [entryId]
+      );
+      if (original.rows.length === 0) throw new Error("Ledger entry not found");
+      if (original.rows[0].status === "reversed") throw new Error("Entry already reversed");
 
-    // Create offsetting entry
-    const result = await query(
-      `INSERT INTO tenant_ledger
-         (application_id, property_id, entry_type, status, description, amount, balance_after,
-          billing_period, reversed_by_id, posted_by, notes)
-       VALUES ($1, $2, $3, 'posted', $4, $5, $6, $7, $8, $9, $10)
-       RETURNING *`,
-      [
-        orig.application_id,
-        orig.property_id,
-        orig.entry_type,
-        `REVERSAL: ${orig.description}`,
-        -parseFloat(orig.amount),
-        newBalance,
-        orig.billing_period,
-        entryId,
-        postedBy,
-        reason,
-      ]
-    );
+      const orig = original.rows[0];
+
+      const balRes = await client.query(
+        `SELECT COALESCE(SUM(amount), 0) as balance FROM tenant_ledger
+         WHERE application_id = $1 AND status = 'posted'`,
+        [orig.application_id]
+      );
+      const currentBalance = parseFloat(balRes.rows[0].balance);
+      const newBalance = currentBalance - parseFloat(orig.amount);
+
+      // Mark original as reversed
+      await client.query(`UPDATE tenant_ledger SET status = 'reversed' WHERE id = $1`, [entryId]);
+
+      // Create offsetting entry
+      const insert = await client.query(
+        `INSERT INTO tenant_ledger
+           (application_id, property_id, entry_type, status, description, amount, balance_after,
+            billing_period, reversed_by_id, posted_by, notes)
+         VALUES ($1, $2, $3, 'posted', $4, $5, $6, $7, $8, $9, $10)
+         RETURNING *`,
+        [
+          orig.application_id,
+          orig.property_id,
+          orig.entry_type,
+          `REVERSAL: ${orig.description}`,
+          -parseFloat(orig.amount),
+          newBalance,
+          orig.billing_period,
+          entryId,
+          postedBy,
+          reason,
+        ]
+      );
+
+      return { record: insert.rows[0], origAppId: orig.application_id as string };
+    });
 
     await writeAuditLog({
       action: "ledger_entry_reversed",
       actorId: postedBy,
       actorRole: postedByRole,
-      applicationId: orig.application_id,
+      applicationId: origAppId,
       resourceType: "tenant_ledger",
-      resourceId: result.rows[0].id,
+      resourceId: record.id,
       details: { originalEntryId: entryId, reason },
     });
 
-    return this.rowToRecord(result.rows[0]);
+    return this.rowToRecord(record);
   }
 
   /**
    * Delinquency report: all tenants with positive balance, grouped by aging.
    */
-  async getDelinquencyReport(propertyId?: string): Promise<{
+  async getDelinquencyReport(
+    propertyId?: string,
+    req?: AuthRequest
+  ): Promise<{
     delinquencies: Array<{
       applicationId: string;
       tenantName: string;
@@ -369,8 +483,24 @@ export class LedgerService {
       evictionTrigger: boolean;
     }>;
   }> {
-    const propFilter = propertyId ? "AND a.property_id = $1" : "";
-    const params = propertyId ? [propertyId] : [];
+    const conditions: string[] = ["a.status = 'onboarded'"];
+    const params: unknown[] = [];
+
+    if (propertyId) {
+      params.push(propertyId);
+      conditions.push(`a.property_id = $${params.length}`);
+    }
+
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "a.property_id");
+      if (scope.denyAll) return { delinquencies: [] };
+      if (scope.sql) {
+        conditions.push(scope.sql);
+        params.push(scope.param);
+      }
+    }
+
+    const where = conditions.join(" AND ");
 
     const result = await query(
       `SELECT
@@ -383,7 +513,7 @@ export class LedgerService {
        FROM applications a
        JOIN properties p ON a.property_id = p.id
        LEFT JOIN tenant_ledger l ON a.id = l.application_id AND l.status = 'posted'
-       WHERE a.status = 'onboarded' ${propFilter}
+       WHERE ${where}
        GROUP BY a.id, a.first_name, a.last_name, p.name
        HAVING COALESCE(SUM(l.amount), 0) > 0
        ORDER BY COALESCE(SUM(l.amount), 0) DESC`,

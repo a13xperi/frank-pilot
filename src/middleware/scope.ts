@@ -7,6 +7,91 @@ export interface ScopedAuthRequest extends AuthRequest {
 }
 
 /**
+ * Staff roles that bypass per-property scoping. Asset managers, regional
+ * managers, and system admins have organisation-wide visibility; everyone
+ * else (e.g. leasing_agent, senior_manager) must be constrained to the
+ * property_ids assigned on their user record.
+ *
+ * Compliance-officer-like roles do not exist in the current enum — the
+ * highest organisation-wide staff role is `regional_manager` and above.
+ */
+export const GLOBAL_PROPERTY_SCOPE_ROLES = new Set<string>([
+  "system_admin",
+  "asset_manager",
+  "regional_manager",
+]);
+
+export interface PropertyScopeResult {
+  /**
+   * SQL fragment to AND into a query. Empty string means: no filter to apply
+   * (caller is a global-scope role). Includes the `$N` parameter placeholder.
+   */
+  sql: string;
+  /**
+   * Parameter value to push. Null means: no parameter to add (global scope).
+   */
+  param: string[] | null;
+  /**
+   * Forces an empty result set. True when a scoped role has no property_ids
+   * assigned. The caller MUST short-circuit and return an empty result.
+   */
+  denyAll: boolean;
+}
+
+/**
+ * Build a property-scoping SQL fragment for the given request. The caller
+ * passes the SQL column reference to filter on (e.g. `a.property_id`,
+ * `w.property_id`, `p.id`) and the index of the next bind parameter — the
+ * helper returns the fragment to AND in, plus the param to push.
+ *
+ *   const scope = buildPropertyScope(req, params.length + 1, "a.property_id");
+ *   if (scope.denyAll) return { entries: [], total: 0 };
+ *   if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+ *
+ * Global-scope roles (system_admin, asset_manager, regional_manager) get
+ * `{ sql: "", param: null, denyAll: false }` — no filter applied.
+ * Scoped roles with empty property_ids get `{ denyAll: true }` so the caller
+ * returns an empty result set (NOT all rows).
+ */
+export function buildPropertyScope(
+  req: AuthRequest,
+  nextParamIndex: number,
+  propertyColumn: string
+): PropertyScopeResult {
+  const role = req.user?.role || "";
+  if (GLOBAL_PROPERTY_SCOPE_ROLES.has(role)) {
+    return { sql: "", param: null, denyAll: false };
+  }
+  const ids = req.user?.propertyIds || [];
+  if (!ids.length) {
+    return { sql: "", param: null, denyAll: true };
+  }
+  return {
+    sql: `${propertyColumn} = ANY($${nextParamIndex})`,
+    param: ids,
+    denyAll: false,
+  };
+}
+
+/**
+ * Returns true if the request's role bypasses per-property scoping.
+ */
+export function isGlobalPropertyScope(req: AuthRequest): boolean {
+  return GLOBAL_PROPERTY_SCOPE_ROLES.has(req.user?.role || "");
+}
+
+/**
+ * Returns true if the caller may access the given property. Global-scope
+ * roles always pass; scoped roles must have the propertyId in their
+ * property_ids array.
+ */
+export function callerCanAccessProperty(req: AuthRequest, propertyId: string): boolean {
+  if (isGlobalPropertyScope(req)) return true;
+  const ids = req.user?.propertyIds || [];
+  return ids.includes(propertyId);
+}
+
+/**
  * Resolve the application ids accessible to an applicant/tenant user.
  *
  * Staff roles get an empty array — they go through the regular RBAC layer

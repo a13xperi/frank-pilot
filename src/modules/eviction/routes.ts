@@ -2,7 +2,7 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requirePermission } from "../../middleware/rbac";
-import { EvictionService } from "./service";
+import { EvictionService, EVICTION_CASE_STATUSES } from "./service";
 import { logger } from "../../utils/logger";
 
 const router = Router();
@@ -20,7 +20,7 @@ router.get("/violations", authenticate, requirePermission("eviction:view"),
         applicationId: req.query.applicationId as string | undefined,
         limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
         offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
-      });
+      }, req);
       res.json(result);
     } catch (err: any) {
       logger.error("Failed to list violations", { error: err.message });
@@ -32,7 +32,7 @@ router.get("/violations", authenticate, requirePermission("eviction:view"),
 router.get("/violations/:id", authenticate, requirePermission("eviction:view"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const violation = await service.getViolationById(req.params.id as string);
+      const violation = await service.getViolationById(req.params.id as string, req);
       if (!violation) { res.status(404).json({ error: "Violation not found" }); return; }
       res.json(violation);
     } catch (err: any) {
@@ -131,7 +131,7 @@ router.get("/notices", authenticate, requirePermission("eviction:view"),
       const notices = await service.getNotices({
         applicationId: req.query.applicationId as string | undefined,
         status: req.query.status as string | undefined,
-      });
+      }, req);
       res.json({ notices });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -142,7 +142,7 @@ router.get("/notices", authenticate, requirePermission("eviction:view"),
 router.get("/notices/:id", authenticate, requirePermission("eviction:view"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const notice = await service.getNoticeById(req.params.id as string);
+      const notice = await service.getNoticeById(req.params.id as string, req);
       if (!notice) { res.status(404).json({ error: "Notice not found" }); return; }
       res.json(notice);
     } catch (err: any) {
@@ -170,7 +170,7 @@ router.get("/cases", authenticate, requirePermission("eviction:view"),
       const cases = await service.getCases({
         status: req.query.status as string | undefined,
         applicationId: req.query.applicationId as string | undefined,
-      });
+      }, req);
       res.json({ cases });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -201,7 +201,7 @@ router.post("/cases", authenticate, requirePermission("eviction:manage"),
 );
 
 const UpdateCaseSchema = z.object({
-  status: z.string().min(1),
+  status: z.enum(EVICTION_CASE_STATUSES),
   hearingDate: z.string().optional(),
   judgmentDate: z.string().optional(),
   judgmentAmount: z.number().optional(),
@@ -220,6 +220,7 @@ router.patch("/cases/:id", authenticate, requirePermission("eviction:manage"),
       );
       res.json({ success: true });
     } catch (err: any) {
+      // Map state-machine + not-found errors to 400
       res.status(400).json({ error: err.message });
     }
   }

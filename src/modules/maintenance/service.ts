@@ -1,6 +1,8 @@
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
+import { AuthRequest } from "../../middleware/auth";
+import { buildPropertyScope } from "../../middleware/scope";
 
 // Emergency categories per Master Build List
 const EMERGENCY_CATEGORIES = new Set([
@@ -105,7 +107,7 @@ export class MaintenanceService {
   async list(filters: {
     propertyId?: string; status?: string; priority?: string; isEmergency?: boolean;
     limit?: number; offset?: number;
-  } = {}): Promise<{ workOrders: any[]; total: number }> {
+  } = {}, req?: AuthRequest): Promise<{ workOrders: any[]; total: number }> {
     const conditions: string[] = [];
     const params: unknown[] = [];
 
@@ -113,6 +115,12 @@ export class MaintenanceService {
     if (filters.status) { params.push(filters.status); conditions.push(`w.status = $${params.length}`); }
     if (filters.priority) { params.push(filters.priority); conditions.push(`w.priority = $${params.length}`); }
     if (filters.isEmergency !== undefined) { params.push(filters.isEmergency); conditions.push(`w.is_emergency = $${params.length}`); }
+
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "w.property_id");
+      if (scope.denyAll) return { workOrders: [], total: 0 };
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
@@ -136,7 +144,14 @@ export class MaintenanceService {
     return { workOrders: dataResult.rows, total: parseInt(countResult.rows[0].count) };
   }
 
-  async getById(id: string): Promise<any> {
+  async getById(id: string, req?: AuthRequest): Promise<any> {
+    const conditions = ["w.id = $1"];
+    const params: unknown[] = [id];
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "w.property_id");
+      if (scope.denyAll) return null;
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
     const result = await query(
       `SELECT w.*, p.name as property_name,
               sub.first_name || ' ' || sub.last_name as submitted_by_name,
@@ -145,8 +160,8 @@ export class MaintenanceService {
        JOIN properties p ON w.property_id = p.id
        LEFT JOIN users sub ON w.submitted_by = sub.id
        LEFT JOIN users asgn ON w.assigned_to = asgn.id
-       WHERE w.id = $1`,
-      [id]
+       WHERE ${conditions.join(" AND ")}`,
+      params
     );
     return result.rows[0] || null;
   }

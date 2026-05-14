@@ -1,6 +1,8 @@
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
+import { AuthRequest } from "../../middleware/auth";
+import { buildPropertyScope } from "../../middleware/scope";
 
 export class InspectionService {
   async schedule(
@@ -81,13 +83,19 @@ export class InspectionService {
   async list(filters: {
     propertyId?: string; status?: string; inspectionType?: string;
     limit?: number; offset?: number;
-  } = {}): Promise<{ inspections: any[]; total: number }> {
+  } = {}, req?: AuthRequest): Promise<{ inspections: any[]; total: number }> {
     const conditions: string[] = [];
     const params: unknown[] = [];
 
     if (filters.propertyId) { params.push(filters.propertyId); conditions.push(`i.property_id = $${params.length}`); }
     if (filters.status) { params.push(filters.status); conditions.push(`i.status = $${params.length}`); }
     if (filters.inspectionType) { params.push(filters.inspectionType); conditions.push(`i.inspection_type = $${params.length}`); }
+
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "i.property_id");
+      if (scope.denyAll) return { inspections: [], total: 0 };
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
@@ -107,25 +115,43 @@ export class InspectionService {
     return { inspections: dataResult.rows, total: parseInt(countResult.rows[0].count) };
   }
 
-  async getById(id: string): Promise<any> {
+  async getById(id: string, req?: AuthRequest): Promise<any> {
+    const conditions = ["i.id = $1"];
+    const params: unknown[] = [id];
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "i.property_id");
+      if (scope.denyAll) return null;
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
     const result = await query(
       `SELECT i.*, p.name as property_name,
               u.first_name || ' ' || u.last_name as inspector_name
        FROM inspections i
        JOIN properties p ON i.property_id = p.id
        LEFT JOIN users u ON i.inspector_id = u.id
-       WHERE i.id = $1`,
-      [id]
+       WHERE ${conditions.join(" AND ")}`,
+      params
     );
     return result.rows[0] || null;
   }
 
-  async getOverdue(): Promise<any[]> {
+  async getOverdue(req?: AuthRequest): Promise<any[]> {
+    const conditions = [
+      "i.status IN ('scheduled', 'notice_sent')",
+      "i.scheduled_date < CURRENT_DATE",
+    ];
+    const params: unknown[] = [];
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "i.property_id");
+      if (scope.denyAll) return [];
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
     const result = await query(
       `SELECT i.*, p.name as property_name
        FROM inspections i JOIN properties p ON i.property_id = p.id
-       WHERE i.status IN ('scheduled', 'notice_sent') AND i.scheduled_date < CURRENT_DATE
-       ORDER BY i.scheduled_date ASC`
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY i.scheduled_date ASC`,
+      params
     );
     return result.rows;
   }

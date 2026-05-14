@@ -2,6 +2,38 @@ import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 import { TwilioService } from "../integrations/twilio";
+import { AuthRequest } from "../../middleware/auth";
+import { buildPropertyScope } from "../../middleware/scope";
+
+// Eviction case status state machine (eviction_case_status enum)
+const VALID_CASE_STATUSES = [
+  "pre_filing",
+  "notice_served",
+  "notice_expired",
+  "filed",
+  "hearing_scheduled",
+  "judgment",
+  "writ_issued",
+  "executed",
+  "dismissed",
+  "settled",
+] as const;
+export type EvictionCaseStatus = (typeof VALID_CASE_STATUSES)[number];
+export const EVICTION_CASE_STATUSES = VALID_CASE_STATUSES;
+
+// Legal transitions only — anything else is rejected with a 400.
+const VALID_TRANSITIONS: Record<EvictionCaseStatus, EvictionCaseStatus[]> = {
+  pre_filing: ["notice_served", "dismissed"],
+  notice_served: ["notice_expired", "dismissed", "settled"],
+  notice_expired: ["filed", "dismissed", "settled"],
+  filed: ["hearing_scheduled", "dismissed", "settled"],
+  hearing_scheduled: ["judgment", "dismissed", "settled"],
+  judgment: ["writ_issued", "dismissed", "settled"],
+  writ_issued: ["executed", "dismissed", "settled"],
+  executed: [],
+  dismissed: [],
+  settled: [],
+};
 
 // Notice period days per NRS
 const NOTICE_PERIODS: Record<string, number> = {
@@ -317,11 +349,28 @@ export class EvictionService {
 
   async updateCaseStatus(
     caseId: string,
-    status: string,
+    status: EvictionCaseStatus,
     details: { hearingDate?: string; judgmentDate?: string; judgmentAmount?: number; notes?: string },
     actorId: string,
     actorRole: string
   ): Promise<void> {
+    // Look up current status to enforce state machine
+    const current = await query(
+      `SELECT status FROM eviction_cases WHERE id = $1`,
+      [caseId]
+    );
+    if (current.rows.length === 0) throw new Error("Case not found");
+    const fromStatus = current.rows[0].status as EvictionCaseStatus;
+
+    if (fromStatus === status) {
+      // No-op transition — still allow detail-only updates
+    } else {
+      const allowed = VALID_TRANSITIONS[fromStatus] || [];
+      if (!allowed.includes(status)) {
+        throw new Error(`Invalid status transition: ${fromStatus} -> ${status}`);
+      }
+    }
+
     const sets = [`status = $2`];
     const params: unknown[] = [caseId, status];
 
@@ -344,7 +393,7 @@ export class EvictionService {
       applicationId: result.rows[0].application_id,
       resourceType: "eviction_case",
       resourceId: caseId,
-      details: { status, ...details },
+      details: { from: fromStatus, to: status, ...details },
     });
   }
 
@@ -353,7 +402,7 @@ export class EvictionService {
   async getViolations(filters: {
     status?: string; violationType?: string; propertyId?: string; applicationId?: string;
     limit?: number; offset?: number;
-  } = {}): Promise<{ violations: any[]; total: number }> {
+  } = {}, req?: AuthRequest): Promise<{ violations: any[]; total: number }> {
     const conditions: string[] = [];
     const params: unknown[] = [];
 
@@ -361,6 +410,12 @@ export class EvictionService {
     if (filters.violationType) { params.push(filters.violationType); conditions.push(`v.violation_type = $${params.length}`); }
     if (filters.propertyId) { params.push(filters.propertyId); conditions.push(`v.property_id = $${params.length}`); }
     if (filters.applicationId) { params.push(filters.applicationId); conditions.push(`v.application_id = $${params.length}`); }
+
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "v.property_id");
+      if (scope.denyAll) return { violations: [], total: 0 };
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
@@ -379,42 +434,77 @@ export class EvictionService {
     return { violations: dataResult.rows, total: parseInt(countResult.rows[0].count) };
   }
 
-  async getViolationById(id: string): Promise<any> {
+  async getViolationById(id: string, req?: AuthRequest): Promise<any> {
+    const conditions = ["v.id = $1"];
+    const params: unknown[] = [id];
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "v.property_id");
+      if (scope.denyAll) return null;
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
     const result = await query(
       `SELECT v.*, a.first_name || ' ' || a.last_name as tenant_name, p.name as property_name
        FROM lease_violations v
        JOIN applications a ON v.application_id = a.id
        JOIN properties p ON v.property_id = p.id
-       WHERE v.id = $1`,
-      [id]
+       WHERE ${conditions.join(" AND ")}`,
+      params
     );
     return result.rows[0] || null;
   }
 
-  async getNotices(filters: { applicationId?: string; status?: string } = {}): Promise<any[]> {
+  async getNotices(filters: { applicationId?: string; status?: string } = {}, req?: AuthRequest): Promise<any[]> {
     const conditions: string[] = [];
     const params: unknown[] = [];
     if (filters.applicationId) { params.push(filters.applicationId); conditions.push(`n.application_id = $${params.length}`); }
     if (filters.status) { params.push(filters.status); conditions.push(`n.status = $${params.length}`); }
+
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "a.property_id");
+      if (scope.denyAll) return [];
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
+
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const result = await query(
-      `SELECT n.* FROM eviction_notices n ${where} ORDER BY n.created_at DESC`,
+      `SELECT n.* FROM eviction_notices n
+       JOIN applications a ON n.application_id = a.id
+       ${where} ORDER BY n.created_at DESC`,
       params
     );
     return result.rows;
   }
 
-  async getNoticeById(id: string): Promise<any> {
-    const result = await query(`SELECT * FROM eviction_notices WHERE id = $1`, [id]);
+  async getNoticeById(id: string, req?: AuthRequest): Promise<any> {
+    const conditions = ["n.id = $1"];
+    const params: unknown[] = [id];
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "a.property_id");
+      if (scope.denyAll) return null;
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
+    const result = await query(
+      `SELECT n.* FROM eviction_notices n
+       JOIN applications a ON n.application_id = a.id
+       WHERE ${conditions.join(" AND ")}`,
+      params
+    );
     return result.rows[0] || null;
   }
 
-  async getCases(filters: { status?: string; applicationId?: string } = {}): Promise<any[]> {
+  async getCases(filters: { status?: string; applicationId?: string } = {}, req?: AuthRequest): Promise<any[]> {
     const conditions: string[] = [];
     const params: unknown[] = [];
     if (filters.status) { params.push(filters.status); conditions.push(`c.status = $${params.length}`); }
     if (filters.applicationId) { params.push(filters.applicationId); conditions.push(`c.application_id = $${params.length}`); }
+
+    if (req) {
+      const scope = buildPropertyScope(req, params.length + 1, "c.property_id");
+      if (scope.denyAll) return [];
+      if (scope.sql) { conditions.push(scope.sql); params.push(scope.param); }
+    }
+
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const result = await query(

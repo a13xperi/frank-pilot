@@ -14,16 +14,16 @@ router.get("/", authenticate, requirePermission("moveout:view"),
       const moveOuts = await service.list({
         status: req.query.status as string | undefined,
         propertyId: req.query.propertyId as string | undefined,
-      });
+      }, req);
       res.json({ moveOuts });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   }
 );
 
 router.get("/deadlines", authenticate, requirePermission("moveout:view"),
-  async (_req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const deadlines = await service.getDeadlines();
+      const deadlines = await service.getDeadlines(req);
       res.json({ deadlines });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   }
@@ -32,7 +32,7 @@ router.get("/deadlines", authenticate, requirePermission("moveout:view"),
 router.get("/:id", authenticate, requirePermission("moveout:view"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const moveOut = await service.getById(req.params.id as string);
+      const moveOut = await service.getById(req.params.id as string, req);
       if (!moveOut) { res.status(404).json({ error: "Not found" }); return; }
       res.json(moveOut);
     } catch (err: any) { res.status(500).json({ error: err.message }); }

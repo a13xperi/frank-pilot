@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requirePermission } from "../../middleware/rbac";
+import { callerCanAccessProperty } from "../../middleware/scope";
 import { InspectionService } from "./service";
 
 const router = Router();
@@ -15,16 +16,16 @@ router.get("/", authenticate, requirePermission("inspection:view"),
         status: req.query.status as string | undefined,
         inspectionType: req.query.inspectionType as string | undefined,
         limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
-      });
+      }, req);
       res.json(result);
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   }
 );
 
 router.get("/overdue", authenticate, requirePermission("inspection:view"),
-  async (_req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const inspections = await service.getOverdue();
+      const inspections = await service.getOverdue(req);
       res.json({ inspections });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   }
@@ -33,7 +34,7 @@ router.get("/overdue", authenticate, requirePermission("inspection:view"),
 router.get("/:id", authenticate, requirePermission("inspection:view"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const inspection = await service.getById(req.params.id as string);
+      const inspection = await service.getById(req.params.id as string, req);
       if (!inspection) { res.status(404).json({ error: "Not found" }); return; }
       res.json(inspection);
     } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -52,6 +53,9 @@ router.post("/", authenticate, requirePermission("inspection:manage"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     const parsed = ScheduleSchema.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() }); return; }
+    if (!callerCanAccessProperty(req, parsed.data.propertyId)) {
+      res.status(403).json({ error: "Property not accessible" }); return;
+    }
     try {
       const result = await service.schedule(
         parsed.data.propertyId, parsed.data.inspectionType, parsed.data.scheduledDate,
