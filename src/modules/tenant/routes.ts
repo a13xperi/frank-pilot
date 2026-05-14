@@ -10,12 +10,14 @@ import {
 import { query } from "../../config/database";
 import { LedgerService } from "../ledger/service";
 import { MaintenanceService } from "../maintenance/service";
+import { MessagesService, SenderRole } from "../messages/service";
 import { logger } from "../../utils/logger";
 import { param } from "../../utils/params";
 
 const router: Router = Router();
 const ledger = new LedgerService();
 const maintenance = new MaintenanceService();
+const messages = new MessagesService();
 
 // All tenant routes require auth + applicant/tenant role + scope
 router.use(authenticate, requireTenantRole, scopeToOwnApplications);
@@ -327,6 +329,91 @@ router.get(
     } catch (err) {
       logger.error("tenant application detail failed", { error: (err as Error).message });
       res.status(500).json({ error: "Failed to load application" });
+    }
+  }
+);
+
+// ---------------------------------------------------------------
+// GET /api/tenant/applications/:applicationId/messages — list thread
+// ---------------------------------------------------------------
+router.get(
+  "/applications/:applicationId/messages",
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const applicationId = param(req.params.applicationId);
+      if (!(await assertApplicationOwnership(req, res, applicationId))) return;
+
+      const list = await messages.listForApplication(applicationId);
+      res.json({ messages: list });
+    } catch (err) {
+      logger.error("tenant messages list failed", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to load messages" });
+    }
+  }
+);
+
+// ---------------------------------------------------------------
+// POST /api/tenant/applications/:applicationId/messages — reply to staff
+// ---------------------------------------------------------------
+const messageBodySchema = z.object({
+  body: z.string().trim().min(1).max(4000),
+});
+
+router.post(
+  "/applications/:applicationId/messages",
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const applicationId = param(req.params.applicationId);
+      if (!(await assertApplicationOwnership(req, res, applicationId))) return;
+
+      const parsed = messageBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        res
+          .status(400)
+          .json({ error: "Validation failed", details: parsed.error.errors });
+        return;
+      }
+
+      // Derive sender_role from the authenticated user's portal role
+      // (applicant or tenant — staff cannot hit this path via requireTenantRole).
+      const senderRole = (req.user!.role === "tenant" ? "tenant" : "applicant") as SenderRole;
+
+      const message = await messages.create({
+        applicationId,
+        senderUserId: req.user!.id,
+        senderRole,
+        body: parsed.data.body,
+      });
+      res.status(201).json({ message });
+    } catch (err) {
+      logger.error("tenant message create failed", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  }
+);
+
+// ---------------------------------------------------------------
+// POST /api/tenant/applications/:applicationId/messages/:msgId/read
+// — applicant/tenant marks staff message as read
+// ---------------------------------------------------------------
+router.post(
+  "/applications/:applicationId/messages/:msgId/read",
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const applicationId = param(req.params.applicationId);
+      const messageId = param(req.params.msgId);
+      if (!(await assertApplicationOwnership(req, res, applicationId))) return;
+
+      const readerRole = (req.user!.role === "tenant" ? "tenant" : "applicant") as SenderRole;
+      const ok = await messages.markRead({
+        messageId,
+        readerUserId: req.user!.id,
+        readerRole,
+      });
+      res.json({ updated: ok });
+    } catch (err) {
+      logger.error("tenant message mark-read failed", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to mark message read" });
     }
   }
 );

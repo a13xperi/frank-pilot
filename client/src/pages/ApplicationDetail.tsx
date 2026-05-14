@@ -4,6 +4,7 @@ import { ArrowLeft, Send, XCircle, CheckCircle, FileText, Home, AlertTriangle, R
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
+import { ApplicationMessages } from '@/components/ApplicationMessages';
 import { api } from '@/api/client';
 import type { Application, ApprovalStatus, ScreeningResult, LeaseStatus, AdverseActionNotice } from '@/types';
 
@@ -285,6 +286,9 @@ export function ApplicationDetail() {
           {app.submitted_at && <p>Submitted: {new Date(app.submitted_at).toLocaleString()}</p>}
         </div>
       </Card>
+
+      {/* Two-way messaging thread with applicant/tenant */}
+      {id && <ApplicationMessages applicationId={id} />}
     </div>
   );
 }

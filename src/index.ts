@@ -30,6 +30,7 @@ import moveoutRoutes from "./modules/moveout/routes";
 import authRoutes from "./modules/auth/routes";
 import applicantRoutes from "./modules/applicants/routes";
 import tenantRoutes from "./modules/tenant/routes";
+import messagesRoutes from "./modules/messages/routes";
 import { startScheduler } from "./scheduler";
 
 const app = express();
@@ -112,6 +113,9 @@ app.use("/api/leases", leaseRoutes);
 
 // FCRA Adverse action notices (nested under /api/applications)
 app.use("/api/applications", adverseActionRoutes);
+
+// Application messages — staff side (nested under /api/applications)
+app.use("/api/applications", messagesRoutes);
 
 // User management (system_admin: create/deactivate/reset-pw; senior_manager+: view)
 app.use("/api/users", userRoutes);
