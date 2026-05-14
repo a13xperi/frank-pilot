@@ -8,18 +8,18 @@ interface MeResponse {
   user?: { role: string; emailVerified: boolean };
 }
 
-// Applicants and tenants ALWAYS land on the application form after a magic-link
-// verify — the form is the carrot, not the dashboard. Returning users see their
-// prior submission prefilled (handled in Apply.tsx). Only staff/admin roles go
-// to /dashboard.
+// Applicants/tenants land on the intent quiz first — it's the entry to the
+// "plant a flag" flow that converts FTUs by getting them to claim a specific
+// unit before the heavier details form. Step 'intent' redirects forward on its
+// own if a claim already exists. Staff/admin go straight to /dashboard.
 async function resolvePostVerifyRoute(): Promise<string> {
   try {
     const me = await api.get<MeResponse>('/auth/me');
     const role = me.user?.role;
-    if (role === 'applicant' || role === 'tenant') return '/apply?step=2';
+    if (role === 'applicant' || role === 'tenant') return '/apply?step=intent';
     return '/dashboard';
   } catch {
-    return '/apply?step=2';
+    return '/apply?step=intent';
   }
 }
 
