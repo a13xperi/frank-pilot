@@ -15,7 +15,6 @@ export function MoveOuts() {
   const { data, loading, refetch } = useApiQuery<{ moveOuts: MoveOut[] }>('/api/moveouts');
   const [selected, setSelected] = useState<MoveOut | null>(null);
   const [showInitiate, setShowInitiate] = useState(false);
-  const [showDeposit, setShowDeposit] = useState(false);
   const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Initiate form

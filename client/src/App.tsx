@@ -16,6 +16,8 @@ import { LedgerOverview, LedgerDetail } from '@/pages/Ledger';
 import { Evictions } from '@/pages/Evictions';
 import { Renewals } from '@/pages/Renewals';
 import { MoveOuts } from '@/pages/MoveOuts';
+import { InspectionsPage } from '@/pages/Inspections';
+import { MaintenancePage } from '@/pages/Maintenance';
 import { ApplicationForm } from '@/pages/ApplicationForm';
 import { ApplicationDetail } from '@/pages/ApplicationDetail';
 
@@ -35,6 +37,8 @@ export default function App() {
               <Route path="approvals" element={<Approvals />} />
               <Route path="ledger" element={<LedgerOverview />} />
               <Route path="ledger/:applicationId" element={<LedgerDetail />} />
+              <Route path="inspections" element={<InspectionsPage />} />
+              <Route path="maintenance" element={<MaintenancePage />} />
               <Route path="evictions" element={<Evictions />} />
               <Route path="renewals" element={<Renewals />} />
               <Route path="moveouts" element={<MoveOuts />} />

@@ -497,7 +497,80 @@ export async function seedDemoData() {
     console.log(`  Move-out (pre-inspection complete) → Tomasz Kowalski`);
   }
 
-  console.log(`\nDemo seed complete! ${created} applications + ${recertCreated} recertifications + ${ledgerEntries} ledger entries + ${evictionSeeded} eviction + ${renewalSeeded} renewals + ${moveoutSeeded} move-outs created.`);
+  // ── Inspections + Work Orders Demo Data ──────────────────────
+  // Get some properties for inspections
+  const inspProps = propResult.rows.slice(0, 3);
+  let inspSeeded = 0;
+  let woSeeded = 0;
+
+  for (let i = 0; i < inspProps.length; i++) {
+    const p = inspProps[i];
+    // Schedule a monthly inspection
+    const schedDate = new Date();
+    schedDate.setDate(schedDate.getDate() + 7 + i * 5);
+    await query(
+      `INSERT INTO inspections
+         (property_id, unit_number, inspection_type, status, scheduled_date, inspector_id)
+       VALUES ($1, $2, 'monthly', 'scheduled', $3, $4)
+       ON CONFLICT DO NOTHING`,
+      [p.id, `${String.fromCharCode(65 + i)}-101`, schedDate.toISOString().split("T")[0], seniorId]
+    );
+    inspSeeded++;
+  }
+
+  // Add a completed smoke detector inspection
+  await query(
+    `INSERT INTO inspections
+       (property_id, unit_number, inspection_type, status, scheduled_date, completed_date,
+        inspector_id, notes, smoke_detector_ok, hqs_compliant, follow_up_required)
+     VALUES ($1, 'D-405', 'smoke_detector', 'completed', CURRENT_DATE - INTERVAL '3 days', CURRENT_DATE - INTERVAL '3 days',
+             $2, 'All smoke detectors tested and functional. Batteries replaced in bedroom unit.', true, true, false)
+     ON CONFLICT DO NOTHING`,
+    [inspProps[0].id, seniorId]
+  );
+  inspSeeded++;
+  console.log(`  Inspections: ${inspSeeded} scheduled/completed`);
+
+  // Emergency work order (plumbing leak)
+  await query(
+    `INSERT INTO work_orders
+       (property_id, unit_number, title, description, priority, status, category,
+        is_emergency, submitted_by)
+     VALUES ($1, 'B-205', 'Emergency: Plumbing leak in bathroom', 'Tenant reports water leaking from bathroom ceiling into unit below. Appears to be burst pipe above shower.',
+             'emergency', 'submitted', 'plumbing_leak', true, $2)
+     ON CONFLICT DO NOTHING`,
+    [inspProps[0].id, agentId]
+  );
+  woSeeded++;
+
+  // Routine work order (assigned)
+  await query(
+    `INSERT INTO work_orders
+       (property_id, unit_number, title, description, priority, status, category,
+        is_emergency, submitted_by, assigned_to, assigned_at)
+     VALUES ($1, 'C-301', 'Garbage disposal not working', 'Tenant reports garbage disposal makes grinding noise but does not function. Kitchen sink drains slowly.',
+             'routine', 'assigned', 'appliance_repair', false, $2, $3, NOW() - INTERVAL '1 day')
+     ON CONFLICT DO NOTHING`,
+    [inspProps[1].id, agentId, seniorId]
+  );
+  woSeeded++;
+
+  // Completed work order
+  await query(
+    `INSERT INTO work_orders
+       (property_id, unit_number, title, description, priority, status, category,
+        is_emergency, submitted_by, assigned_to, assigned_at, completed_at, completed_by,
+        completion_notes, actual_cost)
+     VALUES ($1, 'A-110', 'Replace broken window lock', 'Window lock on bedroom window is broken. Cannot secure window.',
+             'urgent', 'completed', 'general_repair', false, $2, $3, NOW() - INTERVAL '3 days',
+             NOW() - INTERVAL '1 day', $3, 'Replaced window lock mechanism. Window now locks and unlocks properly. Tested from both inside and outside.', 45.00)
+     ON CONFLICT DO NOTHING`,
+    [inspProps[2].id, agentId, seniorId]
+  );
+  woSeeded++;
+  console.log(`  Work orders: ${woSeeded} (1 emergency, 1 assigned, 1 completed)`);
+
+  console.log(`\nDemo seed complete! ${created} applications + ${recertCreated} recertifications + ${ledgerEntries} ledger entries + ${evictionSeeded} eviction + ${renewalSeeded} renewals + ${moveoutSeeded} move-outs + ${inspSeeded} inspections + ${woSeeded} work orders created.`);
   return { created };
 }
 
