@@ -27,6 +27,9 @@ import inspectionRoutes from "./modules/inspections/routes";
 import maintenanceRoutes from "./modules/maintenance/routes";
 import renewalRoutes from "./modules/renewal/routes";
 import moveoutRoutes from "./modules/moveout/routes";
+import authRoutes from "./modules/auth/routes";
+import applicantRoutes from "./modules/applicants/routes";
+import tenantRoutes from "./modules/tenant/routes";
 import { startScheduler } from "./scheduler";
 
 const app = express();
@@ -56,7 +59,13 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "frank-pilot", timestamp: new Date().toISOString() });
 });
 
-// Login
+// Magic-link auth (tenants + applicants)
+app.use("/api/auth", authRoutes);
+
+// Applicant self-service (public register + auth'd apply)
+app.use("/api/applicants", applicantRoutes);
+
+// Password login (staff)
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -118,6 +127,9 @@ app.use("/api/inspections", inspectionRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
 app.use("/api/renewals", renewalRoutes);
 app.use("/api/moveouts", moveoutRoutes);
+
+// Tenant portal (auth'd, scoped to user's own applications)
+app.use("/api/tenant", tenantRoutes);
 
 // Audit log
 app.get(

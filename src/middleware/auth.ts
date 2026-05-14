@@ -3,7 +3,16 @@ import jwt from "jsonwebtoken";
 import { query } from "../config/database";
 import { logger } from "../utils/logger";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+const JWT_SECRET = (() => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET is required in production");
+    }
+    return "dev-secret-change-me";
+  }
+  return secret;
+})();
 
 export interface AuthUser {
   id: string;

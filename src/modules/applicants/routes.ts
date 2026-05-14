@@ -1,0 +1,176 @@
+import { Router, Request, Response } from "express";
+import { z } from "zod";
+import rateLimit from "express-rate-limit";
+import { query, transaction } from "../../config/database";
+import { authenticate, AuthRequest, generateToken, AuthUser } from "../../middleware/auth";
+import { createMagicLink, logMagicLink } from "../auth/magic-link-service";
+import { ApplicationService } from "../application/service";
+import { createApplicationSchema } from "../application/validation";
+import { logger } from "../../utils/logger";
+
+const router: Router = Router();
+const applicationService = new ApplicationService();
+
+const registerSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  phone: z.string().max(20).optional(),
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => `${req.ip}:${(req.body?.email ?? "").toLowerCase()}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, try again in a minute" },
+});
+
+// Public: register as an applicant. Idempotent — if the email already exists as
+// an applicant, we reissue a magic link instead of erroring (no email enumeration).
+router.post("/register", registerLimiter, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+      return;
+    }
+
+    const { email, firstName, lastName, phone } = parsed.data;
+
+    const existing = await query("SELECT id, role, is_active FROM users WHERE email = $1", [email]);
+    let userId: string;
+    let isNew = false;
+
+    if (existing.rows.length > 0) {
+      const u = existing.rows[0];
+      // If existing account is staff, don't allow applicant registration on that email.
+      if (!["applicant", "tenant"].includes(u.role)) {
+        // Don't leak — just say ok and skip issuing a link.
+        res.json({ ok: true });
+        return;
+      }
+      userId = u.id;
+    } else {
+      const insertRes = await query(
+        `INSERT INTO users (email, first_name, last_name, phone, role, is_active, password_hash)
+         VALUES ($1, $2, $3, $4, 'applicant', true, NULL)
+         RETURNING id`,
+        [email, firstName, lastName, phone || null]
+      );
+      userId = insertRes.rows[0].id;
+      isNew = true;
+    }
+
+    const link = await createMagicLink(email);
+    if (link) logMagicLink(email, link.link);
+
+    // For demo simplicity: also auto-issue a JWT so the registration flow lands the
+    // applicant directly in the portal. The magic link is logged + surfaced in dev.
+    const userRow = await query(
+      "SELECT id, email, role, first_name, last_name FROM users WHERE id = $1",
+      [userId]
+    );
+    const u = userRow.rows[0];
+    const authUser: AuthUser = {
+      id: u.id,
+      email: u.email,
+      role: u.role,
+      firstName: u.first_name,
+      lastName: u.last_name,
+      propertyIds: [],
+    };
+    const token = generateToken(authUser);
+
+    logger.info("Applicant registered", { userId, email, isNew });
+
+    const payload: Record<string, unknown> = { ok: true, token, user: authUser };
+    if (link && process.env.NODE_ENV !== "production") {
+      payload.devLink = link.link;
+    }
+    res.status(isNew ? 201 : 200).json(payload);
+  } catch (err) {
+    logger.error("Applicant register failed", { error: (err as Error).message });
+    res.status(500).json({ error: "Registration failed" });
+  }
+});
+
+// Authenticated as applicant: submit the application form. Creates the
+// application via ApplicationService then links it to the user.
+router.post("/apply", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+      res.status(403).json({ error: "Applicant role required" });
+      return;
+    }
+
+    const input = createApplicationSchema.parse(req.body);
+
+    // Default email on the application to the authenticated user if not provided.
+    if (!input.email) input.email = req.user.email;
+
+    const created = await applicationService.create(input, req.user.id, req.user.role);
+
+    // Link this user to the application as the primary applicant.
+    await query(
+      `INSERT INTO user_applications (user_id, application_id, relationship)
+       VALUES ($1, $2, 'primary')
+       ON CONFLICT (user_id, application_id) DO NOTHING`,
+      [req.user.id, created.id]
+    );
+
+    res.status(201).json(created);
+  } catch (err: any) {
+    if (err.name === "ZodError") {
+      res.status(400).json({ error: "Validation failed", details: err.errors });
+      return;
+    }
+    logger.error("Applicant apply failed", { error: (err as Error).message });
+    res.status(500).json({ error: "Failed to submit application" });
+  }
+});
+
+// Public: list of properties an applicant can apply to. Returns minimal
+// public-safe fields only (no compliance metadata, no internal IDs).
+router.get("/properties", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await query(
+      `SELECT id, name, address_line1, city, state, zip, unit_count, property_type,
+              waiting_list_enabled
+       FROM properties
+       ORDER BY name ASC`
+    );
+    res.json({ properties: result.rows });
+  } catch (err) {
+    logger.error("Failed to list public properties", { error: (err as Error).message });
+    res.status(500).json({ error: "Failed to list properties" });
+  }
+});
+
+// Authenticated as applicant: list my applications.
+router.get("/me/applications", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+      res.status(403).json({ error: "Applicant role required" });
+      return;
+    }
+    const result = await query(
+      `SELECT a.id, a.first_name, a.last_name, a.email, a.status, a.submitted_at,
+              a.created_at, a.property_id, a.unit_number, a.overall_screening_result,
+              a.requested_rent_amount, p.name AS property_name
+       FROM user_applications ua
+       JOIN applications a ON a.id = ua.application_id
+       JOIN properties p ON p.id = a.property_id
+       WHERE ua.user_id = $1
+       ORDER BY a.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ applications: result.rows });
+  } catch (err) {
+    logger.error("Failed to list my applications", { error: (err as Error).message });
+    res.status(500).json({ error: "Failed to list applications" });
+  }
+});
+
+export default router;

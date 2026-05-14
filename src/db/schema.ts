@@ -17,7 +17,9 @@ CREATE TYPE user_role AS ENUM (
   'senior_manager',
   'regional_manager',
   'asset_manager',
-  'system_admin'
+  'system_admin',
+  'applicant',
+  'tenant'
 );
 
 CREATE TYPE application_status AS ENUM (
@@ -218,20 +220,33 @@ CREATE TYPE recertification_status AS ENUM (
 -- TABLES
 -- ============================================================
 
--- Users (internal staff)
+-- Users (staff + applicants + tenants — magic-link users have null password_hash)
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255),
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
   role user_role NOT NULL,
   property_ids UUID[] DEFAULT '{}',
+  phone VARCHAR(20),
   is_active BOOLEAN DEFAULT true,
   last_login TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Magic-link tokens for passwordless tenant/applicant login
+CREATE TABLE magic_link_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  token_hash VARCHAR(64) NOT NULL UNIQUE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_magic_link_tokens_hash ON magic_link_tokens(token_hash);
+CREATE INDEX idx_magic_link_tokens_user ON magic_link_tokens(user_id);
 
 -- Properties
 CREATE TABLE properties (
@@ -372,6 +387,18 @@ CREATE TABLE applications (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Tenant/applicant join to applications (multiple users per application: primary, co-applicant, household member)
+CREATE TABLE user_applications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  relationship VARCHAR(50) DEFAULT 'primary',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, application_id)
+);
+CREATE INDEX idx_user_applications_user ON user_applications(user_id);
+CREATE INDEX idx_user_applications_app ON user_applications(application_id);
 
 -- Fraud Flags
 CREATE TABLE fraud_flags (

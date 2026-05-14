@@ -67,6 +67,15 @@ export async function seedDemoData() {
       await query("DELETE FROM fraud_flags WHERE application_id = $1", [row.id]);
       await query("DELETE FROM adverse_action_notices WHERE application_id = $1", [row.id]);
       await query("DELETE FROM lease_modifications WHERE application_id = $1", [row.id]);
+      await query("DELETE FROM inspections WHERE application_id = $1", [row.id]);
+      await query("DELETE FROM work_orders WHERE application_id = $1", [row.id]);
+      await query("DELETE FROM lease_renewals WHERE application_id = $1", [row.id]);
+      await query("DELETE FROM move_outs WHERE application_id = $1", [row.id]);
+      await query("DELETE FROM eviction_cases WHERE application_id = $1", [row.id]);
+      await query("DELETE FROM eviction_notices WHERE application_id = $1", [row.id]);
+      await query("DELETE FROM lease_violations WHERE application_id = $1", [row.id]);
+      await query("DELETE FROM tenant_ledger WHERE application_id = $1", [row.id]);
+      await query("DELETE FROM recertifications WHERE application_id = $1", [row.id]);
       await query("DELETE FROM applications WHERE id = $1", [row.id]);
     }
   }
@@ -570,7 +579,59 @@ export async function seedDemoData() {
   woSeeded++;
   console.log(`  Work orders: ${woSeeded} (1 emergency, 1 assigned, 1 completed)`);
 
-  console.log(`\nDemo seed complete! ${created} applications + ${recertCreated} recertifications + ${ledgerEntries} ledger entries + ${evictionSeeded} eviction + ${renewalSeeded} renewals + ${moveoutSeeded} move-outs + ${inspSeeded} inspections + ${woSeeded} work orders created.`);
+  // -----------------------------------------------------------------
+  // Tenant portal demo users
+  // -----------------------------------------------------------------
+  let portalSeeded = 0;
+
+  // Tenant linked to Tomasz Kowalski's onboarded application (has ledger + balance)
+  const tomaszApp = await query(
+    `SELECT id, property_id FROM applications
+     WHERE first_name = 'Tomasz' AND last_name = 'Kowalski' AND status = 'onboarded'
+     LIMIT 1`
+  );
+  if (tomaszApp.rows.length > 0) {
+    const tenantRes = await query(
+      `INSERT INTO users (email, first_name, last_name, phone, role, is_active, password_hash)
+       VALUES ('demo-tenant@example.com', 'Tomasz', 'Kowalski', '702-555-0102', 'tenant', true, NULL)
+       ON CONFLICT (email) DO UPDATE
+         SET role = 'tenant', first_name = 'Tomasz', last_name = 'Kowalski', is_active = true
+       RETURNING id`
+    );
+    await query(
+      `INSERT INTO user_applications (user_id, application_id, relationship)
+       VALUES ($1, $2, 'primary')
+       ON CONFLICT (user_id, application_id) DO NOTHING`,
+      [tenantRes.rows[0].id, tomaszApp.rows[0].id]
+    );
+
+    // Sample tenant-submitted work orders
+    const submittedBy = tenantRes.rows[0].id;
+    await query(
+      `INSERT INTO work_orders
+         (property_id, application_id, unit_number, title, description,
+          priority, category, is_emergency, status, submitted_by, created_at)
+       VALUES ($1, $2, 'A-120', 'Kitchen faucet leaking',
+               'Slow drip under sink, started yesterday',
+               'routine', 'plumbing_leak', false, 'submitted', $3, NOW() - INTERVAL '3 days')
+       ON CONFLICT DO NOTHING`,
+      [tomaszApp.rows[0].property_id, tomaszApp.rows[0].id, submittedBy]
+    );
+    portalSeeded++;
+  }
+
+  // Pure applicant — no application yet, will start one via the portal
+  await query(
+    `INSERT INTO users (email, first_name, last_name, phone, role, is_active, password_hash)
+     VALUES ('demo-applicant@example.com', 'Maria', 'Garcia', '702-555-0201', 'applicant', true, NULL)
+     ON CONFLICT (email) DO UPDATE
+       SET role = 'applicant', first_name = 'Maria', last_name = 'Garcia', is_active = true`
+  );
+  portalSeeded++;
+
+  console.log(`  Tenant portal users: ${portalSeeded} (1 tenant + 1 applicant)`);
+
+  console.log(`\nDemo seed complete! ${created} applications + ${recertCreated} recertifications + ${ledgerEntries} ledger entries + ${evictionSeeded} eviction + ${renewalSeeded} renewals + ${moveoutSeeded} move-outs + ${inspSeeded} inspections + ${woSeeded} work orders + ${portalSeeded} portal users created.`);
   return { created };
 }
 
