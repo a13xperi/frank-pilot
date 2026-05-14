@@ -69,30 +69,42 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     const link = await createMagicLink(email);
     if (link) logMagicLink(email, link.link);
 
-    // For demo simplicity: also auto-issue a JWT so the registration flow lands the
-    // applicant directly in the portal. The magic link is logged + surfaced in dev.
-    const userRow = await query(
-      "SELECT id, email, role, first_name, last_name FROM users WHERE id = $1",
-      [userId]
-    );
-    const u = userRow.rows[0];
-    const authUser: AuthUser = {
-      id: u.id,
-      email: u.email,
-      role: u.role,
-      firstName: u.first_name,
-      lastName: u.last_name,
-      propertyIds: [],
-    };
-    const token = generateToken(authUser);
-
     logger.info("Applicant registered", { userId, email, isNew });
 
+    if (isNew) {
+      // Brand-new account: issue a session JWT so the applicant lands in the portal.
+      const userRow = await query(
+        "SELECT id, email, role, first_name, last_name FROM users WHERE id = $1",
+        [userId]
+      );
+      const u = userRow.rows[0];
+      const authUser: AuthUser = {
+        id: u.id,
+        email: u.email,
+        role: u.role,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        propertyIds: [],
+      };
+      const token = generateToken(authUser);
+      const payload: Record<string, unknown> = {
+        ok: true,
+        message: "If this email is registered, a verification link has been sent.",
+        token,
+        user: authUser,
+      };
+      if (link && process.env.NODE_ENV === "development") {
+        payload.devLink = link.link;
+      }
+      res.status(202).json(payload);
+      return;
+    }
+
+    // Existing account: magic link already sent above for account recovery.
+    // Never reveal a token for a pre-existing account.
     const payload: Record<string, unknown> = {
       ok: true,
       message: "If this email is registered, a verification link has been sent.",
-      token,
-      user: authUser,
     };
     if (link && process.env.NODE_ENV === "development") {
       payload.devLink = link.link;
