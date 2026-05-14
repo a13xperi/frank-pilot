@@ -6,7 +6,9 @@ import { CheckCircle } from 'lucide-react';
 interface Property {
   id: string;
   name: string;
-  address?: string;
+  address_line1?: string;
+  city?: string;
+  state?: string;
 }
 
 type Step = 1 | 2;
@@ -60,7 +62,7 @@ export function Apply() {
       // Fetch properties now that we have a token
       setPropertiesLoading(true);
       try {
-        const data = await api.get<{ properties: Property[] } | Property[]>('/properties');
+        const data = await api.get<{ properties: Property[] } | Property[]>('/applicants/properties');
         const list = Array.isArray(data) ? data : (data as any).properties ?? [];
         setProperties(list);
       } catch {
@@ -210,7 +212,9 @@ export function Apply() {
                     >
                       <option value="">Select a property…</option>
                       {properties.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
+                        <option key={p.id} value={p.id}>
+                          {p.name}{p.city && p.state ? ` — ${p.city}, ${p.state}` : ''}
+                        </option>
                       ))}
                     </select>
                   )}

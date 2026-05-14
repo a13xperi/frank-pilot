@@ -37,7 +37,18 @@ async function request<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error || `Request failed: ${res.status}`);
+    let msg = body.error || `Request failed: ${res.status}`;
+    if (Array.isArray(body.details) && body.details.length > 0) {
+      const fields = body.details
+        .map((d: { path?: (string | number)[]; message?: string }) => {
+          const field = Array.isArray(d.path) ? d.path.join('.') : '';
+          return field ? `${field}: ${d.message}` : d.message;
+        })
+        .filter(Boolean)
+        .join('; ');
+      if (fields) msg = `${msg} — ${fields}`;
+    }
+    throw new Error(msg);
   }
 
   return res.json();
