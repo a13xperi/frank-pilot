@@ -8,23 +8,18 @@ interface MeResponse {
   user?: { role: string; emailVerified: boolean };
 }
 
-interface ApplicationsResponse {
-  applications?: Array<{ id: string }>;
-}
-
-// First-touch friction killer: a freshly-verified applicant with no submitted
-// application gets sent straight to /apply step 2 to finish in one sitting.
-// Anyone else (returning applicant, staff) lands on /dashboard.
+// Applicants and tenants ALWAYS land on the application form after a magic-link
+// verify — the form is the carrot, not the dashboard. Returning users see their
+// prior submission prefilled (handled in Apply.tsx). Only staff/admin roles go
+// to /dashboard.
 async function resolvePostVerifyRoute(): Promise<string> {
   try {
     const me = await api.get<MeResponse>('/auth/me');
     const role = me.user?.role;
-    if (role !== 'applicant' && role !== 'tenant') return '/dashboard';
-    const apps = await api.get<ApplicationsResponse>('/applicants/me/applications');
-    if (!apps.applications || apps.applications.length === 0) return '/apply?step=2';
+    if (role === 'applicant' || role === 'tenant') return '/apply?step=2';
     return '/dashboard';
   } catch {
-    return '/dashboard';
+    return '/apply?step=2';
   }
 }
 

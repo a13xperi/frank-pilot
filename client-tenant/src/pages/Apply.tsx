@@ -79,19 +79,31 @@ export function Apply() {
   }, [step]);
 
   // If we land on step 2 via a deep link (e.g. magic-link callback) the in-memory
-  // step-1 state is empty. Hydrate name/email from the authed session so the
-  // /applicants/apply submission has everything the schema needs.
+  // step-1 state is empty. Hydrate name/email from the authed session, and if
+  // there is a prior application, prefill the rest so returning users continue
+  // where they left off instead of facing a blank form.
   useEffect(() => {
     if (step !== 2) return;
     if (email && firstName && lastName) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await api.get<{ user?: { email: string; firstName: string; lastName: string } }>('/auth/me');
-        if (cancelled || !res.user) return;
-        if (!email) setEmail(res.user.email);
-        if (!firstName) setFirstName(res.user.firstName);
-        if (!lastName) setLastName(res.user.lastName);
+        const me = await api.get<{ user?: { email: string; firstName: string; lastName: string } }>('/auth/me');
+        if (cancelled || !me.user) return;
+        if (!email) setEmail(me.user.email);
+        if (!firstName) setFirstName(me.user.firstName);
+        if (!lastName) setLastName(me.user.lastName);
+
+        const apps = await api.get<{ applications?: Array<{
+          id: string;
+          property_id?: string;
+          unit_number?: string;
+          requested_rent_amount?: string | number;
+        }> }>('/applicants/me/applications');
+        const latest = apps.applications?.[0];
+        if (cancelled || !latest) return;
+        if (latest.property_id && !propertyId) setPropertyId(latest.property_id);
+        if (latest.unit_number && !unitNumber) setUnitNumber(latest.unit_number);
       } catch {
         // ignored — 401 will be handled by client.ts redirect
       }
@@ -99,7 +111,7 @@ export function Apply() {
     return () => {
       cancelled = true;
     };
-  }, [step, email, firstName, lastName]);
+  }, [step, email, firstName, lastName, propertyId, unitNumber]);
 
   // Once we land on step 2 (either via verify polling or via ?step=2 deep link),
   // fetch properties so the applicant can pick one.
