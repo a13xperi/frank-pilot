@@ -10,6 +10,36 @@ const router = Router();
 const screeningService = new ScreeningService();
 const fraudService = new FraudDetectionService();
 
+// Shape the DB row into the nested { background, credit, compliance, overallResult }
+// contract the client expects. Passes through any pre-shaped fields untouched so
+// tests / future callers that already use camelCase keys keep working.
+function toClientShape(row: any) {
+  if (!row) return row;
+  const overallResult = row.overallResult ?? row.overall_screening_result;
+  const creditScore = row.creditScore ?? row.credit_score;
+  return {
+    ...row,
+    overallResult,
+    creditScore,
+    background: row.background ?? {
+      status: row.background_check_result,
+      details: row.background_check_details,
+      completedAt: row.background_check_completed_at,
+    },
+    credit: row.credit ?? {
+      status: row.credit_check_result,
+      score: creditScore,
+      details: row.credit_check_details,
+      completedAt: row.credit_check_completed_at,
+    },
+    compliance: row.compliance ?? {
+      status: row.compliance_check_result,
+      details: row.compliance_check_details,
+      completedAt: row.compliance_check_completed_at,
+    },
+  };
+}
+
 // Initiate screening (Senior Manager+)
 router.post(
   "/:applicationId/screen",
@@ -17,12 +47,29 @@ router.post(
   requirePermission("screening:initiate"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const result = await screeningService.runFullScreening(
+      const result: any = await screeningService.runFullScreening(
         param(req.params.applicationId),
         req.user!.id,
         req.user!.role
       );
-      res.json(result);
+      // runFullScreening returns nested checks but with `result` keys; the client
+      // contract is `status`. Rename to match getResults shape when present, but
+      // pass through any other fields the service includes (e.g. applicationId).
+      const shaped: any = { ...result };
+      if (result?.background) {
+        shaped.background = { status: result.background.result, details: result.background.details };
+      }
+      if (result?.credit) {
+        shaped.credit = {
+          status: result.credit.result,
+          score: result.credit.creditScore,
+          details: result.credit.details,
+        };
+      }
+      if (result?.compliance) {
+        shaped.compliance = { status: result.compliance.result, details: result.compliance.details };
+      }
+      res.json(shaped);
     } catch (err: any) {
       logger.error("Screening failed", { error: err.message, applicationId: param(req.params.applicationId) });
       res.status(400).json({ error: err.message });
@@ -42,7 +89,7 @@ router.get(
         res.status(404).json({ error: "Screening results not found" });
         return;
       }
-      res.json(result);
+      res.json(toClientShape(result));
     } catch (err: any) {
       logger.error("Failed to get screening results", { error: err.message });
       res.status(500).json({ error: "Failed to get screening results" });
