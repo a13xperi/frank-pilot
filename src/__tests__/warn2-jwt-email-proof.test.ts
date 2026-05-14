@@ -1,24 +1,19 @@
 /**
- * WARN #2 — original attack rendered harmless.
+ * WARN #2 + W6 — original attack rendered harmless (defence-in-depth).
  *
- * Pre-fix:
+ * Attack vector (pre-fix):
  *   1. Attacker POSTs /applicants/register with {email: "victim@x"}.
- *   2. Server creates the account (or finds it) and returns a full-scope JWT
- *      bound to victim's email.
- *   3. Attacker uses that JWT to call /applicants/apply or
- *      /applicants/me/applications and walks away with PII / a planted
- *      application — without ever clicking the magic link.
+ *   2. Server returned a JWT bound to victim's email.
+ *   3. Attacker used that JWT to call /apply or /me/applications and exfiltrated
+ *      PII — without ever clicking the magic link.
  *
- * Post-fix:
- *   - /register still returns a JWT for brand-new accounts (W1 fix retained),
- *     but that JWT carries emailVerified=false.
- *   - /apply and /me/applications are gated by requireEmailVerified, so the
- *     attacker's JWT is rejected with 403 EMAIL_UNVERIFIED.
- *   - Staff (non-applicant/tenant) roles bypass the gate.
+ * W6 closes the root cause: /register no longer returns a token or user at all.
+ * WARN #2 remains as second-layer defence: even if an attacker somehow obtained
+ * an unverified JWT (e.g. via a different path), /apply and /me/applications are
+ * gated by requireEmailVerified and return 403 EMAIL_UNVERIFIED.
  */
 import express from "express";
 import request from "supertest";
-import jwt from "jsonwebtoken";
 import { generateToken, AuthUser } from "../middleware/auth";
 
 jest.mock("../config/database", () => ({ query: jest.fn(), transaction: jest.fn() }));
@@ -67,16 +62,12 @@ function mockUsersRow(
   } as any);
 }
 
-describe("WARN #2: pre-verification token is harmless on PII / state-changing routes", () => {
+describe("WARN #2 + W6: /register exposes no token; unverified JWT is rejected on PII routes", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("attacker registering victim@x cannot /apply with the returned token", async () => {
-    // ── Step 1: attacker hits /register ──
+  it("W6: /register returns no token for a new account — attacker has nothing to replay", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);                      // SELECT users (none)
     mockQuery.mockResolvedValueOnce({ rows: [{ id: "victim-001" }] } as any); // INSERT users
-    mockQuery.mockResolvedValueOnce({                                          // SELECT after insert
-      rows: [{ id: "victim-001", email: "victim@x.com", role: "applicant", first_name: "V", last_name: "T" }],
-    } as any);
     mockCreateMagicLink.mockResolvedValueOnce({ link: "http://x/auth/callback?token=raw", userId: "victim-001" });
 
     const reg = await request(app)
@@ -84,16 +75,32 @@ describe("WARN #2: pre-verification token is harmless on PII / state-changing ro
       .send({ email: "victim@x.com", firstName: "V", lastName: "T" });
 
     expect(reg.status).toBe(202);
-    expect(reg.body.token).toBeDefined();
-    const claims = jwt.decode(reg.body.token) as any;
-    expect(claims.emailVerified).toBe(false);
+    // W6: no token in response — the attacker cannot craft a replay attack.
+    expect(reg.body).not.toHaveProperty("token");
+    expect(reg.body).not.toHaveProperty("user");
+  });
 
-    // ── Step 2: attacker tries to /apply with that token ──
+  it("W2 defence-in-depth: a forged unverified JWT is rejected by /apply", async () => {
+    // Even if an attacker somehow constructs an unverified JWT (not via /register),
+    // the requireEmailVerified gate must block /apply.
     mockUsersRow({ id: "victim-001", email: "victim@x.com", role: "applicant" }, null);
+
+    const forgedToken = generateToken(
+      {
+        id: "victim-001",
+        email: "victim@x.com",
+        role: "applicant",
+        firstName: "V",
+        lastName: "T",
+        propertyIds: [],
+        emailVerified: false,
+      },
+      { emailVerified: false }
+    );
 
     const apply = await request(app)
       .post("/applicants/apply")
-      .set("Authorization", `Bearer ${reg.body.token}`)
+      .set("Authorization", `Bearer ${forgedToken}`)
       .send({
         propertyId: "550e8400-e29b-41d4-a716-446655440000",
         firstName: "Attack",

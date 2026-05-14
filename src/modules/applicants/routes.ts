@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { query, transaction } from "../../config/database";
-import { authenticate, AuthRequest, generateToken, AuthUser } from "../../middleware/auth";
+import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requireEmailVerified } from "../../middleware/scope";
 import { createMagicLink, logMagicLink } from "../auth/magic-link-service";
 import { ApplicationService } from "../application/service";
@@ -72,43 +72,9 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
 
     logger.info("Applicant registered", { userId, email, isNew });
 
-    if (isNew) {
-      // Brand-new account: issue a session JWT so the applicant lands in the
-      // portal — but mark it emailVerified:false. The applicant can view
-      // public/account UI; PII + state-changing routes (/apply, /me/applications)
-      // are gated by requireEmailVerified until the magic link is clicked.
-      // This closes WARN #2: an attacker registering victim@x can no longer
-      // act as victim with the returned token.
-      const userRow = await query(
-        "SELECT id, email, role, first_name, last_name FROM users WHERE id = $1",
-        [userId]
-      );
-      const u = userRow.rows[0];
-      const authUser: AuthUser = {
-        id: u.id,
-        email: u.email,
-        role: u.role,
-        firstName: u.first_name,
-        lastName: u.last_name,
-        propertyIds: [],
-        emailVerified: false,
-      };
-      const token = generateToken(authUser, { emailVerified: false });
-      const payload: Record<string, unknown> = {
-        ok: true,
-        message: "If this email is registered, a verification link has been sent.",
-        token,
-        user: authUser,
-      };
-      if (link && process.env.NODE_ENV === "development") {
-        payload.devLink = link.link;
-      }
-      res.status(202).json(payload);
-      return;
-    }
-
-    // Existing account: magic link already sent above for account recovery.
-    // Never reveal a token for a pre-existing account.
+    // W6: uniform response for all paths — no token or user ever returned from
+    // /register. The client must wait for the magic-link click; token+user are
+    // issued only by POST /auth/magic-link/verify.
     const payload: Record<string, unknown> = {
       ok: true,
       message: "If this email is registered, a verification link has been sent.",

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { api, setToken } from '@/api/client';
+import { api } from '@/api/client';
 import { requestMagicLink } from '@/api/auth';
 import { CheckCircle, Mail } from 'lucide-react';
 
@@ -52,6 +52,9 @@ export function Apply() {
   // Verify-stage state
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+  // devLink is only populated in development when the server returns the raw
+  // magic link in the /register response — lets QA skip their inbox.
+  const [devLink, setDevLink] = useState<string | null>(null);
 
   // Poll /auth/me while in the verify stage; advance when the server reports
   // emailVerified=true (the user clicked the magic link, here or in another tab).
@@ -103,15 +106,15 @@ export function Apply() {
     setError(null);
     setLoading(true);
     try {
-      const res = await api.post<{ token?: string }>('/applicants/register', {
+      const res = await api.post<{ ok: boolean; devLink?: string }>('/applicants/register', {
         email,
         firstName,
         lastName,
         phone: phone || undefined,
       });
-      if (res.token) setToken(res.token);
-      // The token is emailVerified=false — go to the verify stage. The user
-      // must click the magic link in their inbox before /apply will accept us.
+      // W6: no token returned from /register. Client must wait for magic-link
+      // click; token+user are issued only by /auth/magic-link/verify.
+      if (res.devLink) setDevLink(res.devLink);
       setStep('verify');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
@@ -268,6 +271,14 @@ export function Apply() {
               >
                 {resending ? 'Resending…' : 'Resend link'}
               </button>
+              {devLink && (
+                <a
+                  href={devLink}
+                  className="block rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-center text-sm font-medium text-amber-800 hover:bg-amber-100"
+                >
+                  [Dev] Open magic link
+                </a>
+              )}
               <button
                 onClick={() => setStep(1)}
                 className="text-sm text-gray-500 hover:text-gray-700 hover:underline"
