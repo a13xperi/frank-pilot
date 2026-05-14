@@ -33,6 +33,7 @@ import tenantRoutes from "./modules/tenant/routes";
 import { startScheduler } from "./scheduler";
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = parseInt(process.env.PORT || "3000");
 
 // Security middleware

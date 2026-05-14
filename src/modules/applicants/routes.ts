@@ -47,8 +47,11 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
       const u = existing.rows[0];
       // If existing account is staff, don't allow applicant registration on that email.
       if (!["applicant", "tenant"].includes(u.role)) {
-        // Don't leak — just say ok and skip issuing a link.
-        res.json({ ok: true });
+        // Don't leak — return the same normalized response as any other case.
+        res.status(202).json({
+          ok: true,
+          message: "If this email is registered, a verification link has been sent.",
+        });
         return;
       }
       userId = u.id;
@@ -85,11 +88,16 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
 
     logger.info("Applicant registered", { userId, email, isNew });
 
-    const payload: Record<string, unknown> = { ok: true, token, user: authUser };
-    if (link && process.env.NODE_ENV !== "production") {
+    const payload: Record<string, unknown> = {
+      ok: true,
+      message: "If this email is registered, a verification link has been sent.",
+      token,
+      user: authUser,
+    };
+    if (link && process.env.NODE_ENV === "development") {
       payload.devLink = link.link;
     }
-    res.status(isNew ? 201 : 200).json(payload);
+    res.status(202).json(payload);
   } catch (err) {
     logger.error("Applicant register failed", { error: (err as Error).message });
     res.status(500).json({ error: "Registration failed" });

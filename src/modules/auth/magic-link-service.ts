@@ -71,5 +71,7 @@ export async function verifyMagicLink(rawToken: string): Promise<{ token: string
 }
 
 export function logMagicLink(email: string, link: string): void {
-  logger.info("Magic link issued", { email, link });
+  // Truncate the token portion of the link so the raw token is never in logs.
+  const safeLink = link.replace(/([?&]token=)[^&]+/, (_m, prefix) => `${prefix}[REDACTED]`);
+  logger.info("Magic link issued", { email, link: safeLink });
 }

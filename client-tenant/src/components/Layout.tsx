@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   DollarSign,
   Wrench,
-  Menu,
   Receipt,
   LogOut,
 } from 'lucide-react';
@@ -19,8 +18,8 @@ const navItems = [
 const mobileNavItems = [
   { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { to: '/pay', label: 'Pay', icon: DollarSign },
-  { to: '/maintenance', label: 'Maintenance', icon: Wrench },
-  { to: '/more', label: 'More', icon: Menu },
+  { to: '/maintenance', label: 'Repairs', icon: Wrench },
+  { to: '/ledger', label: 'Ledger', icon: Receipt },
 ];
 
 export function Layout() {
@@ -69,6 +68,17 @@ export function Layout() {
 
       {/* Main content */}
       <div className="flex min-h-screen flex-col md:pl-64">
+        {/* Mobile top bar with logout */}
+        <header className="sticky top-0 z-10 flex h-12 items-center justify-between border-b border-gray-200 bg-white px-4 md:hidden">
+          <span className="text-base font-semibold text-emerald-700">Frank Pilot</span>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </header>
         <main className="flex-1 pb-20 md:pb-0">
           <Outlet />
         </main>
