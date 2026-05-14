@@ -705,6 +705,19 @@ CREATE TABLE recertifications (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Application Messages (Module 16: My Application + two-way staff/applicant thread)
+CREATE TABLE application_messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  sender_user_id UUID NOT NULL REFERENCES users(id),
+  sender_role TEXT NOT NULL CHECK (sender_role IN ('staff','applicant','tenant')),
+  body TEXT NOT NULL CHECK (length(trim(body)) > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  read_at TIMESTAMPTZ
+);
+CREATE INDEX idx_application_messages_app_created
+  ON application_messages(application_id, created_at DESC);
+
 -- Audit Log (immutable, append-only)
 CREATE TABLE audit_log (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -863,6 +876,7 @@ CREATE TRIGGER trg_audit_log_immutable
 `;
 
 export const DROP_SCHEMA_SQL = `
+DROP TABLE IF EXISTS application_messages CASCADE;
 DROP TABLE IF EXISTS work_orders CASCADE;
 DROP TABLE IF EXISTS inspections CASCADE;
 DROP TABLE IF EXISTS move_outs CASCADE;

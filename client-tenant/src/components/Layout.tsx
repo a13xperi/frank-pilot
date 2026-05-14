@@ -4,12 +4,14 @@ import {
   DollarSign,
   Wrench,
   Receipt,
+  FileText,
   LogOut,
 } from 'lucide-react';
 import { clearToken } from '@/api/client';
 
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
+  { to: '/application', label: 'My Application', icon: FileText },
   { to: '/pay', label: 'Pay', icon: DollarSign },
   { to: '/maintenance', label: 'Maintenance', icon: Wrench },
   { to: '/ledger', label: 'Ledger', icon: Receipt },
@@ -17,6 +19,7 @@ const navItems = [
 
 const mobileNavItems = [
   { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
+  { to: '/application', label: 'App', icon: FileText },
   { to: '/pay', label: 'Pay', icon: DollarSign },
   { to: '/maintenance', label: 'Repairs', icon: Wrench },
   { to: '/ledger', label: 'Ledger', icon: Receipt },
@@ -86,7 +89,7 @@ export function Layout() {
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-gray-200 bg-white md:hidden">
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {mobileNavItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}

@@ -76,6 +76,7 @@ export async function seedDemoData() {
       await query("DELETE FROM lease_violations WHERE application_id = $1", [row.id]);
       await query("DELETE FROM tenant_ledger WHERE application_id = $1", [row.id]);
       await query("DELETE FROM recertifications WHERE application_id = $1", [row.id]);
+      await query("DELETE FROM application_messages WHERE application_id = $1", [row.id]);
       await query("DELETE FROM applications WHERE id = $1", [row.id]);
     }
   }
@@ -617,6 +618,30 @@ export async function seedDemoData() {
        ON CONFLICT DO NOTHING`,
       [tomaszApp.rows[0].property_id, tomaszApp.rows[0].id, submittedBy]
     );
+
+    // Sample two-way message thread between staff and tenant
+    // (Module 16: My Application messaging)
+    await query(
+      `DELETE FROM application_messages WHERE application_id = $1`,
+      [tomaszApp.rows[0].id]
+    );
+    await query(
+      `INSERT INTO application_messages
+         (application_id, sender_user_id, sender_role, body, created_at, read_at)
+       VALUES
+         ($1, $2, 'staff',  $4, NOW() - INTERVAL '3 days', NOW() - INTERVAL '2 days 22 hours'),
+         ($1, $3, 'tenant', $5, NOW() - INTERVAL '2 days 18 hours', NOW() - INTERVAL '2 days 17 hours'),
+         ($1, $2, 'staff',  $6, NOW() - INTERVAL '1 day',  NULL)`,
+      [
+        tomaszApp.rows[0].id,
+        seniorId,
+        submittedBy,
+        "Hi Tomasz, we received your application. Please upload your last two pay stubs to your portal.",
+        "Hi, I uploaded them yesterday — let me know if anything else is needed.",
+        "Got them, thanks! We're reviewing now.",
+      ]
+    );
+
     portalSeeded++;
   }
 

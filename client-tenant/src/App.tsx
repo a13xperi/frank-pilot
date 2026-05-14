@@ -10,6 +10,7 @@ import { Pay } from '@/pages/Pay';
 import { Ledger } from '@/pages/Ledger';
 import { Maintenance } from '@/pages/Maintenance';
 import { Status } from '@/pages/Status';
+import { Application } from '@/pages/Application';
 import { getToken } from '@/api/client';
 
 function RootRedirect() {
@@ -28,6 +29,7 @@ export default function App() {
       <Route element={<AuthGuard />}>
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/application" element={<Application />} />
           <Route path="/pay" element={<Pay />} />
           <Route path="/ledger" element={<Ledger />} />
           <Route path="/maintenance" element={<Maintenance />} />
