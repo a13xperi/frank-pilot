@@ -1,7 +1,32 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { api } from '@/api/client';
 import { verifyMagicLink } from '@/api/auth';
 import { Loader2 } from 'lucide-react';
+
+interface MeResponse {
+  user?: { role: string; emailVerified: boolean };
+}
+
+interface ApplicationsResponse {
+  applications?: Array<{ id: string }>;
+}
+
+// First-touch friction killer: a freshly-verified applicant with no submitted
+// application gets sent straight to /apply step 2 to finish in one sitting.
+// Anyone else (returning applicant, staff) lands on /dashboard.
+async function resolvePostVerifyRoute(): Promise<string> {
+  try {
+    const me = await api.get<MeResponse>('/auth/me');
+    const role = me.user?.role;
+    if (role !== 'applicant' && role !== 'tenant') return '/dashboard';
+    const apps = await api.get<ApplicationsResponse>('/applicants/me/applications');
+    if (!apps.applications || apps.applications.length === 0) return '/apply?step=2';
+    return '/dashboard';
+  } catch {
+    return '/dashboard';
+  }
+}
 
 export function AuthCallback() {
   const [searchParams] = useSearchParams();
@@ -16,7 +41,8 @@ export function AuthCallback() {
     }
 
     verifyMagicLink(token)
-      .then(() => navigate('/dashboard', { replace: true }))
+      .then(resolvePostVerifyRoute)
+      .then(dest => navigate(dest, { replace: true }))
       .catch(err => setError(err instanceof Error ? err.message : 'Invalid or expired link'));
   }, [searchParams, navigate]);
 

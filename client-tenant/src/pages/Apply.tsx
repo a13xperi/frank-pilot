@@ -78,6 +78,29 @@ export function Apply() {
     };
   }, [step]);
 
+  // If we land on step 2 via a deep link (e.g. magic-link callback) the in-memory
+  // step-1 state is empty. Hydrate name/email from the authed session so the
+  // /applicants/apply submission has everything the schema needs.
+  useEffect(() => {
+    if (step !== 2) return;
+    if (email && firstName && lastName) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<{ user?: { email: string; firstName: string; lastName: string } }>('/auth/me');
+        if (cancelled || !res.user) return;
+        if (!email) setEmail(res.user.email);
+        if (!firstName) setFirstName(res.user.firstName);
+        if (!lastName) setLastName(res.user.lastName);
+      } catch {
+        // ignored — 401 will be handled by client.ts redirect
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step, email, firstName, lastName]);
+
   // Once we land on step 2 (either via verify polling or via ?step=2 deep link),
   // fetch properties so the applicant can pick one.
   useEffect(() => {
