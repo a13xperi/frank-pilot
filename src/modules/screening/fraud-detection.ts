@@ -116,7 +116,9 @@ export class FraudDetectionService {
 
     if (result.rows.length === 0) return false;
 
-    const minutesToApprove = result.rows[0].minutes_to_approve;
+    const minutesToApprove = result.rows[0].minutes_to_approve !== null
+      ? parseFloat(result.rows[0].minutes_to_approve)
+      : null;
 
     // Flag if approved in under 5 minutes (anomaly)
     if (minutesToApprove !== null && minutesToApprove < 5) {

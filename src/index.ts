@@ -20,8 +20,20 @@ import adverseActionRoutes from "./modules/adverse-action/routes";
 import userRoutes from "./modules/users/routes";
 import propertyRoutes from "./modules/properties/routes";
 import complianceRoutes from "./modules/compliance/routes";
+import recertificationRoutes from "./modules/recertification/routes";
+import ledgerRoutes from "./modules/ledger/routes";
+import evictionRoutes from "./modules/eviction/routes";
+import inspectionRoutes from "./modules/inspections/routes";
+import maintenanceRoutes from "./modules/maintenance/routes";
+import renewalRoutes from "./modules/renewal/routes";
+import moveoutRoutes from "./modules/moveout/routes";
+import authRoutes from "./modules/auth/routes";
+import applicantRoutes from "./modules/applicants/routes";
+import tenantRoutes from "./modules/tenant/routes";
+import { startScheduler } from "./scheduler";
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = parseInt(process.env.PORT || "3000");
 
 // Security middleware
@@ -48,7 +60,13 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "frank-pilot", timestamp: new Date().toISOString() });
 });
 
-// Login
+// Magic-link auth (tenants + applicants)
+app.use("/api/auth", authRoutes);
+
+// Applicant self-service (public register + auth'd apply)
+app.use("/api/applicants", applicantRoutes);
+
+// Password login (staff)
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -103,6 +121,16 @@ app.use("/api/properties", propertyRoutes);
 
 // Compliance reports (Fair Housing Act — audit:view / Regional Manager+)
 app.use("/api/compliance", complianceRoutes);
+app.use("/api/recertifications", recertificationRoutes);
+app.use("/api/ledger", ledgerRoutes);
+app.use("/api/evictions", evictionRoutes);
+app.use("/api/inspections", inspectionRoutes);
+app.use("/api/maintenance", maintenanceRoutes);
+app.use("/api/renewals", renewalRoutes);
+app.use("/api/moveouts", moveoutRoutes);
+
+// Tenant portal (auth'd, scoped to user's own applications)
+app.use("/api/tenant", tenantRoutes);
 
 // Audit log
 app.get(
@@ -126,6 +154,23 @@ app.get(
   }
 );
 
+// Demo data seeding (system_admin only)
+app.post(
+  "/api/demo/seed",
+  authenticate,
+  requirePermission("user:manage"),
+  async (_req: AuthRequest, res) => {
+    try {
+      const { seedDemoData } = await import("./db/seed-demo");
+      const result = await seedDemoData();
+      res.json({ success: true, ...result });
+    } catch (err) {
+      logger.error("Demo seed failed", { error: (err as Error).message });
+      res.status(500).json({ error: "Demo seed failed: " + (err as Error).message });
+    }
+  }
+);
+
 // ============================================================
 // Error handling
 // ============================================================
@@ -143,9 +188,11 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 // Start server
 // ============================================================
 
-app.listen(PORT, () => {
-  logger.info(`Frank Pilot server running on port ${PORT}`);
-  console.log(`
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    logger.info(`Frank Pilot server running on port ${PORT}`);
+    startScheduler();
+    console.log(`
   ╔══════════════════════════════════════════════════╗
   ║  Frank Pilot — Tenant Onboarding Module          ║
   ║  Community Development Programs Center of Nevada  ║
@@ -154,6 +201,7 @@ app.listen(PORT, () => {
   ║  Health: http://localhost:${PORT}/health              ║
   ╚══════════════════════════════════════════════════╝
   `);
-});
+  });
+}
 
 export default app;

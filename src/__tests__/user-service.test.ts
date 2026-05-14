@@ -1,363 +1,330 @@
 /**
  * Tests for src/modules/users/service.ts
  *
- * Key invariants:
- *   - Plaintext password is never logged or stored (bcrypt hash only)
- *   - Invalid role → throws before any DB write
- *   - User not found → throws for setActive and resetPassword
- *   - Audit log written for all mutating operations
- *   - list() filters by role and isActive correctly
+ * Coverage focus:
+ *   - list() and getById() lookup behavior with optional filters
+ *   - create() validates and assigns roles while hashing passwords
+ *   - administrative updates via setActive() and resetPassword()
  */
 
 import { UserService } from "../modules/users/service";
 
-// ── Mocks ─────────────────────────────────────────────────────────────────
-
-jest.mock("../config/database", () => ({ query: jest.fn(), transaction: jest.fn() }));
-jest.mock("../utils/logger", () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+jest.mock("../config/database", () => ({
+  query: jest.fn(),
+  transaction: jest.fn(),
 }));
+
 jest.mock("../middleware/audit", () => ({
   writeAuditLog: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock("bcrypt", () => ({
-  hash: jest.fn().mockResolvedValue("$2b$10$hashedpassword"),
-  compare: jest.fn(),
+
+jest.mock("../utils/logger", () => ({
+  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+jest.mock("bcrypt", () => ({
+  __esModule: true,
+  default: {
+    hash: jest.fn().mockResolvedValue("$2b$10$hashedpassword"),
+    compare: jest.fn(),
+  },
+}));
+
+import bcrypt from "bcrypt";
 import { query } from "../config/database";
 import { writeAuditLog } from "../middleware/audit";
 
+const mockBcryptHash = bcrypt.hash as jest.MockedFunction<typeof bcrypt.hash>;
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockWriteAuditLog = writeAuditLog as jest.MockedFunction<typeof writeAuditLog>;
-const bcrypt = require("bcrypt");
 
 const ACTOR_ID = "user-admin-001";
 const ACTOR_ROLE = "system_admin";
 const USER_ID = "user-target-001";
 
-const sampleRow = {
-  id: USER_ID,
-  email: "target@example.com",
-  first_name: "Alice",
-  last_name: "Target",
-  role: "leasing_agent",
-  property_ids: ["prop-001"],
-  is_active: true,
-  last_login: null,
-  created_at: new Date("2026-01-01T00:00:00Z"),
-};
+function makeUserRow(
+  overrides: Partial<Record<string, unknown>> = {}
+): Record<string, unknown> {
+  return {
+    id: USER_ID,
+    email: "target@example.com",
+    first_name: "Alice",
+    last_name: "Target",
+    role: "leasing_agent",
+    property_ids: ["prop-001"],
+    is_active: true,
+    last_login: null,
+    created_at: new Date("2026-01-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
 
-// ── list() ─────────────────────────────────────────────────────────────────
-
-describe("UserService.list()", () => {
+describe("UserService", () => {
   let service: UserService;
-  beforeEach(() => { jest.clearAllMocks(); service = new UserService(); });
 
-  it("returns all users when no filters provided", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [sampleRow] } as any);
-
-    const result = await service.list();
-
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe(USER_ID);
-    expect(result[0].firstName).toBe("Alice");
-    expect(result[0].propertyIds).toEqual(["prop-001"]);
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new UserService();
   });
 
-  it("applies role filter via WHERE clause", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+  describe("list", () => {
+    it("returns all users when no filters are provided", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [makeUserRow()],
+      } as any);
 
-    await service.list({ role: "senior_manager" });
+      const result = await service.list();
 
-    const call = mockQuery.mock.calls[0]!;
-    expect(call[0]).toMatch(/WHERE/i);
-    expect(call[0]).toMatch(/role = \$1/);
-    expect(call[1]).toContain("senior_manager");
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: USER_ID,
+          email: "target@example.com",
+          firstName: "Alice",
+          propertyIds: ["prop-001"],
+          lastLogin: null,
+        }),
+      ]);
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining("ORDER BY role, last_name, first_name"),
+        []
+      );
+    });
+
+    it("applies role and active filters together", async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+
+      await service.list({ role: "senior_manager", isActive: false });
+
+      const sql = mockQuery.mock.calls[0]?.[0] as string;
+      const params = mockQuery.mock.calls[0]?.[1] as unknown[];
+
+      expect(sql).toMatch(/WHERE role = \$1 AND is_active = \$2/);
+      expect(params).toEqual(["senior_manager", false]);
+    });
+
+    it("maps a missing property_ids column to an empty array", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [makeUserRow({ property_ids: null })],
+      } as any);
+
+      const result = await service.list();
+
+      expect(result[0]?.propertyIds).toEqual([]);
+    });
   });
 
-  it("applies isActive filter via WHERE clause", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+  describe("getById", () => {
+    it("returns null when the user does not exist", async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
 
-    await service.list({ isActive: false });
+      await expect(service.getById("missing-user")).resolves.toBeNull();
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining("WHERE id = $1"),
+        ["missing-user"]
+      );
+    });
 
-    const call = mockQuery.mock.calls[0]!;
-    expect(call[0]).toMatch(/is_active = \$1/);
-    expect(call[1]).toContain(false);
+    it("returns the mapped user when found", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [makeUserRow({ last_login: new Date("2026-02-01T10:00:00.000Z") })],
+      } as any);
+
+      const result = await service.getById(USER_ID);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: USER_ID,
+          lastName: "Target",
+          role: "leasing_agent",
+          isActive: true,
+        })
+      );
+      expect(result?.lastLogin).toEqual(new Date("2026-02-01T10:00:00.000Z"));
+    });
   });
 
-  it("combines role and isActive filters with AND", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+  describe("create", () => {
+    it("throws for an invalid role before hashing or writing", async () => {
+      await expect(
+        service.create(
+          {
+            email: "invalid@example.com",
+            password: "password123",
+            firstName: "Invalid",
+            lastName: "Role",
+            role: "invalid_role" as any,
+          },
+          ACTOR_ID,
+          ACTOR_ROLE
+        )
+      ).rejects.toThrow(/invalid role/i);
 
-    await service.list({ role: "leasing_agent", isActive: true });
+      expect(mockBcryptHash).not.toHaveBeenCalled();
+      expect(mockQuery).not.toHaveBeenCalled();
+      expect(mockWriteAuditLog).not.toHaveBeenCalled();
+    });
 
-    const call = mockQuery.mock.calls[0]!;
-    expect(call[0]).toMatch(/role = \$1/);
-    expect(call[0]).toMatch(/is_active = \$2/);
-  });
+    it("hashes the password, persists the assigned role, and returns the created user", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [makeUserRow({ role: "regional_manager", property_ids: ["prop-001", "prop-002"] })],
+      } as any);
 
-  it("maps null last_login to null in result", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ ...sampleRow, last_login: null }] } as any);
-
-    const result = await service.list();
-    expect(result[0].lastLogin).toBeNull();
-  });
-});
-
-// ── getById() ─────────────────────────────────────────────────────────────
-
-describe("UserService.getById()", () => {
-  let service: UserService;
-  beforeEach(() => { jest.clearAllMocks(); service = new UserService(); });
-
-  it("returns null when user not found", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
-    const result = await service.getById("nonexistent");
-    expect(result).toBeNull();
-  });
-
-  it("returns mapped user record when found", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [sampleRow] } as any);
-
-    const result = await service.getById(USER_ID);
-
-    expect(result).not.toBeNull();
-    expect(result!.id).toBe(USER_ID);
-    expect(result!.lastName).toBe("Target");
-    expect(result!.isActive).toBe(true);
-  });
-
-  it("queries by user ID", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [sampleRow] } as any);
-    await service.getById(USER_ID);
-
-    expect(mockQuery.mock.calls[0]![1]).toEqual([USER_ID]);
-  });
-});
-
-// ── create() ──────────────────────────────────────────────────────────────
-
-describe("UserService.create()", () => {
-  let service: UserService;
-  beforeEach(() => { jest.clearAllMocks(); service = new UserService(); });
-
-  it("throws for an invalid role", async () => {
-    await expect(
-      service.create(
+      const result = await service.create(
         {
-          email: "x@example.com",
-          password: "password123",
-          firstName: "X",
-          lastName: "Y",
-          role: "unknown_role" as any,
+          email: "new@example.com",
+          password: "plaintext-password",
+          firstName: "New",
+          lastName: "User",
+          role: "regional_manager",
+          propertyIds: ["prop-001", "prop-002"],
         },
         ACTOR_ID,
         ACTOR_ROLE
-      )
-    ).rejects.toThrow(/invalid role/i);
+      );
 
-    // No DB write should occur
-    expect(mockQuery).not.toHaveBeenCalled();
+      expect(mockBcryptHash).toHaveBeenCalledWith("plaintext-password", 10);
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining("INSERT INTO users"),
+        [
+          "new@example.com",
+          "$2b$10$hashedpassword",
+          "New",
+          "User",
+          "regional_manager",
+          ["prop-001", "prop-002"],
+        ]
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: USER_ID,
+          role: "regional_manager",
+          propertyIds: ["prop-001", "prop-002"],
+        })
+      );
+      expect(mockWriteAuditLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "permission_change",
+          actorId: ACTOR_ID,
+          actorRole: ACTOR_ROLE,
+          resourceType: "user",
+          resourceId: USER_ID,
+          details: expect.objectContaining({
+            action: "user_created",
+            role: "regional_manager",
+          }),
+        })
+      );
+    });
+
+    it("defaults propertyIds to an empty array when omitted", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [makeUserRow({ property_ids: null })],
+      } as any);
+
+      const result = await service.create(
+        {
+          email: "new@example.com",
+          password: "password123",
+          firstName: "No",
+          lastName: "Assignments",
+          role: "leasing_agent",
+        },
+        ACTOR_ID,
+        ACTOR_ROLE
+      );
+
+      expect(mockQuery.mock.calls[0]?.[1]?.[5]).toEqual([]);
+      expect(result.propertyIds).toEqual([]);
+    });
   });
 
-  it("hashes the password before inserting — plaintext is never stored", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [sampleRow] } as any);
+  describe("setActive", () => {
+    it("throws when the target user does not exist", async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
 
-    await service.create(
-      {
-        email: "new@example.com",
-        password: "plaintext-password",
-        firstName: "New",
-        lastName: "User",
-        role: "leasing_agent",
-      },
-      ACTOR_ID,
-      ACTOR_ROLE
-    );
+      await expect(
+        service.setActive(USER_ID, false, ACTOR_ID, ACTOR_ROLE)
+      ).rejects.toThrow(`User not found: ${USER_ID}`);
+    });
 
-    expect(bcrypt.hash).toHaveBeenCalledWith("plaintext-password", 10);
+    it("updates the active flag and writes a deactivation audit log", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [makeUserRow({ is_active: false })],
+      } as any);
 
-    const insertCall = mockQuery.mock.calls[0]!;
-    const params = insertCall[1] as any[];
-    // index 1 = password_hash — should be the bcrypt output, not plaintext
-    expect(params[1]).toBe("$2b$10$hashedpassword");
-    expect(params).not.toContain("plaintext-password");
+      const result = await service.setActive(
+        USER_ID,
+        false,
+        ACTOR_ID,
+        ACTOR_ROLE
+      );
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE users SET is_active = $2"),
+        [USER_ID, false]
+      );
+      expect(result.isActive).toBe(false);
+      expect(mockWriteAuditLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "permission_change",
+          resourceId: USER_ID,
+          details: expect.objectContaining({ action: "user_deactivated" }),
+        })
+      );
+    });
+
+    it("writes an activation audit log when re-enabling a user", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [makeUserRow({ is_active: true })],
+      } as any);
+
+      await service.setActive(USER_ID, true, ACTOR_ID, ACTOR_ROLE);
+
+      expect(mockWriteAuditLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          details: expect.objectContaining({ action: "user_activated" }),
+        })
+      );
+    });
   });
 
-  it("writes a permission_change audit log on creation", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [sampleRow] } as any);
+  describe("resetPassword", () => {
+    it("throws when the target user does not exist", async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
 
-    await service.create(
-      {
-        email: "new@example.com",
-        password: "password123",
-        firstName: "New",
-        lastName: "User",
-        role: "leasing_agent",
-      },
-      ACTOR_ID,
-      ACTOR_ROLE
-    );
+      await expect(
+        service.resetPassword(USER_ID, "new-password-123", ACTOR_ID, ACTOR_ROLE)
+      ).rejects.toThrow(`User not found: ${USER_ID}`);
+    });
 
-    expect(mockWriteAuditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: "permission_change",
-        actorId: ACTOR_ID,
-        actorRole: ACTOR_ROLE,
-        details: expect.objectContaining({ action: "user_created" }),
-      })
-    );
-  });
+    it("hashes the new password, never stores plaintext, and writes an audit log", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, email: "target@example.com" }],
+      } as any);
 
-  it("returns the created user record", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [sampleRow] } as any);
+      const result = await service.resetPassword(
+        USER_ID,
+        "new-password-123",
+        ACTOR_ID,
+        ACTOR_ROLE
+      );
 
-    const result = await service.create(
-      {
-        email: "new@example.com",
-        password: "password123",
-        firstName: "New",
-        lastName: "User",
-        role: "leasing_agent",
-      },
-      ACTOR_ID,
-      ACTOR_ROLE
-    );
-
-    expect(result.id).toBe(USER_ID);
-    expect(result.email).toBe("target@example.com");
-  });
-
-  it("defaults propertyIds to empty array when not provided", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ ...sampleRow, property_ids: null }] } as any);
-
-    const result = await service.create(
-      {
-        email: "new@example.com",
-        password: "password123",
-        firstName: "N",
-        lastName: "U",
-        role: "leasing_agent",
-      },
-      ACTOR_ID,
-      ACTOR_ROLE
-    );
-
-    expect(result.propertyIds).toEqual([]);
-  });
-});
-
-// ── setActive() ───────────────────────────────────────────────────────────
-
-describe("UserService.setActive()", () => {
-  let service: UserService;
-  beforeEach(() => { jest.clearAllMocks(); service = new UserService(); });
-
-  it("throws when user not found", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
-
-    await expect(
-      service.setActive("nonexistent", false, ACTOR_ID, ACTOR_ROLE)
-    ).rejects.toThrow(/user not found/i);
-  });
-
-  it("sets is_active=false on deactivate", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ ...sampleRow, is_active: false }] } as any);
-
-    const result = await service.setActive(USER_ID, false, ACTOR_ID, ACTOR_ROLE);
-
-    expect(result.isActive).toBe(false);
-    const params = mockQuery.mock.calls[0]![1] as any[];
-    expect(params).toContain(false);
-  });
-
-  it("sets is_active=true on activate", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [sampleRow] } as any);
-
-    await service.setActive(USER_ID, true, ACTOR_ID, ACTOR_ROLE);
-
-    const params = mockQuery.mock.calls[0]![1] as any[];
-    expect(params).toContain(true);
-  });
-
-  it("writes user_deactivated audit log on deactivate", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [sampleRow] } as any);
-
-    await service.setActive(USER_ID, false, ACTOR_ID, ACTOR_ROLE);
-
-    expect(mockWriteAuditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: "permission_change",
-        details: expect.objectContaining({ action: "user_deactivated" }),
-      })
-    );
-  });
-
-  it("writes user_activated audit log on activate", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [sampleRow] } as any);
-
-    await service.setActive(USER_ID, true, ACTOR_ID, ACTOR_ROLE);
-
-    expect(mockWriteAuditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        details: expect.objectContaining({ action: "user_activated" }),
-      })
-    );
-  });
-});
-
-// ── resetPassword() ───────────────────────────────────────────────────────
-
-describe("UserService.resetPassword()", () => {
-  let service: UserService;
-  beforeEach(() => { jest.clearAllMocks(); service = new UserService(); });
-
-  it("throws when user not found", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
-
-    await expect(
-      service.resetPassword("nonexistent", "newpass123", ACTOR_ID, ACTOR_ROLE)
-    ).rejects.toThrow(/user not found/i);
-  });
-
-  it("hashes the new password — plaintext is never stored", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{ id: USER_ID, email: "target@example.com" }],
-    } as any);
-
-    await service.resetPassword(USER_ID, "plaintext-new-pw", ACTOR_ID, ACTOR_ROLE);
-
-    expect(bcrypt.hash).toHaveBeenCalledWith("plaintext-new-pw", 10);
-
-    const updateCall = mockQuery.mock.calls[0]!;
-    const params = updateCall[1] as any[];
-    expect(params[1]).toBe("$2b$10$hashedpassword");
-    expect(params).not.toContain("plaintext-new-pw");
-  });
-
-  it("writes a password_reset audit log entry", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{ id: USER_ID, email: "target@example.com" }],
-    } as any);
-
-    await service.resetPassword(USER_ID, "newpass123", ACTOR_ID, ACTOR_ROLE);
-
-    expect(mockWriteAuditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: "permission_change",
-        actorId: ACTOR_ID,
-        resourceId: USER_ID,
-        details: expect.objectContaining({ action: "password_reset" }),
-      })
-    );
-  });
-
-  it("resolves without returning a value on success", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{ id: USER_ID, email: "target@example.com" }],
-    } as any);
-
-    const result = await service.resetPassword(USER_ID, "newpass123", ACTOR_ID, ACTOR_ROLE);
-    expect(result).toBeUndefined();
+      expect(mockBcryptHash).toHaveBeenCalledWith("new-password-123", 10);
+      expect(mockQuery).toHaveBeenCalledWith(
+        "UPDATE users SET password_hash = $2 WHERE id = $1 RETURNING id, email",
+        [USER_ID, "$2b$10$hashedpassword"]
+      );
+      expect(mockWriteAuditLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "permission_change",
+          actorId: ACTOR_ID,
+          actorRole: ACTOR_ROLE,
+          resourceType: "user",
+          resourceId: USER_ID,
+          details: expect.objectContaining({ action: "password_reset" }),
+        })
+      );
+      expect(result).toBeUndefined();
+    });
   });
 });

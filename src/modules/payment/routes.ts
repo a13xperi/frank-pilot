@@ -31,9 +31,15 @@ router.post(
         actorRole: req.user!.role,
       });
       res.json(result);
-    } catch (err: any) {
-      logger.error("Failed to create customer", { error: err.message });
-      res.status(400).json({ error: err.message });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        logger.error("Failed to create customer", { error: err.message });
+        res.status(400).json({ error: err.message });
+        return;
+      }
+
+      logger.error("Failed to create customer", { error: "Unknown error" });
+      res.status(400).json({ error: "Failed to create customer" });
     }
   }
 );
@@ -54,13 +60,20 @@ router.post(
         actorRole: req.user!.role,
       });
       res.json(result);
-    } catch (err: any) {
-      if (err.name === "ZodError") {
+    } catch (err: unknown) {
+      if (err instanceof z.ZodError) {
         res.status(400).json({ error: "Validation failed", details: err.errors });
         return;
       }
-      logger.error("Failed to setup payment", { error: err.message });
-      res.status(400).json({ error: err.message });
+
+      if (err instanceof Error) {
+        logger.error("Failed to setup payment", { error: err.message });
+        res.status(400).json({ error: err.message });
+        return;
+      }
+
+      logger.error("Failed to setup payment", { error: "Unknown error" });
+      res.status(400).json({ error: "Failed to setup payment" });
     }
   }
 );
@@ -78,9 +91,15 @@ router.post(
         actorRole: req.user!.role,
       });
       res.json(result);
-    } catch (err: any) {
-      logger.error("Failed to enroll auto-pay", { error: err.message });
-      res.status(400).json({ error: err.message });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        logger.error("Failed to enroll auto-pay", { error: err.message });
+        res.status(400).json({ error: err.message });
+        return;
+      }
+
+      logger.error("Failed to enroll auto-pay", { error: "Unknown error" });
+      res.status(400).json({ error: "Failed to enroll auto-pay" });
     }
   }
 );
@@ -98,8 +117,13 @@ router.get(
         return;
       }
       res.json(result);
-    } catch (err: any) {
-      logger.error("Failed to get payment status", { error: err.message });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        logger.error("Failed to get payment status", { error: err.message });
+      } else {
+        logger.error("Failed to get payment status", { error: "Unknown error" });
+      }
+
       res.status(500).json({ error: "Failed to get payment status" });
     }
   }

@@ -50,6 +50,7 @@ const leasingAgent: AuthUser = {
   firstName: "Alice",
   lastName: "Agent",
   propertyIds: [],
+  emailVerified: true,
 };
 
 const seniorManager: AuthUser = {
@@ -59,6 +60,7 @@ const seniorManager: AuthUser = {
   firstName: "Bob",
   lastName: "Manager",
   propertyIds: [],
+  emailVerified: true,
 };
 
 const regionalManager: AuthUser = {
@@ -68,6 +70,7 @@ const regionalManager: AuthUser = {
   firstName: "Carol",
   lastName: "Regional",
   propertyIds: [],
+  emailVerified: true,
 };
 
 function tokenFor(user: AuthUser): string {

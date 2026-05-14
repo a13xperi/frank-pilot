@@ -8,7 +8,20 @@ export const createApplicationSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   ssn: z.string().regex(/^\d{3}-?\d{2}-?\d{4}$/, "Invalid SSN format"),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
+    .refine(
+      (d) => {
+        const dob = new Date(d);
+        if (Number.isNaN(dob.getTime())) return false;
+        if (dob > new Date()) return false;
+        const ageMs = Date.now() - dob.getTime();
+        const ageYears = ageMs / (1000 * 60 * 60 * 24 * 365.25);
+        return ageYears >= 18 && ageYears <= 120;
+      },
+      "Applicant must be at least 18 and date of birth must be in the past"
+    ),
   email: z.string().email().optional(),
   phone: z.string().max(20).optional(),
 

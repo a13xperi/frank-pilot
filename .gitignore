@@ -4,3 +4,7 @@ logs/
 .env
 *.log
 .DS_Store
+
+# Ralph AI tool state
+.ralph/
+.ralphrc
