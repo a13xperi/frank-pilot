@@ -141,6 +141,368 @@ router.get("/properties", async (_req: Request, res: Response): Promise<void> =>
   }
 });
 
+const intentSchema = z.object({
+  bedrooms: z.number().int().min(0).max(6),
+  budget_min: z.number().min(0).max(20000).optional(),
+  budget_max: z.number().min(0).max(20000),
+  move_in_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  household_size: z.number().int().min(1).max(12),
+  property_id: z.string().uuid().optional(),
+});
+
+// Save the 5-question intent quiz onto the user's draft application.
+// Creates a draft if none exists. Returns the application id so the next
+// step (unit picker) can attach the claim to it.
+router.post(
+  "/intent",
+  authenticate,
+  requireEmailVerified,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+
+      const parsed = intentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+        return;
+      }
+      const intent = parsed.data;
+
+      const result = await transaction(async (client) => {
+        const draft = await client.query(
+          `SELECT a.id
+             FROM user_applications ua
+             JOIN applications a ON a.id = ua.application_id
+            WHERE ua.user_id = $1 AND a.status = 'draft'
+            ORDER BY a.created_at DESC
+            LIMIT 1`,
+          [req.user!.id]
+        );
+
+        let applicationId: string;
+        if (draft.rows.length > 0) {
+          applicationId = draft.rows[0].id;
+          await client.query(
+            `UPDATE applications
+                SET intent_bedrooms = $2,
+                    intent_budget_min = $3,
+                    intent_budget_max = $4,
+                    intent_move_in_date = $5,
+                    intent_household_size = $6,
+                    property_id = COALESCE($7, property_id),
+                    updated_at = NOW()
+              WHERE id = $1`,
+            [
+              applicationId,
+              intent.bedrooms,
+              intent.budget_min ?? null,
+              intent.budget_max,
+              intent.move_in_date,
+              intent.household_size,
+              intent.property_id ?? null,
+            ]
+          );
+        } else {
+          // Pick a property for the draft FK if the applicant didn't choose one.
+          // Any active property works — they'll narrow via the unit picker.
+          let propertyId = intent.property_id ?? null;
+          if (!propertyId) {
+            const fallback = await client.query(
+              `SELECT id FROM properties ORDER BY name ASC LIMIT 1`
+            );
+            if (fallback.rows.length === 0) {
+              throw new Error("NO_PROPERTIES_AVAILABLE");
+            }
+            propertyId = fallback.rows[0].id;
+          }
+
+          const insert = await client.query(
+            `INSERT INTO applications (
+                property_id, first_name, last_name, email, status,
+                intent_bedrooms, intent_budget_min, intent_budget_max,
+                intent_move_in_date, intent_household_size
+             ) VALUES ($1, $2, $3, $4, 'draft', $5, $6, $7, $8, $9)
+             RETURNING id`,
+            [
+              propertyId,
+              req.user!.firstName ?? "",
+              req.user!.lastName ?? "",
+              req.user!.email,
+              intent.bedrooms,
+              intent.budget_min ?? null,
+              intent.budget_max,
+              intent.move_in_date,
+              intent.household_size,
+            ]
+          );
+          applicationId = insert.rows[0].id;
+
+          await client.query(
+            `INSERT INTO user_applications (user_id, application_id, relationship)
+             VALUES ($1, $2, 'primary')
+             ON CONFLICT (user_id, application_id) DO NOTHING`,
+            [req.user!.id, applicationId]
+          );
+        }
+
+        return applicationId;
+      });
+
+      res.json({ ok: true, application_id: result });
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg === "NO_PROPERTIES_AVAILABLE") {
+        res.status(503).json({ error: "No properties available", code: "NO_PROPERTIES" });
+        return;
+      }
+      logger.error("Applicant intent failed", { error: msg });
+      res.status(500).json({ error: "Failed to save intent" });
+    }
+  }
+);
+
+// List up to 12 units matching the applicant's intent. Treats stale-held units
+// (claim_expires_at < NOW()) as available so cron isn't required.
+router.get(
+  "/units",
+  authenticate,
+  requireEmailVerified,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+
+      const bedrooms = req.query.bedrooms !== undefined ? Number(req.query.bedrooms) : undefined;
+      const maxRent = req.query.maxRent !== undefined ? Number(req.query.maxRent) : undefined;
+      const moveInBy = typeof req.query.moveInBy === "string" ? req.query.moveInBy : undefined;
+      const propertyId = typeof req.query.propertyId === "string" ? req.query.propertyId : undefined;
+
+      const conditions: string[] = [
+        "(u.status = 'available' OR (u.status = 'held' AND u.claim_expires_at < NOW()))",
+      ];
+      const params: unknown[] = [];
+
+      if (bedrooms !== undefined && Number.isFinite(bedrooms)) {
+        params.push(bedrooms);
+        conditions.push(`u.bedrooms = $${params.length}`);
+      }
+      if (maxRent !== undefined && Number.isFinite(maxRent)) {
+        params.push(maxRent);
+        conditions.push(`u.monthly_rent <= $${params.length}`);
+      }
+      if (moveInBy && /^\d{4}-\d{2}-\d{2}$/.test(moveInBy)) {
+        params.push(moveInBy);
+        conditions.push(`(u.available_from IS NULL OR u.available_from <= $${params.length})`);
+      }
+      if (propertyId && /^[0-9a-f-]{36}$/i.test(propertyId)) {
+        params.push(propertyId);
+        conditions.push(`u.property_id = $${params.length}`);
+      }
+
+      const result = await query(
+        `SELECT u.id, u.property_id, u.unit_number, u.bedrooms, u.bathrooms,
+                u.sqft, u.monthly_rent, u.photo_url, u.available_from,
+                p.name AS property_name, p.city AS property_city, p.state AS property_state
+           FROM units u
+           JOIN properties p ON p.id = u.property_id
+          WHERE ${conditions.join(" AND ")}
+          ORDER BY u.monthly_rent ASC, u.unit_number ASC
+          LIMIT 12`,
+        params
+      );
+
+      res.json({ units: result.rows });
+    } catch (err) {
+      logger.error("Failed to list units", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to list units" });
+    }
+  }
+);
+
+const CLAIM_DURATION_HOURS = 48;
+
+// Atomically claim a unit. Releases any prior claim by the same user.
+// 409 UNIT_UNAVAILABLE if the unit is held by someone else (and not stale).
+router.post(
+  "/claim-unit/:id",
+  authenticate,
+  requireEmailVerified,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+      const unitId = String(req.params.id ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(unitId)) {
+        res.status(400).json({ error: "Invalid unit id" });
+        return;
+      }
+
+      const result = await transaction(async (client) => {
+        const locked = await client.query(
+          `SELECT id, property_id, status, claim_expires_at
+             FROM units
+            WHERE id = $1
+            FOR UPDATE`,
+          [unitId]
+        );
+        if (locked.rows.length === 0) {
+          return { error: "NOT_FOUND" as const };
+        }
+        const unit = locked.rows[0];
+        const isAvailable =
+          unit.status === "available" ||
+          (unit.status === "held" && unit.claim_expires_at && new Date(unit.claim_expires_at) < new Date());
+        if (!isAvailable) {
+          return { error: "UNIT_UNAVAILABLE" as const };
+        }
+
+        const draft = await client.query(
+          `SELECT a.id, a.claimed_unit_id
+             FROM user_applications ua
+             JOIN applications a ON a.id = ua.application_id
+            WHERE ua.user_id = $1 AND a.status = 'draft'
+            ORDER BY a.created_at DESC
+            LIMIT 1`,
+          [req.user!.id]
+        );
+
+        let applicationId: string;
+        let priorUnitId: string | null = null;
+        if (draft.rows.length > 0) {
+          applicationId = draft.rows[0].id;
+          priorUnitId = draft.rows[0].claimed_unit_id;
+        } else {
+          const created = await client.query(
+            `INSERT INTO applications (property_id, first_name, last_name, email, status)
+             VALUES ($1, $2, $3, $4, 'draft')
+             RETURNING id`,
+            [
+              unit.property_id,
+              req.user!.firstName ?? "",
+              req.user!.lastName ?? "",
+              req.user!.email,
+            ]
+          );
+          applicationId = created.rows[0].id;
+          await client.query(
+            `INSERT INTO user_applications (user_id, application_id, relationship)
+             VALUES ($1, $2, 'primary')
+             ON CONFLICT (user_id, application_id) DO NOTHING`,
+            [req.user!.id, applicationId]
+          );
+        }
+
+        if (priorUnitId && priorUnitId !== unitId) {
+          await client.query(
+            `UPDATE units SET status = 'available', updated_at = NOW() WHERE id = $1`,
+            [priorUnitId]
+          );
+        }
+
+        const expiresAtRow = await client.query(
+          `UPDATE units
+              SET status = 'held', updated_at = NOW()
+            WHERE id = $1
+            RETURNING (NOW() + INTERVAL '${CLAIM_DURATION_HOURS} hours') AS expires_at`,
+          [unitId]
+        );
+        const expiresAt = expiresAtRow.rows[0].expires_at;
+
+        await client.query(
+          `UPDATE applications
+              SET claimed_unit_id = $2,
+                  claim_expires_at = $3,
+                  property_id = $4,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [applicationId, unitId, expiresAt, unit.property_id]
+        );
+
+        const enriched = await client.query(
+          `SELECT u.id, u.property_id, u.unit_number, u.bedrooms, u.bathrooms,
+                  u.sqft, u.monthly_rent, u.photo_url, u.available_from,
+                  p.name AS property_name, p.city AS property_city, p.state AS property_state
+             FROM units u
+             JOIN properties p ON p.id = u.property_id
+            WHERE u.id = $1`,
+          [unitId]
+        );
+        return { ok: true as const, unit: enriched.rows[0], expires_at: expiresAt, application_id: applicationId };
+      });
+
+      if ("error" in result) {
+        if (result.error === "NOT_FOUND") {
+          res.status(404).json({ error: "Unit not found" });
+          return;
+        }
+        if (result.error === "UNIT_UNAVAILABLE") {
+          res.status(409).json({ error: "Unit is no longer available", code: "UNIT_UNAVAILABLE" });
+          return;
+        }
+      }
+
+      res.json(result);
+    } catch (err) {
+      logger.error("Failed to claim unit", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to claim unit" });
+    }
+  }
+);
+
+// Release the user's current claim (set unit back to available, clear app fields).
+router.delete(
+  "/claim-unit",
+  authenticate,
+  requireEmailVerified,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+
+      await transaction(async (client) => {
+        const draft = await client.query(
+          `SELECT a.id, a.claimed_unit_id
+             FROM user_applications ua
+             JOIN applications a ON a.id = ua.application_id
+            WHERE ua.user_id = $1 AND a.status = 'draft' AND a.claimed_unit_id IS NOT NULL
+            ORDER BY a.created_at DESC
+            LIMIT 1`,
+          [req.user!.id]
+        );
+        if (draft.rows.length === 0) return;
+        const { id: applicationId, claimed_unit_id: unitId } = draft.rows[0];
+
+        await client.query(
+          `UPDATE units SET status = 'available', updated_at = NOW() WHERE id = $1`,
+          [unitId]
+        );
+        await client.query(
+          `UPDATE applications
+              SET claimed_unit_id = NULL,
+                  claim_expires_at = NULL,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [applicationId]
+        );
+      });
+
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error("Failed to release claim", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to release claim" });
+    }
+  }
+);
+
 // Authenticated as applicant with a verified email: list my applications.
 // PII surface — requireEmailVerified prevents enumeration via stolen
 // pre-verification token.
