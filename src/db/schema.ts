@@ -387,9 +387,39 @@ CREATE TABLE applications (
   stripe_customer_id VARCHAR(100),
   stripe_payment_method_id VARCHAR(100),
 
+  -- Applicant intent (filled by the intent quiz before unit pick)
+  intent_bedrooms INTEGER,
+  intent_budget_min DECIMAL(10,2),
+  intent_budget_max DECIMAL(10,2),
+  intent_move_in_date DATE,
+  intent_household_size INTEGER,
+
+  -- Unit claim (soft reservation while applicant completes the application)
+  claimed_unit_id UUID,
+  claim_expires_at TIMESTAMPTZ,
+
   -- Metadata
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Individual units, generated from properties.unit_mix. Status drives the
+-- unit-picker funnel: available → held (during applicant claim) → leased.
+CREATE TABLE units (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  unit_number VARCHAR(20) NOT NULL,
+  bedrooms INTEGER NOT NULL,
+  bathrooms NUMERIC(3,1) NOT NULL DEFAULT 1.0,
+  sqft INTEGER,
+  monthly_rent NUMERIC(10,2) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'available',
+  photo_url TEXT,
+  description TEXT,
+  available_from DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (property_id, unit_number)
 );
 
 -- Tenant/applicant join to applications (multiple users per application: primary, co-applicant, household member)
