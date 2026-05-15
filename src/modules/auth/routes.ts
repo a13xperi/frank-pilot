@@ -34,7 +34,9 @@ router.post("/magic-link/request", magicLinkLimiter, async (req, res) => {
     if (result) {
       logMagicLink(parsed.data.email, result.link);
       // In dev, surface the link in the response so it's clickable for demos.
-      if (process.env.NODE_ENV !== "production") {
+      // Fail-closed: only leak when NODE_ENV is explicitly "development".
+      // If the env var is unset on Railway, this stays redacted (WARN #3).
+      if (process.env.NODE_ENV === "development") {
         res.json({ ok: true, devLink: result.link });
         return;
       }

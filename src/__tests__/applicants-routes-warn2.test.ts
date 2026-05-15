@@ -1,10 +1,11 @@
 /**
- * WARN #2 route-layer tests for src/modules/applicants/routes.ts.
+ * WARN #2 / W6 route-layer tests for src/modules/applicants/routes.ts.
  *
- * Covers the two-tier scope cutover:
- *   - POST /applicants/register issues a token with emailVerified=false
+ * Covers the response-shape invariant (W6) and the two-tier scope cutover (W2):
+ *   - POST /applicants/register returns ONLY { ok, message } for ALL paths —
+ *     no token or user ever leaks from /register (W6).
  *   - POST /applicants/apply is gated by requireEmailVerified (returns
- *     403 + code "EMAIL_UNVERIFIED" for an unverified applicant)
+ *     403 + code "EMAIL_UNVERIFIED" for an unverified applicant).
  *   - After verifyMagicLink stamps users.email_verified_at, /apply is
  *     reachable and the application is created.
  *
@@ -14,7 +15,6 @@
  */
 import express from "express";
 import request from "supertest";
-import jwt from "jsonwebtoken";
 import { generateToken, AuthUser } from "../middleware/auth";
 
 jest.mock("../config/database", () => ({ query: jest.fn(), transaction: jest.fn() }));
@@ -51,10 +51,6 @@ function buildApp() {
 }
 const app = buildApp();
 
-function decode(token: string): any {
-  return jwt.decode(token);
-}
-
 /** Stub the users row that authenticate() reads. */
 function mockUsersRow(user: Partial<AuthUser> & { id: string; email: string; role: string }, emailVerifiedAt: Date | null) {
   mockQuery.mockResolvedValueOnce({
@@ -73,24 +69,23 @@ function mockUsersRow(user: Partial<AuthUser> & { id: string; email: string; rol
   } as any);
 }
 
-describe("POST /applicants/register (WARN #2)", () => {
+describe("POST /applicants/register (W6 response-shape + WARN #2)", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("issues a JWT with emailVerified=false for a brand-new account", async () => {
+  // Helper: assert the canonical register response shape.
+  function expectCanonicalShape(body: Record<string, unknown>) {
+    expect(body.ok).toBe(true);
+    expect(body.message).toBe("If this email is registered, a verification link has been sent.");
+    // W6: token and user must never appear in the /register response.
+    expect(body).not.toHaveProperty("token");
+    expect(body).not.toHaveProperty("user");
+  }
+
+  it("returns ONLY { ok, message } for a brand-new account — no token or user", async () => {
     // Existence check — no user yet.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
     // INSERT users
     mockQuery.mockResolvedValueOnce({ rows: [{ id: "new-user-001" }] } as any);
-    // SELECT after insert (route reads the row to build AuthUser)
-    mockQuery.mockResolvedValueOnce({
-      rows: [{
-        id: "new-user-001",
-        email: "victim@example.com",
-        role: "applicant",
-        first_name: "Vic",
-        last_name: "Tim",
-      }],
-    } as any);
     mockCreateMagicLink.mockResolvedValueOnce({ link: "http://localhost:5174/auth/callback?token=raw", userId: "new-user-001" });
 
     const res = await request(app)
@@ -98,14 +93,10 @@ describe("POST /applicants/register (WARN #2)", () => {
       .send({ email: "victim@example.com", firstName: "Vic", lastName: "Tim" });
 
     expect(res.status).toBe(202);
-    expect(res.body.token).toBeDefined();
-    const claims = decode(res.body.token);
-    expect(claims.emailVerified).toBe(false);
-    expect(claims.id).toBe("new-user-001");
-    expect(claims.role).toBe("applicant");
+    expectCanonicalShape(res.body);
   });
 
-  it("never returns a token for a pre-existing applicant account", async () => {
+  it("returns ONLY { ok, message } for a pre-existing applicant account", async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: "existing-001", role: "applicant", is_active: true }],
     } as any);
@@ -116,7 +107,59 @@ describe("POST /applicants/register (WARN #2)", () => {
       .send({ email: "existing@example.com", firstName: "Ex", lastName: "Ists" });
 
     expect(res.status).toBe(202);
-    expect(res.body.token).toBeUndefined();
+    expectCanonicalShape(res.body);
+  });
+
+  it("returns ONLY { ok, message } for a staff email (no enumeration leak)", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: "staff-001", role: "leasing_agent", is_active: true }],
+    } as any);
+    // createMagicLink is not called for staff (route returns early)
+
+    const res = await request(app)
+      .post("/applicants/register")
+      .send({ email: "agent@property.com", firstName: "Ag", lastName: "Ent" });
+
+    expect(res.status).toBe(202);
+    expectCanonicalShape(res.body);
+  });
+
+  it("response shape is identical between new and existing applicant paths (same keys)", async () => {
+    // New account
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: "n-001" }] } as any);
+    mockCreateMagicLink.mockResolvedValueOnce({ link: "http://x/auth/callback?token=raw", userId: "n-001" });
+
+    const newRes = await request(app)
+      .post("/applicants/register")
+      .send({ email: "new@example.com", firstName: "New", lastName: "User" });
+
+    // Existing account
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: "e-001", role: "applicant", is_active: true }],
+    } as any);
+    mockCreateMagicLink.mockResolvedValueOnce({ link: "http://x/auth/callback?token=raw2", userId: "e-001" });
+
+    const existingRes = await request(app)
+      .post("/applicants/register")
+      .send({ email: "existing@example.com", firstName: "Ex", lastName: "User" });
+
+    const newKeys = Object.keys(newRes.body).sort();
+    const existingKeys = Object.keys(existingRes.body).sort();
+    expect(newKeys).toEqual(existingKeys);
+  });
+
+  it("magic link IS created on the new-email path", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: "n-002" }] } as any);
+    mockCreateMagicLink.mockResolvedValueOnce({ link: "http://x/auth/callback?token=raw", userId: "n-002" });
+
+    await request(app)
+      .post("/applicants/register")
+      .send({ email: "newone@example.com", firstName: "New", lastName: "One" });
+
+    expect(mockCreateMagicLink).toHaveBeenCalledTimes(1);
+    expect(mockCreateMagicLink).toHaveBeenCalledWith("newone@example.com");
   });
 });
 

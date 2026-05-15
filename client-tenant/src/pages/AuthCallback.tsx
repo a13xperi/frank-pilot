@@ -1,7 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { api } from '@/api/client';
 import { verifyMagicLink } from '@/api/auth';
 import { Loader2 } from 'lucide-react';
+
+interface MeResponse {
+  user?: { role: string; emailVerified: boolean };
+}
+
+// Applicants/tenants land on the intent quiz first — it's the entry to the
+// "plant a flag" flow that converts FTUs by getting them to claim a specific
+// unit before the heavier details form. Step 'intent' redirects forward on its
+// own if a claim already exists. Staff/admin go straight to /dashboard.
+async function resolvePostVerifyRoute(): Promise<string> {
+  try {
+    const me = await api.get<MeResponse>('/auth/me');
+    const role = me.user?.role;
+    if (role === 'applicant' || role === 'tenant') return '/apply?step=intent';
+    return '/dashboard';
+  } catch {
+    return '/apply?step=intent';
+  }
+}
 
 export function AuthCallback() {
   const [searchParams] = useSearchParams();
@@ -16,7 +36,8 @@ export function AuthCallback() {
     }
 
     verifyMagicLink(token)
-      .then(() => navigate('/dashboard', { replace: true }))
+      .then(resolvePostVerifyRoute)
+      .then(dest => navigate(dest, { replace: true }))
       .catch(err => setError(err instanceof Error ? err.message : 'Invalid or expired link'));
   }, [searchParams, navigate]);
 

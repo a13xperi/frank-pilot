@@ -194,6 +194,59 @@ async function seed() {
     }
     console.log("  AMI limits seeded for Las Vegas MSA (2025-2026)");
 
+    // ── Units (generated from properties.unit_mix) ───────────────────
+    // Letter prefix by bedroom type, floor-based unit numbering. Matches the
+    // numbering convention already used in seed-demo (A-102, B-205, etc.).
+    const BEDROOM_META: Record<string, { letter: string; bedrooms: number; bathrooms: number; sqft: number; floor: number }> = {
+      Studio: { letter: "S", bedrooms: 0, bathrooms: 1, sqft: 450, floor: 0 },
+      "1BR": { letter: "A", bedrooms: 1, bathrooms: 1, sqft: 650, floor: 1 },
+      "2BR": { letter: "B", bedrooms: 2, bathrooms: 1.5, sqft: 900, floor: 2 },
+      "3BR": { letter: "C", bedrooms: 3, bathrooms: 2, sqft: 1150, floor: 3 },
+      "4BR": { letter: "D", bedrooms: 4, bathrooms: 2.5, sqft: 1400, floor: 4 },
+    };
+
+    const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+    let unitsCreated = 0;
+    for (const p of properties) {
+      const propRow = await query("SELECT id FROM properties WHERE name = $1", [p.name]);
+      if (propRow.rows.length === 0) continue;
+      const propertyId = propRow.rows[0].id;
+      const propSlug = slug(p.name);
+
+      for (const [mixKey, count] of Object.entries(p.unitMix)) {
+        const meta = BEDROOM_META[mixKey];
+        if (!meta) continue;
+
+        const rentKey = `${mixKey}_60AMI`;
+        const rent = (p.rentSchedule as unknown as Record<string, number>)[rentKey];
+        if (!rent) continue;
+
+        for (let i = 0; i < count; i++) {
+          const seq = String(i + 1).padStart(2, "0");
+          const unitNumber = meta.letter === "S"
+            ? `S-${String(i + 1).padStart(3, "0")}`
+            : `${meta.letter}-${meta.floor}${seq}`;
+
+          // Deterministic status distribution: 70% available, 30% leased.
+          // Skip 'held' — that gets created live when applicants claim.
+          const status = i % 10 < 7 ? "available" : "leased";
+          const photoUrl = `https://picsum.photos/seed/${propSlug}-${unitNumber}/800/600`;
+
+          await query(
+            `INSERT INTO units
+               (property_id, unit_number, bedrooms, bathrooms, sqft, monthly_rent, status, photo_url, available_from)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE)
+             ON CONFLICT (property_id, unit_number) DO NOTHING`,
+            [propertyId, unitNumber, meta.bedrooms, meta.bathrooms, meta.sqft, rent, status, photoUrl]
+          );
+          unitsCreated++;
+        }
+      }
+    }
+    const availCount = await query("SELECT count(*)::int AS n FROM units WHERE status='available'");
+    console.log(`  Units: ${unitsCreated} generated across ${properties.length} properties (${availCount.rows[0].n} available)`);
+
     // Seed known problem addresses
     const problemAddresses = [
       { address: "999 Fraud Lane", city: "Las Vegas", state: "NV", zip: "89101", reason: "Multiple fraudulent applications originating from this address" },
