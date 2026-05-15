@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/api/client';
+import { releaseClaim } from '@/api/units';
 import {
   FileText,
   AlertCircle,
@@ -9,7 +10,23 @@ import {
   Home,
   Calendar,
   CheckCircle2,
+  Clock,
+  X,
 } from 'lucide-react';
+
+interface ClaimedUnit {
+  id: string;
+  property_id: string;
+  unit_number: string;
+  bedrooms: number;
+  bathrooms: string | number;
+  sqft: number | null;
+  monthly_rent: string | number;
+  photo_url: string | null;
+  property_name: string;
+  property_city: string | null;
+  property_state: string | null;
+}
 
 interface ApplicationDetail {
   id: string;
@@ -30,6 +47,8 @@ interface ApplicationDetail {
   property_id: string;
   property_name: string;
   property_address: string;
+  claimed_unit: ClaimedUnit | null;
+  claim_expires_at: string | null;
 }
 
 interface DashboardData {
@@ -124,16 +143,18 @@ export function Application() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Pull the dashboard once to discover the active application.
-  useEffect(() => {
-    api
+  const loadDashboard = useCallback(() => {
+    return api
       .get<DashboardData>('/tenant/dashboard')
       .then((d) => setData(d))
       .catch((err) =>
         setError(err instanceof Error ? err.message : 'Failed to load application'),
-      )
-      .finally(() => setLoading(false));
+      );
   }, []);
+
+  useEffect(() => {
+    loadDashboard().finally(() => setLoading(false));
+  }, [loadDashboard]);
 
   if (loading) {
     return (
@@ -186,6 +207,15 @@ export function Application() {
         <StatusPill status={app.status} />
       </div>
 
+      {/* Claimed unit (draft only — when an applicant has held a unit) */}
+      {app.claimed_unit && app.claim_expires_at && (
+        <ClaimedUnitCard
+          unit={app.claimed_unit}
+          expiresAt={app.claim_expires_at}
+          onReleased={loadDashboard}
+        />
+      )}
+
       {/* Key dates */}
       <section className="rounded-xl bg-white p-5 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -217,6 +247,103 @@ export function Application() {
       {/* Messages thread */}
       <MessagesThread applicationId={app.id} userId={userId} />
     </div>
+  );
+}
+
+function formatRent(rent: string | number): string {
+  const n = typeof rent === 'string' ? Number(rent) : rent;
+  return `$${Math.round(n).toLocaleString()}/mo`;
+}
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return '00:00:00';
+  const total = Math.floor(ms / 1000);
+  const h = String(Math.floor(total / 3600)).padStart(2, '0');
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+  const s = String(total % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+function ClaimedUnitCard({
+  unit,
+  expiresAt,
+  onReleased,
+}: {
+  unit: ClaimedUnit;
+  expiresAt: string;
+  onReleased: () => Promise<void> | void;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  const [releasing, setReleasing] = useState(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const remaining = new Date(expiresAt).getTime() - now;
+  const photo =
+    unit.photo_url || `https://picsum.photos/seed/${unit.id.slice(0, 8)}/800/600`;
+
+  async function handleRelease() {
+    const ok = window.confirm(
+      `Release Unit ${unit.unit_number}? Someone else will be able to claim it.`,
+    );
+    if (!ok) return;
+    setReleasing(true);
+    setReleaseError(null);
+    try {
+      await releaseClaim();
+      await onReleased();
+    } catch (err) {
+      setReleaseError(err instanceof Error ? err.message : 'Failed to release unit');
+    } finally {
+      setReleasing(false);
+    }
+  }
+
+  return (
+    <section className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-emerald-100">
+      <div className="relative">
+        <img src={photo} alt="" className="h-40 w-full object-cover sm:h-48" />
+        <div className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+          <Clock className="h-3.5 w-3.5" />
+          <span className="font-mono">{formatCountdown(remaining)}</span>
+        </div>
+      </div>
+      <div className="p-5">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+          You're holding this unit
+        </div>
+        <h3 className="mt-1 text-base font-semibold text-gray-900">
+          {unit.property_name} · Unit {unit.unit_number}
+        </h3>
+        <div className="mt-1 text-sm text-gray-600">
+          {unit.bedrooms} bd · {unit.bathrooms} ba
+          {unit.sqft ? ` · ${unit.sqft} sqft` : ''} · {formatRent(unit.monthly_rent)}
+        </div>
+        <p className="mt-3 text-xs text-gray-500">
+          Complete your application before the hold expires to keep this unit.
+        </p>
+        {releaseError && (
+          <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+            {releaseError}
+          </div>
+        )}
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={handleRelease}
+            disabled={releasing}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            <X className="h-3.5 w-3.5" />
+            {releasing ? 'Releasing…' : 'Release this unit'}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 

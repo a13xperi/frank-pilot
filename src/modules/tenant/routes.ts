@@ -57,15 +57,55 @@ router.get("/dashboard", async (req: ScopedAuthRequest, res: Response) => {
               a.requested_rent_amount, a.requested_move_in_date,
               a.onesite_lease_id, a.loft_tenant_id, a.auto_pay_enrolled,
               a.overall_screening_result, a.submitted_at, a.created_at,
-              p.id AS property_id, p.name AS property_name, p.address_line1 AS property_address
+              a.claimed_unit_id, a.claim_expires_at,
+              p.id AS property_id, p.name AS property_name, p.address_line1 AS property_address,
+              u.id AS cu_id, u.unit_number AS cu_unit_number, u.bedrooms AS cu_bedrooms,
+              u.bathrooms AS cu_bathrooms, u.sqft AS cu_sqft, u.monthly_rent AS cu_monthly_rent,
+              u.photo_url AS cu_photo_url, u.property_id AS cu_property_id,
+              cup.name AS cu_property_name, cup.city AS cu_property_city, cup.state AS cu_property_state
        FROM applications a
        JOIN properties p ON a.property_id = p.id
+       LEFT JOIN units u ON a.claimed_unit_id = u.id
+         AND a.claim_expires_at IS NOT NULL
+         AND a.claim_expires_at > NOW()
+       LEFT JOIN properties cup ON u.property_id = cup.id
        WHERE a.id = ANY($1::uuid[])
        ORDER BY a.created_at DESC`,
       [ids]
     );
 
-    const applications = appsRes.rows;
+    const applications = appsRes.rows.map((r) => {
+      const claimedUnit = r.cu_id
+        ? {
+            id: r.cu_id,
+            property_id: r.cu_property_id,
+            unit_number: r.cu_unit_number,
+            bedrooms: r.cu_bedrooms,
+            bathrooms: r.cu_bathrooms,
+            sqft: r.cu_sqft,
+            monthly_rent: r.cu_monthly_rent,
+            photo_url: r.cu_photo_url,
+            property_name: r.cu_property_name,
+            property_city: r.cu_property_city,
+            property_state: r.cu_property_state,
+          }
+        : null;
+      const {
+        cu_id: _cu_id,
+        cu_unit_number: _cu_un,
+        cu_bedrooms: _cu_b,
+        cu_bathrooms: _cu_ba,
+        cu_sqft: _cu_s,
+        cu_monthly_rent: _cu_m,
+        cu_photo_url: _cu_p,
+        cu_property_id: _cu_pi,
+        cu_property_name: _cu_pn,
+        cu_property_city: _cu_pc,
+        cu_property_state: _cu_ps,
+        ...app
+      } = r;
+      return { ...app, claimed_unit: claimedUnit };
+    });
 
     // Pick "active" application — onboarded > most recent
     const active =
