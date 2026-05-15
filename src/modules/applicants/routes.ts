@@ -401,19 +401,25 @@ router.post(
 
         if (priorUnitId && priorUnitId !== unitId) {
           await client.query(
-            `UPDATE units SET status = 'available', updated_at = NOW() WHERE id = $1`,
+            `UPDATE units
+                SET status = 'available',
+                    claim_expires_at = NULL,
+                    updated_at = NOW()
+              WHERE id = $1`,
             [priorUnitId]
           );
         }
 
-        const expiresAtRow = await client.query(
+        const expiresAt = new Date(Date.now() + CLAIM_DURATION_HOURS * 60 * 60 * 1000);
+
+        await client.query(
           `UPDATE units
-              SET status = 'held', updated_at = NOW()
-            WHERE id = $1
-            RETURNING (NOW() + INTERVAL '${CLAIM_DURATION_HOURS} hours') AS expires_at`,
-          [unitId]
+              SET status = 'held',
+                  claim_expires_at = $2,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [unitId, expiresAt]
         );
-        const expiresAt = expiresAtRow.rows[0].expires_at;
 
         await client.query(
           `UPDATE applications
@@ -482,7 +488,11 @@ router.delete(
         const { id: applicationId, claimed_unit_id: unitId } = draft.rows[0];
 
         await client.query(
-          `UPDATE units SET status = 'available', updated_at = NOW() WHERE id = $1`,
+          `UPDATE units
+              SET status = 'available',
+                  claim_expires_at = NULL,
+                  updated_at = NOW()
+            WHERE id = $1`,
           [unitId]
         );
         await client.query(
