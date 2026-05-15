@@ -68,21 +68,20 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     const { email, firstName, lastName, phone } = parsed.data;
 
     const existing = await query("SELECT id, role, is_active FROM users WHERE email = $1", [email]);
-    let userId: string;
+    let userId: string | undefined;
     let isNew = false;
+    let isStaffEmail = false;
 
     if (existing.rows.length > 0) {
       const u = existing.rows[0];
-      // If existing account is staff, don't allow applicant registration on that email.
       if (!["applicant", "tenant"].includes(u.role)) {
-        // Don't leak — return the same normalized response as any other case.
-        res.status(202).json({
-          ok: true,
-          message: "If this email is registered, a verification link has been sent.",
-        });
-        return;
+        // Existing non-applicant role (staff). Don't onboard, don't issue a real
+        // link — but DO fall through to createMagicLink below so wall-clock cost
+        // matches the applicant/tenant branches (B2: timing-side-channel close).
+        isStaffEmail = true;
+      } else {
+        userId = u.id;
       }
-      userId = u.id;
     } else {
       const insertRes = await query(
         `INSERT INTO users (email, first_name, last_name, phone, role, is_active, password_hash)
@@ -94,10 +93,13 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
       isNew = true;
     }
 
+    // Always call createMagicLink. The service short-circuits for staff /
+    // inactive / missing emails (returns null) but still pays the SELECT cost,
+    // so all three /register paths take comparable wall-clock time.
     const link = await createMagicLink(email);
     if (link) logMagicLink(email, link.link);
 
-    logger.info("Applicant registered", { userId, email, isNew });
+    logger.info("Applicant registered", { userId, email, isNew, isStaffEmail });
 
     // W6: uniform response for all paths — no token or user ever returned from
     // /register. The client must wait for the magic-link click; token+user are
