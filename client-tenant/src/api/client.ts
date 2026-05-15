@@ -29,7 +29,13 @@ async function request<T>(
 
   const res = await fetch(fullPath, { ...options, headers });
 
-  if (res.status === 401 && !fullPath.includes('/auth/magic-link')) {
+  // /auth/me is the probe endpoint — callers (AuthCallback, VerifyPending,
+  // the Apply step='verify' poll) use it to discover auth state and handle
+  // 401 locally. A hard redirect here ejects users mid-flow from the
+  // verify-pending screen and the magic-link callback.
+  const isAuthProbe =
+    fullPath.includes('/auth/magic-link') || fullPath.includes('/auth/me');
+  if (res.status === 401 && !isAuthProbe) {
     clearToken();
     window.location.href = '/login';
     throw new Error('Session expired');

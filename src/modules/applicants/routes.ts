@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { query, transaction } from "../../config/database";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requireEmailVerified } from "../../middleware/scope";
@@ -22,7 +22,7 @@ const registerSchema = z.object({
 const registerLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
-  keyGenerator: (req) => `${req.ip}:${(req.body?.email ?? "").toLowerCase()}`,
+  keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? "")}:${(req.body?.email ?? "").toLowerCase()}`,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, try again in a minute" },
@@ -545,7 +545,10 @@ router.get("/me/applications", authenticate, requireEmailVerified, async (req: A
     const result = await query(
       `SELECT a.id, a.first_name, a.last_name, a.email, a.status, a.submitted_at,
               a.created_at, a.property_id, a.unit_number, a.overall_screening_result,
-              a.requested_rent_amount, p.name AS property_name
+              a.requested_rent_amount,
+              a.intent_bedrooms, a.intent_budget_min, a.intent_budget_max,
+              a.intent_move_in_date, a.intent_household_size,
+              p.name AS property_name
        FROM user_applications ua
        JOIN applications a ON a.id = ua.application_id
        JOIN properties p ON p.id = a.property_id
