@@ -8,16 +8,49 @@ interface MeResponse {
   user?: { role: string; emailVerified: boolean };
 }
 
+interface MyAppsResponse {
+  applications?: Array<{ status: string }>;
+}
+
+// Anything past draft means the user has already submitted — sending them
+// back to the intent quiz would be the wrong screen entirely.
+const SUBMITTED_STATUSES = new Set([
+  'submitted',
+  'screening',
+  'screening_passed',
+  'screening_failed',
+  'tier1_review',
+  'tier1_approved',
+  'tier1_denied',
+  'tier2_review',
+  'tier2_approved',
+  'tier2_denied',
+  'tier3_review',
+  'tier3_approved',
+  'tier3_denied',
+  'lease_generated',
+  'onboarded',
+]);
+
 // Applicants/tenants land on the intent quiz first — it's the entry to the
 // "plant a flag" flow that converts FTUs by getting them to claim a specific
 // unit before the heavier details form. Step 'intent' redirects forward on its
 // own if a claim already exists. Staff/admin go straight to /dashboard.
+// Already-submitted/onboarded users skip the funnel entirely and land on the
+// status page.
 async function resolvePostVerifyRoute(): Promise<string> {
   try {
     const me = await api.get<MeResponse>('/auth/me');
     const role = me.user?.role;
-    if (role === 'applicant' || role === 'tenant') return '/apply?step=intent';
-    return '/dashboard';
+    if (role !== 'applicant' && role !== 'tenant') return '/dashboard';
+    try {
+      const apps = await api.get<MyAppsResponse>('/applicants/me/applications');
+      const hasSubmitted = apps.applications?.some((a) => SUBMITTED_STATUSES.has(a.status));
+      if (hasSubmitted) return '/application';
+    } catch {
+      // Fall through to the intent quiz if status lookup fails.
+    }
+    return '/apply?step=intent';
   } catch {
     return '/apply?step=intent';
   }
