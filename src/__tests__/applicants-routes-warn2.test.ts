@@ -114,7 +114,9 @@ describe("POST /applicants/register (W6 response-shape + WARN #2)", () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: "staff-001", role: "leasing_agent", is_active: true }],
     } as any);
-    // createMagicLink is not called for staff (route returns early)
+    // B2: createMagicLink IS called on the staff path for timing parity, but
+    // the service short-circuits internally and returns null (no token persisted).
+    mockCreateMagicLink.mockResolvedValueOnce(null);
 
     const res = await request(app)
       .post("/applicants/register")
@@ -122,6 +124,11 @@ describe("POST /applicants/register (W6 response-shape + WARN #2)", () => {
 
     expect(res.status).toBe(202);
     expectCanonicalShape(res.body);
+    expect(mockCreateMagicLink).toHaveBeenCalledTimes(1);
+    expect(mockCreateMagicLink).toHaveBeenCalledWith("agent@property.com");
+    // Critical: even though createMagicLink was called, NO link is logged for
+    // staff (the service returned null), so no real token is issued to staff.
+    expect(mockLogMagicLink).not.toHaveBeenCalled();
   });
 
   it("response shape is identical between new and existing applicant paths (same keys)", async () => {
