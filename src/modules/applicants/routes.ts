@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { query, transaction } from "../../config/database";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requireEmailVerified } from "../../middleware/scope";
@@ -22,7 +22,7 @@ const registerSchema = z.object({
 const registerLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
-  keyGenerator: (req) => `${req.ip}:${(req.body?.email ?? "").toLowerCase()}`,
+  keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? "")}:${(req.body?.email ?? "").toLowerCase()}`,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, try again in a minute" },

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { createMagicLink, verifyMagicLink, logMagicLink } from "./magic-link-service";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { logger } from "../../utils/logger";
@@ -14,7 +14,7 @@ const requestSchema = z.object({
 const magicLinkLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
-  keyGenerator: (req) => `${req.ip}:${(req.body?.email ?? "").toLowerCase()}`,
+  keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? "")}:${(req.body?.email ?? "").toLowerCase()}`,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, try again in a minute" },
