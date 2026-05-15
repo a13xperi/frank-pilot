@@ -38,22 +38,31 @@ const SUBMITTED_STATUSES = new Set([
 // own if a claim already exists. Staff/admin go straight to /dashboard.
 // Already-submitted/onboarded users skip the funnel entirely and land on the
 // status page.
-async function resolvePostVerifyRoute(): Promise<string> {
+async function fetchMeWithRetry(): Promise<MeResponse> {
   try {
-    const me = await api.get<MeResponse>('/auth/me');
-    const role = me.user?.role;
-    if (role !== 'applicant' && role !== 'tenant') return '/dashboard';
-    try {
-      const apps = await api.get<MyAppsResponse>('/applicants/me/applications');
-      const hasSubmitted = apps.applications?.some((a) => SUBMITTED_STATUSES.has(a.status));
-      if (hasSubmitted) return '/application';
-    } catch {
-      // Fall through to the intent quiz if status lookup fails.
-    }
-    return '/apply?step=intent';
+    return await api.get<MeResponse>('/auth/me');
   } catch {
-    return '/apply?step=intent';
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return api.get<MeResponse>('/auth/me');
   }
+}
+
+async function resolvePostVerifyRoute(): Promise<string> {
+  // Retry once on transient /auth/me failure. Defaulting to the intent quiz
+  // here misroutes staff (and any returning applicant) into the wrong screen.
+  // If both attempts fail, throw so the caller shows an error instead of
+  // silently misrouting.
+  const me = await fetchMeWithRetry();
+  const role = me.user?.role;
+  if (role !== 'applicant' && role !== 'tenant') return '/dashboard';
+  try {
+    const apps = await api.get<MyAppsResponse>('/applicants/me/applications');
+    const hasSubmitted = apps.applications?.some((a) => SUBMITTED_STATUSES.has(a.status));
+    if (hasSubmitted) return '/application';
+  } catch {
+    // Fall through to the intent quiz if status lookup fails.
+  }
+  return '/apply?step=intent';
 }
 
 export function AuthCallback() {
@@ -69,7 +78,16 @@ export function AuthCallback() {
     }
 
     verifyMagicLink(token)
-      .then(resolvePostVerifyRoute)
+      .then(async () => {
+        try {
+          return await resolvePostVerifyRoute();
+        } catch {
+          // Magic-link verify succeeded but /auth/me kept failing after retry.
+          // Don't guess the role — route to /login so AuthGuard can re-check
+          // once the user reloads with a working network.
+          return '/login';
+        }
+      })
       .then(dest => navigate(dest, { replace: true }))
       .catch(err => setError(err instanceof Error ? err.message : 'Invalid or expired link'));
   }, [searchParams, navigate]);
