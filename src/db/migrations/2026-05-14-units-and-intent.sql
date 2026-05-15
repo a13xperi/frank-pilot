@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS units (
   monthly_rent NUMERIC(10,2) NOT NULL,
   -- available | held | leased | off_market
   status VARCHAR(20) NOT NULL DEFAULT 'available',
+  -- When status='held', the hold expires at this timestamp. Routes treat
+  -- (status='held' AND claim_expires_at < NOW()) as available, so cron isn't required.
+  claim_expires_at TIMESTAMPTZ,
   photo_url TEXT,
   description TEXT,
   available_from DATE,
@@ -20,9 +23,15 @@ CREATE TABLE IF NOT EXISTS units (
   UNIQUE (property_id, unit_number)
 );
 
+-- For pre-existing units rows from an earlier apply of this migration,
+-- ensure the column exists (no-op when it already does).
+ALTER TABLE units ADD COLUMN IF NOT EXISTS claim_expires_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_units_property_status ON units(property_id, status);
 CREATE INDEX IF NOT EXISTS idx_units_available ON units(status) WHERE status = 'available';
 CREATE INDEX IF NOT EXISTS idx_units_bedrooms_rent ON units(bedrooms, monthly_rent);
+-- Stale-hold scan support for the lazy-expire path in GET /applicants/units.
+CREATE INDEX IF NOT EXISTS idx_units_held_expires ON units(claim_expires_at) WHERE status = 'held';
 
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS intent_bedrooms INT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS intent_budget_min NUMERIC(10,2);

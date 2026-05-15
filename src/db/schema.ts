@@ -414,6 +414,8 @@ CREATE TABLE units (
   sqft INTEGER,
   monthly_rent NUMERIC(10,2) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'available',
+  -- Held-claim expiry; lazy-expired in GET /applicants/units.
+  claim_expires_at TIMESTAMPTZ,
   photo_url TEXT,
   description TEXT,
   available_from DATE,
