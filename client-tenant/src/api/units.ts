@@ -6,7 +6,6 @@ export interface Intent {
   budget_max: number;
   move_in_date: string;
   household_size: number;
-  property_id?: string;
 }
 
 export interface Unit {
@@ -37,12 +36,16 @@ export async function saveIntent(intent: Intent): Promise<{ ok: boolean; applica
 
 export async function fetchUnits(filter: {
   bedrooms?: number;
+  // Inclusive — use this for "N+ BR" semantics so the user actually sees
+  // units at higher bedroom counts (the dropdown's "4+ BR" option, etc.).
+  bedroomsMin?: number;
   maxRent?: number;
   moveInBy?: string;
   propertyId?: string;
 }): Promise<{ units: Unit[] }> {
   const params = new URLSearchParams();
-  if (filter.bedrooms !== undefined) params.set('bedrooms', String(filter.bedrooms));
+  if (filter.bedroomsMin !== undefined) params.set('bedroomsMin', String(filter.bedroomsMin));
+  else if (filter.bedrooms !== undefined) params.set('bedrooms', String(filter.bedrooms));
   if (filter.maxRent !== undefined) params.set('maxRent', String(filter.maxRent));
   if (filter.moveInBy) params.set('moveInBy', filter.moveInBy);
   if (filter.propertyId) params.set('propertyId', filter.propertyId);
