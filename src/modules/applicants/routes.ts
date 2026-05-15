@@ -103,15 +103,35 @@ router.post("/apply", authenticate, requireEmailVerified, async (req: AuthReques
     // Default email on the application to the authenticated user if not provided.
     if (!input.email) input.email = req.user.email;
 
-    const created = await applicationService.create(input, req.user.id, req.user.role);
-
-    // Link this user to the application as the primary applicant.
-    await query(
-      `INSERT INTO user_applications (user_id, application_id, relationship)
-       VALUES ($1, $2, 'primary')
-       ON CONFLICT (user_id, application_id) DO NOTHING`,
-      [req.user.id, created.id]
+    // If the user already has a draft from /intent or /claim-unit/:id, fill it
+    // in place. Inserting a second row would orphan the unit claim sitting on
+    // the first draft.
+    const existingDraft = await query(
+      `SELECT a.id FROM user_applications ua
+         JOIN applications a ON a.id = ua.application_id
+        WHERE ua.user_id = $1 AND a.status = 'draft'
+        ORDER BY a.created_at DESC
+        LIMIT 1`,
+      [req.user.id]
     );
+
+    let created;
+    if (existingDraft.rows.length > 0) {
+      created = await applicationService.fillDraft(
+        existingDraft.rows[0].id,
+        input,
+        req.user.id,
+        req.user.role
+      );
+    } else {
+      created = await applicationService.create(input, req.user.id, req.user.role);
+      await query(
+        `INSERT INTO user_applications (user_id, application_id, relationship)
+         VALUES ($1, $2, 'primary')
+         ON CONFLICT (user_id, application_id) DO NOTHING`,
+        [req.user.id, created.id]
+      );
+    }
 
     res.status(201).json(created);
   } catch (err: any) {

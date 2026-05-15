@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { api } from '@/api/client';
+import { api, getToken } from '@/api/client';
 import { requestMagicLink } from '@/api/auth';
 import { saveIntent, fetchUnits, claimUnit, type Unit } from '@/api/units';
 import { UnitCard } from '@/components/UnitCard';
@@ -96,8 +96,13 @@ export function Apply() {
   const [moveInDate, setMoveInDate] = useState('');
 
   // Verify-stage poll: advance when /auth/me reports emailVerified=true.
+  // Post-W6 /register no longer issues a token, so an unauthenticated 401 here
+  // would trigger client.ts's global redirect to /login and eject the user
+  // from the "Check your email" screen. Skip the poll until the magic-link
+  // verify flow has stored a token.
   useEffect(() => {
     if (step !== 'verify') return;
+    if (!getToken()) return;
     let cancelled = false;
     async function check() {
       try {
