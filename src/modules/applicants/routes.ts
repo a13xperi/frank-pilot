@@ -395,6 +395,14 @@ router.post(
       }
 
       const result = await transaction(async (client) => {
+        // Serialize per-user so two tabs from the same user can't concurrently
+        // claim different units and orphan one in 'held'. Row-level FOR UPDATE
+        // on the unit is per-unit and doesn't protect the cross-unit invariant
+        // "one draft holds at most one unit".
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+          `claim-unit:${req.user!.id}`,
+        ]);
+
         const locked = await client.query(
           `SELECT id, property_id, status, claim_expires_at
              FROM units
@@ -526,6 +534,13 @@ router.delete(
       }
 
       await transaction(async (client) => {
+        // Same per-user serialization as POST /claim-unit/:id — prevents a
+        // release racing a claim from another tab (which could otherwise mark
+        // the prior unit available after the new claim already replaced it).
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+          `claim-unit:${req.user!.id}`,
+        ]);
+
         const draft = await client.query(
           `SELECT a.id, a.claimed_unit_id
              FROM user_applications ua
