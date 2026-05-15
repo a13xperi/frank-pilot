@@ -229,6 +229,7 @@ describe("POST /applicants/claim-unit/:id", () => {
   it("200 when unit is available — sets held + 48h expiry on the user's draft", async () => {
     mockUsersRow(applicant, VERIFIED_AT);
     mockTxnWithQueue([
+      { rows: [] },                                         // SELECT pg_advisory_xact_lock
       { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "available", claim_expires_at: null }] },
       { rows: [{ id: "app-001", claimed_unit_id: null }] }, // SELECT draft
       { rows: [] },                                         // UPDATE units (held)
@@ -258,6 +259,7 @@ describe("POST /applicants/claim-unit/:id", () => {
     mockUsersRow(applicant, VERIFIED_AT);
     const futureExpiry = new Date(Date.now() + 60_000).toISOString();
     mockTxnWithQueue([
+      { rows: [] }, // SELECT pg_advisory_xact_lock
       { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "held", claim_expires_at: futureExpiry }] },
     ]);
     const token = generateToken(applicant);
@@ -272,6 +274,7 @@ describe("POST /applicants/claim-unit/:id", () => {
     mockUsersRow(applicant, VERIFIED_AT);
     const pastExpiry = new Date(Date.now() - 60_000).toISOString();
     mockTxnWithQueue([
+      { rows: [] }, // SELECT pg_advisory_xact_lock
       { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "held", claim_expires_at: pastExpiry }] },
       { rows: [{ id: "app-001", claimed_unit_id: null }] },
       { rows: [] },                                         // UPDATE units (held)
@@ -288,7 +291,10 @@ describe("POST /applicants/claim-unit/:id", () => {
 
   it("404 when unit doesn't exist", async () => {
     mockUsersRow(applicant, VERIFIED_AT);
-    mockTxnWithQueue([{ rows: [] }]);
+    mockTxnWithQueue([
+      { rows: [] }, // SELECT pg_advisory_xact_lock
+      { rows: [] }, // SELECT units → empty
+    ]);
     const token = generateToken(applicant);
     const res = await request(app)
       .post(`/applicants/claim-unit/${VALID_UNIT}`)
@@ -302,6 +308,7 @@ describe("POST /applicants/claim-unit/:id", () => {
     const calls: Array<[string, any[] | undefined]> = [];
     mockTransaction.mockImplementationOnce(async (fn: any) => {
       const queue: Array<{ rows: any[] }> = [
+        { rows: [] },                                       // SELECT pg_advisory_xact_lock
         { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "available", claim_expires_at: null }] },
         { rows: [{ id: "app-001", claimed_unit_id: PRIOR_UNIT }] },
         { rows: [] },                                       // UPDATE prior unit → available
@@ -328,9 +335,50 @@ describe("POST /applicants/claim-unit/:id", () => {
     expect(releaseCall![1]).toEqual([PRIOR_UNIT]);
   });
 
+  // Regression for merged_bug_003: without a per-user advisory lock, two tabs
+  // can claim two different units, FOR UPDATE-lock different rows, both read
+  // the same prior draft state, and orphan a unit in 'held'. The lock must
+  // be acquired BEFORE the units FOR UPDATE so the second tab waits.
+  it("acquires per-user advisory lock before locking the unit row", async () => {
+    mockUsersRow(applicant, VERIFIED_AT);
+    const calls: Array<[string, any[] | undefined]> = [];
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const queue: Array<{ rows: any[] }> = [
+        { rows: [] },                                                                                             // advisory lock
+        { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "available", claim_expires_at: null }] },
+        { rows: [{ id: "app-001", claimed_unit_id: null }] },
+        { rows: [] },
+        { rows: [] },
+        { rows: [{ id: VALID_UNIT, unit_number: "A-101" }] },
+      ];
+      const client = {
+        query: jest.fn().mockImplementation((sql: string, params?: any[]) => {
+          calls.push([sql, params]);
+          return Promise.resolve(queue.shift()!);
+        }),
+      };
+      return fn(client);
+    });
+    const token = generateToken(applicant);
+    const res = await request(app)
+      .post(`/applicants/claim-unit/${VALID_UNIT}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+
+    expect(calls[0][0]).toMatch(/pg_advisory_xact_lock\(hashtext\(\$1\)\)/);
+    expect(calls[0][1]).toEqual([`claim-unit:${applicant.id}`]);
+    // FOR UPDATE on the unit must come AFTER the advisory lock — otherwise
+    // two tabs can both pass the unit-lock for different units.
+    const advisoryIdx = calls.findIndex(([sql]) => /pg_advisory_xact_lock/.test(sql));
+    const forUpdateIdx = calls.findIndex(([sql]) => /FROM units[\s\S]*FOR UPDATE/.test(sql));
+    expect(advisoryIdx).toBeGreaterThanOrEqual(0);
+    expect(forUpdateIdx).toBeGreaterThan(advisoryIdx);
+  });
+
   it("creates a draft when claiming with none yet", async () => {
     mockUsersRow(applicant, VERIFIED_AT);
     mockTxnWithQueue([
+      { rows: [] }, // SELECT pg_advisory_xact_lock
       { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "available", claim_expires_at: null }] },
       { rows: [] }, // SELECT draft → none
       { rows: [{ id: "app-fresh-001" }] }, // INSERT application
@@ -356,6 +404,7 @@ describe("DELETE /applicants/claim-unit", () => {
     const calls: Array<[string, any[] | undefined]> = [];
     mockTransaction.mockImplementationOnce(async (fn: any) => {
       const queue: Array<{ rows: any[] }> = [
+        { rows: [] }, // SELECT pg_advisory_xact_lock
         { rows: [{ id: "app-001", claimed_unit_id: "unit-XYZ" }] }, // SELECT draft
         { rows: [] }, // UPDATE units → available
         { rows: [] }, // UPDATE applications → null
@@ -379,9 +428,39 @@ describe("DELETE /applicants/claim-unit", () => {
     expect(unitUpdate![1]).toEqual(["unit-XYZ"]);
   });
 
+  // Companion to the claim-side regression — release must also serialize per
+  // user so it can't race a concurrent claim from another tab.
+  it("acquires per-user advisory lock before reading the draft", async () => {
+    mockUsersRow(applicant, VERIFIED_AT);
+    const calls: Array<[string, any[] | undefined]> = [];
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const queue: Array<{ rows: any[] }> = [
+        { rows: [] },                                                  // advisory lock
+        { rows: [{ id: "app-001", claimed_unit_id: "unit-XYZ" }] },
+        { rows: [] },
+        { rows: [] },
+      ];
+      const client = {
+        query: jest.fn().mockImplementation((sql: string, params?: any[]) => {
+          calls.push([sql, params]);
+          return Promise.resolve(queue.shift()!);
+        }),
+      };
+      return fn(client);
+    });
+    const token = generateToken(applicant);
+    const res = await request(app)
+      .delete("/applicants/claim-unit")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(calls[0][0]).toMatch(/pg_advisory_xact_lock\(hashtext\(\$1\)\)/);
+    expect(calls[0][1]).toEqual([`claim-unit:${applicant.id}`]);
+  });
+
   it("ok=true even when user has no active claim (idempotent)", async () => {
     mockUsersRow(applicant, VERIFIED_AT);
     mockTxnWithQueue([
+      { rows: [] }, // SELECT pg_advisory_xact_lock
       { rows: [] }, // SELECT draft → none with claim
     ]);
     const token = generateToken(applicant);
