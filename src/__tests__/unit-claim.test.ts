@@ -231,7 +231,7 @@ describe("POST /applicants/claim-unit/:id", () => {
     mockTxnWithQueue([
       { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "available", claim_expires_at: null }] },
       { rows: [{ id: "app-001", claimed_unit_id: null }] }, // SELECT draft
-      { rows: [{ expires_at: "2026-05-16T15:00:00Z" }] },   // UPDATE units RETURNING expires_at
+      { rows: [] },                                         // UPDATE units (held)
       { rows: [] },                                         // UPDATE applications
       {
         rows: [
@@ -239,6 +239,7 @@ describe("POST /applicants/claim-unit/:id", () => {
         ],
       },
     ]);
+    const before = Date.now();
     const token = generateToken(applicant);
     const res = await request(app)
       .post(`/applicants/claim-unit/${VALID_UNIT}`)
@@ -246,8 +247,11 @@ describe("POST /applicants/claim-unit/:id", () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(res.body.unit.id).toBe(VALID_UNIT);
-    expect(res.body.expires_at).toBe("2026-05-16T15:00:00Z");
     expect(res.body.application_id).toBe("app-001");
+    // expires_at is computed JS-side as now + 48h; verify it falls in that window.
+    const expiry = new Date(res.body.expires_at).getTime();
+    expect(expiry).toBeGreaterThanOrEqual(before + 48 * 3600 * 1000 - 1000);
+    expect(expiry).toBeLessThanOrEqual(Date.now() + 48 * 3600 * 1000 + 1000);
   });
 
   it("409 UNIT_UNAVAILABLE when unit is held by another user (not stale)", async () => {
@@ -270,8 +274,8 @@ describe("POST /applicants/claim-unit/:id", () => {
     mockTxnWithQueue([
       { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "held", claim_expires_at: pastExpiry }] },
       { rows: [{ id: "app-001", claimed_unit_id: null }] },
-      { rows: [{ expires_at: "2026-05-16T15:00:00Z" }] },
-      { rows: [] },
+      { rows: [] },                                         // UPDATE units (held)
+      { rows: [] },                                         // UPDATE applications
       { rows: [{ id: VALID_UNIT, unit_number: "A-101", property_name: "Sunny" }] },
     ]);
     const token = generateToken(applicant);
@@ -301,7 +305,7 @@ describe("POST /applicants/claim-unit/:id", () => {
         { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "available", claim_expires_at: null }] },
         { rows: [{ id: "app-001", claimed_unit_id: PRIOR_UNIT }] },
         { rows: [] },                                       // UPDATE prior unit → available
-        { rows: [{ expires_at: "2026-05-16T15:00:00Z" }] }, // UPDATE new unit → held
+        { rows: [] },                                       // UPDATE new unit → held
         { rows: [] },                                       // UPDATE applications
         { rows: [{ id: VALID_UNIT, unit_number: "A-101" }] },
       ];
@@ -319,7 +323,7 @@ describe("POST /applicants/claim-unit/:id", () => {
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
 
-    const releaseCall = calls.find(([sql]) => /UPDATE units SET status = 'available'/.test(sql));
+    const releaseCall = calls.find(([sql]) => /UPDATE units\s+SET status = 'available'/.test(sql));
     expect(releaseCall).toBeDefined();
     expect(releaseCall![1]).toEqual([PRIOR_UNIT]);
   });
@@ -331,7 +335,7 @@ describe("POST /applicants/claim-unit/:id", () => {
       { rows: [] }, // SELECT draft → none
       { rows: [{ id: "app-fresh-001" }] }, // INSERT application
       { rows: [] }, // INSERT user_applications
-      { rows: [{ expires_at: "2026-05-16T15:00:00Z" }] }, // UPDATE units
+      { rows: [] }, // UPDATE units (held)
       { rows: [] }, // UPDATE applications
       { rows: [{ id: VALID_UNIT, unit_number: "A-101" }] },
     ]);
@@ -371,7 +375,7 @@ describe("DELETE /applicants/claim-unit", () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
 
-    const unitUpdate = calls.find(([sql]) => /UPDATE units SET status = 'available'/.test(sql));
+    const unitUpdate = calls.find(([sql]) => /UPDATE units\s+SET status = 'available'/.test(sql));
     expect(unitUpdate![1]).toEqual(["unit-XYZ"]);
   });
 
