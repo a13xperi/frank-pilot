@@ -99,6 +99,111 @@ export class ApplicationService {
     return result;
   }
 
+  // Fill an existing applicant-self-serve draft (created by /intent or
+  // /claim-unit/:id before SSN/DOB are collected) with the form payload from
+  // step 2 of /apply. Without this path, /apply would INSERT a second draft
+  // and orphan the unit claim sitting on the first one.
+  async fillDraft(
+    applicationId: string,
+    input: CreateApplicationInput,
+    submittedBy: string,
+    submitterRole: string
+  ): Promise<any> {
+    const ssnHash = hashSSN(input.ssn.replace(/\D/g, ""));
+    const ssnEncrypted = encrypt(input.ssn.replace(/\D/g, ""));
+    const dobEncrypted = encrypt(input.dateOfBirth);
+
+    const duplicateCheck = await this.fraudDetection.checkDuplicateSSN(ssnHash);
+
+    const result = await transaction(async (client) => {
+      const res = await client.query(
+        `UPDATE applications SET
+            property_id = $2, unit_number = $3,
+            first_name = $4, last_name = $5,
+            ssn_encrypted = $6, ssn_hash = $7, date_of_birth_encrypted = $8,
+            email = $9, phone = $10,
+            current_address_line1 = $11, current_address_line2 = $12,
+            current_city = $13, current_state = $14, current_zip = $15,
+            employer_name = $16, employer_phone = $17,
+            employment_start_date = $18, annual_income = $19, household_size = $20,
+            previous_landlord_name = $21, previous_landlord_phone = $22,
+            previous_rental_address = $23, previous_rental_duration_months = $24,
+            emergency_contact_name = $25, emergency_contact_phone = $26,
+            emergency_contact_relationship = $27,
+            requested_lease_term_months = $28, requested_rent_amount = $29,
+            requested_move_in_date = $30,
+            submitted_by = $31,
+            updated_at = NOW()
+          WHERE id = $1 AND status = 'draft'
+          RETURNING id, status, created_at`,
+        [
+          applicationId,
+          input.propertyId, input.unitNumber || null,
+          input.firstName, input.lastName, ssnEncrypted, ssnHash, dobEncrypted,
+          input.email || null, input.phone || null,
+          input.currentAddressLine1 || null, input.currentAddressLine2 || null,
+          input.currentCity || null, input.currentState || null, input.currentZip || null,
+          input.employerName || null, input.employerPhone || null,
+          input.employmentStartDate || null, input.annualIncome || null, input.householdSize,
+          input.previousLandlordName || null, input.previousLandlordPhone || null,
+          input.previousRentalAddress || null, input.previousRentalDurationMonths || null,
+          input.emergencyContactName || null, input.emergencyContactPhone || null,
+          input.emergencyContactRelationship || null,
+          input.requestedLeaseTermMonths, input.requestedRentAmount || null,
+          input.requestedMoveInDate || null,
+          submittedBy,
+        ]
+      );
+
+      if (res.rows.length === 0) {
+        throw new Error("DRAFT_NOT_FOUND");
+      }
+
+      if (duplicateCheck.isDuplicate) {
+        await this.fraudDetection.raiseFraudFlag(client, {
+          applicationId,
+          flagType: "duplicate_ssn",
+          description: `SSN matches existing application(s): ${duplicateCheck.existingApplicationIds.join(", ")}`,
+          severity: "high",
+        });
+      }
+
+      if (input.currentAddressLine1) {
+        await this.fraudDetection.checkAddressFraud(client, applicationId, {
+          addressLine1: input.currentAddressLine1,
+          city: input.currentCity,
+          state: input.currentState,
+          zip: input.currentZip,
+        });
+      }
+
+      return res.rows[0];
+    });
+
+    await writeAuditLog({
+      action: "application_created",
+      actorId: submittedBy,
+      actorRole: submitterRole,
+      applicationId: result.id,
+      resourceType: "application",
+      resourceId: result.id,
+      details: {
+        propertyId: input.propertyId,
+        applicantName: `${input.firstName} ${input.lastName}`,
+        ssn: maskSSN(input.ssn),
+        hasDuplicateSSN: duplicateCheck.isDuplicate,
+        filledDraft: true,
+      },
+    });
+
+    logger.info("Application draft filled", {
+      applicationId: result.id,
+      propertyId: input.propertyId,
+    });
+
+    return result;
+  }
+
   async submit(applicationId: string, submittedBy: string, submitterRole: string): Promise<any> {
     const result = await query(
       `UPDATE applications

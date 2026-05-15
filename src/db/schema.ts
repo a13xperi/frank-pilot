@@ -296,9 +296,12 @@ CREATE TABLE applications (
   -- Applicant PII (encrypted at rest)
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
-  ssn_encrypted TEXT NOT NULL,
-  ssn_hash VARCHAR(64) NOT NULL,
-  date_of_birth_encrypted TEXT NOT NULL,
+  -- Required at submit-time (validated in ApplicationService.create), but
+  -- NULL during the draft phase: applicant self-serve creates a draft row
+  -- from /intent and /claim-unit/:id before SSN/DOB are collected.
+  ssn_encrypted TEXT,
+  ssn_hash VARCHAR(64),
+  date_of_birth_encrypted TEXT,
   email VARCHAR(255),
   phone VARCHAR(20),
 
