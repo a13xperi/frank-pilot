@@ -28,6 +28,33 @@ const registerLimiter = rateLimit({
   message: { error: "Too many requests, try again in a minute" },
 });
 
+// Per-user limiters for the authenticated unit-claim flow (B3). Keyed by the
+// authenticated user id (populated by `authenticate`); falls back to a shared
+// "anon" bucket if the limiter ever runs before auth (should not happen given
+// the middleware chain below, but is defensively safe).
+const userKey = (req: Request): string => (req as AuthRequest).user?.id ?? "anon";
+
+// Browsing the catalog — looser ceiling to allow legitimate window-shopping.
+const unitBrowseLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  keyGenerator: userKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, slow down" },
+});
+
+// Shared bucket across the three write actions (intent / claim / release) —
+// tighter ceiling to mitigate claim-spam and intent-spam from a single user.
+const unitWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: userKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, slow down" },
+});
+
 // Public: register as an applicant. Idempotent — if the email already exists as
 // an applicant, we reissue a magic link instead of erroring (no email enumeration).
 router.post("/register", registerLimiter, async (req: Request, res: Response): Promise<void> => {
@@ -177,6 +204,7 @@ router.post(
   "/intent",
   authenticate,
   requireEmailVerified,
+  unitWriteLimiter,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
@@ -290,6 +318,7 @@ router.get(
   "/units",
   authenticate,
   requireEmailVerified,
+  unitBrowseLimiter,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
@@ -352,6 +381,7 @@ router.post(
   "/claim-unit/:id",
   authenticate,
   requireEmailVerified,
+  unitWriteLimiter,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
@@ -487,6 +517,7 @@ router.delete(
   "/claim-unit",
   authenticate,
   requireEmailVerified,
+  unitWriteLimiter,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
