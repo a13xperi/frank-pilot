@@ -207,8 +207,10 @@ export function Application() {
         <StatusPill status={app.status} />
       </div>
 
-      {/* Claimed unit (draft only — when an applicant has held a unit) */}
-      {app.claimed_unit && app.claim_expires_at && (
+      {/* Claimed unit — only relevant while the app is a draft. Once
+          submitted the hold is locked in via unit_number on the application,
+          and showing a 48h countdown timer would be misleading. */}
+      {app.status === 'draft' && app.claimed_unit && app.claim_expires_at && (
         <ClaimedUnitCard
           unit={app.claimed_unit}
           expiresAt={app.claim_expires_at}

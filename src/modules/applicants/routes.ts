@@ -545,7 +545,10 @@ router.get("/me/applications", authenticate, requireEmailVerified, async (req: A
     const result = await query(
       `SELECT a.id, a.first_name, a.last_name, a.email, a.status, a.submitted_at,
               a.created_at, a.property_id, a.unit_number, a.overall_screening_result,
-              a.requested_rent_amount, p.name AS property_name
+              a.requested_rent_amount,
+              a.intent_bedrooms, a.intent_budget_min, a.intent_budget_max,
+              a.intent_move_in_date, a.intent_household_size,
+              p.name AS property_name
        FROM user_applications ua
        JOIN applications a ON a.id = ua.application_id
        JOIN properties p ON p.id = a.property_id
