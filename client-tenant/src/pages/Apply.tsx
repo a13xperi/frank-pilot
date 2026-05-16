@@ -33,6 +33,9 @@ const BEDROOM_OPTIONS: Array<{ value: number; label: string }> = [
   { value: 3, label: '3 BR' },
   { value: 4, label: '4+ BR' },
 ];
+// The highest option uses "N+" semantics — it should match any unit with at
+// least that many bedrooms. Anything below is an exact bedroom-count match.
+const BEDROOMS_INCLUSIVE_MIN = BEDROOM_OPTIONS[BEDROOM_OPTIONS.length - 1].value;
 
 export function Apply() {
   const navigate = useNavigate();
@@ -177,7 +180,9 @@ export function Apply() {
       setError(null);
       try {
         const res = await fetchUnits({
-          bedrooms: intentBedrooms,
+          ...(intentBedrooms >= BEDROOMS_INCLUSIVE_MIN
+            ? { bedroomsMin: intentBedrooms }
+            : { bedrooms: intentBedrooms }),
           maxRent: intentBudgetMax,
           moveInBy: intentMoveInDate,
         });

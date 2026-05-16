@@ -185,6 +185,40 @@ describe("GET /applicants/units", () => {
     expect(sql).toContain("LIMIT 12");
   });
 
+  // Regression for bug_010 (issue #19): the "4+ BR" filter sends bedrooms=4
+  // and previously matched u.bedrooms = $1 — meaning a 5BR or 6BR unit would
+  // silently fail the filter. New contract: callers send bedroomsMin for
+  // inclusive semantics, and it wins if both are sent.
+  it("uses inclusive >= when bedroomsMin is provided", async () => {
+    mockUsersRow(applicant, VERIFIED_AT);
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    const token = generateToken(applicant);
+    const res = await request(app)
+      .get("/applicants/units?bedroomsMin=4")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const sql = mockQuery.mock.calls[1][0] as string;
+    const params = mockQuery.mock.calls[1][1] as unknown[];
+    expect(sql).toContain("u.bedrooms >= $1");
+    expect(sql).not.toMatch(/u\.bedrooms = \$/);
+    expect(params).toEqual([4]);
+  });
+
+  it("bedroomsMin wins over bedrooms when both are sent", async () => {
+    mockUsersRow(applicant, VERIFIED_AT);
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    const token = generateToken(applicant);
+    const res = await request(app)
+      .get("/applicants/units?bedrooms=2&bedroomsMin=4")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const sql = mockQuery.mock.calls[1][0] as string;
+    const params = mockQuery.mock.calls[1][1] as unknown[];
+    expect(sql).toContain("u.bedrooms >= $1");
+    expect(sql).not.toMatch(/u\.bedrooms = \$/);
+    expect(params).toEqual([4]);
+  });
+
   it("ignores malformed propertyId (no SQL injection vector)", async () => {
     mockUsersRow(applicant, VERIFIED_AT);
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);

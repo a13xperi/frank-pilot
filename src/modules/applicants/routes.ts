@@ -190,13 +190,16 @@ router.get("/properties", async (_req: Request, res: Response): Promise<void> =>
   }
 });
 
+// Intent quiz captures applicant preferences only — property_id is not part
+// of the quiz. The picker step (next) is what locks the applicant onto a
+// specific unit (and therefore property) via /claim-unit/:id. Accepting
+// property_id here would let a stale UI overwrite the claimed property.
 const intentSchema = z.object({
   bedrooms: z.number().int().min(0).max(6),
   budget_min: z.number().min(0).max(20000).optional(),
   budget_max: z.number().min(0).max(20000),
   move_in_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   household_size: z.number().int().min(1).max(12),
-  property_id: z.string().uuid().optional(),
 });
 
 // Save the 5-question intent quiz onto the user's draft application.
@@ -242,7 +245,6 @@ router.post(
                     intent_budget_max = $4,
                     intent_move_in_date = $5,
                     intent_household_size = $6,
-                    property_id = COALESCE($7, property_id),
                     updated_at = NOW()
               WHERE id = $1`,
             [
@@ -252,22 +254,19 @@ router.post(
               intent.budget_max,
               intent.move_in_date,
               intent.household_size,
-              intent.property_id ?? null,
             ]
           );
         } else {
-          // Pick a property for the draft FK if the applicant didn't choose one.
-          // Any active property works — they'll narrow via the unit picker.
-          let propertyId = intent.property_id ?? null;
-          if (!propertyId) {
-            const fallback = await client.query(
-              `SELECT id FROM properties ORDER BY name ASC LIMIT 1`
-            );
-            if (fallback.rows.length === 0) {
-              throw new Error("NO_PROPERTIES_AVAILABLE");
-            }
-            propertyId = fallback.rows[0].id;
+          // No draft yet — pick any active property for the FK. The applicant
+          // narrows down via the unit picker, and /claim-unit/:id updates
+          // applications.property_id to whichever unit they actually claim.
+          const fallback = await client.query(
+            `SELECT id FROM properties ORDER BY name ASC LIMIT 1`
+          );
+          if (fallback.rows.length === 0) {
+            throw new Error("NO_PROPERTIES_AVAILABLE");
           }
+          const propertyId = fallback.rows[0].id;
 
           const insert = await client.query(
             `INSERT INTO applications (
@@ -329,6 +328,8 @@ router.get(
       }
 
       const bedrooms = req.query.bedrooms !== undefined ? Number(req.query.bedrooms) : undefined;
+      const bedroomsMin =
+        req.query.bedroomsMin !== undefined ? Number(req.query.bedroomsMin) : undefined;
       const maxRent = req.query.maxRent !== undefined ? Number(req.query.maxRent) : undefined;
       const moveInBy = typeof req.query.moveInBy === "string" ? req.query.moveInBy : undefined;
       const propertyId = typeof req.query.propertyId === "string" ? req.query.propertyId : undefined;
@@ -338,7 +339,14 @@ router.get(
       ];
       const params: unknown[] = [];
 
-      if (bedrooms !== undefined && Number.isFinite(bedrooms)) {
+      // `bedroomsMin` is inclusive — used by the "N+ BR" filter option so the
+      // user actually sees units at higher bedroom counts. Falls back to
+      // `bedrooms` (exact match) when callers want a single bedroom count.
+      // `bedroomsMin` wins if both are sent.
+      if (bedroomsMin !== undefined && Number.isFinite(bedroomsMin)) {
+        params.push(bedroomsMin);
+        conditions.push(`u.bedrooms >= $${params.length}`);
+      } else if (bedrooms !== undefined && Number.isFinite(bedrooms)) {
         params.push(bedrooms);
         conditions.push(`u.bedrooms = $${params.length}`);
       }
