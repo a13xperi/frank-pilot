@@ -1,0 +1,18 @@
+{
+  "name": "Universal Housing",
+  "short_name": "Universal Housing",
+  "description": "Affordable housing made simple — Las Vegas.",
+  "start_url": "/uh-demo/",
+  "scope": "/uh-demo/",
+  "id": "/uh-demo/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF7F0",
+  "theme_color": "#FBF7F0",
+  "lang": "en-US",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
