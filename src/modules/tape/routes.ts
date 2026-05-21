@@ -84,4 +84,55 @@ router.post("/welcome-accept", beaconLimiter, async (req: Request, res: Response
   }
 });
 
+// BP-03b.1 Payment Wizard scaffold beacons.
+// Frozen Contract 4:
+//   POST /api/tape/payment-init    → bp03b.payment_initiated   (HUD 4350.3 Ch. 4-6)
+//   POST /api/tape/payment-success → bp03b.payment_succeeded   (HUD 4350.3 Ch. 4-6)
+// Both accept { session_id, adults, total } and are idempotent per (kind, session_id).
+// BP-08 owns real Stripe wiring; this is scaffold-only.
+const paymentBeaconSchema = z.object({
+  session_id: z.string().min(1).max(128),
+  adults: z.number().int().nonnegative().optional(),
+  total: z.number().nonnegative().optional(),
+});
+
+function makePaymentBeacon(kindKey: "BP03B_PAYMENT_INITIATED" | "BP03B_PAYMENT_SUCCEEDED", label: string) {
+  return async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Reject early on missing or non-string session_id with explicit 400.
+      if (!req.body || typeof req.body.session_id !== "string" || req.body.session_id.length === 0) {
+        res.status(400).json({ error: "session_id is required" });
+        return;
+      }
+      const parsed = paymentBeaconSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Validation failed" });
+        return;
+      }
+      const record = await stampTape({
+        kind: kindKey,
+        actor: "tenant",
+        payload: {
+          adults: parsed.data.adults ?? null,
+          total: parsed.data.total ?? null,
+        },
+        sessionId: parsed.data.session_id,
+      });
+      // Idempotent: stampTape returns null on dedupe hit; treat both as 200.
+      res.status(200).json({
+        ok: true,
+        kind: TAPE_STAMP_KINDS[kindKey],
+        session_id: parsed.data.session_id,
+        idempotent: record === null,
+      });
+    } catch (err) {
+      logger.error(`${label} beacon failed`, { error: (err as Error).message });
+      res.status(500).json({ error: "Beacon failed" });
+    }
+  };
+}
+
+router.post("/payment-init", beaconLimiter, makePaymentBeacon("BP03B_PAYMENT_INITIATED", "payment-init"));
+router.post("/payment-success", beaconLimiter, makePaymentBeacon("BP03B_PAYMENT_SUCCEEDED", "payment-success"));
+
 export default router;
