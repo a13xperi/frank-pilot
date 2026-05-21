@@ -758,6 +758,8 @@ CREATE TABLE application_messages (
 );
 CREATE INDEX idx_application_messages_app_created
   ON application_messages(application_id, created_at DESC);
+CREATE INDEX idx_application_messages_sender
+  ON application_messages(sender_user_id);
 
 -- Audit Log (immutable, append-only)
 CREATE TABLE audit_log (
