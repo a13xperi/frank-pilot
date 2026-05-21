@@ -157,5 +157,36 @@
     "totalDue": "Total",
     "disclaimer": "Tarifa no reembolsable. Reservas tu lugar al pagar.",
     "cta": "Continuar al pago · {{total}} →"
+  },
+  "payment": {
+    "title": "Pago seguro",
+    "subtitle": "Procesado de forma segura. Tu información está cifrada.",
+    "payingFor": "Pagando por",
+    "cardName": "Nombre en la tarjeta",
+    "cardNumber": "Número de tarjeta",
+    "exp": "Vence",
+    "cvv": "CVV",
+    "zip": "Código postal",
+    "payCta": "Pagar",
+    "processing": "Procesando…",
+    "encrypted": "🔒 Cifrado · PCI-DSS",
+    "error": "El pago falló. Intenta de nuevo.",
+    "retry": "Reintentar"
+  },
+  "confirm": {
+    "title": "¡Solicitud iniciada!",
+    "subtitle": "Te enviaremos el siguiente paso por email y SMS.",
+    "paid": "Pagado",
+    "ref": "Referencia",
+    "refMissing": "—",
+    "queue": "Posición en cola",
+    "positionConfirmed": "posición confirmada",
+    "whatsNextTitle": "¿Qué sigue?",
+    "nextSteps": [
+      "Sube tus documentos (5 archivos, < 120 días).",
+      "Un Property Manager revisa tu solicitud en 2–3 días hábiles.",
+      "Firmas tu contrato y addenda por DocuSign."
+    ],
+    "toDashboard": "Ir a mi panel →"
   }
 }
