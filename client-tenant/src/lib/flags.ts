@@ -26,7 +26,11 @@ const ENV_RAW: Readonly<Record<FlagName, string | undefined>> = {
 };
 
 export function useFlag(name: FlagName): boolean {
-  const raw = ENV_RAW[name];
+  // Trim whitespace — the Vercel CLI's `echo "true" | vercel env add` flow
+  // stores values with a trailing newline. Without `.trim()`, "true\n" !==
+  // "true" and a default-off flag would stay pinned OFF even when explicitly
+  // set to true in the dashboard.
+  const raw = ENV_RAW[name]?.trim();
   if (DEFAULT_OFF.has(name)) return raw === 'true';
   return raw !== 'false';
 }
