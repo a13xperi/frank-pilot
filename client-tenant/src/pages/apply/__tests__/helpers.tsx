@@ -43,6 +43,10 @@ export function makeState(overrides: Partial<ApplyState> = {}): ApplyState {
     employerName: '', setEmployerName: noop, annualIncome: '', setAnnualIncome: noop,
     householdSize: '1', setHouseholdSize: noop, moveInDate: '', setMoveInDate: noop,
     done: false, setDone: noop,
+    // Contract 2 — wizard slice
+    adults: 1, setAdults: noop,
+    paymentTotal: '$71.90',
+    paymentRef: null, setPaymentRef: noop,
     ...overrides,
   };
   return base;

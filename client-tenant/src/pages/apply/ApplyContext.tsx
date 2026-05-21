@@ -1,7 +1,60 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Unit } from '@/api/units';
 
-export type Step = 1 | 'verify' | 'intent' | 'checklist' | 'pick' | 'claim' | 2;
+// FROZEN CONTRACT 1 — step-key union, in order:
+// 1 · verify · intent · checklist · pick · claim · review · household · payment · 2 · confirm
+// `claim → review` is the wedge point. `2` stays after `payment`. `confirm` is terminal.
+export type Step =
+  | 1
+  | 'verify'
+  | 'intent'
+  | 'checklist'
+  | 'pick'
+  | 'claim'
+  | 'review'
+  | 'household'
+  | 'payment'
+  | 2
+  | 'confirm';
+
+// FROZEN CONTRACT 2 — payment wizard fields, persisted to sessionStorage.
+const SESSION_KEY = 'frank_apply_state';
+
+export function formatPaymentTotal(adults: number): string {
+  return (35.95 * (adults + 1)).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  });
+}
+
+interface WizPersisted {
+  adults: number;
+  paymentRef: string | null;
+}
+
+function readPersisted(): WizPersisted {
+  if (typeof window === 'undefined') return { adults: 1, paymentRef: null };
+  try {
+    const raw = window.sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return { adults: 1, paymentRef: null };
+    const parsed = JSON.parse(raw) as Partial<WizPersisted>;
+    return {
+      adults: typeof parsed.adults === 'number' ? parsed.adults : 1,
+      paymentRef: typeof parsed.paymentRef === 'string' ? parsed.paymentRef : null,
+    };
+  } catch {
+    return { adults: 1, paymentRef: null };
+  }
+}
+
+function writePersisted(data: WizPersisted) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
+  } catch {
+    /* sessionStorage may be unavailable; ignore */
+  }
+}
 
 export interface ApplyState {
   step: Step;
@@ -57,6 +110,11 @@ export interface ApplyState {
   moveInDate: string; setMoveInDate: (v: string) => void;
 
   done: boolean; setDone: (b: boolean) => void;
+
+  // FROZEN CONTRACT 2 — payment wizard
+  adults: number; setAdults: (n: number) => void;
+  paymentTotal: string; // computed from adults; not settable directly
+  paymentRef: string | null; setPaymentRef: (v: string | null) => void;
 }
 
 const Ctx = createContext<ApplyState | null>(null);
@@ -69,4 +127,24 @@ export function useApply(): ApplyState {
   const v = useContext(Ctx);
   if (!v) throw new Error('useApply must be used inside ApplyProvider');
   return v;
+}
+
+// Hook for callers (Apply.tsx) to build the wiz slice with sessionStorage persistence.
+// Returned object: { adults, setAdults, paymentTotal, paymentRef, setPaymentRef }.
+export function useWizState() {
+  const initial = readPersisted();
+  const [adults, setAdultsRaw] = useState<number>(initial.adults);
+  const [paymentRef, setPaymentRefRaw] = useState<string | null>(initial.paymentRef);
+
+  useEffect(() => {
+    writePersisted({ adults, paymentRef });
+  }, [adults, paymentRef]);
+
+  return {
+    adults,
+    setAdults: setAdultsRaw,
+    paymentTotal: formatPaymentTotal(adults),
+    paymentRef,
+    setPaymentRef: setPaymentRefRaw,
+  };
 }

@@ -8,7 +8,12 @@ const LABEL_KEYS: Record<ApplyStepKey, string> = {
   checklist: 'checklist.title',
   pick: 'pick.title',
   claim: 'claim.continue',
+  // Lane W payment-wizard steps (i18n strings supplied by W2/W3).
+  review: 'review.title',
+  household: 'household.title',
+  payment: 'payment.title',
   details: 'details.title',
+  confirm: 'confirm.title',
 };
 
 export function StepIndicator() {
