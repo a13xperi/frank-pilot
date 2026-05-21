@@ -1,5 +1,6 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requirePermission } from "../../middleware/rbac";
 import { buildPropertyScope } from "../../middleware/scope";
@@ -13,6 +14,33 @@ const service = new MessagesService();
 
 const bodySchema = z.object({
   body: z.string().trim().min(1).max(4000),
+});
+
+// Per-user limiters for the authenticated messaging surface. Keyed on the
+// authenticated user id (populated by `authenticate`); falls back to a shared
+// "anon" bucket if the limiter ever runs before auth (defensive — the chain
+// below always runs authenticate first).
+const userKey = (req: Request): string => (req as AuthRequest).user?.id ?? "anon";
+
+// Posting a message — tighter cap to mitigate spam from a single account.
+const messageWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: userKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, slow down" },
+});
+
+// Marking a message read — looser, because the staff UI auto-fires this on
+// view of unread applicant/tenant messages.
+const messageReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  keyGenerator: userKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, slow down" },
 });
 
 /**
@@ -74,6 +102,7 @@ router.get(
 router.post(
   "/:id/messages",
   authenticate,
+  messageWriteLimiter,
   requirePermission("application:read"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -109,6 +138,7 @@ router.post(
 router.post(
   "/:id/messages/:msgId/read",
   authenticate,
+  messageReadLimiter,
   requirePermission("application:read"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -117,6 +147,7 @@ router.post(
       if (!(await assertStaffCanAccessApplication(req, res, applicationId))) return;
 
       const ok = await service.markRead({
+        applicationId,
         messageId,
         readerUserId: req.user!.id,
         readerRole: "staff",
