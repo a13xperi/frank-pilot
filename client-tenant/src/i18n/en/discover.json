@@ -1,0 +1,13 @@
+{
+  "title": "Browse homes",
+  "filter": {
+    "bedrooms": "Bedrooms",
+    "rent": "Rent",
+    "any": "Any"
+  },
+  "property": {
+    "amenities": "Amenities",
+    "unitsAvailable": "{{count}} units available",
+    "waitlistOnly": "Waitlist only"
+  }
+}

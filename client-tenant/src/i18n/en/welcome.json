@@ -1,0 +1,13 @@
+{
+  "title": "Welcome",
+  "subtitle": "Find a home that fits.",
+  "cta": {
+    "browse": "Browse homes",
+    "start": "Start application"
+  },
+  "disclosure": {
+    "fairHousing": "Equal Housing Opportunity. We comply with all applicable fair housing laws.",
+    "lihtc": "This property participates in the Low-Income Housing Tax Credit program.",
+    "acknowledge": "I understand"
+  }
+}

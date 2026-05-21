@@ -1,0 +1,16 @@
+{
+  "title": "Solicitar",
+  "steps": {
+    "register": "Crea tu cuenta",
+    "verify": "Verifica tu correo",
+    "intent": "Cuéntanos qué necesitas",
+    "checklist": "Lo que necesitarás",
+    "pick": "Elige una unidad",
+    "claim": "Confirma tu elección",
+    "details": "Ingresos y hogar"
+  },
+  "fee": {
+    "amount": "$35.95",
+    "label": "Cuota de solicitud"
+  }
+}

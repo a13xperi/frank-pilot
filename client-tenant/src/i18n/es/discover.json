@@ -1,0 +1,13 @@
+{
+  "title": "Buscar viviendas",
+  "filter": {
+    "bedrooms": "Dormitorios",
+    "rent": "Renta",
+    "any": "Cualquiera"
+  },
+  "property": {
+    "amenities": "Comodidades",
+    "unitsAvailable": "{{count}} unidades disponibles",
+    "waitlistOnly": "Solo lista de espera"
+  }
+}

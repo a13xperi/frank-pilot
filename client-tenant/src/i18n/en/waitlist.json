@@ -1,0 +1,6 @@
+{
+  "title": "You're on the list",
+  "position": "#{{position}} of {{total}}",
+  "fasterList": "Get on more lists to move faster",
+  "magicLinkSent": "Check your email — we sent you a link."
+}
