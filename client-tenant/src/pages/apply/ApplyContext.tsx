@@ -39,6 +39,10 @@ interface WizPersisted {
   qualifyingAmiTier: AmiTier | null;
   qualifyingAmiCalculatedAt: string | null;
   qualifyingHouseholdSize: number | null;
+  // Welcome→apply handoff: bedroom + household size must survive the
+  // /auth/callback route hop (Apply unmounts during verify).
+  intentBedrooms: number | null;
+  intentHouseholdSize: number;
 }
 
 const DEFAULTS: WizPersisted = {
@@ -48,6 +52,8 @@ const DEFAULTS: WizPersisted = {
   qualifyingAmiTier: null,
   qualifyingAmiCalculatedAt: null,
   qualifyingHouseholdSize: null,
+  intentBedrooms: null,
+  intentHouseholdSize: 1,
 };
 
 const TIER_SET: ReadonlySet<AmiTier> = new Set(['30', '50', '60', '80']);
@@ -76,6 +82,12 @@ function readPersisted(): WizPersisted {
         typeof parsed.qualifyingHouseholdSize === 'number'
           ? parsed.qualifyingHouseholdSize
           : null,
+      intentBedrooms:
+        typeof parsed.intentBedrooms === 'number' ? parsed.intentBedrooms : null,
+      intentHouseholdSize:
+        typeof parsed.intentHouseholdSize === 'number' && parsed.intentHouseholdSize >= 1
+          ? parsed.intentHouseholdSize
+          : DEFAULTS.intentHouseholdSize,
     };
   } catch {
     return { ...DEFAULTS };
@@ -189,6 +201,10 @@ export function useWizState() {
   const [qualifyingHouseholdSize, setQualifyingHouseholdSizeRaw] = useState<number | null>(
     initial.qualifyingHouseholdSize,
   );
+  const [intentBedrooms, setIntentBedroomsRaw] = useState<number | null>(initial.intentBedrooms);
+  const [intentHouseholdSize, setIntentHouseholdSizeRaw] = useState<number>(
+    initial.intentHouseholdSize,
+  );
 
   useEffect(() => {
     writePersisted({
@@ -198,6 +214,8 @@ export function useWizState() {
       qualifyingAmiTier,
       qualifyingAmiCalculatedAt,
       qualifyingHouseholdSize,
+      intentBedrooms,
+      intentHouseholdSize,
     });
   }, [
     adults,
@@ -206,6 +224,8 @@ export function useWizState() {
     qualifyingAmiTier,
     qualifyingAmiCalculatedAt,
     qualifyingHouseholdSize,
+    intentBedrooms,
+    intentHouseholdSize,
   ]);
 
   return {
@@ -222,5 +242,9 @@ export function useWizState() {
     setQualifyingAmiCalculatedAt: setQualifyingAmiCalculatedAtRaw,
     qualifyingHouseholdSize,
     setQualifyingHouseholdSize: setQualifyingHouseholdSizeRaw,
+    intentBedrooms,
+    setIntentBedrooms: setIntentBedroomsRaw,
+    intentHouseholdSize,
+    setIntentHouseholdSize: setIntentHouseholdSizeRaw,
   };
 }
