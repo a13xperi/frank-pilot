@@ -397,6 +397,12 @@ CREATE TABLE applications (
   intent_move_in_date DATE,
   intent_household_size INTEGER,
 
+  -- W0 AMI pre-qualifier (computed in StepIntent from income + HH size)
+  gross_annual_income DECIMAL(12,2),
+  qualifying_ami_tier VARCHAR(3),
+  qualifying_household_size INTEGER,
+  qualifying_ami_calculated_at TIMESTAMPTZ,
+
   -- Unit claim (soft reservation while applicant completes the application)
   claimed_unit_id UUID,
   claim_expires_at TIMESTAMPTZ,
