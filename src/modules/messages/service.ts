@@ -83,17 +83,23 @@ export class MessagesService {
    * Mark a message as read by the recipient. Senders may not mark their
    * own messages as read. Returns true if a row was updated.
    *
+   * The applicationId scope on the UPDATE closes the IDOR window where a
+   * route handler verifies ownership of the URL applicationId but the
+   * service-layer mutation only filtered on id — letting an attacker who
+   * owned any one application flip read_at on a foreign message by URL
+   * mismatch. See PR follow-up P0 #1.
+   *
    * Allowed pairings:
    *   - reader is 'staff' AND sender_role is 'applicant'|'tenant'
    *   - reader is 'applicant'|'tenant' AND sender_role is 'staff'
    */
   async markRead(input: {
+    applicationId: string;
     messageId: string;
     readerUserId: string;
     readerRole: SenderRole;
   }): Promise<boolean> {
     const isReaderStaff = input.readerRole === "staff";
-    // Recipient pairing predicate
     const senderRoleCondition = isReaderStaff
       ? "sender_role IN ('applicant','tenant')"
       : "sender_role = 'staff'";
@@ -102,11 +108,12 @@ export class MessagesService {
       `UPDATE application_messages
          SET read_at = NOW()
        WHERE id = $1
+         AND application_id = $2
          AND read_at IS NULL
-         AND sender_user_id <> $2
+         AND sender_user_id <> $3
          AND ${senderRoleCondition}
        RETURNING id`,
-      [input.messageId, input.readerUserId]
+      [input.messageId, input.applicationId, input.readerUserId]
     );
     return result.rowCount! > 0;
   }

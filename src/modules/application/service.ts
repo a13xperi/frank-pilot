@@ -278,6 +278,7 @@ export class ApplicationService {
         `SELECT a.id, a.first_name, a.last_name, a.email, a.phone, a.status,
                 a.submitted_at, a.created_at, a.property_id, a.unit_number,
                 a.overall_screening_result, a.requested_rent_amount,
+                a.qualifying_ami_tier,
                 p.name as property_name
          FROM applications a
          JOIN properties p ON a.property_id = p.id

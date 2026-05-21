@@ -1,11 +1,13 @@
 import { Router, Response } from "express";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import {
   requireTenantRole,
   scopeToOwnApplications,
   ScopedAuthRequest,
   assertApplicationOwnership,
+  requireEmailVerified,
 } from "../../middleware/scope";
 import { query } from "../../config/database";
 import { LedgerService } from "../ledger/service";
@@ -18,6 +20,26 @@ const router: Router = Router();
 const ledger = new LedgerService();
 const maintenance = new MaintenanceService();
 const messages = new MessagesService();
+
+// Per-user write limiter for tenant messaging. Keyed on the authenticated
+// user id (populated by `authenticate` on the router-level chain).
+const tenantUserKey = (req: any): string => req.user?.id ?? "anon";
+const messageWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: tenantUserKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, slow down" },
+});
+const messageReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  keyGenerator: tenantUserKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, slow down" },
+});
 
 // All tenant routes require auth + applicant/tenant role + scope
 router.use(authenticate, requireTenantRole, scopeToOwnApplications);
@@ -401,6 +423,8 @@ const messageBodySchema = z.object({
 
 router.post(
   "/applications/:applicationId/messages",
+  requireEmailVerified,
+  messageWriteLimiter,
   async (req: AuthRequest, res: Response) => {
     try {
       const applicationId = param(req.params.applicationId);
@@ -438,6 +462,8 @@ router.post(
 // ---------------------------------------------------------------
 router.post(
   "/applications/:applicationId/messages/:msgId/read",
+  requireEmailVerified,
+  messageReadLimiter,
   async (req: AuthRequest, res: Response) => {
     try {
       const applicationId = param(req.params.applicationId);
@@ -446,6 +472,7 @@ router.post(
 
       const readerRole = (req.user!.role === "tenant" ? "tenant" : "applicant") as SenderRole;
       const ok = await messages.markRead({
+        applicationId,
         messageId,
         readerUserId: req.user!.id,
         readerRole,

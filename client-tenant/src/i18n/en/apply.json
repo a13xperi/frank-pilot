@@ -1,0 +1,192 @@
+{
+  "phases": {
+    "account": "Account",
+    "pick": "Pick a unit",
+    "apply": "Apply"
+  },
+  "progress": {
+    "stepLabel": "Step {n} of {total}"
+  },
+  "common": {
+    "back": "Back",
+    "continue": "Continue",
+    "submitting": "Submitting…",
+    "saving": "Saving…",
+    "loading": "Loading…",
+    "signIn": "Sign in",
+    "alreadyHaveAccount": "Already have an account?",
+    "submitted": "Application submitted!",
+    "redirecting": "Redirecting to your application status…"
+  },
+  "register": {
+    "title": "Create your account",
+    "firstName": "First name *",
+    "lastName": "Last name *",
+    "email": "Email *",
+    "phone": "Phone",
+    "phonePlaceholder": "Optional",
+    "submit": "Continue",
+    "submitting": "Creating account…",
+    "error": "Registration failed"
+  },
+  "verify": {
+    "title": "Check your email",
+    "body": "We sent a verification link to {email}. Click it to continue your application. This page will advance automatically.",
+    "resent": "Link resent",
+    "resend": "Resend link",
+    "resending": "Resending…",
+    "devLink": "[Dev] Open magic link",
+    "useDifferent": "Use a different email",
+    "resendError": "Could not resend link"
+  },
+  "intent": {
+    "title": "What are you looking for?",
+    "subtitle": "A few quick questions so we can show you the right units.",
+    "bedrooms": "Bedrooms *",
+    "budget": "Monthly budget:",
+    "moveIn": "Target move-in *",
+    "household": "Household size",
+    "submit": "Show me units",
+    "saveError": "Could not save your preferences",
+    "br": {
+      "studio": "Studio",
+      "1": "1 BR",
+      "2": "2 BR",
+      "3": "3 BR",
+      "4plus": "4+ BR"
+    }
+  },
+  "checklist": {
+    "title": "Before you apply",
+    "subtitle": "Here's what you'll need to finish your application.",
+    "items": {
+      "id": "Government-issued photo ID",
+      "income": "Proof of income (last 2 pay stubs or offer letter)",
+      "ssn": "Social Security Number or ITIN",
+      "refs": "Two prior landlord references (last 3 years)",
+      "household": "Household composition (everyone moving in)"
+    },
+    "fee": {
+      "title": "Application fee",
+      "body": "A $35.95 application fee is required to process your application. This covers credit and background checks."
+    },
+    "rule120": {
+      "title": "120-day rule",
+      "body": "Your application stays active for 120 days. If we can't house you in that window, you'll be invited to refresh and continue."
+    },
+    "continue": "I have these — continue"
+  },
+  "pick": {
+    "title": "Pick your unit",
+    "subtitle": "Claiming a unit holds it for you for 48 hours while you finish your application.",
+    "loading": "Loading units…",
+    "noMatch": "No units match your preferences right now.",
+    "adjust": "Adjust your search",
+    "editPrefs": "← Edit preferences",
+    "claimError": "Could not claim this unit",
+    "loadError": "Could not load units"
+  },
+  "claim": {
+    "yours": "Unit {unitNumber} is yours",
+    "heldUntil": "Held until",
+    "finishBeforeTimer": "Finish your application before the timer runs out to lock it in.",
+    "continue": "Continue your application",
+    "pickDifferent": "Pick a different unit",
+    "noActive": "No active claim — let's pick a unit.",
+    "startOver": "Start over"
+  },
+  "details": {
+    "title": "Application details",
+    "property": "Property *",
+    "propertyPlaceholder": "Property ID (UUID)",
+    "selectProperty": "Select a property…",
+    "loadingProperties": "Loading properties…",
+    "unitNumber": "Unit number",
+    "unitOptional": "Optional",
+    "ssn": "Social Security Number *",
+    "ssnPlaceholder": "XXX-XX-XXXX",
+    "ssnError": "SSN must be XXX-XX-XXXX or 9 digits",
+    "dob": "Date of birth *",
+    "address": "Street address",
+    "city": "City",
+    "state": "State",
+    "zip": "ZIP",
+    "employer": "Employer name",
+    "income": "Annual income ($)",
+    "household": "Household size *",
+    "moveIn": "Requested move-in date",
+    "submit": "Submit application",
+    "submitError": "Application failed"
+  },
+  "fee": {
+    "amount": "$35.95",
+    "label": "Application fee"
+  },
+  "review": {
+    "title": "Confirm what you're applying for",
+    "subtitle": "Review the details before paying. You can edit any field.",
+    "applyingFor": "Applying for",
+    "edit": "edit",
+    "unit": "Unit",
+    "size": "Size",
+    "sqft": "sq ft",
+    "position": "Position",
+    "openVacancy": "Vacancy",
+    "lockedCriteria": "Your locked criteria",
+    "household": "Household of {{count}}",
+    "bed": "BR",
+    "confirmHeader": "Is this what you wanted?",
+    "confirmBody": "Your application and fee are tied exactly to this property and unit type.",
+    "cta": "Yes, continue →",
+    "fallback": {
+      "propertyName": "Selected property",
+      "address": "Address on file",
+      "studio": "Studio"
+    }
+  },
+  "household": {
+    "title": "Who will live here?",
+    "subtitle": "Your application fee (${{fee}} per adult 18+) reserves your spot on the waitlist.",
+    "adultsLabel": "Adults (18+)",
+    "adultsHint": "Each must pay their fee and sign.",
+    "adults": "adults",
+    "increment": "Add adult",
+    "decrement": "Remove adult",
+    "feeCalculator": "Fee calculator",
+    "processing": "Processing (included)",
+    "totalDue": "Total due",
+    "disclaimer": "Fee is non-refundable. Your spot is locked when you pay.",
+    "cta": "Continue to payment · {{total}} →"
+  },
+  "payment": {
+    "title": "Secure payment",
+    "subtitle": "Processed securely. Your info is encrypted.",
+    "payingFor": "Paying for",
+    "cardName": "Cardholder name",
+    "cardNumber": "Card number",
+    "exp": "Expiry",
+    "cvv": "CVV",
+    "zip": "ZIP code",
+    "payCta": "Pay",
+    "processing": "Processing…",
+    "encrypted": "🔒 Encrypted · PCI-DSS",
+    "error": "Payment failed. Please try again.",
+    "retry": "Retry"
+  },
+  "confirm": {
+    "title": "Application started!",
+    "subtitle": "We'll send your next steps by email and SMS.",
+    "paid": "Paid",
+    "ref": "Reference",
+    "refMissing": "—",
+    "queue": "Queue position",
+    "positionConfirmed": "position confirmed",
+    "whatsNextTitle": "What happens next",
+    "nextSteps": [
+      "Upload your documents (5 files, < 120 days).",
+      "A Property Manager reviews your application in 2–3 business days.",
+      "You sign your lease & addenda via DocuSign."
+    ],
+    "toDashboard": "Go to my dashboard →"
+  }
+}

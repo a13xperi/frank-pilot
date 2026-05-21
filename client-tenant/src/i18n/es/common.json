@@ -1,0 +1,20 @@
+{
+  "actions": {
+    "continue": "Continuar",
+    "back": "Atrás",
+    "submit": "Enviar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "next": "Siguiente",
+    "close": "Cerrar"
+  },
+  "states": {
+    "loading": "Cargando…",
+    "error": "Algo salió mal.",
+    "empty": "Aún no hay nada aquí."
+  },
+  "language": {
+    "english": "Inglés",
+    "spanish": "Español"
+  }
+}

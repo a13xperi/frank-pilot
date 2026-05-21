@@ -1,0 +1,20 @@
+{
+  "actions": {
+    "continue": "Continue",
+    "back": "Back",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "next": "Next",
+    "close": "Close"
+  },
+  "states": {
+    "loading": "Loading…",
+    "error": "Something went wrong.",
+    "empty": "Nothing here yet."
+  },
+  "language": {
+    "english": "English",
+    "spanish": "Español"
+  }
+}
