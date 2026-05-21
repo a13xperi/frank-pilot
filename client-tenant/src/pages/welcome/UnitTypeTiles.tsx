@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { HF } from '@/styles/tokens';
 
 export type UnitType = 'STUDIO' | '1BR' | '2BR' | '3BR';
 
@@ -39,29 +40,52 @@ export function UnitTypeTiles({ selected, onSelect }: UnitTypeTilesProps) {
             role="radio"
             aria-checked={active}
             onClick={() => onSelect(type)}
-            className={[
-              'group relative flex flex-col overflow-hidden rounded-xl border text-left transition',
-              'focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2',
-              active
-                ? 'border-emerald-600 ring-2 ring-emerald-600 shadow-md'
-                : 'border-stone-300 hover:border-stone-400',
-            ].join(' ')}
+            className="group relative flex flex-col overflow-hidden text-left transition focus:outline-none"
+            style={{
+              background: HF.paper,
+              border: `1px solid ${active ? HF.accent : HF.border}`,
+              borderRadius: HF.r.lg,
+              boxShadow: active
+                ? `${HF.shadow.md}, 0 0 0 2px ${HF.accent}`
+                : HF.shadow.xs,
+              color: HF.ink,
+              fontFamily: HF.body,
+            }}
           >
             <div
-              className="h-24 w-full bg-stone-200 bg-cover bg-center lg:h-32"
-              style={{ backgroundImage: `url(${PHOTOS[type]})` }}
+              className="h-24 w-full bg-cover bg-center lg:h-32"
+              style={{
+                backgroundImage: `url(${PHOTOS[type]})`,
+                backgroundColor: HF.borderHi,
+              }}
               aria-hidden="true"
             />
             <div className="p-3">
-              <div className="text-sm font-semibold text-stone-900">
+              <div
+                className="text-sm"
+                style={{
+                  fontFamily: HF.display,
+                  fontWeight: 700,
+                  color: HF.ink,
+                }}
+              >
                 {t(`unitTypes.${type}`)}
               </div>
-              <div className="text-xs text-stone-500">
+              <div className="text-xs" style={{ color: HF.ink3 }}>
                 {t(`unitTypes_sub.${type}`)}
               </div>
             </div>
             {active && (
-              <span className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
+              <span
+                className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center text-xs"
+                style={{
+                  background: HF.accent,
+                  color: HF.accentInk,
+                  borderRadius: HF.r.pill,
+                  fontWeight: 700,
+                }}
+                aria-hidden="true"
+              >
                 ✓
               </span>
             )}
