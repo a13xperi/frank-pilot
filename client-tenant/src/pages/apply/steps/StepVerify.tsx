@@ -5,6 +5,7 @@ import { requestMagicLink } from '@/api/auth';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
+import { HF } from '@/styles/tokens';
 
 export function StepVerify() {
   const s = useApply();
@@ -49,15 +50,30 @@ export function StepVerify() {
 
   return (
     <div className="space-y-4 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100">
-        <Mail className="h-6 w-6 text-emerald-700" />
+      <div
+        className="mx-auto flex h-12 w-12 items-center justify-center"
+        style={{ background: HF.sageLo, borderRadius: HF.r.md }}
+      >
+        <Mail className="h-6 w-6" style={{ color: HF.sage }} />
       </div>
-      <h1 className="text-xl font-bold text-gray-900">{t('verify.title')}</h1>
-      <p className="text-sm text-gray-500">
+      <h1
+        className="text-xl font-bold"
+        style={{ fontFamily: HF.display, color: HF.ink }}
+      >
+        {t('verify.title')}
+      </h1>
+      <p className="text-sm" style={{ color: HF.ink3 }}>
         {t('verify.body').replace('{email}', s.email)}
       </p>
       {s.resent && (
-        <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
+        <div
+          className="p-3 text-sm"
+          style={{
+            background: HF.sageLo,
+            color: HF.sage,
+            borderRadius: HF.r.sm,
+          }}
+        >
           {t('verify.resent')}
         </div>
       )}
@@ -67,14 +83,21 @@ export function StepVerify() {
       {s.devLink && (
         <a
           href={s.devLink}
-          className="block rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-center text-sm font-medium text-amber-800 hover:bg-amber-100"
+          className="block px-4 py-2 text-center text-sm font-medium"
+          style={{
+            background: `${HF.warn}14`,
+            color: HF.warn,
+            border: `1px solid ${HF.warn}55`,
+            borderRadius: HF.r.sm,
+          }}
         >
           {t('verify.devLink')}
         </a>
       )}
       <button
         onClick={() => s.setStep(1)}
-        className="text-sm text-gray-500 hover:text-gray-700 hover:underline"
+        className="text-sm hover:underline"
+        style={{ color: HF.ink3 }}
       >
         {t('verify.useDifferent')}
       </button>

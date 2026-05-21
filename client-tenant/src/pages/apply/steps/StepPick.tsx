@@ -4,6 +4,7 @@ import { fetchUnits, claimUnit } from '@/api/units';
 import { UnitCard } from '@/components/UnitCard';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
+import { HF } from '@/styles/tokens';
 
 const BEDROOMS_INCLUSIVE_MIN = 4;
 
@@ -64,17 +65,37 @@ export function StepPick() {
 
   return (
     <>
-      <h1 className="mb-1 text-xl font-bold text-gray-900">{t('pick.title')}</h1>
-      <p className="mb-4 text-sm text-gray-500">{t('pick.subtitle')}</p>
+      <h1
+        className="mb-1 text-xl font-bold"
+        style={{ fontFamily: HF.display, color: HF.ink }}
+      >
+        {t('pick.title')}
+      </h1>
+      <p className="mb-4 text-sm" style={{ color: HF.ink3 }}>{t('pick.subtitle')}</p>
       {s.unitsLoading ? (
-        <div className="flex items-center justify-center py-12 text-gray-400">
+        <div
+          className="flex items-center justify-center py-12"
+          style={{ color: HF.ink3 }}
+        >
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
           {t('pick.loading')}
         </div>
       ) : s.units.length === 0 ? (
-        <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
+        <div
+          className="p-4 text-sm"
+          style={{
+            background: `${HF.warn}14`,
+            color: HF.warn,
+            border: `1px solid ${HF.warn}33`,
+            borderRadius: HF.r.sm,
+          }}
+        >
           {t('pick.noMatch')}{' '}
-          <button onClick={() => s.setStep('intent')} className="font-medium underline">
+          <button
+            onClick={() => s.setStep('intent')}
+            className="font-medium underline"
+            style={{ color: HF.warn }}
+          >
             {t('pick.adjust')}
           </button>
         </div>
@@ -92,7 +113,8 @@ export function StepPick() {
       )}
       <button
         onClick={() => s.setStep('intent')}
-        className="mt-6 text-sm text-gray-500 hover:text-gray-700 hover:underline"
+        className="mt-6 text-sm hover:underline"
+        style={{ color: HF.ink3 }}
       >
         {t('pick.editPrefs')}
       </button>

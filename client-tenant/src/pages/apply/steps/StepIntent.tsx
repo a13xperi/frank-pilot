@@ -4,6 +4,7 @@ import { saveIntent } from '@/api/units';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
+import { HF } from '@/styles/tokens';
 import { formatAmiTier, qualifyAmiTier, type AmiTier } from '@/lib/ami';
 
 const BR_KEYS = ['br.studio', 'br.1', 'br.2', 'br.3', 'br.4plus'] as const;
@@ -19,6 +20,27 @@ const UNIT_TYPE_TO_BEDROOMS: Record<string, number> = {
   '2BR': 2,
   '3BR': 3,
 };
+
+const labelStyle = {
+  display: 'block',
+  marginBottom: 4,
+  fontSize: 13,
+  fontWeight: 500,
+  color: HF.ink,
+  fontFamily: HF.body,
+} as const;
+
+const inputStyle = {
+  width: '100%',
+  borderRadius: HF.r.sm,
+  border: `1px solid ${HF.border}`,
+  padding: '8px 12px',
+  fontSize: 14,
+  background: HF.paper,
+  color: HF.ink,
+  fontFamily: HF.body,
+  outline: 'none',
+} as const;
 
 export function StepIntent() {
   const s = useApply();
@@ -122,32 +144,45 @@ export function StepIntent() {
 
   return (
     <>
-      <h1 className="mb-1 text-xl font-bold text-gray-900">{t('intent.title')}</h1>
-      <p className="mb-4 text-sm text-gray-500">{t('intent.subtitle')}</p>
+      <h1
+        className="mb-1 text-xl font-bold"
+        style={{ fontFamily: HF.display, color: HF.ink }}
+      >
+        {t('intent.title')}
+      </h1>
+      <p className="mb-4 text-sm" style={{ color: HF.ink3 }}>{t('intent.subtitle')}</p>
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="label">{t('intent.bedrooms')}</label>
+          <label style={labelStyle}>{t('intent.bedrooms')}</label>
           <div className="grid grid-cols-5 gap-2">
-            {BR_VALUES.map((val, i) => (
-              <button
-                type="button"
-                key={val}
-                onClick={() => s.setIntentBedrooms(val)}
-                className={`rounded-lg border px-2 py-3 text-sm font-medium transition ${
-                  s.intentBedrooms === val
-                    ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-emerald-400'
-                }`}
-              >
-                {t(`intent.${BR_KEYS[i]}`)}
-              </button>
-            ))}
+            {BR_VALUES.map((val, i) => {
+              const active = s.intentBedrooms === val;
+              return (
+                <button
+                  type="button"
+                  key={val}
+                  onClick={() => s.setIntentBedrooms(val)}
+                  className="px-2 py-3 text-sm transition"
+                  style={{
+                    borderRadius: HF.r.sm,
+                    border: `1px solid ${active ? HF.accent : HF.border}`,
+                    background: active ? HF.accentLo : HF.paper,
+                    color: active ? HF.accentInk : HF.ink,
+                    fontWeight: active ? 600 : 500,
+                    fontFamily: HF.body,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t(`intent.${BR_KEYS[i]}`)}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div>
-          <label className="label" htmlFor="budget">
+          <label style={labelStyle} htmlFor="budget">
             {t('intent.budget')}{' '}
-            <span className="font-semibold text-gray-900">
+            <span style={{ fontWeight: 700, color: HF.ink }}>
               ${s.intentBudgetMax.toLocaleString()}
             </span>
           </label>
@@ -159,29 +194,30 @@ export function StepIntent() {
             step={50}
             value={s.intentBudgetMax}
             onChange={(e) => s.setIntentBudgetMax(Number(e.target.value))}
-            className="w-full accent-emerald-600"
+            className="w-full"
+            style={{ accentColor: HF.accent }}
           />
-          <div className="mt-1 flex justify-between text-xs text-gray-400">
+          <div className="mt-1 flex justify-between text-xs" style={{ color: HF.ink3 }}>
             <span>$500</span>
             <span>$5,000</span>
           </div>
         </div>
         <div>
-          <label className="label" htmlFor="intentMoveIn">{t('intent.moveIn')}</label>
+          <label style={labelStyle} htmlFor="intentMoveIn">{t('intent.moveIn')}</label>
           <input
             id="intentMoveIn"
             type="date"
-            className="input"
+            style={inputStyle}
             required
             value={s.intentMoveInDate}
             onChange={(e) => s.setIntentMoveInDate(e.target.value)}
           />
         </div>
         <div>
-          <label className="label" htmlFor="intentHousehold">{t('intent.household')}</label>
+          <label style={labelStyle} htmlFor="intentHousehold">{t('intent.household')}</label>
           <select
             id="intentHousehold"
-            className="input"
+            style={inputStyle}
             value={s.intentHouseholdSize}
             onChange={(e) => s.setIntentHouseholdSize(Number(e.target.value))}
           >
@@ -191,9 +227,9 @@ export function StepIntent() {
           </select>
         </div>
         <div>
-          <label className="label" htmlFor="intentIncome">
+          <label style={labelStyle} htmlFor="intentIncome">
             Gross annual income (USD)
-            <span className="ml-2 text-xs font-normal text-gray-400">
+            <span className="ml-2 text-xs" style={{ fontWeight: 400, color: HF.ink3 }}>
               Optional — used to pre-qualify you for affordable units.
             </span>
           </label>
@@ -201,7 +237,7 @@ export function StepIntent() {
             id="intentIncome"
             type="text"
             inputMode="numeric"
-            className="input"
+            style={inputStyle}
             placeholder="e.g. 42000"
             value={incomeStr}
             onChange={(e) => setIncomeStr(e.target.value)}
@@ -214,11 +250,11 @@ export function StepIntent() {
             className="mt-2 min-h-[1.25rem] text-xs"
           >
             {incomeNum == null ? null : previewTier ? (
-              <span className="font-medium text-emerald-700">
+              <span style={{ fontWeight: 500, color: HF.sage }}>
                 You qualify for {formatAmiTier(previewTier)} units.
               </span>
             ) : (
-              <span className="font-medium text-amber-700">
+              <span style={{ fontWeight: 500, color: HF.warn }}>
                 Over income for affordable tiers. Market-rate units may still fit.
               </span>
             )}

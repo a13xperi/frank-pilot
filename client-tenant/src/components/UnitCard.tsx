@@ -1,5 +1,7 @@
 import { Bed, Bath, Square } from 'lucide-react';
 import type { Unit } from '@/api/units';
+import { CTA } from '@/components/primitives';
+import { HF } from '@/styles/tokens';
 
 interface Props {
   unit: Unit;
@@ -12,13 +14,34 @@ function formatRent(rent: string | number): string {
   return `$${Math.round(n).toLocaleString()}/mo`;
 }
 
+const chipStyle = {
+  background: HF.cream,
+  color: HF.ink3,
+  border: `1px solid ${HF.border}`,
+  borderRadius: HF.r.pill,
+  padding: '4px 8px',
+  fontFamily: HF.body,
+} as const;
+
 export function UnitCard({ unit, onClaim, claiming }: Props) {
   const photo = unit.photo_url || `https://picsum.photos/seed/${unit.id.slice(0, 8)}/800/600`;
   const location = [unit.property_city, unit.property_state].filter(Boolean).join(', ');
 
   return (
-    <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-      <div className="aspect-[16/9] w-full overflow-hidden bg-gray-100">
+    <div
+      className="overflow-hidden"
+      style={{
+        background: HF.paper,
+        border: `1px solid ${HF.border}`,
+        borderRadius: HF.r.lg,
+        boxShadow: HF.shadow.sm,
+        fontFamily: HF.body,
+      }}
+    >
+      <div
+        className="aspect-[16/9] w-full overflow-hidden"
+        style={{ background: HF.cream }}
+      >
         <img
           src={photo}
           alt={`Unit ${unit.unit_number}`}
@@ -28,39 +51,45 @@ export function UnitCard({ unit, onClaim, claiming }: Props) {
       </div>
       <div className="space-y-3 p-4">
         <div>
-          <h3 className="text-base font-semibold text-gray-900">
+          <h3
+            className="text-base font-semibold"
+            style={{ color: HF.ink, fontFamily: HF.display }}
+          >
             {unit.property_name} · Unit {unit.unit_number}
           </h3>
-          {location && <p className="text-xs text-gray-500">{location}</p>}
+          {location && (
+            <p className="text-xs" style={{ color: HF.ink3 }}>{location}</p>
+          )}
         </div>
 
-        <div className="text-lg font-bold text-emerald-700">{formatRent(unit.monthly_rent)}</div>
+        <div className="text-lg font-bold" style={{ color: HF.accent }}>
+          {formatRent(unit.monthly_rent)}
+        </div>
 
-        <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1">
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="inline-flex items-center gap-1" style={chipStyle}>
             <Bed className="h-3 w-3" />
             {unit.bedrooms === 0 ? 'Studio' : `${unit.bedrooms} bd`}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1">
+          <span className="inline-flex items-center gap-1" style={chipStyle}>
             <Bath className="h-3 w-3" />
             {unit.bathrooms} ba
           </span>
           {unit.sqft != null && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1">
+            <span className="inline-flex items-center gap-1" style={chipStyle}>
               <Square className="h-3 w-3" />
               {unit.sqft} sqft
             </span>
           )}
         </div>
 
-        <button
+        <CTA
           type="button"
           onClick={() => onClaim(unit.id)}
           disabled={claiming}
-          className="btn-primary w-full"
         >
           {claiming ? 'Claiming…' : 'Claim this unit'}
-        </button>
+        </CTA>
       </div>
     </div>
   );
