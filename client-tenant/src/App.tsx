@@ -12,6 +12,8 @@ import { Maintenance } from '@/pages/Maintenance';
 import { Status } from '@/pages/Status';
 import { Application } from '@/pages/Application';
 import { WelcomeShell } from '@/pages/welcome/WelcomeShell';
+import { PropertyList } from '@/pages/discover/PropertyList';
+import { PropertyDetail } from '@/pages/discover/PropertyDetail';
 import { getToken } from '@/api/client';
 
 function RootRedirect() {
@@ -25,6 +27,8 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/welcome" element={<WelcomeShell />} />
       <Route path="/apply" element={<Apply />} />
+      <Route path="/discover" element={<PropertyList />} />
+      <Route path="/property/:slug" element={<PropertyDetail />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/verify-pending" element={<VerifyPending />} />
 
