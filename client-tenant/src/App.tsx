@@ -11,6 +11,7 @@ import { Ledger } from '@/pages/Ledger';
 import { Maintenance } from '@/pages/Maintenance';
 import { Status } from '@/pages/Status';
 import { Application } from '@/pages/Application';
+import { WelcomeShell } from '@/pages/welcome/WelcomeShell';
 import { getToken } from '@/api/client';
 
 function RootRedirect() {
@@ -22,6 +23,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/welcome" element={<WelcomeShell />} />
       <Route path="/apply" element={<Apply />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/verify-pending" element={<VerifyPending />} />
