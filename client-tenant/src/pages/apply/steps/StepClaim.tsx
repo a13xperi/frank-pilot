@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
+import { useFlag } from '@/lib/flags';
 
 export function StepClaim() {
   const s = useApply();
   const { t } = useTranslation('apply');
+  // FROZEN CONTRACT 5 — flag off → ?step=2; flag on → ?step=review (wedge point).
+  const wizardEnabled = useFlag('PAYMENT_WIZARD_ENABLED');
+  const nextStep: 'review' | 2 = wizardEnabled ? 'review' : 2;
 
   if (!s.claimedUnit || !s.claimExpiresAt) {
     return (
@@ -37,7 +41,7 @@ export function StepClaim() {
         </p>
       </div>
       <ClaimCountdown expiresAt={s.claimExpiresAt} />
-      <CTA onClick={() => s.setStep(2)}>{t('claim.continue')}</CTA>
+      <CTA onClick={() => s.setStep(nextStep)}>{t('claim.continue')}</CTA>
       <button
         onClick={() => s.setStep('pick')}
         className="text-sm text-gray-500 hover:text-gray-700 hover:underline"

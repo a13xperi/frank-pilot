@@ -35,3 +35,6 @@ export type { PillProps, PillTone } from './Pill';
 
 export { ListRow } from './ListRow';
 export type { ListRowProps } from './ListRow';
+
+export { PayHeader } from './PayHeader';
+export type { PayHeaderStep, PayHeaderProps } from './PayHeader';

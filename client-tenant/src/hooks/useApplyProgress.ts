@@ -1,6 +1,8 @@
 import { useSearchParams } from 'react-router-dom';
 
-// The 7-step apply flow. Order matters — controls progress index.
+// FROZEN CONTRACT 1 — full apply flow, in order:
+// register · verify · intent · checklist · pick · claim · review · household · payment · details · confirm
+// (details === ?step=2; sits between payment and confirm; confirm is terminal)
 export const APPLY_STEP_KEYS = [
   'register',
   'verify',
@@ -8,7 +10,11 @@ export const APPLY_STEP_KEYS = [
   'checklist',
   'pick',
   'claim',
+  'review',
+  'household',
+  'payment',
   'details',
+  'confirm',
 ] as const;
 
 export type ApplyStepKey = (typeof APPLY_STEP_KEYS)[number];
@@ -26,6 +32,14 @@ function rawToKey(raw: string | null): ApplyStepKey {
       return 'pick';
     case 'claim':
       return 'claim';
+    case 'review':
+      return 'review';
+    case 'household':
+      return 'household';
+    case 'payment':
+      return 'payment';
+    case 'confirm':
+      return 'confirm';
     case '2':
       return 'details';
     default:

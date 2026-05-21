@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import { api } from '@/api/client';
 import { ClaimedUnitHeader } from '@/components/ClaimedUnitHeader';
 import { Card } from '@/components/primitives';
 import { useTranslation } from 'react-i18next';
-import { ApplyProvider, type ApplyState, type Step } from './apply/ApplyContext';
+import {
+  ApplyProvider,
+  useWizState,
+  type ApplyState,
+  type Step,
+} from './apply/ApplyContext';
 import { StepIndicator } from './apply/StepIndicator';
 import { Step1Register } from './apply/steps/Step1Register';
 import { StepVerify } from './apply/steps/StepVerify';
@@ -16,9 +21,28 @@ import { StepClaim } from './apply/steps/StepClaim';
 import { Step2Details } from './apply/steps/Step2Details';
 import type { Unit } from '@/api/units';
 
+// FROZEN CONTRACT 1 — Lane W payment-wizard steps, lazy-loaded.
+// W1 ships placeholder stubs; W2/W3 overwrite the file contents on merge.
+const StepReview = lazy(() => import('./apply/steps/StepReview'));
+const StepHousehold = lazy(() => import('./apply/steps/StepHousehold'));
+const StepPayment = lazy(() => import('./apply/steps/StepPayment'));
+const StepConfirm = lazy(() => import('./apply/steps/StepConfirm'));
+
 function parseStep(raw: string | null): Step {
   if (raw === '2') return 2;
-  if (raw === 'verify' || raw === 'intent' || raw === 'checklist' || raw === 'pick' || raw === 'claim') return raw;
+  if (
+    raw === 'verify' ||
+    raw === 'intent' ||
+    raw === 'checklist' ||
+    raw === 'pick' ||
+    raw === 'claim' ||
+    raw === 'review' ||
+    raw === 'household' ||
+    raw === 'payment' ||
+    raw === 'confirm'
+  ) {
+    return raw;
+  }
   return 1;
 }
 
@@ -80,6 +104,10 @@ export function Apply() {
   const [householdSize, setHouseholdSize] = useState('1');
   const [moveInDate, setMoveInDate] = useState('');
 
+  // FROZEN CONTRACT 2 — wizard state (adults / paymentTotal / paymentRef),
+  // persisted to sessionStorage under key `frank_apply_state`.
+  const wiz = useWizState();
+
   // Hydrate identity + intent prefill on entering intent/checklist/pick/2 (deep links).
   useEffect(() => {
     if (step !== 'intent' && step !== 'checklist' && step !== 'pick' && step !== 2) return;
@@ -131,6 +159,10 @@ export function Apply() {
     dateOfBirth, setDateOfBirth, addressLine1, setAddressLine1, city, setCity, state, setState, zip, setZip,
     employerName, setEmployerName, annualIncome, setAnnualIncome, householdSize, setHouseholdSize, moveInDate, setMoveInDate,
     done, setDone,
+    // Contract 2 — wizard
+    adults: wiz.adults, setAdults: wiz.setAdults,
+    paymentTotal: wiz.paymentTotal,
+    paymentRef: wiz.paymentRef, setPaymentRef: wiz.setPaymentRef,
   };
 
   if (done) {
@@ -171,7 +203,19 @@ export function Apply() {
               {step === 'checklist' && <StepChecklist />}
               {step === 'pick' && <StepPick />}
               {step === 'claim' && <StepClaim />}
+              {step === 'review' && (
+                <Suspense fallback={null}><StepReview /></Suspense>
+              )}
+              {step === 'household' && (
+                <Suspense fallback={null}><StepHousehold /></Suspense>
+              )}
+              {step === 'payment' && (
+                <Suspense fallback={null}><StepPayment /></Suspense>
+              )}
               {step === 2 && <Step2Details />}
+              {step === 'confirm' && (
+                <Suspense fallback={null}><StepConfirm /></Suspense>
+              )}
             </Card>
             <p className="text-center text-sm text-gray-500">
               {t('common.alreadyHaveAccount')}{' '}
