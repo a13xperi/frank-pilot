@@ -31,3 +31,105 @@ jobs:
 
       - name: Run tests
         run: npx jest --passWithNoTests --ci --forceExit
+
+  smoke-apply:
+    name: smoke-apply (Welcome → Claim e2e)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: frank_pilot_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/frank_pilot_smoke
+      NODE_ENV: development
+      PORT: '3002'
+      JWT_SECRET: ci-smoke-secret-do-not-reuse
+      TENANT_PORTAL_URL: http://127.0.0.1:5174
+      CORS_ORIGIN: http://127.0.0.1:5174
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install root deps (backend + smoke script)
+        run: npm ci
+
+      - name: Install client-tenant deps
+        working-directory: client-tenant
+        run: npm install --no-audit --no-fund
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Migrate database
+        run: npm run migrate
+
+      - name: Seed database
+        run: npm run seed
+
+      - name: Start backend
+        run: |
+          mkdir -p /tmp/smoke-logs
+          nohup npm run dev > /tmp/smoke-logs/backend.log 2>&1 &
+          echo $! > /tmp/smoke-logs/backend.pid
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3002/health > /dev/null 2>&1; then
+              echo "backend ready after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "backend failed to come up"; tail -200 /tmp/smoke-logs/backend.log; exit 1
+
+      - name: Start Vite dev server
+        working-directory: client-tenant
+        run: |
+          nohup npx vite --host 127.0.0.1 --port 5174 > /tmp/smoke-logs/vite.log 2>&1 &
+          echo $! > /tmp/smoke-logs/vite.pid
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5174 > /dev/null 2>&1; then
+              echo "vite ready after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "vite failed to come up"; tail -200 /tmp/smoke-logs/vite.log; exit 1
+
+      - name: Run apply smoke
+        env:
+          BASE: http://127.0.0.1:5174
+          OUT: /tmp/qa-apply-handoff
+        run: node scripts/qa-apply-handoff.mjs | tee /tmp/smoke-logs/smoke.log
+
+      - name: Assert no FAIL in smoke output
+        run: |
+          if grep -E "^FAIL " /tmp/smoke-logs/smoke.log; then
+            echo "::error::Apply smoke produced FAIL lines"; exit 1
+          fi
+
+      - name: Upload smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apply-smoke-failure
+          path: |
+            /tmp/qa-apply-handoff
+            /tmp/smoke-logs
+          if-no-files-found: warn
+          retention-days: 7
