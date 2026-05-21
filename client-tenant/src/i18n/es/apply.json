@@ -12,5 +12,41 @@
   "fee": {
     "amount": "$35.95",
     "label": "Cuota de solicitud"
+  },
+  "review": {
+    "title": "Confirma tu selección",
+    "subtitle": "Revisa los detalles antes de pagar. Puedes editar cualquier campo.",
+    "applyingFor": "Solicitas",
+    "edit": "editar",
+    "unit": "Unidad",
+    "size": "Tamaño",
+    "sqft": "pies²",
+    "position": "Posición",
+    "openVacancy": "Hay vacancia",
+    "lockedCriteria": "Tus criterios bloqueados",
+    "household": "Hogar de {{count}}",
+    "bed": "RC",
+    "confirmHeader": "¿Es esto lo que querías?",
+    "confirmBody": "Tu solicitud y tarifa están vinculadas exactamente a esta propiedad y unidad.",
+    "cta": "Sí, continuar →",
+    "fallback": {
+      "propertyName": "Propiedad seleccionada",
+      "address": "Dirección registrada",
+      "studio": "Estudio"
+    }
+  },
+  "household": {
+    "title": "¿Quiénes vivirán aquí?",
+    "subtitle": "Tu tarifa de solicitud (${{fee}} por adulto 18+) reserva tu lugar en la lista de espera.",
+    "adultsLabel": "Adultos (18+)",
+    "adultsHint": "Cada uno debe pagar su tarifa y firmar.",
+    "adults": "adultos",
+    "increment": "Agregar adulto",
+    "decrement": "Quitar adulto",
+    "feeCalculator": "Calculadora de tarifa",
+    "processing": "Procesamiento (incluido)",
+    "totalDue": "Total",
+    "disclaimer": "Tarifa no reembolsable. Reservas tu lugar al pagar.",
+    "cta": "Continuar al pago · {{total}} →"
   }
 }

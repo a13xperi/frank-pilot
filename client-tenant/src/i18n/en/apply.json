@@ -12,5 +12,41 @@
   "fee": {
     "amount": "$35.95",
     "label": "Application fee"
+  },
+  "review": {
+    "title": "Confirm what you're applying for",
+    "subtitle": "Review the details before paying. You can edit any field.",
+    "applyingFor": "Applying for",
+    "edit": "edit",
+    "unit": "Unit",
+    "size": "Size",
+    "sqft": "sq ft",
+    "position": "Position",
+    "openVacancy": "Vacancy",
+    "lockedCriteria": "Your locked criteria",
+    "household": "Household of {{count}}",
+    "bed": "BR",
+    "confirmHeader": "Is this what you wanted?",
+    "confirmBody": "Your application and fee are tied exactly to this property and unit type.",
+    "cta": "Yes, continue →",
+    "fallback": {
+      "propertyName": "Selected property",
+      "address": "Address on file",
+      "studio": "Studio"
+    }
+  },
+  "household": {
+    "title": "Who will live here?",
+    "subtitle": "Your application fee (${{fee}} per adult 18+) reserves your spot on the waitlist.",
+    "adultsLabel": "Adults (18+)",
+    "adultsHint": "Each must pay their fee and sign.",
+    "adults": "adults",
+    "increment": "Add adult",
+    "decrement": "Remove adult",
+    "feeCalculator": "Fee calculator",
+    "processing": "Processing (included)",
+    "totalDue": "Total due",
+    "disclaimer": "Fee is non-refundable. Your spot is locked when you pay.",
+    "cta": "Continue to payment · {{total}} →"
   }
 }
