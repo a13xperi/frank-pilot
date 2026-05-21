@@ -100,7 +100,12 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     const link = await createMagicLink(email);
     if (link) logMagicLink(email, link.link);
 
-    logger.info("Applicant registered", { userId, email, isNew, isStaffEmail });
+    // INFO-level payload is deliberately minimal: log-aggregation viewers
+    // (Railway, Datadog, etc.) cannot pivot on userId/isNew/isStaffEmail to
+    // distinguish which /register branch a given email took. Closes INFO-4
+    // fingerprinting from the W6 re-audit (2026-05-14). Per-path detail is
+    // still derivable via DB lookup on `email` for legitimate operator use.
+    logger.info("Register attempt", { email });
 
     // W6: uniform response for all paths — no token or user ever returned from
     // /register. The client must wait for the magic-link click; token+user are
