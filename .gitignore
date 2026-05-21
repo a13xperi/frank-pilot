@@ -11,3 +11,4 @@ logs/
 
 # BP-03b compliance tape stub ledger (runtime data; canonical BP-02 will replace this)
 server/tape/*.ndjson
+.env.production.local

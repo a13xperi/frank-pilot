@@ -148,7 +148,16 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
       ok: true,
       message: "If this email is registered, a verification link has been sent.",
     };
-    if (link && process.env.NODE_ENV === "development") {
+    // In dev we always return the magic link so the post-register "check your
+    // email" banner can surface it. In prod we keep that gate closed (INFO-3:
+    // prevent devLink from leaking in production) UNLESS the operator has
+    // explicitly opted-in via DEMO_LINK_IN_RESPONSE=true. The demo-mode flag
+    // exists to let us walk a stakeholder through the funnel before real
+    // email/SMS delivery is wired; never set it on a tenant-facing deploy.
+    const includeDevLink =
+      process.env.NODE_ENV === "development" ||
+      process.env.DEMO_LINK_IN_RESPONSE === "true";
+    if (link && includeDevLink) {
       payload.devLink = link.link;
     }
     await respondAtFloor(res, t0, 202, payload);
