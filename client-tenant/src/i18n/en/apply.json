@@ -12,5 +12,36 @@
   "fee": {
     "amount": "$35.95",
     "label": "Application fee"
+  },
+  "payment": {
+    "title": "Secure payment",
+    "subtitle": "Processed securely. Your info is encrypted.",
+    "payingFor": "Paying for",
+    "cardName": "Cardholder name",
+    "cardNumber": "Card number",
+    "exp": "Expiry",
+    "cvv": "CVV",
+    "zip": "ZIP code",
+    "payCta": "Pay",
+    "processing": "Processing…",
+    "encrypted": "🔒 Encrypted · PCI-DSS",
+    "error": "Payment failed. Please try again.",
+    "retry": "Retry"
+  },
+  "confirm": {
+    "title": "Application started!",
+    "subtitle": "We'll send your next steps by email and SMS.",
+    "paid": "Paid",
+    "ref": "Reference",
+    "refMissing": "—",
+    "queue": "Queue position",
+    "positionConfirmed": "position confirmed",
+    "whatsNextTitle": "What happens next",
+    "nextSteps": [
+      "Upload your documents (5 files, < 120 days).",
+      "A Property Manager reviews your application in 2–3 business days.",
+      "You sign your lease & addenda via DocuSign."
+    ],
+    "toDashboard": "Go to my dashboard →"
   }
 }
