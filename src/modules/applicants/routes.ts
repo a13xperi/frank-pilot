@@ -7,6 +7,7 @@ import { requireEmailVerified } from "../../middleware/scope";
 import { createMagicLink, logMagicLink } from "../auth/magic-link-service";
 import { ApplicationService } from "../application/service";
 import { createApplicationSchema } from "../application/validation";
+import { stampTape, TAPE_STAMP_KINDS } from "../tape";
 import { logger } from "../../utils/logger";
 
 const router: Router = Router();
@@ -162,6 +163,13 @@ router.post("/apply", authenticate, requireEmailVerified, async (req: AuthReques
       );
     }
 
+    // BP-03b tape stamp: HUD-92006 supplement captured on final apply submit.
+    void stampTape({
+      kind: TAPE_STAMP_KINDS.HUD_92006_SUPPLEMENT_CAPTURED,
+      actor: req.user.id,
+      payload: { application_id: created.id, email: req.user.email },
+    });
+
     res.status(201).json(created);
   } catch (err: any) {
     if (err.name === "ZodError") {
@@ -172,6 +180,31 @@ router.post("/apply", authenticate, requireEmailVerified, async (req: AuthReques
     res.status(500).json({ error: "Failed to submit application" });
   }
 });
+
+// Public-ish: BP-03b waitlist position summary for a property slug.
+// DL2 MVP: hardcoded placeholder shape until the waitlist service lands.
+// `:slug` is currently ignored beyond echoing it back; the picker UI just
+// needs *some* shape to render the "#12 of 38" screen.
+router.get(
+  "/properties/:slug/waitlist-summary",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const slug = String(req.params.slug ?? "");
+      // Placeholder values — real math arrives with BP-04 waitlist scoring.
+      res.json({
+        slug,
+        position: 12,
+        totalQueue: 38,
+        movement: { spotsThisMonth: 3, direction: "up" as const },
+        estimatedWindow: "3–6 months",
+        placeholder: true,
+      });
+    } catch (err) {
+      logger.error("Failed to fetch waitlist summary", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to fetch waitlist summary" });
+    }
+  }
+);
 
 // Public: list of properties an applicant can apply to. Returns minimal
 // public-safe fields only (no compliance metadata, no internal IDs).
@@ -298,6 +331,13 @@ router.post(
         }
 
         return applicationId;
+      });
+
+      // BP-03b tape stamp: Waiting List App Form captured on /intent success.
+      void stampTape({
+        kind: TAPE_STAMP_KINDS.WAITING_LIST_APP_CAPTURED,
+        actor: req.user!.id,
+        payload: { application_id: result, intent },
       });
 
       res.json({ ok: true, application_id: result });
@@ -520,6 +560,20 @@ router.post(
           res.status(409).json({ error: "Unit is no longer available", code: "UNIT_UNAVAILABLE" });
           return;
         }
+      }
+
+      // BP-03b tape stamp: Position Letter sent on successful unit claim
+      // (the carrot — claimed unit pulls applicant through to apply).
+      if ("ok" in result) {
+        void stampTape({
+          kind: TAPE_STAMP_KINDS.POSITION_LETTER_SENT,
+          actor: req.user!.id,
+          payload: {
+            application_id: result.application_id,
+            unit_id: unitId,
+            expires_at: result.expires_at,
+          },
+        });
       }
 
       res.json(result);

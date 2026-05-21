@@ -8,3 +8,6 @@ logs/
 # Ralph AI tool state
 .ralph/
 .ralphrc
+
+# BP-03b compliance tape stub ledger (runtime data; canonical BP-02 will replace this)
+server/tape/*.ndjson

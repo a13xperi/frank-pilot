@@ -11,6 +11,9 @@ import { Ledger } from '@/pages/Ledger';
 import { Maintenance } from '@/pages/Maintenance';
 import { Status } from '@/pages/Status';
 import { Application } from '@/pages/Application';
+import { WaitlistPosition } from '@/pages/waitlist/Position';
+import { WaitlistFasterList } from '@/pages/waitlist/FasterList';
+import { MagicLinkSent } from '@/pages/apply/MagicLinkSent';
 import { getToken } from '@/api/client';
 
 function RootRedirect() {
@@ -23,8 +26,14 @@ export default function App() {
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
       <Route path="/apply" element={<Apply />} />
+      <Route path="/apply/magic-link-sent" element={<MagicLinkSent />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/verify-pending" element={<VerifyPending />} />
+
+      {/* BP-03b — waitlist screens (public; carrot pulls applicant back into flow) */}
+      <Route path="/waitlist/position" element={<WaitlistPosition />} />
+      <Route path="/waitlist/position/:slug" element={<WaitlistPosition />} />
+      <Route path="/waitlist/faster-list" element={<WaitlistFasterList />} />
 
       <Route element={<AuthGuard />}>
         <Route element={<Layout />}>
