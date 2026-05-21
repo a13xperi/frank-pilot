@@ -5,6 +5,8 @@ import {
   type AmiTier,
   type MsaKey,
 } from '@/lib/ami';
+import { CTA } from '@/components/primitives';
+import { HF } from '@/styles/tokens';
 
 export interface AmiCalculatorResult {
   tier: AmiTier | null;
@@ -28,6 +30,23 @@ interface AmiCalculatorProps {
   /** Hides the submit CTA for embedded use (parent owns the CTA). */
   hideCta?: boolean;
 }
+
+const labelSpanStyle = {
+  fontWeight: 500,
+  color: HF.ink,
+  fontFamily: HF.body,
+} as const;
+
+const inputStyle = {
+  borderRadius: HF.r.sm,
+  border: `1px solid ${HF.border}`,
+  padding: '8px 12px',
+  fontSize: 14,
+  background: HF.paper,
+  color: HF.ink,
+  fontFamily: HF.body,
+  outline: 'none',
+} as const;
 
 export function AmiCalculator({
   msa = 'LAS_VEGAS_HENDERSON',
@@ -85,12 +104,21 @@ export function AmiCalculator({
       id={`ami-calc-${formId}`}
       onSubmit={handleSubmit}
       aria-label="AMI eligibility calculator"
-      className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6"
+      className="p-4 sm:p-6"
+      style={{
+        background: HF.paper,
+        border: `1px solid ${HF.border}`,
+        borderRadius: HF.r.md,
+        fontFamily: HF.body,
+      }}
     >
-      <h3 className="text-base font-semibold text-gray-900">
+      <h3
+        className="text-base font-semibold"
+        style={{ color: HF.ink, fontFamily: HF.display }}
+      >
         Am I income-eligible?
       </h3>
-      <p className="mt-1 text-sm text-gray-600">
+      <p className="mt-1 text-sm" style={{ color: HF.ink2 }}>
         Affordable units have an income cap. Answer two questions to see
         which tier you qualify for. We don&apos;t store this unless you apply.
       </p>
@@ -98,7 +126,7 @@ export function AmiCalculator({
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {!embedded && (
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-gray-700">Household size</span>
+            <span style={labelSpanStyle}>Household size</span>
             <input
               type="number"
               min={1}
@@ -107,16 +135,14 @@ export function AmiCalculator({
               required
               value={householdStr}
               onChange={(e) => setHouseholdStr(e.target.value)}
-              className="rounded border border-gray-300 px-3 py-2"
+              style={inputStyle}
               aria-label="Household size"
             />
           </label>
         )}
 
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-gray-700">
-            Gross annual income (USD)
-          </span>
+          <span style={labelSpanStyle}>Gross annual income (USD)</span>
           <input
             type="text"
             inputMode="numeric"
@@ -124,7 +150,7 @@ export function AmiCalculator({
             value={incomeStr}
             onChange={(e) => setIncomeStr(e.target.value)}
             placeholder="e.g. 42000"
-            className="rounded border border-gray-300 px-3 py-2"
+            style={inputStyle}
             aria-label="Gross annual income in US dollars"
             aria-invalid={incomeStr.length > 0 && !inputValid}
           />
@@ -132,27 +158,34 @@ export function AmiCalculator({
       </div>
 
       {!hideCta && (
-        <button
-          type="submit"
-          disabled={!inputValid}
-          className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:bg-gray-300"
-        >
-          Calculate eligibility
-        </button>
+        <div className="mt-4">
+          <CTA type="submit" tone="primary" size="sm" disabled={!inputValid}>
+            Calculate eligibility
+          </CTA>
+        </div>
       )}
 
       {result && (
         <div
           role="status"
           aria-live="polite"
-          className="mt-4 rounded border border-gray-200 bg-gray-50 p-3 text-sm"
+          className="mt-4 p-3 text-sm"
+          style={{
+            background: HF.cream,
+            border: `1px solid ${HF.border}`,
+            borderRadius: HF.r.sm,
+            color: HF.ink2,
+          }}
         >
           {result.tier ? (
             <>
-              <div className="font-semibold text-gray-900">
+              <div
+                className="font-semibold"
+                style={{ color: HF.ink, fontFamily: HF.display }}
+              >
                 You qualify for {formatAmiTier(result.tier)} units
               </div>
-              <p className="mt-1 text-gray-600">
+              <p className="mt-1" style={{ color: HF.ink2 }}>
                 Household of {result.householdSize}, gross income $
                 {result.grossAnnualIncome.toLocaleString('en-US')} —
                 eligible for any unit at or above the {result.tier}% AMI cap.
@@ -160,10 +193,13 @@ export function AmiCalculator({
             </>
           ) : (
             <>
-              <div className="font-semibold text-gray-900">
+              <div
+                className="font-semibold"
+                style={{ color: HF.ink, fontFamily: HF.display }}
+              >
                 Over income for affordable tiers
               </div>
-              <p className="mt-1 text-gray-600">
+              <p className="mt-1" style={{ color: HF.ink2 }}>
                 Your income is above the 80% AMI cap for a household of{' '}
                 {result.householdSize}. Market-rate units may still be a fit.
               </p>
