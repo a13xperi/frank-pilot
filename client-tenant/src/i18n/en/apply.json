@@ -1,0 +1,16 @@
+{
+  "title": "Apply",
+  "steps": {
+    "register": "Create your account",
+    "verify": "Verify your email",
+    "intent": "Tell us what you need",
+    "checklist": "What you'll need",
+    "pick": "Pick a unit",
+    "claim": "Confirm your choice",
+    "details": "Income & household"
+  },
+  "fee": {
+    "amount": "$35.95",
+    "label": "Application fee"
+  }
+}

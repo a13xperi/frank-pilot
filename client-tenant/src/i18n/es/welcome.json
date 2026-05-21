@@ -1,0 +1,13 @@
+{
+  "title": "Bienvenido",
+  "subtitle": "Encuentra un hogar que te quede bien.",
+  "cta": {
+    "browse": "Ver viviendas",
+    "start": "Iniciar solicitud"
+  },
+  "disclosure": {
+    "fairHousing": "Igualdad de Oportunidad en Vivienda. Cumplimos con todas las leyes de vivienda justa aplicables.",
+    "lihtc": "Esta propiedad participa en el programa de Crédito Fiscal por Vivienda de Bajos Ingresos.",
+    "acknowledge": "Entiendo"
+  }
+}

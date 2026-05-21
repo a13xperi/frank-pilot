@@ -1,0 +1,6 @@
+{
+  "title": "Estás en la lista",
+  "position": "#{{position}} de {{total}}",
+  "fasterList": "Únete a más listas para avanzar más rápido",
+  "magicLinkSent": "Revisa tu correo — te enviamos un enlace."
+}
