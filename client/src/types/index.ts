@@ -72,6 +72,9 @@ export interface Application {
   income_verified_at?: string | null;
   onesite_lease_id?: string | null;
   loft_tenant_id?: string | null;
+  // W0 AMI pre-qualifier — set from the apply wizard's income calculator.
+  // Null when the applicant skipped income or is over-income for the 80% tier.
+  qualifying_ami_tier?: '30' | '50' | '60' | '80' | null;
 }
 
 export interface ApplicationListResponse {

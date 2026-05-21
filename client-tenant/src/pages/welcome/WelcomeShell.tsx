@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { HF } from '@/styles/tokens';
+import { CTA } from '@/components/primitives/CTA';
 import { DisclosureSheet } from './DisclosureSheet';
 import {
   WelcomeStateView,
@@ -8,6 +10,7 @@ import {
   type WelcomeState,
 } from './WelcomeStates';
 import type { UnitType } from './UnitTypeTiles';
+import { AmiCalculator, type AmiCalculatorResult } from '@/components/AmiCalculator';
 
 function parseState(raw: string | null): WelcomeState {
   if (raw && (WELCOME_STATES as readonly string[]).includes(raw)) {
@@ -44,6 +47,7 @@ export function WelcomeShell() {
     'donna-louise-2',
   );
   const [disclosureOpen, setDisclosureOpen] = useState(false);
+  const [amiResult, setAmiResult] = useState<AmiCalculatorResult | null>(null);
 
   const canContinue = unitType !== null && selectedPropertyId !== null;
 
@@ -56,41 +60,83 @@ export function WelcomeShell() {
       propertyId: selectedPropertyId,
       state,
     });
+    // Carry W0 prefill into Apply when the calculator has been run. Tier may
+    // legitimately be null (over-income); we still forward income + hh so
+    // StepIntent doesn't re-ask for them.
+    if (amiResult) {
+      qs.set('hh', String(amiResult.householdSize));
+      qs.set('income', String(amiResult.grossAnnualIncome));
+      if (amiResult.tier) qs.set('amiTier', amiResult.tier);
+    }
     navigate(`/apply?${qs.toString()}`);
   };
 
+  const handleAmiResult = (r: AmiCalculatorResult) => {
+    setAmiResult(r);
+  };
+
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div
+      className="min-h-screen"
+      style={{ background: HF.cream, color: HF.ink, fontFamily: HF.body }}
+    >
       {/* Brand header */}
-      <header className="border-b border-stone-200 bg-white px-4 py-3 lg:px-8 lg:py-5">
+      <header
+        className="px-4 py-3 lg:px-8 lg:py-5"
+        style={{
+          background: HF.paper,
+          borderBottom: `1px solid ${HF.border}`,
+        }}
+      >
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-stone-900 lg:text-2xl">
+            <h1
+              className="text-lg lg:text-2xl"
+              style={{
+                fontFamily: HF.display,
+                fontWeight: 800,
+                color: HF.ink,
+                letterSpacing: '-0.01em',
+              }}
+            >
               {t('brand')}
             </h1>
-            <p className="text-xs text-stone-500 lg:text-sm">{t('tagline')}</p>
+            <p className="text-xs lg:text-sm" style={{ color: HF.ink3 }}>
+              {t('tagline')}
+            </p>
           </div>
-          <button
+          <CTA
             type="button"
-            className="rounded-full border border-stone-300 px-3 py-1 text-xs text-stone-600 hover:bg-stone-100"
+            tone="secondary"
+            size="sm"
             aria-label={t('help')}
+            style={{ borderRadius: HF.r.pill }}
           >
             {t('help')}
-          </button>
+          </CTA>
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 pb-32 pt-5 lg:px-8 lg:pb-12 lg:pt-8">
         {/* Fee strip */}
         <div
-          className="mb-5 flex items-center gap-3 rounded-lg border border-stone-200 bg-amber-50 px-3 py-2 text-sm"
+          className="mb-5 flex items-center gap-3 px-3 py-2 text-sm"
           aria-label={t('feeStrip')}
+          style={{
+            background: HF.accentLo,
+            border: `1px solid #F3D7CB`,
+            borderRadius: HF.r.md,
+            color: HF.accentInk,
+          }}
         >
-          <span className="font-semibold text-stone-900">$35.95</span>
-          <span className="text-stone-700">{t('feeStrip')}</span>
+          <span style={{ fontFamily: HF.display, fontWeight: 700, color: HF.accentInk }}>
+            $35.95
+          </span>
+          <span style={{ color: HF.ink2 }}>{t('feeStrip')}</span>
           <button
             type="button"
-            className="ml-auto text-xs underline text-stone-600"
+            className="ml-auto text-xs underline"
+            style={{ color: HF.ink3, fontFamily: HF.body }}
           >
             {t('feeDetails')}
           </button>
@@ -104,29 +150,46 @@ export function WelcomeShell() {
           setSelectedPropertyId={setSelectedPropertyId}
         />
 
+        {/* AMI pre-qualifier — optional, but if the applicant runs it the
+            result flows into Apply via query params (no re-entry needed). */}
+        <section className="mt-6">
+          <AmiCalculator onResult={handleAmiResult} />
+        </section>
+
         {/* Desktop CTA — inline */}
         <div className="mt-8 hidden lg:block">
-          <button
+          <CTA
             type="button"
+            tone="primary"
+            size="lg"
+            block
             disabled={!canContinue}
             onClick={() => setDisclosureOpen(true)}
-            className="w-full rounded-xl bg-emerald-600 px-6 py-3 text-base font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-stone-300"
           >
             {t('start')}
-          </button>
+          </CTA>
         </div>
       </main>
 
       {/* Mobile sticky footer */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white p-3 shadow-lg lg:hidden">
-        <button
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 p-3 lg:hidden"
+        style={{
+          background: HF.paper,
+          borderTop: `1px solid ${HF.border}`,
+          boxShadow: HF.shadow.md,
+        }}
+      >
+        <CTA
           type="button"
+          tone="primary"
+          size="lg"
+          block
           disabled={!canContinue}
           onClick={() => setDisclosureOpen(true)}
-          className="w-full rounded-xl bg-emerald-600 px-6 py-3 text-base font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-stone-300"
         >
           {t('start')}
-        </button>
+        </CTA>
       </div>
 
       <DisclosureSheet

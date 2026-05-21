@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { HF } from '@/styles/tokens';
+import { CTA } from '@/components/primitives/CTA';
 
 interface DisclosureSheetProps {
   open: boolean;
@@ -48,69 +50,121 @@ export function DisclosureSheet({ open, onAccept, onCancel }: DisclosureSheetPro
 
   if (!open) return null;
 
+  const sectionLabelStyle = {
+    color: HF.ink3,
+    fontFamily: HF.body,
+  } as const;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 lg:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center lg:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="disclosure-title"
+      style={{ background: 'rgba(31, 26, 18, 0.45)' }}
     >
-      <div className="w-full max-w-lg rounded-t-2xl bg-white shadow-xl lg:rounded-2xl">
-        <div className="border-b border-stone-200 px-5 py-4">
-          <h2 id="disclosure-title" className="text-lg font-semibold text-stone-900">
+      <div
+        className="w-full max-w-lg"
+        style={{
+          background: HF.paper,
+          color: HF.ink,
+          fontFamily: HF.body,
+          borderTopLeftRadius: HF.r.xl,
+          borderTopRightRadius: HF.r.xl,
+          borderBottomLeftRadius: 0,
+          borderBottomRightRadius: 0,
+          boxShadow: HF.shadow.lg,
+        }}
+      >
+        <div
+          className="px-5 py-4"
+          style={{ borderBottom: `1px solid ${HF.border}` }}
+        >
+          <h2
+            id="disclosure-title"
+            className="text-lg"
+            style={{
+              fontFamily: HF.display,
+              fontWeight: 700,
+              color: HF.ink,
+            }}
+          >
             {t('disclosure.title')}
           </h2>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto px-5 py-4 text-sm text-stone-700 lg:max-h-[400px]">
+        <div
+          className="max-h-[60vh] overflow-y-auto px-5 py-4 text-sm lg:max-h-[400px]"
+          style={{ color: HF.ink2 }}
+        >
           <section className="mb-4">
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-500">
+            <h3
+              className="mb-1 text-xs font-semibold uppercase tracking-wide"
+              style={sectionLabelStyle}
+            >
               HUD-928.1
             </h3>
             <p>{t('disclosure.fairHousing')}</p>
           </section>
           <section className="mb-4">
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-500">
+            <h3
+              className="mb-1 text-xs font-semibold uppercase tracking-wide"
+              style={sectionLabelStyle}
+            >
               LIHTC
             </h3>
             <p>{t('disclosure.lihtc')}</p>
           </section>
           <section>
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-500">
+            <h3
+              className="mb-1 text-xs font-semibold uppercase tracking-wide"
+              style={sectionLabelStyle}
+            >
               Nevada
             </h3>
             <p>{t('disclosure.state')}</p>
           </section>
         </div>
 
-        <div className="border-t border-stone-200 px-5 py-4">
-          <label className="flex items-start gap-3 text-sm text-stone-800">
+        <div
+          className="px-5 py-4"
+          style={{ borderTop: `1px solid ${HF.border}` }}
+        >
+          <label
+            className="flex items-start gap-3 text-sm"
+            style={{ color: HF.ink }}
+          >
             <input
               type="checkbox"
               checked={acked}
               onChange={(e) => setAcked(e.target.checked)}
-              className="mt-0.5 h-5 w-5 rounded border-stone-400 text-emerald-600 focus:ring-emerald-600"
+              className="mt-0.5 h-5 w-5"
+              style={{ accentColor: HF.accent }}
               aria-label={t('disclosure.ack')}
             />
             <span>{t('disclosure.ack')}</span>
           </label>
 
           <div className="mt-4 flex gap-3">
-            <button
+            <CTA
               type="button"
+              tone="secondary"
               onClick={onCancel}
-              className="flex-1 rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50"
+              block
+              style={{ flex: 1 }}
             >
               {t('disclosure.cancel')}
-            </button>
-            <button
+            </CTA>
+            <CTA
               type="button"
+              tone="primary"
               disabled={!acked}
               onClick={onAccept}
-              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-stone-300"
+              block
+              style={{ flex: 1 }}
             >
               {t('disclosure.accept')}
-            </button>
+            </CTA>
           </div>
         </div>
       </div>

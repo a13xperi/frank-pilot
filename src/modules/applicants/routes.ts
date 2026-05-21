@@ -233,6 +233,13 @@ const intentSchema = z.object({
   budget_max: z.number().min(0).max(20000),
   move_in_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   household_size: z.number().int().min(1).max(12),
+  // W0 AMI pre-qualifier — both optional and nullable. Frontend sends
+  // `gross_annual_income` whenever it has a value, and `qualifying_ami_tier`
+  // is null when the applicant is over-income for the highest tier. When
+  // `gross_annual_income` is null/absent the W0 columns are cleared on the
+  // draft.
+  gross_annual_income: z.number().min(0).max(500_000).nullable().optional(),
+  qualifying_ami_tier: z.enum(["30", "50", "60", "80"]).nullable().optional(),
 });
 
 // Save the 5-question intent quiz onto the user's draft application.
@@ -268,6 +275,17 @@ router.post(
           [req.user!.id]
         );
 
+        // W0 — clear-or-set semantics: a numeric income means "applicant
+        // submitted income this round, recompute tier/timestamp from it";
+        // null/undefined means "clear" so a later submit without income
+        // resets the columns. `qualifying_ami_tier` arrives null when the
+        // applicant is over-income for the 80% tier.
+        const hasW0Income = intent.gross_annual_income != null;
+        const grossIncomeParam = intent.gross_annual_income ?? null;
+        const amiTierParam = intent.qualifying_ami_tier ?? null;
+        const qualHHParam = hasW0Income ? intent.household_size : null;
+        const calculatedAtParam = hasW0Income ? new Date() : null;
+
         let applicationId: string;
         if (draft.rows.length > 0) {
           applicationId = draft.rows[0].id;
@@ -278,6 +296,10 @@ router.post(
                     intent_budget_max = $4,
                     intent_move_in_date = $5,
                     intent_household_size = $6,
+                    gross_annual_income = $7,
+                    qualifying_ami_tier = $8,
+                    qualifying_household_size = $9,
+                    qualifying_ami_calculated_at = $10,
                     updated_at = NOW()
               WHERE id = $1`,
             [
@@ -287,6 +309,10 @@ router.post(
               intent.budget_max,
               intent.move_in_date,
               intent.household_size,
+              grossIncomeParam,
+              amiTierParam,
+              qualHHParam,
+              calculatedAtParam,
             ]
           );
         } else {
@@ -305,8 +331,10 @@ router.post(
             `INSERT INTO applications (
                 property_id, first_name, last_name, email, status,
                 intent_bedrooms, intent_budget_min, intent_budget_max,
-                intent_move_in_date, intent_household_size
-             ) VALUES ($1, $2, $3, $4, 'draft', $5, $6, $7, $8, $9)
+                intent_move_in_date, intent_household_size,
+                gross_annual_income, qualifying_ami_tier,
+                qualifying_household_size, qualifying_ami_calculated_at
+             ) VALUES ($1, $2, $3, $4, 'draft', $5, $6, $7, $8, $9, $10, $11, $12, $13)
              RETURNING id`,
             [
               propertyId,
@@ -318,6 +346,10 @@ router.post(
               intent.budget_max,
               intent.move_in_date,
               intent.household_size,
+              grossIncomeParam,
+              amiTierParam,
+              qualHHParam,
+              calculatedAtParam,
             ]
           );
           applicationId = insert.rows[0].id;
@@ -374,6 +406,17 @@ router.get(
       const moveInBy = typeof req.query.moveInBy === "string" ? req.query.moveInBy : undefined;
       const propertyId = typeof req.query.propertyId === "string" ? req.query.propertyId : undefined;
 
+      // W0 AMI filter — narrow to set-asides the applicant qualifies for.
+      // Tier '50' qualifies for ['50','60','80']% units (and market-rate);
+      // missing/invalid param → no filter (permissive default).
+      const AMI_TIER_ORDER = ["30", "50", "60", "80"] as const;
+      const amiTierRaw =
+        typeof req.query.amiTier === "string" ? req.query.amiTier : undefined;
+      const amiTier =
+        amiTierRaw && (AMI_TIER_ORDER as readonly string[]).includes(amiTierRaw)
+          ? (amiTierRaw as (typeof AMI_TIER_ORDER)[number])
+          : undefined;
+
       const conditions: string[] = [
         "(u.status = 'available' OR (u.status = 'held' AND u.claim_expires_at < NOW()))",
       ];
@@ -401,6 +444,17 @@ router.get(
       if (propertyId && /^[0-9a-f-]{36}$/i.test(propertyId)) {
         params.push(propertyId);
         conditions.push(`u.property_id = $${params.length}`);
+      }
+      if (amiTier) {
+        // Match the property's set-aside text ("60% AMI", "80% AMI", …) to
+        // the tiers at or above the applicant's lowest qualifying tier.
+        // Market-rate properties (null/empty set_aside) stay visible.
+        const idx = AMI_TIER_ORDER.indexOf(amiTier);
+        const allowedSetAsides = AMI_TIER_ORDER.slice(idx).map(t => `${t}% AMI`);
+        params.push(allowedSetAsides);
+        conditions.push(
+          `(p.ami_set_aside = ANY($${params.length}) OR p.ami_set_aside IS NULL OR p.ami_set_aside = '')`
+        );
       }
 
       const result = await query(

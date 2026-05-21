@@ -1,11 +1,18 @@
 import { api } from './client';
 
+export type AmiTier = '30' | '50' | '60' | '80';
+
 export interface Intent {
   bedrooms: number;
   budget_min?: number;
   budget_max: number;
   move_in_date: string;
   household_size: number;
+  // W0 — both optional; null `qualifying_ami_tier` means "applicant submitted
+  // income but is over-income for the highest tier" (vs. undefined meaning
+  // "no income provided, leave existing draft values alone…or clear them").
+  gross_annual_income?: number | null;
+  qualifying_ami_tier?: AmiTier | null;
 }
 
 export interface Unit {
@@ -42,6 +49,9 @@ export async function fetchUnits(filter: {
   maxRent?: number;
   moveInBy?: string;
   propertyId?: string;
+  // W0 — applicant's lowest qualifying tier. Omit (or pass undefined) to see
+  // all units; the backend treats a missing param as permissive.
+  amiTier?: AmiTier;
 }): Promise<{ units: Unit[] }> {
   const params = new URLSearchParams();
   if (filter.bedroomsMin !== undefined) params.set('bedroomsMin', String(filter.bedroomsMin));
@@ -49,6 +59,7 @@ export async function fetchUnits(filter: {
   if (filter.maxRent !== undefined) params.set('maxRent', String(filter.maxRent));
   if (filter.moveInBy) params.set('moveInBy', filter.moveInBy);
   if (filter.propertyId) params.set('propertyId', filter.propertyId);
+  if (filter.amiTier) params.set('amiTier', filter.amiTier);
   const qs = params.toString();
   return api.get(`/applicants/units${qs ? `?${qs}` : ''}`);
 }
