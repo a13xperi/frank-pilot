@@ -62,4 +62,25 @@ describe('useFlag — env override mechanism', () => {
       expect(mod.useFlag('PAYMENT_WIZARD_ENABLED')).toBe(false);
     });
   });
+
+  // Regression: `echo "true" | vercel env add` stores trailing newlines.
+  describe('whitespace handling (Vercel CLI artifact)', () => {
+    it('trims trailing newline before comparing — default-off flag', async () => {
+      vi.stubEnv('VITE_PAYMENT_WIZARD_ENABLED', 'true\n');
+      const { useFlag } = await loadFlags();
+      expect(useFlag('PAYMENT_WIZARD_ENABLED')).toBe(true);
+    });
+
+    it('trims trailing newline before comparing — default-on flag', async () => {
+      vi.stubEnv('VITE_PROPERTY_DL2_ENABLED', 'false\n');
+      const { useFlag } = await loadFlags();
+      expect(useFlag('PROPERTY_DL2_ENABLED')).toBe(false);
+    });
+
+    it('handles leading/trailing spaces and tabs', async () => {
+      vi.stubEnv('VITE_PAYMENT_WIZARD_ENABLED', '  true  ');
+      const { useFlag } = await loadFlags();
+      expect(useFlag('PAYMENT_WIZARD_ENABLED')).toBe(true);
+    });
+  });
 });
