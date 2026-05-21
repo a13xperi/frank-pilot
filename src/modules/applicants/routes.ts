@@ -29,6 +29,35 @@ const registerLimiter = rateLimit({
   message: { error: "Too many requests, try again in a minute" },
 });
 
+// INFO-1 (W6 re-audit): the three /register branches do measurably different
+// amounts of DB work (staff = 2 SELECT, existing applicant = 2 SELECT + 1
+// INSERT, new applicant = 2 SELECT + 2 INSERT), so an attacker with enough
+// timing probes can classify {staff, existing, new} for any given email. We
+// floor the wall-clock response time at a constant so all three buckets are
+// indistinguishable downstream. Default 250 ms is conservative for typical
+// Postgres INSERT variance; raise via env if observed branch deltas exceed it.
+// Tests opt in by setting REGISTER_RESPONSE_FLOOR_MS explicitly; default 0
+// under NODE_ENV=test keeps the existing suite fast.
+function getRegisterFloorMs(): number {
+  const explicit = process.env.REGISTER_RESPONSE_FLOOR_MS;
+  if (explicit !== undefined) return Math.max(0, Number(explicit) || 0);
+  return process.env.NODE_ENV === "test" ? 0 : 250;
+}
+
+async function respondAtFloor(
+  res: Response,
+  startedAt: number,
+  status: number,
+  body: unknown
+): Promise<void> {
+  const floor = getRegisterFloorMs();
+  const elapsed = Date.now() - startedAt;
+  if (elapsed < floor) {
+    await new Promise((resolve) => setTimeout(resolve, floor - elapsed));
+  }
+  res.status(status).json(body);
+}
+
 // Per-user limiters for the authenticated unit-claim flow (B3). Keyed by the
 // authenticated user id (populated by `authenticate`); falls back to a shared
 // "anon" bucket if the limiter ever runs before auth (should not happen given
@@ -59,9 +88,13 @@ const unitWriteLimiter = rateLimit({
 // Public: register as an applicant. Idempotent — if the email already exists as
 // an applicant, we reissue a magic link instead of erroring (no email enumeration).
 router.post("/register", registerLimiter, async (req: Request, res: Response): Promise<void> => {
+  const t0 = Date.now();
   try {
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
+      // Request-shape rejection (malformed payload) — no DB work yet, so the
+      // INFO-1 floor doesn't apply: this path doesn't disclose which branch
+      // the email would have taken.
       res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
       return;
     }
@@ -95,8 +128,9 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     }
 
     // Always call createMagicLink. The service short-circuits for staff /
-    // inactive / missing emails (returns null) but still pays the SELECT cost,
-    // so all three /register paths take comparable wall-clock time.
+    // inactive / missing emails (returns null) but still pays the SELECT cost.
+    // This narrows the timing gap between branches; respondAtFloor() below
+    // closes the residual delta (INFO-1).
     const link = await createMagicLink(email);
     if (link) logMagicLink(email, link.link);
 
@@ -117,10 +151,13 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     if (link && process.env.NODE_ENV === "development") {
       payload.devLink = link.link;
     }
-    res.status(202).json(payload);
+    await respondAtFloor(res, t0, 202, payload);
   } catch (err) {
     logger.error("Applicant register failed", { error: (err as Error).message });
-    res.status(500).json({ error: "Registration failed" });
+    // Floor the 5xx path too: a branch-specific crash (e.g. INSERT-only
+    // failure on the new-applicant path) would otherwise give away which
+    // branch the email landed in.
+    await respondAtFloor(res, t0, 500, { error: "Registration failed" });
   }
 });
 
