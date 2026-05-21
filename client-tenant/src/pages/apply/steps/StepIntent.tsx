@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { saveIntent } from '@/api/units';
+import { getToken } from '@/api/client';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
@@ -47,6 +48,16 @@ export function StepIntent() {
   const { t } = useTranslation('apply');
   const [search] = useSearchParams();
   const prefilled = useRef(false);
+
+  // Welcome→Apply deep-link auth gate. POST /applicants/intent requires
+  // authenticate + requireEmailVerified, so without a token submit will 401
+  // and the API client will eject to /login — stranding handoff users who
+  // never went through Register/Verify. Bounce to step 1 so the wizard flows
+  // them through Register → Verify; URL params (the welcome handoff) survive
+  // the step change and StepIntent's prefill picks them up post-verify.
+  useEffect(() => {
+    if (!getToken()) s.setStep(1);
+  }, [s]);
 
   const [incomeStr, setIncomeStr] = useState<string>(
     s.grossAnnualIncome != null ? String(s.grossAnnualIncome) : '',
