@@ -4,7 +4,7 @@ import { CheckCircle } from 'lucide-react';
 import { api } from '@/api/client';
 import { ClaimedUnitHeader } from '@/components/ClaimedUnitHeader';
 import { Card } from '@/components/primitives';
-import { useTranslation } from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { ApplyProvider, type ApplyState, type Step } from './apply/ApplyContext';
 import { StepIndicator } from './apply/StepIndicator';
 import { Step1Register } from './apply/steps/Step1Register';

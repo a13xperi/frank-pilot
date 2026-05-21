@@ -1,6 +1,6 @@
 import { CheckCircle, Info, Clock } from 'lucide-react';
 import { useApply } from '../ApplyContext';
-import { useTranslation } from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { CTA, ListRow } from '@/components/primitives';
 
 const ITEM_KEYS = ['id', 'income', 'ssn', 'refs', 'household'] as const;
@@ -19,9 +19,8 @@ export function StepChecklist() {
           <li key={key}>
             <ListRow
               leading={<CheckCircle className="h-5 w-5 text-emerald-600" aria-hidden="true" />}
-            >
-              {t(`checklist.items.${key}`)}
-            </ListRow>
+              title={t(`checklist.items.${key}`)}
+            />
           </li>
         ))}
       </ul>

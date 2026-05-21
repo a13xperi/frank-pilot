@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { api } from '@/api/client';
 import { useApply } from '../ApplyContext';
-import { useTranslation } from '@/i18n';
+import { useTranslation } from 'react-i18next';
 
 interface Property { id: string; name: string; city?: string; state?: string; }
 

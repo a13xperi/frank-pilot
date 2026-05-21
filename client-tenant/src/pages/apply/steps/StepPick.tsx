@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { fetchUnits, claimUnit } from '@/api/units';
 import { UnitCard } from '@/components/UnitCard';
 import { useApply } from '../ApplyContext';
-import { useTranslation } from '@/i18n';
+import { useTranslation } from 'react-i18next';
 
 const BEDROOMS_INCLUSIVE_MIN = 4;
 

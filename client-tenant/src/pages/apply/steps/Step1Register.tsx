@@ -1,6 +1,6 @@
 import { api } from '@/api/client';
 import { useApply } from '../ApplyContext';
-import { useTranslation } from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
 
 export function Step1Register() {

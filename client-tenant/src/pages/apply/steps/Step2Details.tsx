@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import { useApply } from '../ApplyContext';
-import { useTranslation } from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { CTA, FormGrid } from '@/components/primitives';
 import { PropertySelector } from './PropertySelector';
 
@@ -57,7 +57,7 @@ export function Step2Details() {
       <h1 className="mb-4 text-xl font-bold text-gray-900">{t('details.title')}</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         {!s.claimedUnit && <PropertySelector />}
-        <FormGrid cols={2}>
+        <FormGrid columns={2}>
           <div>
             <label className="label" htmlFor="ssn">{t('details.ssn')}</label>
             <input id="ssn" className="input" required placeholder={t('details.ssnPlaceholder')} value={s.ssn} onChange={(e) => s.setSsn(e.target.value)} onBlur={() => validateSsn(s.ssn)} />
@@ -90,7 +90,7 @@ export function Step2Details() {
           <label className="label" htmlFor="employer">{t('details.employer')}</label>
           <input id="employer" className="input" value={s.employerName} onChange={(e) => s.setEmployerName(e.target.value)} />
         </div>
-        <FormGrid cols={2}>
+        <FormGrid columns={2}>
           <div>
             <label className="label" htmlFor="income">{t('details.income')}</label>
             <input id="income" type="number" min={0} className="input" value={s.annualIncome} onChange={(e) => s.setAnnualIncome(e.target.value)} />
@@ -109,10 +109,10 @@ export function Step2Details() {
           <input id="moveIn" type="date" className="input" value={s.moveInDate} onChange={(e) => s.setMoveInDate(e.target.value)} />
         </div>
         <div className="flex gap-3">
-          <CTA type="button" variantStyle="secondary" fullWidth={false} className="flex-1" onClick={() => s.setStep(s.claimedUnit ? 'claim' : 1)}>
+          <CTA type="button" tone="secondary" block={false} className="flex-1" onClick={() => s.setStep(s.claimedUnit ? 'claim' : 1)}>
             {t('common.back')}
           </CTA>
-          <CTA type="submit" fullWidth={false} className="flex-1" disabled={submitDisabled}>
+          <CTA type="submit" block={false} className="flex-1" disabled={submitDisabled}>
             {s.loading ? t('common.submitting') : t('details.submit')}
           </CTA>
         </div>

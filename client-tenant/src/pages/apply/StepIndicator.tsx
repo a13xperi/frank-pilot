@@ -1,5 +1,5 @@
 import { useApplyProgress, APPLY_STEP_KEYS, type ApplyStepKey } from '@/hooks/useApplyProgress';
-import { useTranslation } from '@/i18n';
+import { useTranslation } from 'react-i18next';
 
 const LABEL_KEYS: Record<ApplyStepKey, string> = {
   register: 'register.title',

@@ -3,7 +3,7 @@ import { Mail } from 'lucide-react';
 import { api, getToken } from '@/api/client';
 import { requestMagicLink } from '@/api/auth';
 import { useApply } from '../ApplyContext';
-import { useTranslation } from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
 
 export function StepVerify() {

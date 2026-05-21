@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { saveIntent } from '@/api/units';
 import { useApply } from '../ApplyContext';
-import { useTranslation } from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
 
 const BR_KEYS = ['br.studio', 'br.1', 'br.2', 'br.3', 'br.4plus'] as const;
