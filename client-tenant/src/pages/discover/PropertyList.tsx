@@ -166,7 +166,7 @@ export function PropertyList() {
                       <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
                         <Bed className="h-3 w-3" /> 1–3 bd
                       </span>
-                      <CTA intent="primary">{t('list.viewDetails')}</CTA>
+                      <CTA tone="primary">{t('list.viewDetails')}</CTA>
                     </div>
                   </div>
                 </Link>

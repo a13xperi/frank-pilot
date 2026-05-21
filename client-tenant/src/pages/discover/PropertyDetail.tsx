@@ -231,7 +231,7 @@ export function PropertyDetail() {
 
       {/* Sticky CTA */}
       <BottomBar variant="mobile">
-        <CTA intent="primary" full onClick={onApply} data-testid="apply-cta">
+        <CTA tone="primary" block onClick={onApply} data-testid="apply-cta">
           {t('detail.apply')} →
         </CTA>
       </BottomBar>
