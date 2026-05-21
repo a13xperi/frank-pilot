@@ -1,0 +1,121 @@
+{
+  "phases": {
+    "account": "Cuenta",
+    "pick": "Elige una unidad",
+    "apply": "Solicitar"
+  },
+  "progress": {
+    "stepLabel": "Paso {n} de {total}"
+  },
+  "common": {
+    "back": "Atrás",
+    "continue": "Continuar",
+    "submitting": "Enviando…",
+    "saving": "Guardando…",
+    "loading": "Cargando…",
+    "signIn": "Iniciar sesión",
+    "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+    "submitted": "¡Solicitud enviada!",
+    "redirecting": "Redirigiendo al estado de tu solicitud…"
+  },
+  "register": {
+    "title": "Crea tu cuenta",
+    "firstName": "Nombre *",
+    "lastName": "Apellido *",
+    "email": "Correo electrónico *",
+    "phone": "Teléfono",
+    "phonePlaceholder": "Opcional",
+    "submit": "Continuar",
+    "submitting": "Creando cuenta…",
+    "error": "Error al registrarse"
+  },
+  "verify": {
+    "title": "Revisa tu correo",
+    "body": "Enviamos un enlace de verificación a {email}. Haz clic para continuar con tu solicitud. Esta página avanzará automáticamente.",
+    "resent": "Enlace reenviado",
+    "resend": "Reenviar enlace",
+    "resending": "Reenviando…",
+    "devLink": "[Dev] Abrir enlace mágico",
+    "useDifferent": "Usar otro correo",
+    "resendError": "No se pudo reenviar el enlace"
+  },
+  "intent": {
+    "title": "¿Qué estás buscando?",
+    "subtitle": "Unas preguntas rápidas para mostrarte las unidades correctas.",
+    "bedrooms": "Recámaras *",
+    "budget": "Presupuesto mensual:",
+    "moveIn": "Fecha de mudanza *",
+    "household": "Tamaño del hogar",
+    "submit": "Mostrar unidades",
+    "saveError": "No se pudieron guardar tus preferencias",
+    "br": {
+      "studio": "Estudio",
+      "1": "1 Rec",
+      "2": "2 Rec",
+      "3": "3 Rec",
+      "4plus": "4+ Rec"
+    }
+  },
+  "checklist": {
+    "title": "Antes de solicitar",
+    "subtitle": "Esto es lo que necesitarás para completar tu solicitud.",
+    "items": {
+      "id": "Identificación con foto emitida por el gobierno",
+      "income": "Comprobante de ingresos (últimos 2 talones o carta de oferta)",
+      "ssn": "Número de Seguro Social o ITIN",
+      "refs": "Dos referencias de propietarios anteriores (últimos 3 años)",
+      "household": "Composición del hogar (todos los que se mudarán)"
+    },
+    "fee": {
+      "title": "Cuota de solicitud",
+      "body": "Se requiere una cuota de $35.95 para procesar tu solicitud. Cubre verificaciones de crédito y antecedentes."
+    },
+    "rule120": {
+      "title": "Regla de 120 días",
+      "body": "Tu solicitud permanece activa durante 120 días. Si no podemos ubicarte en ese plazo, te invitaremos a actualizarla y continuar."
+    },
+    "continue": "Tengo todo esto — continuar"
+  },
+  "pick": {
+    "title": "Elige tu unidad",
+    "subtitle": "Reservar una unidad la aparta para ti por 48 horas mientras completas tu solicitud.",
+    "loading": "Cargando unidades…",
+    "noMatch": "Ninguna unidad coincide con tus preferencias ahora mismo.",
+    "adjust": "Ajustar tu búsqueda",
+    "editPrefs": "← Editar preferencias",
+    "claimError": "No se pudo reservar esta unidad",
+    "loadError": "No se pudieron cargar las unidades"
+  },
+  "claim": {
+    "yours": "La unidad {unitNumber} es tuya",
+    "heldUntil": "Reservada hasta",
+    "finishBeforeTimer": "Termina tu solicitud antes de que se acabe el tiempo para asegurarla.",
+    "continue": "Continuar tu solicitud",
+    "pickDifferent": "Elegir otra unidad",
+    "noActive": "Sin reserva activa — vamos a elegir una unidad.",
+    "startOver": "Empezar de nuevo"
+  },
+  "details": {
+    "title": "Detalles de la solicitud",
+    "property": "Propiedad *",
+    "propertyPlaceholder": "ID de propiedad (UUID)",
+    "selectProperty": "Selecciona una propiedad…",
+    "loadingProperties": "Cargando propiedades…",
+    "unitNumber": "Número de unidad",
+    "unitOptional": "Opcional",
+    "ssn": "Número de Seguro Social *",
+    "ssnPlaceholder": "XXX-XX-XXXX",
+    "ssnError": "El SSN debe ser XXX-XX-XXXX o 9 dígitos",
+    "dob": "Fecha de nacimiento *",
+    "address": "Dirección",
+    "city": "Ciudad",
+    "state": "Estado",
+    "zip": "Código postal",
+    "employer": "Nombre del empleador",
+    "income": "Ingreso anual ($)",
+    "household": "Tamaño del hogar *",
+    "moveIn": "Fecha de mudanza solicitada",
+    "submit": "Enviar solicitud",
+    "submitError": "Error al enviar la solicitud"
+  }
+}
