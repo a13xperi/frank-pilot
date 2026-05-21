@@ -47,8 +47,8 @@ function StateBanner({ state }: BannerProps) {
       aria-live="polite"
       className={`rounded-xl border px-4 py-3 ${palette[state]}`}
     >
-      <h2 className="text-base font-semibold">{t(`welcome.states.${state}.heading`)}</h2>
-      <p className="mt-0.5 text-sm">{t(`welcome.states.${state}.body`)}</p>
+      <h2 className="text-base font-semibold">{t(`states.${state}.heading`)}</h2>
+      <p className="mt-0.5 text-sm">{t(`states.${state}.body`)}</p>
     </div>
   );
 }
@@ -85,7 +85,7 @@ export function WelcomeStateView({
           id="unit-type-heading"
           className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500"
         >
-          {t('welcome.step2_label')}
+          {t('step2_label')}
         </h2>
         <UnitTypeTiles selected={unitType} onSelect={setUnitType} />
       </section>
@@ -95,7 +95,7 @@ export function WelcomeStateView({
           id="property-heading"
           className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500"
         >
-          {state === 'allFull' ? t('welcome.vacancy.closed') : t('welcome.brand')}
+          {state === 'allFull' ? t('vacancy.closed') : t('brand')}
         </h2>
         <PropertyCardList
           unitType={unitType}

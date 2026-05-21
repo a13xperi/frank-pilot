@@ -66,16 +66,16 @@ export function WelcomeShell() {
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold text-stone-900 lg:text-2xl">
-              {t('welcome.brand')}
+              {t('brand')}
             </h1>
-            <p className="text-xs text-stone-500 lg:text-sm">{t('welcome.tagline')}</p>
+            <p className="text-xs text-stone-500 lg:text-sm">{t('tagline')}</p>
           </div>
           <button
             type="button"
             className="rounded-full border border-stone-300 px-3 py-1 text-xs text-stone-600 hover:bg-stone-100"
-            aria-label={t('welcome.help')}
+            aria-label={t('help')}
           >
-            {t('welcome.help')}
+            {t('help')}
           </button>
         </div>
       </header>
@@ -84,15 +84,15 @@ export function WelcomeShell() {
         {/* Fee strip */}
         <div
           className="mb-5 flex items-center gap-3 rounded-lg border border-stone-200 bg-amber-50 px-3 py-2 text-sm"
-          aria-label={t('welcome.feeStrip')}
+          aria-label={t('feeStrip')}
         >
           <span className="font-semibold text-stone-900">$35.95</span>
-          <span className="text-stone-700">{t('welcome.feeStrip')}</span>
+          <span className="text-stone-700">{t('feeStrip')}</span>
           <button
             type="button"
             className="ml-auto text-xs underline text-stone-600"
           >
-            {t('welcome.feeDetails')}
+            {t('feeDetails')}
           </button>
         </div>
 
@@ -112,7 +112,7 @@ export function WelcomeShell() {
             onClick={() => setDisclosureOpen(true)}
             className="w-full rounded-xl bg-emerald-600 px-6 py-3 text-base font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-stone-300"
           >
-            {t('welcome.start')}
+            {t('start')}
           </button>
         </div>
       </main>
@@ -125,7 +125,7 @@ export function WelcomeShell() {
           onClick={() => setDisclosureOpen(true)}
           className="w-full rounded-xl bg-emerald-600 px-6 py-3 text-base font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-stone-300"
         >
-          {t('welcome.start')}
+          {t('start')}
         </button>
       </div>
 

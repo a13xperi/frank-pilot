@@ -49,7 +49,7 @@ function VacancyBadge({ kind }: { kind: PropertyVacancy }) {
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${styles[kind]}`}
     >
-      {t(`welcome.vacancy.${kind}`)}
+      {t(`vacancy.${kind}`)}
     </span>
   );
 }
@@ -65,7 +65,7 @@ export function PropertyCardList({
   if (!unitType) {
     return (
       <p className="px-4 py-6 text-center text-sm text-stone-500">
-        {t('welcome.tapToBegin')}
+        {t('tapToBegin')}
       </p>
     );
   }
@@ -80,7 +80,7 @@ export function PropertyCardList({
             <button
               type="button"
               aria-pressed={isSelected}
-              aria-label={`${p.name} — ${t(`welcome.vacancy.${vacancy}`)}`}
+              aria-label={`${p.name} — ${t(`vacancy.${vacancy}`)}`}
               onClick={() => onSelect(p.id)}
               className={[
                 'flex w-full flex-col overflow-hidden rounded-xl border bg-white text-left shadow-sm transition',
@@ -104,7 +104,7 @@ export function PropertyCardList({
                 <p className="text-sm text-stone-700">{p.blurb}</p>
                 {isSelected && (
                   <p className="mt-1 text-xs font-medium text-emerald-700">
-                    ★ {t('welcome.topMatch')}
+                    ★ {t('topMatch')}
                   </p>
                 )}
               </div>

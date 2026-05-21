@@ -27,7 +27,7 @@ export function UnitTypeTiles({ selected, onSelect }: UnitTypeTilesProps) {
   return (
     <div
       role="radiogroup"
-      aria-label={t('welcome.step2_label')}
+      aria-label={t('step2_label')}
       className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4"
     >
       {TYPES.map((type) => {
@@ -54,10 +54,10 @@ export function UnitTypeTiles({ selected, onSelect }: UnitTypeTilesProps) {
             />
             <div className="p-3">
               <div className="text-sm font-semibold text-stone-900">
-                {t(`welcome.unitTypes.${type}`)}
+                {t(`unitTypes.${type}`)}
               </div>
               <div className="text-xs text-stone-500">
-                {t(`welcome.unitTypes_sub.${type}`)}
+                {t(`unitTypes_sub.${type}`)}
               </div>
             </div>
             {active && (
