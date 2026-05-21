@@ -1,7 +1,15 @@
 import { useTranslation } from 'react-i18next';
+import { HF } from '@/styles/tokens';
+import { Pill, type PillTone } from '@/components/primitives/Pill';
 import type { UnitType } from './UnitTypeTiles';
 
 export type PropertyVacancy = 'open' | 'waitlist' | 'closed';
+
+const VACANCY_TONE: Record<PropertyVacancy, PillTone> = {
+  open: 'ok',
+  waitlist: 'warn',
+  closed: 'neutral',
+};
 
 export interface PropertySummary {
   id: string;
@@ -38,22 +46,6 @@ const PROPERTIES: PropertySummary[] = [
   },
 ];
 
-function VacancyBadge({ kind }: { kind: PropertyVacancy }) {
-  const { t } = useTranslation('welcome');
-  const styles: Record<PropertyVacancy, string> = {
-    open: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-    waitlist: 'bg-amber-100 text-amber-800 border-amber-300',
-    closed: 'bg-stone-200 text-stone-700 border-stone-300',
-  };
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${styles[kind]}`}
-    >
-      {t(`vacancy.${kind}`)}
-    </span>
-  );
-}
-
 export function PropertyCardList({
   unitType,
   selectedId,
@@ -64,7 +56,10 @@ export function PropertyCardList({
 
   if (!unitType) {
     return (
-      <p className="px-4 py-6 text-center text-sm text-stone-500">
+      <p
+        className="px-4 py-6 text-center text-sm"
+        style={{ color: HF.ink3, fontFamily: HF.body }}
+      >
         {t('tapToBegin')}
       </p>
     );
@@ -82,28 +77,53 @@ export function PropertyCardList({
               aria-pressed={isSelected}
               aria-label={`${p.name} — ${t(`vacancy.${vacancy}`)}`}
               onClick={() => onSelect(p.id)}
-              className={[
-                'flex w-full flex-col overflow-hidden rounded-xl border bg-white text-left shadow-sm transition',
-                'focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2',
-                isSelected
-                  ? 'border-emerald-600 ring-2 ring-emerald-600'
-                  : 'border-stone-200 hover:border-stone-300',
-              ].join(' ')}
+              className="flex w-full flex-col overflow-hidden text-left transition focus:outline-none"
+              style={{
+                background: HF.paper,
+                border: `1px solid ${isSelected ? HF.accent : HF.border}`,
+                borderRadius: HF.r.lg,
+                boxShadow: isSelected
+                  ? `${HF.shadow.sm}, 0 0 0 2px ${HF.accent}`
+                  : HF.shadow.sm,
+                color: HF.ink,
+                fontFamily: HF.body,
+              }}
             >
               <div
-                className="h-40 w-full bg-stone-200 bg-cover bg-center lg:h-56"
-                style={{ backgroundImage: `url(${p.heroPhoto})` }}
+                className="h-40 w-full bg-cover bg-center lg:h-56"
+                style={{
+                  backgroundImage: `url(${p.heroPhoto})`,
+                  backgroundColor: HF.borderHi,
+                }}
                 aria-hidden="true"
               />
               <div className="flex flex-col gap-1 p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-base font-semibold text-stone-900">{p.name}</h3>
-                  <VacancyBadge kind={vacancy} />
+                  <h3
+                    className="text-base"
+                    style={{
+                      fontFamily: HF.display,
+                      fontWeight: 700,
+                      color: HF.ink,
+                    }}
+                  >
+                    {p.name}
+                  </h3>
+                  <Pill tone={VACANCY_TONE[vacancy]}>
+                    {t(`vacancy.${vacancy}`)}
+                  </Pill>
                 </div>
-                <p className="text-xs text-stone-500">{p.addr} · {p.phone}</p>
-                <p className="text-sm text-stone-700">{p.blurb}</p>
+                <p className="text-xs" style={{ color: HF.ink3 }}>
+                  {p.addr} · {p.phone}
+                </p>
+                <p className="text-sm" style={{ color: HF.ink2 }}>
+                  {p.blurb}
+                </p>
                 {isSelected && (
-                  <p className="mt-1 text-xs font-medium text-emerald-700">
+                  <p
+                    className="mt-1 text-xs"
+                    style={{ color: HF.accent, fontWeight: 600 }}
+                  >
                     ★ {t('topMatch')}
                   </p>
                 )}
