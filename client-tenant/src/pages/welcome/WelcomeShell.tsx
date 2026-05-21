@@ -8,6 +8,7 @@ import {
   type WelcomeState,
 } from './WelcomeStates';
 import type { UnitType } from './UnitTypeTiles';
+import { AmiCalculator, type AmiCalculatorResult } from '@/components/AmiCalculator';
 
 function parseState(raw: string | null): WelcomeState {
   if (raw && (WELCOME_STATES as readonly string[]).includes(raw)) {
@@ -44,6 +45,7 @@ export function WelcomeShell() {
     'donna-louise-2',
   );
   const [disclosureOpen, setDisclosureOpen] = useState(false);
+  const [amiResult, setAmiResult] = useState<AmiCalculatorResult | null>(null);
 
   const canContinue = unitType !== null && selectedPropertyId !== null;
 
@@ -56,7 +58,19 @@ export function WelcomeShell() {
       propertyId: selectedPropertyId,
       state,
     });
+    // Carry W0 prefill into Apply when the calculator has been run. Tier may
+    // legitimately be null (over-income); we still forward income + hh so
+    // StepIntent doesn't re-ask for them.
+    if (amiResult) {
+      qs.set('hh', String(amiResult.householdSize));
+      qs.set('income', String(amiResult.grossAnnualIncome));
+      if (amiResult.tier) qs.set('amiTier', amiResult.tier);
+    }
     navigate(`/apply?${qs.toString()}`);
+  };
+
+  const handleAmiResult = (r: AmiCalculatorResult) => {
+    setAmiResult(r);
   };
 
   return (
@@ -103,6 +117,12 @@ export function WelcomeShell() {
           selectedPropertyId={selectedPropertyId}
           setSelectedPropertyId={setSelectedPropertyId}
         />
+
+        {/* AMI pre-qualifier — optional, but if the applicant runs it the
+            result flows into Apply via query params (no re-entry needed). */}
+        <section className="mt-6">
+          <AmiCalculator onResult={handleAmiResult} />
+        </section>
 
         {/* Desktop CTA — inline */}
         <div className="mt-8 hidden lg:block">
