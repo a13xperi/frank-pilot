@@ -2,6 +2,28 @@ import { api } from '@/api/client';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
+import { HF } from '@/styles/tokens';
+
+const labelStyle = {
+  display: 'block',
+  marginBottom: 4,
+  fontSize: 13,
+  fontWeight: 500,
+  color: HF.ink,
+  fontFamily: HF.body,
+} as const;
+
+const inputStyle = {
+  width: '100%',
+  borderRadius: HF.r.sm,
+  border: `1px solid ${HF.border}`,
+  padding: '8px 12px',
+  fontSize: 14,
+  background: HF.paper,
+  color: HF.ink,
+  fontFamily: HF.body,
+  outline: 'none',
+} as const;
 
 export function Step1Register() {
   const s = useApply();
@@ -29,24 +51,29 @@ export function Step1Register() {
 
   return (
     <>
-      <h1 className="mb-4 text-xl font-bold text-gray-900">{t('register.title')}</h1>
+      <h1
+        className="mb-4 text-xl font-bold"
+        style={{ fontFamily: HF.display, color: HF.ink }}
+      >
+        {t('register.title')}
+      </h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label" htmlFor="firstName">{t('register.firstName')}</label>
+            <label style={labelStyle} htmlFor="firstName">{t('register.firstName')}</label>
             <input
               id="firstName"
-              className="input"
+              style={inputStyle}
               required
               value={s.firstName}
               onChange={(e) => s.setFirstName(e.target.value)}
             />
           </div>
           <div>
-            <label className="label" htmlFor="lastName">{t('register.lastName')}</label>
+            <label style={labelStyle} htmlFor="lastName">{t('register.lastName')}</label>
             <input
               id="lastName"
-              className="input"
+              style={inputStyle}
               required
               value={s.lastName}
               onChange={(e) => s.setLastName(e.target.value)}
@@ -54,22 +81,22 @@ export function Step1Register() {
           </div>
         </div>
         <div>
-          <label className="label" htmlFor="regEmail">{t('register.email')}</label>
+          <label style={labelStyle} htmlFor="regEmail">{t('register.email')}</label>
           <input
             id="regEmail"
             type="email"
-            className="input"
+            style={inputStyle}
             required
             value={s.email}
             onChange={(e) => s.setEmail(e.target.value)}
           />
         </div>
         <div>
-          <label className="label" htmlFor="phone">{t('register.phone')}</label>
+          <label style={labelStyle} htmlFor="phone">{t('register.phone')}</label>
           <input
             id="phone"
             type="tel"
-            className="input"
+            style={inputStyle}
             value={s.phone}
             onChange={(e) => s.setPhone(e.target.value)}
             placeholder={t('register.phonePlaceholder')}
