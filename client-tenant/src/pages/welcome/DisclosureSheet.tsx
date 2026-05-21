@@ -64,15 +64,11 @@ export function DisclosureSheet({ open, onAccept, onCancel }: DisclosureSheetPro
       style={{ background: 'rgba(31, 26, 18, 0.45)' }}
     >
       <div
-        className="w-full max-w-lg"
+        className="w-full max-w-lg rounded-t-xl lg:rounded-xl"
         style={{
           background: HF.paper,
           color: HF.ink,
           fontFamily: HF.body,
-          borderTopLeftRadius: HF.r.xl,
-          borderTopRightRadius: HF.r.xl,
-          borderBottomLeftRadius: 0,
-          borderBottomRightRadius: 0,
           boxShadow: HF.shadow.lg,
         }}
       >
