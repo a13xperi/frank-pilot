@@ -20,8 +20,10 @@ export type Step =
 // FROZEN CONTRACT 2 — payment wizard fields, persisted to sessionStorage.
 const SESSION_KEY = 'frank_apply_state';
 
+export const APPLICATION_FEE = 35.95;
+
 export function formatPaymentTotal(adults: number): string {
-  return (35.95 * (adults + 1)).toLocaleString('en-US', {
+  return (APPLICATION_FEE * (adults + 1)).toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
   });
