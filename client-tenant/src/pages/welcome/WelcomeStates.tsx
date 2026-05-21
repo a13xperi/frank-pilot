@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { HF } from '@/styles/tokens';
 import { UnitTypeTiles, type UnitType } from './UnitTypeTiles';
 import { PropertyCardList, type PropertyVacancy } from './PropertyCardList';
 
@@ -31,24 +32,46 @@ interface BannerProps {
   state: WelcomeState;
 }
 
+type BannerPalette = { bg: string; border: string; fg: string };
+
+const STATE_PALETTE: Record<WelcomeState, BannerPalette> = {
+  empty:     { bg: HF.paper,    border: HF.border,    fg: HF.ink     },
+  available: { bg: HF.okLo,     border: '#CBE3C5',    fg: HF.ok      },
+  waitlist:  { bg: HF.warnLo,   border: '#EAD9A8',    fg: HF.warn    },
+  allFull:   { bg: HF.errLo,    border: '#EFC6BE',    fg: HF.err     },
+  referral:  { bg: HF.accentLo, border: '#F3D7CB',    fg: HF.accentInk },
+  returning: { bg: HF.sageLo,   border: '#D7E2CF',    fg: HF.sage    },
+};
+
 function StateBanner({ state }: BannerProps) {
   const { t } = useTranslation('welcome');
-  const palette: Record<WelcomeState, string> = {
-    empty: 'bg-stone-50 border-stone-200 text-stone-800',
-    available: 'bg-emerald-50 border-emerald-200 text-emerald-900',
-    waitlist: 'bg-amber-50 border-amber-200 text-amber-900',
-    allFull: 'bg-rose-50 border-rose-200 text-rose-900',
-    referral: 'bg-orange-50 border-orange-200 text-orange-900',
-    returning: 'bg-sky-50 border-sky-200 text-sky-900',
-  };
+  const p = STATE_PALETTE[state];
   return (
     <div
       role="status"
       aria-live="polite"
-      className={`rounded-xl border px-4 py-3 ${palette[state]}`}
+      className="px-4 py-3"
+      style={{
+        background: p.bg,
+        border: `1px solid ${p.border}`,
+        borderRadius: HF.r.lg,
+        color: p.fg,
+        fontFamily: HF.body,
+      }}
     >
-      <h2 className="text-base font-semibold">{t(`states.${state}.heading`)}</h2>
-      <p className="mt-0.5 text-sm">{t(`states.${state}.body`)}</p>
+      <h2
+        className="text-base"
+        style={{
+          fontFamily: HF.display,
+          fontWeight: 700,
+          color: p.fg,
+        }}
+      >
+        {t(`states.${state}.heading`)}
+      </h2>
+      <p className="mt-0.5 text-sm" style={{ color: p.fg }}>
+        {t(`states.${state}.body`)}
+      </p>
     </div>
   );
 }
@@ -76,6 +99,11 @@ export function WelcomeStateView({
       ? 'open'
       : undefined;
 
+  const sectionLabelStyle = {
+    color: HF.ink3,
+    fontFamily: HF.body,
+  } as const;
+
   return (
     <div className="flex flex-col gap-5">
       <StateBanner state={state} />
@@ -83,7 +111,8 @@ export function WelcomeStateView({
       <section aria-labelledby="unit-type-heading">
         <h2
           id="unit-type-heading"
-          className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500"
+          className="mb-2 text-xs font-semibold uppercase tracking-wide"
+          style={sectionLabelStyle}
         >
           {t('step2_label')}
         </h2>
@@ -93,7 +122,8 @@ export function WelcomeStateView({
       <section aria-labelledby="property-heading">
         <h2
           id="property-heading"
-          className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500"
+          className="mb-2 text-xs font-semibold uppercase tracking-wide"
+          style={sectionLabelStyle}
         >
           {state === 'allFull' ? t('vacancy.closed') : t('brand')}
         </h2>
