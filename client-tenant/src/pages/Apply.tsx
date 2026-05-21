@@ -75,10 +75,8 @@ export function Apply() {
   const [resent, setResent] = useState(false);
   const [devLink, setDevLink] = useState<string | null>(null);
 
-  const [intentBedrooms, setIntentBedrooms] = useState<number | null>(null);
   const [intentBudgetMax, setIntentBudgetMax] = useState<number>(2000);
   const [intentMoveInDate, setIntentMoveInDate] = useState('');
-  const [intentHouseholdSize, setIntentHouseholdSize] = useState<number>(1);
 
   const [units, setUnits] = useState<Unit[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
@@ -133,11 +131,11 @@ export function Apply() {
         if (cancelled || !latest) return;
         if (latest.property_id && !propertyId) setPropertyId(latest.property_id);
         if (latest.unit_number && !unitNumber) setUnitNumber(latest.unit_number);
-        if (latest.intent_bedrooms != null && intentBedrooms === null) setIntentBedrooms(latest.intent_bedrooms);
+        if (latest.intent_bedrooms != null && wiz.intentBedrooms === null) wiz.setIntentBedrooms(latest.intent_bedrooms);
         if (latest.intent_budget_max != null) setIntentBudgetMax(Number(latest.intent_budget_max));
         if (latest.intent_move_in_date) setIntentMoveInDate(latest.intent_move_in_date.slice(0, 10));
         if (latest.intent_household_size != null) {
-          setIntentHouseholdSize(latest.intent_household_size);
+          wiz.setIntentHouseholdSize(latest.intent_household_size);
           setHouseholdSize(String(latest.intent_household_size));
         }
       } catch {
@@ -145,14 +143,16 @@ export function Apply() {
       }
     })();
     return () => { cancelled = true; };
-  }, [step, email, firstName, lastName, propertyId, unitNumber, intentBedrooms]);
+  }, [step, email, firstName, lastName, propertyId, unitNumber, wiz]);
 
   const value: ApplyState = {
     step, setStep, error, setError, loading, setLoading,
     email, setEmail, firstName, setFirstName, lastName, setLastName, phone, setPhone,
     resending, setResending, resent, setResent, devLink, setDevLink,
-    intentBedrooms, setIntentBedrooms, intentBudgetMax, setIntentBudgetMax,
-    intentMoveInDate, setIntentMoveInDate, intentHouseholdSize, setIntentHouseholdSize,
+    intentBedrooms: wiz.intentBedrooms, setIntentBedrooms: wiz.setIntentBedrooms,
+    intentBudgetMax, setIntentBudgetMax,
+    intentMoveInDate, setIntentMoveInDate,
+    intentHouseholdSize: wiz.intentHouseholdSize, setIntentHouseholdSize: wiz.setIntentHouseholdSize,
     grossAnnualIncome: wiz.grossAnnualIncome, setGrossAnnualIncome: wiz.setGrossAnnualIncome,
     qualifyingAmiTier: wiz.qualifyingAmiTier, setQualifyingAmiTier: wiz.setQualifyingAmiTier,
     qualifyingAmiCalculatedAt: wiz.qualifyingAmiCalculatedAt,
