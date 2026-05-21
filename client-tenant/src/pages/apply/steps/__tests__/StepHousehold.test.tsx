@@ -3,18 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router-dom';
 import axe from 'axe-core';
-import { ApplyProvider, useApply } from '../../ApplyContext';
+import { useApply } from '../../ApplyContext';
 import { StepReview } from '../StepReview';
 import { StepHousehold } from '../StepHousehold';
+import { WizardTestProvider } from './wizardTestUtils';
 
 function StepProbe() {
   const [search] = useSearchParams();
-  const { state } = useApply();
+  const s = useApply();
   return (
     <div>
       <div data-testid="step-probe">{search.get('step') ?? 'review'}</div>
-      <div data-testid="state-adults">{state.adults}</div>
-      <div data-testid="state-total">{state.paymentTotal}</div>
+      <div data-testid="state-adults">{s.adults}</div>
+      <div data-testid="state-total">{s.paymentTotal}</div>
     </div>
   );
 }
@@ -35,15 +36,15 @@ function App() {
 function renderApp(initialStep = 'review') {
   return render(
     <MemoryRouter initialEntries={[`/apply?step=${initialStep}`]}>
-      <ApplyProvider initialState={{
-        property: { id: 'p1', name: 'Donna Louise 2', address: '2241 Sunrise' },
-        unit: { type: '2BR', bedrooms: 2, sqft: 820, waitlistPosition: null },
-        criteria: { incomeBand: '50–60% AMI', householdSize: 2, moveInDate: '2026-08-01' },
+      <WizardTestProvider seed={{
+        claimedUnit: { property_name: 'Donna Louise 2', bedrooms: 2, sqft: 820 },
+        intentHouseholdSize: 2,
+        intentMoveInDate: '2026-08-01',
       }}>
         <Routes>
           <Route path="/apply" element={<App />} />
         </Routes>
-      </ApplyProvider>
+      </WizardTestProvider>
     </MemoryRouter>,
   );
 }

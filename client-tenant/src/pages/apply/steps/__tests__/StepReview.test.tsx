@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router-dom';
 import axe from 'axe-core';
-import { ApplyProvider } from '../../ApplyContext';
 import { StepReview } from '../StepReview';
+import { WizardTestProvider } from './wizardTestUtils';
 
 function StepProbe() {
   const [search] = useSearchParams();
@@ -14,15 +14,16 @@ function StepProbe() {
 function renderAt() {
   return render(
     <MemoryRouter initialEntries={['/apply?step=review']}>
-      <ApplyProvider initialState={{
-        property: { id: 'p1', name: 'Donna Louise 2', photoUrl: '', address: '2241 Sunrise Ave' },
-        unit: { type: '2BR', bedrooms: 2, sqft: 820, waitlistPosition: null },
-        criteria: { incomeBand: '50–60% AMI', householdSize: 2, moveInDate: '2026-08-01' },
+      <WizardTestProvider seed={{
+        claimedUnit: { property_name: 'Donna Louise 2', property_city: '', property_state: '', bedrooms: 2, sqft: 820 },
+        intentBedrooms: 2,
+        intentHouseholdSize: 2,
+        intentMoveInDate: '2026-08-01',
       }}>
         <Routes>
           <Route path="/apply" element={<><StepReview /><StepProbe /></>} />
         </Routes>
-      </ApplyProvider>
+      </WizardTestProvider>
     </MemoryRouter>,
   );
 }
