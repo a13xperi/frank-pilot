@@ -1,6 +1,41 @@
 {
-  "title": "Estás en la lista",
-  "position": "#{{position}} de {{total}}",
-  "fasterList": "Únete a más listas para avanzar más rápido",
-  "magicLinkSent": "Revisa tu correo — te enviamos un enlace."
+  "position": {
+    "title": "Tu lugar en la lista",
+    "rank": "#{{position}} de {{total}} en la fila",
+    "movement_up": "↑ {{spots}} lugares este mes",
+    "movement_down": "↓ {{spots}} lugares este mes",
+    "movement_flat": "Sin cambios este mes",
+    "estimated_wait": "Espera estimada {{window}}",
+    "subtitle": "Te avisaremos por correo en cuanto se abra una unidad. Por ahora no tienes que hacer nada más.",
+    "loading": "Consultando tu lugar…",
+    "error": "No pudimos cargar tu posición en la lista. Inténtalo de nuevo en un momento."
+  },
+  "faster_list": {
+    "title": "Tres maneras de avanzar en la lista",
+    "subtitle": "Si alguna de estas opciones aplica a tu caso, podrías calificar para colocación prioritaria. Revisamos tus documentos en 3 a 5 días hábiles.",
+    "referral": {
+      "title": "Referencia de agencia gubernamental",
+      "body": "Las referencias de HUD, vivienda del condado u otra agencia aprobada te colocan en la lista prioritaria.",
+      "cta": "Subir carta de referencia"
+    },
+    "veteran": {
+      "title": "Preferencia para veteranos",
+      "body": "Veteranos y cónyuges sobrevivientes califican para preferencia bajo HUD 4350.3.",
+      "cta": "Subir DD-214"
+    },
+    "hardship": {
+      "title": "Emergencia o necesidad urgente",
+      "body": "Si actualmente no tienes hogar, huyes de violencia doméstica, o fuiste desplazado por un desastre, tu solicitud se procesa con prioridad.",
+      "cta": "Cuéntanos tu situación"
+    }
+  },
+  "magic_link_sent": {
+    "title": "Revisa tu correo",
+    "body": "Enviamos un enlace mágico a {{email}}. Toca el enlace para terminar tu solicitud.",
+    "expires": "El enlace expira en 15 minutos.",
+    "resend_prompt": "¿No te llegó?",
+    "resend_cta": "Reenviar enlace",
+    "resend_sent": "Enviado. Revisa también tu carpeta de spam.",
+    "wrong_email": "¿Correo equivocado? Empezar de nuevo"
+  }
 }

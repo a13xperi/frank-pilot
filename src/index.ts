@@ -31,6 +31,7 @@ import authRoutes from "./modules/auth/routes";
 import applicantRoutes from "./modules/applicants/routes";
 import tenantRoutes from "./modules/tenant/routes";
 import messagesRoutes from "./modules/messages/routes";
+import tapeRoutes from "./modules/tape/routes";
 import { startScheduler } from "./scheduler";
 
 const app = express();
@@ -66,6 +67,11 @@ app.use("/api/auth", authRoutes);
 
 // Applicant self-service (public register + auth'd apply)
 app.use("/api/applicants", applicantRoutes);
+
+// BP-03b compliance tape beacons (HUD-928.1 page-view, welcome-accept).
+// Stub module — see src/modules/tape/index.ts. Replace with canonical BP-02
+// helper when it lands.
+app.use("/api/tape", tapeRoutes);
 
 // Password login (staff)
 app.post("/api/auth/login", async (req, res) => {

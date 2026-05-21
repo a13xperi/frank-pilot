@@ -1,6 +1,41 @@
 {
-  "title": "You're on the list",
-  "position": "#{{position}} of {{total}}",
-  "fasterList": "Get on more lists to move faster",
-  "magicLinkSent": "Check your email — we sent you a link."
+  "position": {
+    "title": "Your spot in line",
+    "rank": "#{{position}} of {{total}} in queue",
+    "movement_up": "↑ {{spots}} spots this month",
+    "movement_down": "↓ {{spots}} spots this month",
+    "movement_flat": "No change this month",
+    "estimated_wait": "Estimated wait {{window}}",
+    "subtitle": "We'll email you as soon as a unit opens up. Nothing else to do right now.",
+    "loading": "Checking your spot…",
+    "error": "We couldn't load your waitlist position. Try again in a moment."
+  },
+  "faster_list": {
+    "title": "Three ways to move up the list",
+    "subtitle": "If any of these apply to you, you may qualify for priority placement. We'll review your documents and confirm in 3–5 business days.",
+    "referral": {
+      "title": "Government agency referral",
+      "body": "Referrals from HUD, county housing, or another approved agency move you to the priority pool.",
+      "cta": "Upload referral letter"
+    },
+    "veteran": {
+      "title": "Veteran preference",
+      "body": "Veterans and surviving spouses qualify under HUD 4350.3 for preference placement.",
+      "cta": "Upload DD-214"
+    },
+    "hardship": {
+      "title": "Emergency hardship",
+      "body": "Currently homeless, fleeing domestic violence, or displaced by disaster — your application is fast-tracked.",
+      "cta": "Tell us your situation"
+    }
+  },
+  "magic_link_sent": {
+    "title": "Check your inbox",
+    "body": "We sent a magic link to {{email}}. Tap the link to finish your application.",
+    "expires": "The link expires in 15 minutes.",
+    "resend_prompt": "Didn't get it?",
+    "resend_cta": "Resend link",
+    "resend_sent": "Sent. Check your spam folder too.",
+    "wrong_email": "Wrong email? Start over"
+  }
 }
