@@ -18,6 +18,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, CTA, Pill } from '@/components/primitives';
 import { HF } from '@/styles/tokens';
+import { formatAmiTier } from '@/lib/ami';
 import { useApply } from '../ApplyContext';
 
 export function StepReview() {
@@ -34,7 +35,11 @@ export function StepReview() {
     : bed === 0 ? t('review.fallback.studio') : `${bed} ${t('review.bed')}`;
   const sqft = state.claimedUnit?.sqft ?? 720;
   const waitlistPos: number | null = null;
-  const incomeBand = '50–60% AMI';
+  const incomeBand: string | null = state.qualifyingAmiTier
+    ? formatAmiTier(state.qualifyingAmiTier)
+    : state.grossAnnualIncome != null
+    ? 'Over income for affordable tiers'
+    : null;
   const householdSize = state.intentHouseholdSize ?? 1;
   const moveIn = state.intentMoveInDate || '—';
 
@@ -79,7 +84,7 @@ export function StepReview() {
                 {t('review.lockedCriteria')}
               </div>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
-                <Pill>{incomeBand}</Pill>
+                {incomeBand && <Pill>{incomeBand}</Pill>}
                 <Pill>{t('review.household', { count: householdSize })}</Pill>
                 <Pill>{moveIn}</Pill>
                 <button onClick={() => setSearch({ step: 'intent' }, { replace: true })}

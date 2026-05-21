@@ -1,12 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { saveIntent } from '@/api/units';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
+import { formatAmiTier, qualifyAmiTier } from '@/lib/ami';
 
 const BR_KEYS = ['br.studio', 'br.1', 'br.2', 'br.3', 'br.4plus'] as const;
 const BR_VALUES = [0, 1, 2, 3, 4] as const;
+
+const AMI_MSA = 'LAS_VEGAS_HENDERSON' as const;
 
 // Welcome → Apply handoff: unitType query param → bedroom integer.
 const UNIT_TYPE_TO_BEDROOMS: Record<string, number> = {
@@ -21,6 +24,21 @@ export function StepIntent() {
   const { t } = useTranslation('apply');
   const [search] = useSearchParams();
   const prefilled = useRef(false);
+
+  const [incomeStr, setIncomeStr] = useState<string>(
+    s.grossAnnualIncome != null ? String(s.grossAnnualIncome) : '',
+  );
+
+  const incomeNum = useMemo(() => {
+    const trimmed = incomeStr.replace(/[$,\s]/g, '');
+    const n = Number.parseFloat(trimmed);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }, [incomeStr]);
+
+  const previewTier = useMemo(() => {
+    if (incomeNum == null) return null;
+    return qualifyAmiTier(AMI_MSA, s.intentHouseholdSize, incomeNum);
+  }, [incomeNum, s.intentHouseholdSize]);
 
   // Prefill silently from ?unitType= & ?propertyId= (Lane B handoff).
   useEffect(() => {
@@ -50,6 +68,18 @@ export function StepIntent() {
       });
       s.setHouseholdSize(String(s.intentHouseholdSize));
       s.setMoveInDate(s.intentMoveInDate);
+      if (incomeNum != null) {
+        const tier = qualifyAmiTier(AMI_MSA, s.intentHouseholdSize, incomeNum);
+        s.setGrossAnnualIncome(incomeNum);
+        s.setQualifyingAmiTier(tier);
+        s.setQualifyingAmiCalculatedAt(new Date().toISOString());
+        s.setQualifyingHouseholdSize(s.intentHouseholdSize);
+      } else {
+        s.setGrossAnnualIncome(null);
+        s.setQualifyingAmiTier(null);
+        s.setQualifyingAmiCalculatedAt(null);
+        s.setQualifyingHouseholdSize(null);
+      }
       s.setStep('checklist');
     } catch (err) {
       s.setError(err instanceof Error ? err.message : t('intent.saveError'));
@@ -127,6 +157,40 @@ export function StepIntent() {
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="intentIncome">
+            Gross annual income (USD)
+            <span className="ml-2 text-xs font-normal text-gray-400">
+              Optional — used to pre-qualify you for affordable units.
+            </span>
+          </label>
+          <input
+            id="intentIncome"
+            type="text"
+            inputMode="numeric"
+            className="input"
+            placeholder="e.g. 42000"
+            value={incomeStr}
+            onChange={(e) => setIncomeStr(e.target.value)}
+            aria-describedby="intentIncomeStatus"
+          />
+          <div
+            id="intentIncomeStatus"
+            role="status"
+            aria-live="polite"
+            className="mt-2 min-h-[1.25rem] text-xs"
+          >
+            {incomeNum == null ? null : previewTier ? (
+              <span className="font-medium text-emerald-700">
+                You qualify for {formatAmiTier(previewTier)} units.
+              </span>
+            ) : (
+              <span className="font-medium text-amber-700">
+                Over income for affordable tiers. Market-rate units may still fit.
+              </span>
+            )}
+          </div>
         </div>
         <CTA type="submit" disabled={s.loading || s.intentBedrooms === null || !s.intentMoveInDate}>
           {s.loading ? t('common.saving') : t('intent.submit')}

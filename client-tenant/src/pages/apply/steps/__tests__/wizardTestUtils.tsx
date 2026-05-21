@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ApplyProvider, formatPaymentTotal, type ApplyState, type Step } from '../../ApplyContext';
 import type { Unit } from '@/api/units';
+import type { AmiTier } from '@/lib/ami';
 
 export interface WizardSeed {
   step?: Step;
@@ -8,6 +9,10 @@ export interface WizardSeed {
   intentBedrooms?: number | null;
   intentMoveInDate?: string;
   intentHouseholdSize?: number;
+  grossAnnualIncome?: number | null;
+  qualifyingAmiTier?: AmiTier | null;
+  qualifyingAmiCalculatedAt?: string | null;
+  qualifyingHouseholdSize?: number | null;
   adults?: number;
   paymentRef?: string | null;
 }
@@ -46,6 +51,10 @@ export function WizardTestProvider({ seed = {}, children }: { seed?: WizardSeed;
   const [intentBudgetMax, setIntentBudgetMax] = useState(2000);
   const [intentMoveInDate, setIntentMoveInDate] = useState(seed.intentMoveInDate ?? '2026-08-01');
   const [intentHouseholdSize, setIntentHouseholdSize] = useState(seed.intentHouseholdSize ?? 2);
+  const [grossAnnualIncome, setGrossAnnualIncome] = useState<number | null>(seed.grossAnnualIncome ?? null);
+  const [qualifyingAmiTier, setQualifyingAmiTier] = useState<AmiTier | null>(seed.qualifyingAmiTier ?? null);
+  const [qualifyingAmiCalculatedAt, setQualifyingAmiCalculatedAt] = useState<string | null>(seed.qualifyingAmiCalculatedAt ?? null);
+  const [qualifyingHouseholdSize, setQualifyingHouseholdSize] = useState<number | null>(seed.qualifyingHouseholdSize ?? null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [claimingUnitId, setClaimingUnitId] = useState<string | null>(null);
@@ -76,6 +85,10 @@ export function WizardTestProvider({ seed = {}, children }: { seed?: WizardSeed;
     resending, setResending, resent, setResent, devLink, setDevLink,
     intentBedrooms, setIntentBedrooms, intentBudgetMax, setIntentBudgetMax,
     intentMoveInDate, setIntentMoveInDate, intentHouseholdSize, setIntentHouseholdSize,
+    grossAnnualIncome, setGrossAnnualIncome,
+    qualifyingAmiTier, setQualifyingAmiTier,
+    qualifyingAmiCalculatedAt, setQualifyingAmiCalculatedAt,
+    qualifyingHouseholdSize, setQualifyingHouseholdSize,
     units, setUnits, unitsLoading, setUnitsLoading, claimingUnitId, setClaimingUnitId,
     claimedUnit, setClaimedUnit, claimExpiresAt, setClaimExpiresAt,
     properties, setProperties, propertiesLoading, setPropertiesLoading, propertiesFailed, setPropertiesFailed,

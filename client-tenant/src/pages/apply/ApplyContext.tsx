@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Unit } from '@/api/units';
+import type { AmiTier } from '@/lib/ami';
 
 // FROZEN CONTRACT 1 — step-key union, in order:
 // 1 · verify · intent · checklist · pick · claim · review · household · payment · 2 · confirm
@@ -82,6 +83,12 @@ export interface ApplyState {
   intentBudgetMax: number; setIntentBudgetMax: (n: number) => void;
   intentMoveInDate: string; setIntentMoveInDate: (s: string) => void;
   intentHouseholdSize: number; setIntentHouseholdSize: (n: number) => void;
+
+  // W0 — AMI pre-qualifier
+  grossAnnualIncome: number | null; setGrossAnnualIncome: (n: number | null) => void;
+  qualifyingAmiTier: AmiTier | null; setQualifyingAmiTier: (t: AmiTier | null) => void;
+  qualifyingAmiCalculatedAt: string | null; setQualifyingAmiCalculatedAt: (s: string | null) => void;
+  qualifyingHouseholdSize: number | null; setQualifyingHouseholdSize: (n: number | null) => void;
 
   // Pick
   units: Unit[]; setUnits: (u: Unit[]) => void;

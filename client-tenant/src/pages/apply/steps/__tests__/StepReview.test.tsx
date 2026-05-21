@@ -19,6 +19,8 @@ function renderAt() {
         intentBedrooms: 2,
         intentHouseholdSize: 2,
         intentMoveInDate: '2026-08-01',
+        grossAnnualIncome: 40000,
+        qualifyingAmiTier: '50',
       }}>
         <Routes>
           <Route path="/apply" element={<><StepReview /><StepProbe /></>} />
@@ -33,7 +35,7 @@ describe('StepReview', () => {
     renderAt();
     expect(screen.getByText(/Confirm what you're applying for/i)).toBeInTheDocument();
     expect(screen.getByText(/Donna Louise 2/i)).toBeInTheDocument();
-    expect(screen.getByText(/50–60% AMI/)).toBeInTheDocument();
+    expect(screen.getByText(/50% AMI/)).toBeInTheDocument();
   });
 
   it('Continue advances to household via ?step=household', () => {

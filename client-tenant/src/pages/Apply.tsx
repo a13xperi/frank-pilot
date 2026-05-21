@@ -11,6 +11,7 @@ import {
   type ApplyState,
   type Step,
 } from './apply/ApplyContext';
+import type { AmiTier } from '@/lib/ami';
 import { StepIndicator } from './apply/StepIndicator';
 import { Step1Register } from './apply/steps/Step1Register';
 import { StepVerify } from './apply/steps/StepVerify';
@@ -78,6 +79,11 @@ export function Apply() {
   const [intentBudgetMax, setIntentBudgetMax] = useState<number>(2000);
   const [intentMoveInDate, setIntentMoveInDate] = useState('');
   const [intentHouseholdSize, setIntentHouseholdSize] = useState<number>(1);
+
+  const [grossAnnualIncome, setGrossAnnualIncome] = useState<number | null>(null);
+  const [qualifyingAmiTier, setQualifyingAmiTier] = useState<AmiTier | null>(null);
+  const [qualifyingAmiCalculatedAt, setQualifyingAmiCalculatedAt] = useState<string | null>(null);
+  const [qualifyingHouseholdSize, setQualifyingHouseholdSize] = useState<number | null>(null);
 
   const [units, setUnits] = useState<Unit[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
@@ -152,6 +158,10 @@ export function Apply() {
     resending, setResending, resent, setResent, devLink, setDevLink,
     intentBedrooms, setIntentBedrooms, intentBudgetMax, setIntentBudgetMax,
     intentMoveInDate, setIntentMoveInDate, intentHouseholdSize, setIntentHouseholdSize,
+    grossAnnualIncome, setGrossAnnualIncome,
+    qualifyingAmiTier, setQualifyingAmiTier,
+    qualifyingAmiCalculatedAt, setQualifyingAmiCalculatedAt,
+    qualifyingHouseholdSize, setQualifyingHouseholdSize,
     units, setUnits, unitsLoading, setUnitsLoading, claimingUnitId, setClaimingUnitId,
     claimedUnit, setClaimedUnit, claimExpiresAt, setClaimExpiresAt,
     properties, setProperties, propertiesLoading, setPropertiesLoading, propertiesFailed, setPropertiesFailed,
