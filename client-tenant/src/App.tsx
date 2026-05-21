@@ -17,6 +17,7 @@ import { PropertyDetail } from '@/pages/discover/PropertyDetail';
 import { WaitlistPosition } from '@/pages/waitlist/Position';
 import { WaitlistFasterList } from '@/pages/waitlist/FasterList';
 import { MagicLinkSent } from '@/pages/apply/MagicLinkSent';
+import { ScreenshotButton } from '@/components/dev/ScreenshotButton';
 import { getToken } from '@/api/client';
 
 function RootRedirect() {
@@ -25,6 +26,7 @@ function RootRedirect() {
 
 export default function App() {
   return (
+    <>
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
@@ -54,5 +56,7 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    <ScreenshotButton />
+    </>
   );
 }
