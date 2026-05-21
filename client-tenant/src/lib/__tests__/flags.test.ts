@@ -18,6 +18,10 @@ describe('useFlag — env override mechanism', () => {
 
   describe('default-on flags (PROPERTY_DL2_ENABLED, MOBILE_APPLY_ENABLED)', () => {
     it('returns true when env var is unset (default-on)', async () => {
+      // Vite auto-loads .env.local; stub to undefined to simulate true absence
+      // regardless of developer setup.
+      vi.stubEnv('VITE_PROPERTY_DL2_ENABLED', undefined as unknown as string);
+      vi.stubEnv('VITE_MOBILE_APPLY_ENABLED', undefined as unknown as string);
       const { useFlag } = await loadFlags();
       expect(useFlag('PROPERTY_DL2_ENABLED')).toBe(true);
       expect(useFlag('MOBILE_APPLY_ENABLED')).toBe(true);
@@ -42,6 +46,7 @@ describe('useFlag — env override mechanism', () => {
 
   describe('default-off flags (PAYMENT_WIZARD_ENABLED)', () => {
     it('returns false when env var is unset (default-off)', async () => {
+      vi.stubEnv('VITE_PAYMENT_WIZARD_ENABLED', undefined as unknown as string);
       const { useFlag } = await loadFlags();
       expect(useFlag('PAYMENT_WIZARD_ENABLED')).toBe(false);
     });
