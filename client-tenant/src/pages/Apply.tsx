@@ -4,6 +4,7 @@ import { CheckCircle } from 'lucide-react';
 import { api } from '@/api/client';
 import { ClaimedUnitHeader } from '@/components/ClaimedUnitHeader';
 import { Card } from '@/components/primitives';
+import { HF } from '@/styles/tokens';
 import { useTranslation } from 'react-i18next';
 import {
   ApplyProvider,
@@ -173,11 +174,16 @@ export function Apply() {
 
   if (done) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+      <div
+        className="flex min-h-screen items-center justify-center p-4"
+        style={{ background: HF.cream, color: HF.ink, fontFamily: HF.body }}
+      >
         <div className="flex flex-col items-center gap-4 text-center">
-          <CheckCircle className="h-12 w-12 text-emerald-600" />
-          <h2 className="text-xl font-bold text-gray-900">{t('common.submitted')}</h2>
-          <p className="text-sm text-gray-500">{t('common.redirecting')}</p>
+          <CheckCircle className="h-12 w-12" style={{ color: HF.ok }} />
+          <h2 className="text-xl font-bold" style={{ fontFamily: HF.display, color: HF.ink }}>
+            {t('common.submitted')}
+          </h2>
+          <p className="text-sm" style={{ color: HF.ink3 }}>{t('common.redirecting')}</p>
         </div>
       </div>
     );
@@ -187,7 +193,10 @@ export function Apply() {
 
   return (
     <ApplyProvider value={value}>
-      <div className="min-h-screen bg-gray-50 p-4">
+      <div
+        className="min-h-screen p-4"
+        style={{ background: HF.cream, color: HF.ink, fontFamily: HF.body }}
+      >
         <div className="mx-auto flex max-w-6xl gap-8 py-8">
           <aside className="hidden w-56 shrink-0 lg:block">
             <StepIndicator />
@@ -199,7 +208,16 @@ export function Apply() {
             <div className="lg:hidden"><StepIndicator /></div>
             <Card>
               {error && (
-                <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+                <div
+                  className="mb-4 p-3 text-sm"
+                  role="alert"
+                  style={{
+                    background: HF.errLo,
+                    color: HF.err,
+                    border: `1px solid ${HF.err}33`,
+                    borderRadius: HF.r.sm,
+                  }}
+                >
                   {error}
                 </div>
               )}
@@ -223,9 +241,13 @@ export function Apply() {
                 <Suspense fallback={null}><StepConfirm /></Suspense>
               )}
             </Card>
-            <p className="text-center text-sm text-gray-500">
+            <p className="text-center text-sm" style={{ color: HF.ink3 }}>
               {t('common.alreadyHaveAccount')}{' '}
-              <Link to="/login" className="font-medium text-emerald-600 hover:underline">
+              <Link
+                to="/login"
+                className="font-medium hover:underline"
+                style={{ color: HF.accent }}
+              >
                 {t('common.signIn')}
               </Link>
             </p>
