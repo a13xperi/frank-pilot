@@ -2,6 +2,20 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+
+// FROZEN CONTRACT 5: when PAYMENT_WIZARD_ENABLED is on, claim → review → household
+// → payment → 2 → confirm. This integration test asserts the legacy short-circuit
+// claim → 2 path; the wizard wedge is covered by per-step tests in steps/__tests__.
+// Mock at module-level so Apply imports the stubbed flag before the tree mounts.
+vi.mock('@/lib/flags', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/flags')>('@/lib/flags');
+  return {
+    ...actual,
+    useFlag: (name: string) =>
+      name === 'PAYMENT_WIZARD_ENABLED' ? false : true,
+  };
+});
+
 import { Apply } from '../../Apply';
 import { setToken } from '@/api/client';
 

@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { axe } from 'jest-axe';
+import axe from 'axe-core';
 import { PropertyDetail } from '../PropertyDetail';
 
 function renderAt(path: string) {
@@ -50,7 +50,7 @@ describe('PropertyDetail', () => {
     await waitFor(() => {
       expect(screen.getByText('Donna Louise 2')).toBeInTheDocument();
     });
-    const results = await axe(container);
+    const results = await axe.run(container);
     expect(results.violations).toEqual([]);
   });
 });
