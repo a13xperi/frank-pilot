@@ -33,20 +33,52 @@ export function formatPaymentTotal(adults: number): string {
 interface WizPersisted {
   adults: number;
   paymentRef: string | null;
+  // W0 — persist tier across mid-funnel refreshes so the applicant doesn't
+  // re-enter income when sessionStorage survives a reload of /apply.
+  grossAnnualIncome: number | null;
+  qualifyingAmiTier: AmiTier | null;
+  qualifyingAmiCalculatedAt: string | null;
+  qualifyingHouseholdSize: number | null;
 }
 
+const DEFAULTS: WizPersisted = {
+  adults: 1,
+  paymentRef: null,
+  grossAnnualIncome: null,
+  qualifyingAmiTier: null,
+  qualifyingAmiCalculatedAt: null,
+  qualifyingHouseholdSize: null,
+};
+
+const TIER_SET: ReadonlySet<AmiTier> = new Set(['30', '50', '60', '80']);
+
 function readPersisted(): WizPersisted {
-  if (typeof window === 'undefined') return { adults: 1, paymentRef: null };
+  if (typeof window === 'undefined') return { ...DEFAULTS };
   try {
     const raw = window.sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return { adults: 1, paymentRef: null };
+    if (!raw) return { ...DEFAULTS };
     const parsed = JSON.parse(raw) as Partial<WizPersisted>;
     return {
-      adults: typeof parsed.adults === 'number' ? parsed.adults : 1,
+      adults: typeof parsed.adults === 'number' ? parsed.adults : DEFAULTS.adults,
       paymentRef: typeof parsed.paymentRef === 'string' ? parsed.paymentRef : null,
+      grossAnnualIncome:
+        typeof parsed.grossAnnualIncome === 'number' ? parsed.grossAnnualIncome : null,
+      qualifyingAmiTier:
+        typeof parsed.qualifyingAmiTier === 'string' &&
+        TIER_SET.has(parsed.qualifyingAmiTier as AmiTier)
+          ? (parsed.qualifyingAmiTier as AmiTier)
+          : null,
+      qualifyingAmiCalculatedAt:
+        typeof parsed.qualifyingAmiCalculatedAt === 'string'
+          ? parsed.qualifyingAmiCalculatedAt
+          : null,
+      qualifyingHouseholdSize:
+        typeof parsed.qualifyingHouseholdSize === 'number'
+          ? parsed.qualifyingHouseholdSize
+          : null,
     };
   } catch {
-    return { adults: 1, paymentRef: null };
+    return { ...DEFAULTS };
   }
 }
 
@@ -139,15 +171,42 @@ export function useApply(): ApplyState {
 }
 
 // Hook for callers (Apply.tsx) to build the wiz slice with sessionStorage persistence.
-// Returned object: { adults, setAdults, paymentTotal, paymentRef, setPaymentRef }.
+// Returned object: payment fields (adults / paymentTotal / paymentRef) plus W0 fields
+// (grossAnnualIncome / qualifyingAmiTier / qualifyingAmiCalculatedAt / qualifyingHouseholdSize).
 export function useWizState() {
   const initial = readPersisted();
   const [adults, setAdultsRaw] = useState<number>(initial.adults);
   const [paymentRef, setPaymentRefRaw] = useState<string | null>(initial.paymentRef);
+  const [grossAnnualIncome, setGrossAnnualIncomeRaw] = useState<number | null>(
+    initial.grossAnnualIncome,
+  );
+  const [qualifyingAmiTier, setQualifyingAmiTierRaw] = useState<AmiTier | null>(
+    initial.qualifyingAmiTier,
+  );
+  const [qualifyingAmiCalculatedAt, setQualifyingAmiCalculatedAtRaw] = useState<string | null>(
+    initial.qualifyingAmiCalculatedAt,
+  );
+  const [qualifyingHouseholdSize, setQualifyingHouseholdSizeRaw] = useState<number | null>(
+    initial.qualifyingHouseholdSize,
+  );
 
   useEffect(() => {
-    writePersisted({ adults, paymentRef });
-  }, [adults, paymentRef]);
+    writePersisted({
+      adults,
+      paymentRef,
+      grossAnnualIncome,
+      qualifyingAmiTier,
+      qualifyingAmiCalculatedAt,
+      qualifyingHouseholdSize,
+    });
+  }, [
+    adults,
+    paymentRef,
+    grossAnnualIncome,
+    qualifyingAmiTier,
+    qualifyingAmiCalculatedAt,
+    qualifyingHouseholdSize,
+  ]);
 
   return {
     adults,
@@ -155,5 +214,13 @@ export function useWizState() {
     paymentTotal: formatPaymentTotal(adults),
     paymentRef,
     setPaymentRef: setPaymentRefRaw,
+    grossAnnualIncome,
+    setGrossAnnualIncome: setGrossAnnualIncomeRaw,
+    qualifyingAmiTier,
+    setQualifyingAmiTier: setQualifyingAmiTierRaw,
+    qualifyingAmiCalculatedAt,
+    setQualifyingAmiCalculatedAt: setQualifyingAmiCalculatedAtRaw,
+    qualifyingHouseholdSize,
+    setQualifyingHouseholdSize: setQualifyingHouseholdSizeRaw,
   };
 }

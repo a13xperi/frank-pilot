@@ -4,12 +4,13 @@ import { saveIntent } from '@/api/units';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
-import { formatAmiTier, qualifyAmiTier } from '@/lib/ami';
+import { formatAmiTier, qualifyAmiTier, type AmiTier } from '@/lib/ami';
 
 const BR_KEYS = ['br.studio', 'br.1', 'br.2', 'br.3', 'br.4plus'] as const;
 const BR_VALUES = [0, 1, 2, 3, 4] as const;
 
 const AMI_MSA = 'LAS_VEGAS_HENDERSON' as const;
+const VALID_TIERS = new Set<AmiTier>(['30', '50', '60', '80']);
 
 // Welcome → Apply handoff: unitType query param → bedroom integer.
 const UNIT_TYPE_TO_BEDROOMS: Record<string, number> = {
@@ -40,7 +41,8 @@ export function StepIntent() {
     return qualifyAmiTier(AMI_MSA, s.intentHouseholdSize, incomeNum);
   }, [incomeNum, s.intentHouseholdSize]);
 
-  // Prefill silently from ?unitType= & ?propertyId= (Lane B handoff).
+  // Prefill silently from ?unitType= & ?propertyId= (Lane B handoff), plus
+  // W0 ?amiTier=&hh=&income= when the welcome AMI calculator forwarded them.
   useEffect(() => {
     if (prefilled.current) return;
     const unitType = search.get('unitType');
@@ -51,6 +53,29 @@ export function StepIntent() {
     if (propertyId && !s.propertyId) {
       s.setPropertyId(propertyId);
     }
+    // W0 prefill — only run when income is present (tier alone is not enough
+    // to seed local state). When ?amiTier is supplied we trust it; otherwise
+    // we recompute from (hh, income) so the displayed tier always matches the
+    // current AMI table.
+    const hhRaw = search.get('hh');
+    const incomeRaw = search.get('income');
+    const amiTierRaw = search.get('amiTier');
+    const incomeFromQs = incomeRaw ? Number.parseFloat(incomeRaw) : NaN;
+    if (Number.isFinite(incomeFromQs) && incomeFromQs >= 0 && s.grossAnnualIncome == null) {
+      const hh = hhRaw ? Number.parseInt(hhRaw, 10) : s.intentHouseholdSize;
+      if (Number.isFinite(hh) && hh >= 1) {
+        s.setIntentHouseholdSize(hh);
+        setIncomeStr(String(incomeFromQs));
+        const tier: AmiTier | null =
+          amiTierRaw && VALID_TIERS.has(amiTierRaw as AmiTier)
+            ? (amiTierRaw as AmiTier)
+            : qualifyAmiTier(AMI_MSA, hh, incomeFromQs);
+        s.setGrossAnnualIncome(incomeFromQs);
+        s.setQualifyingAmiTier(tier);
+        s.setQualifyingAmiCalculatedAt(new Date().toISOString());
+        s.setQualifyingHouseholdSize(hh);
+      }
+    }
     prefilled.current = true;
   }, [search, s]);
 
@@ -60,18 +85,25 @@ export function StepIntent() {
     s.setError(null);
     s.setLoading(true);
     try {
+      // Compute the tier upfront so the same value goes to the backend and to
+      // local state — keeps the draft row and the wizard's cached tier
+      // strictly in sync.
+      const computedTier = incomeNum != null
+        ? qualifyAmiTier(AMI_MSA, s.intentHouseholdSize, incomeNum)
+        : null;
       await saveIntent({
         bedrooms: s.intentBedrooms,
         budget_max: s.intentBudgetMax,
         move_in_date: s.intentMoveInDate,
         household_size: s.intentHouseholdSize,
+        gross_annual_income: incomeNum,
+        qualifying_ami_tier: computedTier,
       });
       s.setHouseholdSize(String(s.intentHouseholdSize));
       s.setMoveInDate(s.intentMoveInDate);
       if (incomeNum != null) {
-        const tier = qualifyAmiTier(AMI_MSA, s.intentHouseholdSize, incomeNum);
         s.setGrossAnnualIncome(incomeNum);
-        s.setQualifyingAmiTier(tier);
+        s.setQualifyingAmiTier(computedTier);
         s.setQualifyingAmiCalculatedAt(new Date().toISOString());
         s.setQualifyingHouseholdSize(s.intentHouseholdSize);
       } else {

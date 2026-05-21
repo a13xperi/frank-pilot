@@ -28,6 +28,9 @@ export function StepPick() {
             : { bedrooms: s.intentBedrooms! }),
           maxRent: s.intentBudgetMax,
           moveInBy: s.intentMoveInDate,
+          // Permissive default: null tier (no income / over-income) omits the
+          // filter, so applicants always see something to apply to.
+          ...(s.qualifyingAmiTier ? { amiTier: s.qualifyingAmiTier } : {}),
         });
         if (!cancelled) s.setUnits(res.units);
       } catch (err) {
@@ -40,7 +43,7 @@ export function StepPick() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.intentBedrooms, s.intentBudgetMax, s.intentMoveInDate]);
+  }, [s.intentBedrooms, s.intentBudgetMax, s.intentMoveInDate, s.qualifyingAmiTier]);
 
   async function handleClaim(unitId: string) {
     s.setClaimingUnitId(unitId);
