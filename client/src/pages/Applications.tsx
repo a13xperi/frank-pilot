@@ -47,6 +47,12 @@ const columns: Column<Application>[] = [
         : '—',
   },
   {
+    key: 'qualifying_ami_tier',
+    header: 'AMI Tier',
+    className: 'text-center',
+    render: (r) => (r.qualifying_ami_tier ? `${r.qualifying_ami_tier}% AMI` : '—'),
+  },
+  {
     key: 'created_at',
     header: 'Created',
     render: (r) => new Date(r.created_at).toLocaleDateString(),
