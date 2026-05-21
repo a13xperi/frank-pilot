@@ -291,3 +291,60 @@ describe("GET /applicants/properties (public, ungated)", () => {
     expect(res.body.properties).toHaveLength(1);
   });
 });
+
+// INFO-2 / W6 re-audit: devLink must only leak when NODE_ENV is EXACTLY
+// "development". The gate is fail-closed today (`=== "development"`), and
+// these tests lock that behaviour so a future refactor to a looser predicate
+// (e.g. `!== "production"`) breaks CI instead of silently re-opening the
+// enumeration channel in staging/preview environments.
+describe("POST /applicants/register — INFO-2 devLink gate", () => {
+  const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+  beforeEach(() => jest.clearAllMocks());
+  afterEach(() => { process.env.NODE_ENV = ORIGINAL_NODE_ENV; });
+
+  function stubNewApplicant() {
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: "u-1" }] } as any);
+    mockCreateMagicLink.mockResolvedValueOnce({ link: "http://x/auth/callback?token=raw", userId: "u-1" });
+  }
+
+  it("omits devLink when NODE_ENV === 'production'", async () => {
+    process.env.NODE_ENV = "production";
+    stubNewApplicant();
+    const res = await request(app)
+      .post("/applicants/register")
+      .send({ email: "a@example.com", firstName: "A", lastName: "B" });
+    expect(res.status).toBe(202);
+    expect(res.body).not.toHaveProperty("devLink");
+  });
+
+  it("omits devLink when NODE_ENV === 'staging' (anything not 'development')", async () => {
+    process.env.NODE_ENV = "staging";
+    stubNewApplicant();
+    const res = await request(app)
+      .post("/applicants/register")
+      .send({ email: "a@example.com", firstName: "A", lastName: "B" });
+    expect(res.status).toBe(202);
+    expect(res.body).not.toHaveProperty("devLink");
+  });
+
+  it("omits devLink when NODE_ENV is unset", async () => {
+    delete process.env.NODE_ENV;
+    stubNewApplicant();
+    const res = await request(app)
+      .post("/applicants/register")
+      .send({ email: "a@example.com", firstName: "A", lastName: "B" });
+    expect(res.status).toBe(202);
+    expect(res.body).not.toHaveProperty("devLink");
+  });
+
+  it("includes devLink when NODE_ENV === 'development'", async () => {
+    process.env.NODE_ENV = "development";
+    stubNewApplicant();
+    const res = await request(app)
+      .post("/applicants/register")
+      .send({ email: "a@example.com", firstName: "A", lastName: "B" });
+    expect(res.status).toBe(202);
+    expect(res.body.devLink).toBe("http://x/auth/callback?token=raw");
+  });
+});

@@ -80,7 +80,7 @@ export function StepVerify() {
       <CTA onClick={handleResend} disabled={s.resending || !s.email}>
         {s.resending ? t('verify.resending') : t('verify.resend')}
       </CTA>
-      {s.devLink && (
+      {import.meta.env.DEV && s.devLink && (
         <a
           href={s.devLink}
           className="block px-4 py-2 text-center text-sm font-medium"
