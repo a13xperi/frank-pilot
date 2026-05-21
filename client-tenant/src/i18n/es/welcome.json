@@ -1,0 +1,81 @@
+{
+  "brand": "Donna Louise 2",
+  "tagline": "Vivienda asequible · LIHTC · Sección 8 bienvenida",
+  "step1_label": "Paso 1 · Tu hogar",
+  "step2_label": "Paso 2 · Tipo de unidad",
+  "unitTypes": {
+    "STUDIO": "Estudio",
+    "1BR": "1 recámara",
+    "2BR": "2 recámaras",
+    "3BR": "3 recámaras"
+  },
+  "unitTypes_sub": {
+    "STUDIO": "Una persona",
+    "1BR": "1–2 personas",
+    "2BR": "2–4 personas",
+    "3BR": "3–6 personas"
+  },
+  "feeStrip": "$35.95 / adulto · 5 documentos · Sección 8 bienvenida",
+  "feeDetails": "Detalles",
+  "next": "Continuar",
+  "start": "Comenzar solicitud",
+  "tapToBegin": "Toca una propiedad para comenzar",
+  "help": "Ayuda",
+  "topMatch": "Tu favorita",
+  "savedShortlist": "Guardada en tu lista",
+  "vacancy": {
+    "open": "Disponible ahora",
+    "waitlist": "Lista de espera abierta",
+    "closed": "Lista de espera cerrada"
+  },
+  "property": {
+    "name": "Donna Louise 2",
+    "addr": "2241 Sunrise Ave",
+    "phone": "(702) 555-0188",
+    "blurb": "Comunidad LIHTC nueva — corredor Sunrise, a pie del transporte."
+  },
+  "states": {
+    "empty": {
+      "heading": "Bienvenido",
+      "body": "Elige un tipo de unidad para ver lo que coincide."
+    },
+    "available": {
+      "heading": "Tenemos una unidad disponible",
+      "body": "Aplica ahora — por orden de llegada."
+    },
+    "waitlist": {
+      "heading": "Lista de espera abierta",
+      "body": "Todas las unidades están ocupadas — aplica para unirte a la lista de espera. Te avisaremos en cuanto se abra una unidad."
+    },
+    "allFull": {
+      "heading": "Todas las propiedades están llenas",
+      "body": "No hay unidades ni espacios en lista de espera disponibles en este momento. Déjanos tu correo y te avisaremos en cuanto cambie."
+    },
+    "referral": {
+      "heading": "Colocación prioritaria",
+      "body": "Tu referido te da prioridad en la lista de espera."
+    },
+    "returning": {
+      "heading": "Bienvenido de nuevo",
+      "body": "Continúa donde lo dejaste."
+    }
+  },
+  "disclosure": {
+    "title": "Antes de continuar",
+    "fairHousing": "Igualdad de Oportunidades de Vivienda (Formulario HUD 928.1). No discriminamos por raza, color, origen nacional, religión, sexo, situación familiar o discapacidad.",
+    "lihtc": "Esta comunidad participa en el programa de Crédito Fiscal para Vivienda de Bajos Ingresos (LIHTC). Se verificarán los ingresos del hogar y la elegibilidad.",
+    "state": "Avisos de Nevada: la tarifa de solicitud es de $35.95 por adulto, no reembolsable. Se requiere verificación de antecedentes y crédito.",
+    "ack": "He leído y acepto los avisos anteriores.",
+    "accept": "Aceptar y continuar",
+    "cancel": "Cancelar"
+  },
+  "footer": {
+    "feeAck": "Tarifa, documentos y servicios aceptados."
+  },
+  "notify": {
+    "question": "¿Quieres que te avisemos cuando se abra una unidad?",
+    "body": "Te enviaremos correo y SMS en cuanto una unidad que coincida esté disponible.",
+    "yes": "Sí, avísame",
+    "no": "Ahora no"
+  }
+}

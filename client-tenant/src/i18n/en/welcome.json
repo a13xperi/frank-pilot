@@ -1,0 +1,81 @@
+{
+  "brand": "Donna Louise 2",
+  "tagline": "Affordable housing · LIHTC · Section 8 welcome",
+  "step1_label": "Step 1 · Your household",
+  "step2_label": "Step 2 · Unit type",
+  "unitTypes": {
+    "STUDIO": "Studio",
+    "1BR": "1 bedroom",
+    "2BR": "2 bedrooms",
+    "3BR": "3 bedrooms"
+  },
+  "unitTypes_sub": {
+    "STUDIO": "Single resident",
+    "1BR": "1–2 people",
+    "2BR": "2–4 people",
+    "3BR": "3–6 people"
+  },
+  "feeStrip": "$35.95 / adult · 5 docs · Sec 8 welcome",
+  "feeDetails": "Details",
+  "next": "Continue",
+  "start": "Start application",
+  "tapToBegin": "Tap a property to begin",
+  "help": "Help",
+  "topMatch": "Top match",
+  "savedShortlist": "Saved to your shortlist",
+  "vacancy": {
+    "open": "Available now",
+    "waitlist": "Waitlist open",
+    "closed": "Waitlist closed"
+  },
+  "property": {
+    "name": "Donna Louise 2",
+    "addr": "2241 Sunrise Ave",
+    "phone": "(702) 555-0188",
+    "blurb": "Brand new LIHTC community — Sunrise corridor, walk to transit."
+  },
+  "states": {
+    "empty": {
+      "heading": "Welcome",
+      "body": "Pick a unit type to see what matches."
+    },
+    "available": {
+      "heading": "We have a unit open",
+      "body": "Apply now — first-come, first-served."
+    },
+    "waitlist": {
+      "heading": "Waitlist is open",
+      "body": "All units occupied — apply to join the waitlist. We'll notify you the moment a unit opens."
+    },
+    "allFull": {
+      "heading": "All properties are at capacity",
+      "body": "No units or waitlist spots are open right now. Leave your email and we'll let you know the moment that changes."
+    },
+    "referral": {
+      "heading": "Priority placement",
+      "body": "Your referral gives you priority on the waiting list."
+    },
+    "returning": {
+      "heading": "Welcome back",
+      "body": "Pick up where you left off."
+    }
+  },
+  "disclosure": {
+    "title": "Before you continue",
+    "fairHousing": "Equal Housing Opportunity (HUD Form 928.1). We do not discriminate on the basis of race, color, national origin, religion, sex, familial status, or disability.",
+    "lihtc": "This community participates in the Low-Income Housing Tax Credit (LIHTC) program. Household income and eligibility will be verified.",
+    "state": "Nevada disclosures: application fee is $35.95 per adult, non-refundable. Background and credit screening required.",
+    "ack": "I have read and agree to the disclosures above.",
+    "accept": "Accept & continue",
+    "cancel": "Cancel"
+  },
+  "footer": {
+    "feeAck": "Fee, docs & utilities ack."
+  },
+  "notify": {
+    "question": "Want us to notify you when a unit opens?",
+    "body": "We'll email + SMS you the moment a matching unit becomes available.",
+    "yes": "Yes, notify me",
+    "no": "Not now"
+  }
+}
