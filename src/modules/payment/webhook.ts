@@ -4,7 +4,7 @@ import type Stripe from "stripe";
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
-import { getStripe } from "../../lib/stripe";
+import { getStripe, expectedLivemode } from "../../lib/stripe";
 import { stampTape } from "../tape";
 import { buildIdempotencyKey, markStatus } from "./idempotency";
 import { LedgerService } from "../ledger/service";
@@ -276,15 +276,18 @@ router.post(
     // at a test-mode deployment (or vice-versa) means the wrong webhook secret
     // / wrong endpoint is wired up. Processing it would post the wrong-mode
     // money to the ledger. Reject with 400 so the misconfiguration surfaces
-    // loudly instead of silently corrupting state. We key off the deployment's
-    // own STRIPE_LIVE_ENABLED flag rather than trusting the event alone.
-    const liveEnabled = process.env.STRIPE_LIVE_ENABLED === "true";
-    if (event.livemode !== liveEnabled) {
+    // loudly instead of silently corrupting state. We derive the expected mode
+    // from the SECRET KEY prefix (sk_live_* ⇒ live) rather than the
+    // STRIPE_LIVE_ENABLED flag: the flag is a route/UI on-off switch and stays
+    // `true` even in test mode, so a test-mode deployment must still accept the
+    // `livemode:false` events its sk_test_ key produces.
+    const expectLive = expectedLivemode();
+    if (event.livemode !== expectLive) {
       logger.error("Stripe webhook livemode mismatch", {
         eventId: event.id,
         type: event.type,
         eventLivemode: event.livemode,
-        stripeLiveEnabled: liveEnabled,
+        expectedLivemode: expectLive,
       });
       res.status(400).json({ error: "Livemode mismatch" });
       return;

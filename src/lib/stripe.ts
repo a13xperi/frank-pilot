@@ -35,6 +35,20 @@ export function getStripe(): Stripe {
   return cached;
 }
 
+/**
+ * Expected Stripe livemode for the currently-configured secret key.
+ *
+ * Only `sk_live_*` keys produce live-mode events; everything else (`sk_test_*`,
+ * restricted test keys, placeholders) is test mode. The webhook livemode guard
+ * keys off THIS rather than `STRIPE_LIVE_ENABLED` so a test-mode deployment can
+ * complete the full payment loop while `STRIPE_LIVE_ENABLED=true` keeps the
+ * route + client UI switched on. The guard's real job is "the wired webhook
+ * secret matches the key's mode", which the key prefix expresses directly.
+ */
+export function expectedLivemode(): boolean {
+  return (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_live_");
+}
+
 /** Test helper — drops the memoised client so a different env can be applied. */
 export function resetStripeClientForTests(): void {
   cached = null;
