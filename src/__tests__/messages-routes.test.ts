@@ -8,6 +8,9 @@
  *   - P0 #2 — POST /messages emits standard RateLimit-* headers.
  *   - P0 #3 — Tenant POST /messages is gated by requireEmailVerified (the
  *     same WARN #2 floor every other applicant mutating surface uses).
+ *   - wedge #13 — POST /messages is gated by Turnstile when a real secret is
+ *     set; a failing siteverify response must produce 403
+ *     turnstile_verification_failed before the route handler runs.
  *
  * Strategy: real JWTs decoded against the mocked users DB row, then a
  * queue-mocked `query` chain matching the order of the route handlers
@@ -236,6 +239,53 @@ describe("PR #4 P0 follow-ups — messaging routes", () => {
       // express-rate-limit with standardHeaders:true emits RateLimit-Limit + Remaining.
       expect(res.headers["ratelimit-limit"]).toBeDefined();
       expect(res.headers["ratelimit-remaining"]).toBeDefined();
+    });
+  });
+
+  describe("wedge #13 — Turnstile gates POST /messages", () => {
+    // Save and restore TURNSTILE_SECRET_KEY + globalThis.fetch around each test.
+    const ORIGINAL_SECRET = process.env.TURNSTILE_SECRET_KEY;
+    const ORIGINAL_FETCH = (globalThis as any).fetch;
+
+    afterEach(() => {
+      if (ORIGINAL_SECRET === undefined) {
+        delete process.env.TURNSTILE_SECRET_KEY;
+      } else {
+        process.env.TURNSTILE_SECRET_KEY = ORIGINAL_SECRET;
+      }
+      (globalThis as any).fetch = ORIGINAL_FETCH;
+    });
+
+    it("rejects with 403 turnstile_verification_failed when siteverify returns success:false", async () => {
+      // Activate Turnstile enforcement by setting a real-looking secret key.
+      process.env.TURNSTILE_SECRET_KEY = "real-secret-for-test";
+
+      // Stub globalThis.fetch to simulate a Cloudflare siteverify rejection.
+      // The verifyTurnstile middleware falls back to globalThis.fetch when no
+      // fetchImpl option is provided (which is the case for routes wired via
+      // verifyTurnstile() with no args).
+      (globalThis as any).fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: false, "error-codes": ["invalid-input-response"] }),
+      });
+
+      const ownedAppId = "app-owned-by-user";
+      const token = generateToken(verifiedUser);
+
+      // The tenant router.use chain runs: authenticate → requireTenantRole →
+      // requireEmailVerified → scopeToOwnApplications — all before the
+      // route-level verifyTurnstile(). Stub each DB query in order.
+      mockUsersRow(verifiedUser, VERIFIED_AT);
+      // scopeToOwnApplications → getUserApplicationIds SELECT
+      mockScopedApps([ownedAppId]);
+
+      const res = await request(app)
+        .post(`/tenant/applications/${ownedAppId}/messages`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ body: "spam payload", turnstileToken: "bad-token" });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe("turnstile_verification_failed");
     });
   });
 });
