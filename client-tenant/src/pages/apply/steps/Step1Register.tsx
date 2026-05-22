@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { api } from '@/api/client';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
+import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { HF } from '@/styles/tokens';
 
 const labelStyle = {
@@ -28,6 +30,11 @@ const inputStyle = {
 export function Step1Register() {
   const s = useApply();
   const { t } = useTranslation('apply');
+  // wedge #13: Turnstile token issued by the widget on successful challenge.
+  // In dev / smoke (VITE_TURNSTILE_SITE_KEY unset or dev key) the widget
+  // auto-fires `onVerify('test-token-dev')` synchronously so the smoke
+  // (Welcome → Claim e2e) keeps passing without a real key configured.
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,6 +46,7 @@ export function Step1Register() {
         firstName: s.firstName,
         lastName: s.lastName,
         phone: s.phone || undefined,
+        turnstileToken: turnstileToken || undefined,
       });
       if (res.devLink) s.setDevLink(res.devLink);
       s.setStep('verify');
@@ -102,6 +110,7 @@ export function Step1Register() {
             placeholder={t('register.phonePlaceholder')}
           />
         </div>
+        <TurnstileWidget onVerify={setTurnstileToken} />
         <CTA
           type="submit"
           disabled={s.loading || !s.email || !s.firstName || !s.lastName}

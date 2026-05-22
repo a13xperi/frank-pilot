@@ -4,6 +4,7 @@ import { Mail, ArrowRight } from 'lucide-react';
 import { requestMagicLink } from '@/api/auth';
 import { HF } from '@/styles/tokens';
 import { CTA, Card } from '@/components/primitives';
+import { TurnstileWidget } from '@/components/TurnstileWidget';
 
 export function Login() {
   const navigate = useNavigate();
@@ -12,13 +13,18 @@ export function Login() {
   const [sent, setSent] = useState(false);
   const [devLink, setDevLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // wedge #13: bot-gate the magic-link request. In dev / smoke the widget
+  // bypasses to `test-token-dev`; in prod a real Cloudflare challenge fires.
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const res = (await requestMagicLink(email)) as { devLink?: string };
+      const res = (await requestMagicLink(email, turnstileToken || undefined)) as {
+        devLink?: string;
+      };
       setSent(true);
       if (res.devLink) {
         setDevLink(res.devLink);
@@ -116,6 +122,7 @@ export function Login() {
                 }}
               />
             </label>
+            <TurnstileWidget onVerify={setTurnstileToken} />
             <CTA type="submit" tone="primary" size="lg" disabled={loading || !email} block>
               {loading ? 'Sending…' : 'Send magic link'}
             </CTA>

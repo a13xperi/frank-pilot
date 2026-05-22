@@ -4,6 +4,7 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { query, transaction } from "../../config/database";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requireEmailVerified } from "../../middleware/scope";
+import { verifyTurnstile } from "../../middleware/verify-turnstile";
 import { createMagicLink, logMagicLink, sendMagicLink } from "../auth/magic-link-service";
 import { ApplicationService } from "../application/service";
 import { createApplicationSchema } from "../application/validation";
@@ -18,12 +19,30 @@ const registerSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   phone: z.string().max(20).optional(),
+  // wedge #13: Cloudflare Turnstile widget response. Optional in the schema
+  // because dev/test bypass the middleware entirely (smoke + unit tests run
+  // without TURNSTILE_SECRET_KEY); production fails at verify-turnstile with
+  // 403 turnstile_verification_failed if missing or invalid.
+  turnstileToken: z.string().optional(),
 });
 
 const registerLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
   keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? "")}:${(req.body?.email ?? "").toLowerCase()}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, try again in a minute" },
+});
+
+// wedge #13: per-IP ceiling on register attempts. The (ip,email) limiter
+// above resets every time a bot cycles the email field — a single IP could
+// otherwise burn through arbitrarily many fresh accounts. 30/min/IP gives
+// real users on shared NATs plenty of room while neutering bulk-signup bots.
+const registerIpLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, try again in a minute" },
@@ -87,7 +106,12 @@ const unitWriteLimiter = rateLimit({
 
 // Public: register as an applicant. Idempotent — if the email already exists as
 // an applicant, we reissue a magic link instead of erroring (no email enumeration).
-router.post("/register", registerLimiter, async (req: Request, res: Response): Promise<void> => {
+router.post(
+  "/register",
+  registerIpLimiter,
+  registerLimiter,
+  verifyTurnstile(),
+  async (req: Request, res: Response): Promise<void> => {
   const t0 = Date.now();
   try {
     const parsed = registerSchema.safeParse(req.body);
@@ -179,7 +203,8 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     // branch the email landed in.
     await respondAtFloor(res, t0, 500, { error: "Registration failed" });
   }
-});
+  }
+);
 
 // Authenticated as applicant with a verified email: submit the application
 // form. requireEmailVerified gates this — see WARN #2.
