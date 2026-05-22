@@ -14,6 +14,7 @@ import { UserService } from "../modules/users/service";
 import { PropertyService } from "../modules/properties/service";
 import { queryAuditLog } from "../middleware/audit";
 import bcrypt from "bcrypt";
+import { logger } from "../utils/logger";
 
 const program = new Command();
 
@@ -35,14 +36,14 @@ program
     try {
       const result = await login(opts.email, opts.password);
       if (!result) {
-        console.error("Invalid credentials");
+        logger.error("Invalid credentials");
         process.exit(1);
       }
-      console.log("\nLogin successful!");
-      console.log(`User: ${result.user.firstName} ${result.user.lastName} (${result.user.role})`);
-      console.log(`\nToken:\n${result.token}\n`);
+      logger.info("\nLogin successful!");
+      logger.info(`User: ${result.user.firstName} ${result.user.lastName} (${result.user.role})`);
+      logger.info(`\nToken:\n${result.token}\n`);
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -68,9 +69,9 @@ program
          VALUES ($1, $2, $3, $4, $5) RETURNING id, email, role`,
         [opts.email, hash, opts.firstName, opts.lastName, opts.role]
       );
-      console.log("User created:", result.rows[0]);
+      logger.info("User created:", { data: result.rows[0] });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -84,9 +85,9 @@ program
       const result = await query(
         "SELECT id, email, first_name, last_name, role, is_active, last_login FROM users ORDER BY role, email"
       );
-      console.table(result.rows);
+      logger.info("Users:", { rows: result.rows });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -101,12 +102,12 @@ program
     try {
       const actorResult = await query("SELECT id, role FROM users WHERE id = $1", [opts.actorId]);
       if (actorResult.rows.length === 0) {
-        console.error("Actor user not found:", opts.actorId);
+        logger.error("Actor user not found:", { actorId: opts.actorId });
         process.exit(1);
       }
       const targetResult = await query("SELECT id FROM users WHERE email = $1", [opts.email]);
       if (targetResult.rows.length === 0) {
-        console.error("Target user not found:", opts.email);
+        logger.error("Target user not found:", { email: opts.email });
         process.exit(1);
       }
       const svc = new UserService();
@@ -116,9 +117,9 @@ program
         actorResult.rows[0].id,
         actorResult.rows[0].role
       );
-      console.log("User deactivated:", { id: user.id, email: user.email, role: user.role });
+      logger.info("User deactivated:", { id: user.id, email: user.email, role: user.role });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -133,12 +134,12 @@ program
     try {
       const actorResult = await query("SELECT id, role FROM users WHERE id = $1", [opts.actorId]);
       if (actorResult.rows.length === 0) {
-        console.error("Actor user not found:", opts.actorId);
+        logger.error("Actor user not found:", { actorId: opts.actorId });
         process.exit(1);
       }
       const targetResult = await query("SELECT id FROM users WHERE email = $1", [opts.email]);
       if (targetResult.rows.length === 0) {
-        console.error("Target user not found:", opts.email);
+        logger.error("Target user not found:", { email: opts.email });
         process.exit(1);
       }
       const svc = new UserService();
@@ -148,9 +149,9 @@ program
         actorResult.rows[0].id,
         actorResult.rows[0].role
       );
-      console.log("User activated:", { id: user.id, email: user.email, role: user.role });
+      logger.info("User activated:", { id: user.id, email: user.email, role: user.role });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -166,12 +167,12 @@ program
     try {
       const actorResult = await query("SELECT id, role FROM users WHERE id = $1", [opts.actorId]);
       if (actorResult.rows.length === 0) {
-        console.error("Actor user not found:", opts.actorId);
+        logger.error("Actor user not found:", { actorId: opts.actorId });
         process.exit(1);
       }
       const targetResult = await query("SELECT id FROM users WHERE email = $1", [opts.email]);
       if (targetResult.rows.length === 0) {
-        console.error("Target user not found:", opts.email);
+        logger.error("Target user not found:", { email: opts.email });
         process.exit(1);
       }
       const svc = new UserService();
@@ -181,9 +182,9 @@ program
         actorResult.rows[0].id,
         actorResult.rows[0].role
       );
-      console.log(`Password reset successfully for: ${opts.email}`);
+      logger.info(`Password reset successfully for: ${opts.email}`);
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
       process.exit(1);
     } finally {
       await pool.end();
@@ -206,9 +207,9 @@ program
         status: opts.status,
         limit: parseInt(opts.limit),
       });
-      console.log(`\nTotal: ${result.total} applications\n`);
-      console.table(
-        result.applications.map((a) => ({
+      logger.info(`\nTotal: ${result.total} applications\n`);
+      logger.info("Applications:", {
+        rows: result.applications.map((a) => ({
           id: a.id.substring(0, 8) + "...",
           name: `${a.first_name} ${a.last_name}`,
           status: a.status,
@@ -216,10 +217,10 @@ program
           rent: a.requested_rent_amount ? `$${a.requested_rent_amount}` : "-",
           screening: a.overall_screening_result || "-",
           submitted: a.submitted_at ? new Date(a.submitted_at).toLocaleDateString() : "-",
-        }))
-      );
+        })),
+      });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -234,13 +235,13 @@ program
       const service = new ApplicationService();
       const app = await service.getById(opts.id);
       if (!app) {
-        console.error("Application not found");
+        logger.error("Application not found");
         process.exit(1);
       }
-      console.log("\n=== Application Details ===\n");
-      console.log(JSON.stringify(app, null, 2));
+      logger.info("\n=== Application Details ===\n");
+      logger.info("Application details:", { data: app });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -261,18 +262,18 @@ program
       // Get user role
       const userResult = await query("SELECT role FROM users WHERE id = $1", [opts.userId]);
       if (userResult.rows.length === 0) {
-        console.error("User not found");
+        logger.error("User not found");
         process.exit(1);
       }
       const result = await service.runFullScreening(opts.id, opts.userId, userResult.rows[0].role);
-      console.log("\n=== Screening Results ===\n");
-      console.log(`Overall: ${result.overallResult}`);
-      console.log(`Background: ${result.background.result}`);
-      console.log(`Credit: ${result.credit.result} (Score: ${result.credit.creditScore})`);
-      console.log(`Compliance: ${result.compliance.result}`);
-      console.log("\nDetails:", JSON.stringify(result, null, 2));
+      logger.info("\n=== Screening Results ===\n");
+      logger.info(`Overall: ${result.overallResult}`);
+      logger.info(`Background: ${result.background.result}`);
+      logger.info(`Credit: ${result.credit.result} (Score: ${result.credit.creditScore})`);
+      logger.info(`Compliance: ${result.compliance.result}`);
+      logger.info("Details:", { data: result });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -290,10 +291,10 @@ program
     try {
       const service = new ApprovalService();
       const result = await service.getApprovalStatus(opts.id);
-      console.log("\n=== Approval Status ===\n");
-      console.log(JSON.stringify(result, null, 2));
+      logger.info("\n=== Approval Status ===\n");
+      logger.info("Approval status:", { data: result });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -312,16 +313,16 @@ program
     try {
       const userResult = await query("SELECT role FROM users WHERE id = $1", [opts.userId]);
       if (userResult.rows.length === 0) {
-        console.error("User not found");
+        logger.error("User not found");
         process.exit(1);
       }
       const service = new LeaseService();
       const result = await service.generateLease(opts.id, opts.userId, userResult.rows[0].role);
-      console.log("\n=== Lease Generated ===\n");
-      console.log(`Lease ID:     ${result.leaseId}`);
-      console.log(`Document URL: ${result.documentUrl}`);
+      logger.info("\n=== Lease Generated ===\n");
+      logger.info(`Lease ID:     ${result.leaseId}`);
+      logger.info(`Document URL: ${result.documentUrl}`);
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
       process.exit(1);
     } finally {
       await pool.end();
@@ -337,16 +338,16 @@ program
     try {
       const userResult = await query("SELECT role FROM users WHERE id = $1", [opts.userId]);
       if (userResult.rows.length === 0) {
-        console.error("User not found");
+        logger.error("User not found");
         process.exit(1);
       }
       const service = new LeaseService();
       const result = await service.completeOnboarding(opts.id, opts.userId, userResult.rows[0].role);
-      console.log("\n=== Onboarding Complete ===\n");
-      console.log(`Onboarded:     ${result.onboarded}`);
-      console.log(`Loft Tenant ID: ${result.loftTenantId}`);
+      logger.info("\n=== Onboarding Complete ===\n");
+      logger.info(`Onboarded:     ${result.onboarded}`);
+      logger.info(`Loft Tenant ID: ${result.loftTenantId}`);
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
       process.exit(1);
     } finally {
       await pool.end();
@@ -362,17 +363,17 @@ program
       const service = new LeaseService();
       const result = await service.getLeaseStatus(opts.id);
       if (!result) {
-        console.error("Application not found");
+        logger.error("Application not found");
         process.exit(1);
       }
-      console.log("\n=== Lease Status ===\n");
-      console.log(`Application ID:  ${result.applicationId}`);
-      console.log(`Status:          ${result.status}`);
-      console.log(`OneSite Lease:   ${result.onesiteLeaseId || "(not yet generated)"}`);
-      console.log(`Loft Tenant:     ${result.loftTenantId || "(not yet onboarded)"}`);
-      console.log(`Auto-Pay:        ${result.autoPayEnrolled ? "enrolled" : "not enrolled"}`);
+      logger.info("\n=== Lease Status ===\n");
+      logger.info(`Application ID:  ${result.applicationId}`);
+      logger.info(`Status:          ${result.status}`);
+      logger.info(`OneSite Lease:   ${result.onesiteLeaseId || "(not yet generated)"}`);
+      logger.info(`Loft Tenant:     ${result.loftTenantId || "(not yet onboarded)"}`);
+      logger.info(`Auto-Pay:        ${result.autoPayEnrolled ? "enrolled" : "not enrolled"}`);
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
       process.exit(1);
     } finally {
       await pool.end();
@@ -396,19 +397,19 @@ program
         action: opts.action,
         limit: parseInt(opts.limit),
       });
-      console.log(`\n=== Audit Log (${logs.length} entries) ===\n`);
-      console.table(
-        logs.map((l: any) => ({
+      logger.info(`\n=== Audit Log (${logs.length} entries) ===\n`);
+      logger.info("Audit log:", {
+        rows: logs.map((l: any) => ({
           time: new Date(l.created_at).toLocaleString(),
           action: l.action,
           actor: l.actor_id?.substring(0, 8) || "system",
           role: l.actor_role || "-",
           app: l.application_id?.substring(0, 8) || "-",
           details: JSON.stringify(l.details).substring(0, 60),
-        }))
-      );
+        })),
+      });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -431,17 +432,15 @@ program
         query("SELECT COUNT(*) as total, SUM(unit_count) as total_units FROM properties"),
       ]);
 
-      console.log("\n=== Frank Pilot Statistics ===\n");
+      logger.info("\n=== Frank Pilot Statistics ===\n");
 
-      console.log("Applications by Status:");
-      console.table(apps.rows);
+      logger.info("Applications by Status:", { rows: apps.rows });
 
-      console.log("\nActive Users by Role:");
-      console.table(users.rows);
+      logger.info("Active Users by Role:", { rows: users.rows });
 
-      console.log(`\nTotal Audit Log Entries: ${audits.rows[0].total}`);
-      console.log(`Fraud Flags: ${flags.rows[0].total} total, ${flags.rows[0].unresolved} unresolved`);
-      console.log(`Properties: ${properties.rows[0].total} (${properties.rows[0].total_units || 0} units)`);
+      logger.info(`\nTotal Audit Log Entries: ${audits.rows[0].total}`);
+      logger.info(`Fraud Flags: ${flags.rows[0].total} total, ${flags.rows[0].unresolved} unresolved`);
+      logger.info(`Properties: ${properties.rows[0].total} (${properties.rows[0].total_units || 0} units)`);
 
       // Auto-pay stats
       const autoPayResult = await query(
@@ -452,9 +451,9 @@ program
       );
       const ap = autoPayResult.rows[0];
       const rate = ap.total_onboarded > 0 ? ((ap.auto_pay_count / ap.total_onboarded) * 100).toFixed(1) : "N/A";
-      console.log(`\nAuto-Pay Enrollment: ${ap.auto_pay_count}/${ap.total_onboarded} (${rate}%)`);
+      logger.info(`\nAuto-Pay Enrollment: ${ap.auto_pay_count}/${ap.total_onboarded} (${rate}%)`);
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -471,9 +470,9 @@ program
     try {
       const svc = new PropertyService();
       const properties = await svc.list();
-      console.log(`\nTotal: ${properties.length} properties\n`);
-      console.table(
-        properties.map((p) => ({
+      logger.info(`\nTotal: ${properties.length} properties\n`);
+      logger.info("Properties:", {
+        rows: properties.map((p) => ({
           id: p.id.substring(0, 8) + "...",
           name: p.name,
           city: p.city,
@@ -481,10 +480,10 @@ program
           units: p.unitCount,
           amiArea: p.amiArea.substring(0, 30),
           onesite: p.onesitePropertyId || "-",
-        }))
-      );
+        })),
+      });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
@@ -499,13 +498,13 @@ program
       const svc = new PropertyService();
       const property = await svc.getById(opts.id);
       if (!property) {
-        console.error("Property not found");
+        logger.error("Property not found");
         process.exit(1);
       }
-      console.log("\n=== Property Details ===\n");
-      console.log(JSON.stringify(property, null, 2));
+      logger.info("\n=== Property Details ===\n");
+      logger.info("Property details:", { data: property });
     } catch (err) {
-      console.error("Error:", (err as Error).message);
+      logger.error("Error:", { message: (err as Error).message });
     } finally {
       await pool.end();
     }
