@@ -304,6 +304,54 @@ async function seed() {
     }
     console.log("  Known problem addresses seeded");
 
+    // ── Waitlist entries (wedge #5) ───────────────────────────────────
+    // Seed a realistic queue for the two senior properties that have
+    // waitingListEnabled=true and the demo-favorite Donna Louise 2 family
+    // property. Uses the existing 5 staff users as stand-in applicants
+    // (the seed doesn't create dedicated applicant users), each enrolled in
+    // a few (property, bedroom_count) lanes so a freshly-seeded dev DB
+    // shows "#3 of 5" rather than "#1 of 1". One synthetic notification
+    // snapshot per (property, bedroom) drives the "moved up N spots"
+    // chip on the position screen.
+    const waitlistProps = [
+      "Louise Shell Senior Apartments",
+      "Frank Hawkins Senior Apartments",
+      "Cambridge Apartments",
+    ];
+    const userIdsRes = await query(
+      `SELECT id FROM users WHERE email = ANY($1) ORDER BY email ASC`,
+      [users.map((u) => u.email)]
+    );
+    const userIds: string[] = userIdsRes.rows.map((r: { id: string }) => r.id);
+
+    let waitlistInserted = 0;
+    for (const propName of waitlistProps) {
+      const propRow = await query("SELECT id FROM properties WHERE name = $1", [propName]);
+      if (propRow.rows.length === 0) continue;
+      const propertyId = propRow.rows[0].id;
+
+      for (const bedrooms of [1, 2]) {
+        // Insert each user with a staggered created_at so positions are
+        // stable and visibly different across the queue. -i hours so the
+        // earliest user is "first in line".
+        for (let i = 0; i < userIds.length; i++) {
+          const userId = userIds[i];
+          const hoursAgo = (userIds.length - i) * 24;
+          const ins = await query(
+            `INSERT INTO waitlist_entries
+               (property_id, bedroom_count, applicant_user_id, created_at,
+                notified_position_at, last_notified_position)
+             VALUES ($1, $2, $3, NOW() - ($4 || ' hours')::interval, NOW() - INTERVAL '30 days', $5)
+             ON CONFLICT (property_id, bedroom_count, applicant_user_id) DO NOTHING
+             RETURNING id`,
+            [propertyId, bedrooms, userId, String(hoursAgo), i + 3]
+          );
+          if (ins.rows.length > 0) waitlistInserted++;
+        }
+      }
+    }
+    console.log(`  Waitlist entries: ${waitlistInserted} seeded across ${waitlistProps.length} properties`);
+
     console.log(`\nSeed complete! ${properties.length} properties seeded.`);
     console.log("\nTest credentials (all passwords: password123):");
     for (const user of users) {

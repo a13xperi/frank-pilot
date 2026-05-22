@@ -243,27 +243,299 @@ router.post("/apply", authenticate, requireEmailVerified, async (req: AuthReques
   }
 });
 
-// Public-ish: BP-03b waitlist position summary for a property slug.
-// DL2 MVP: hardcoded placeholder shape until the waitlist service lands.
-// `:slug` is currently ignored beyond echoing it back; the picker UI just
-// needs *some* shape to render the "#12 of 38" screen.
+// ────────────────────────────────────────────────────────────────────────────
+// Wedge #5 — position-aware waitlist.
+// gpmglv's /join-waitlist is submit-and-disappear. We expose real position
+// math per (property, bedroom tier) so the applicant always knows where they
+// stand: "#7 of 23, moved up 3 spots, est. 3–6 months". The position screen
+// (client-tenant/src/pages/waitlist/Position.tsx) reads the GET summary; the
+// banner and Apply funnel POST/DELETE to manage membership.
+
+// Slug ↔ property lookup. The properties table has no slug column; seed
+// derives the slug from `name` via lowercase + non-alnum-to-dash + trim. We
+// reverse the mapping by normalizing both sides in SQL. Cheap on a 16-row
+// table; if the catalog ever grows we can add a stored slug column.
+async function resolvePropertyIdBySlug(slug: string): Promise<string | null> {
+  // regex_replace mirrors the seed slugify: collapse runs of non-alnum to "-"
+  // and strip leading/trailing dashes, all lowercase. The trim_both replaces
+  // ltrim+rtrim to keep the SQL portable.
+  const result = await query(
+    `SELECT id
+       FROM properties
+      WHERE regexp_replace(
+              trim(BOTH '-' FROM regexp_replace(LOWER(name), '[^a-z0-9]+', '-', 'g')),
+              '^$', NULL
+            ) = $1
+      LIMIT 1`,
+    [slug]
+  );
+  return result.rows[0]?.id ?? null;
+}
+
+// estimatedWindow heuristic: assumes ~12 moves/year (one open unit per
+// bedroom-tier per month, very rough). Replace with property-level historical
+// throughput when that signal is available.
+function estimateWindow(totalQueue: number, positionAhead: number): string {
+  // For unauth/non-enrolled callers we estimate by total queue depth; for
+  // enrolled callers we estimate by spots ahead (positionAhead = position - 1).
+  const ahead = positionAhead > 0 ? positionAhead : totalQueue;
+  if (ahead < 3) return "1–3 months";
+  if (ahead < 6) return "3–6 months";
+  return "6+ months";
+}
+
+interface WaitlistSummaryPayload {
+  slug: string;
+  position?: number;
+  totalQueue: number;
+  movement: { spotsThisMonth: number; direction: "up" | "down" | "flat" } | null;
+  estimatedWindow: string;
+  enrolled: boolean;
+}
+
+async function buildWaitlistSummary(
+  slug: string,
+  propertyId: string,
+  bedrooms: number,
+  userId: string | null
+): Promise<WaitlistSummaryPayload> {
+  const totalRes = await query(
+    `SELECT COUNT(*)::int AS n
+       FROM waitlist_entries
+      WHERE property_id = $1 AND bedroom_count = $2`,
+    [propertyId, bedrooms]
+  );
+  const totalQueue: number = totalRes.rows[0]?.n ?? 0;
+
+  if (!userId) {
+    return {
+      slug,
+      totalQueue,
+      movement: null,
+      estimatedWindow: estimateWindow(totalQueue, 0),
+      enrolled: false,
+    };
+  }
+
+  // Position is 1 + the count of entries created strictly before this user's
+  // entry in the same lane. Ties on created_at are vanishingly rare (uuid PK
+  // insert is sub-millisecond) and harmless — they'd just share rank.
+  const mineRes = await query(
+    `SELECT created_at, notified_position_at, last_notified_position
+       FROM waitlist_entries
+      WHERE property_id = $1 AND bedroom_count = $2 AND applicant_user_id = $3
+      LIMIT 1`,
+    [propertyId, bedrooms, userId]
+  );
+  if (mineRes.rows.length === 0) {
+    return {
+      slug,
+      totalQueue,
+      movement: null,
+      estimatedWindow: estimateWindow(totalQueue, 0),
+      enrolled: false,
+    };
+  }
+  const mine = mineRes.rows[0];
+
+  const aheadRes = await query(
+    `SELECT COUNT(*)::int AS n
+       FROM waitlist_entries
+      WHERE property_id = $1
+        AND bedroom_count = $2
+        AND created_at < $3`,
+    [propertyId, bedrooms, mine.created_at]
+  );
+  const position: number = (aheadRes.rows[0]?.n ?? 0) + 1;
+
+  // Movement requires a prior snapshot. If we haven't notified the applicant
+  // about their position yet, return null (the UI hides the chip cleanly).
+  let movement: WaitlistSummaryPayload["movement"] = null;
+  if (mine.last_notified_position != null && mine.notified_position_at != null) {
+    const delta = mine.last_notified_position - position;
+    const direction: "up" | "down" | "flat" =
+      delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+    movement = { spotsThisMonth: Math.abs(delta), direction };
+  }
+
+  return {
+    slug,
+    position,
+    totalQueue,
+    movement,
+    estimatedWindow: estimateWindow(totalQueue, position - 1),
+    enrolled: true,
+  };
+}
+
+// GET /properties/:slug/waitlist-summary?bedrooms=N
+// - Requires ?bedrooms (the queue is per bedroom-tier per property).
+// - Unauthenticated callers get the public shape (totalQueue + window, no
+//   position). Authenticated but not-enrolled callers get the same shape with
+//   `enrolled: false`. Enrolled callers get position + movement.
+const waitlistBedroomsSchema = z.object({
+  bedrooms: z.coerce.number().int().min(0).max(6),
+});
+
 router.get(
   "/properties/:slug/waitlist-summary",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const slug = String(req.params.slug ?? "");
-      // Placeholder values — real math arrives with BP-04 waitlist scoring.
-      res.json({
-        slug,
-        position: 12,
-        totalQueue: 38,
-        movement: { spotsThisMonth: 3, direction: "up" as const },
-        estimatedWindow: "3–6 months",
-        placeholder: true,
-      });
+      const slug = String(req.params.slug ?? "").trim();
+      if (!slug) {
+        res.status(400).json({ error: "Property slug required" });
+        return;
+      }
+
+      const parsed = waitlistBedroomsSchema.safeParse(req.query);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: "bedrooms query param is required (0–6)",
+          details: parsed.error.errors,
+        });
+        return;
+      }
+      const bedrooms = parsed.data.bedrooms;
+
+      const propertyId = await resolvePropertyIdBySlug(slug);
+      if (!propertyId) {
+        res.status(404).json({ error: "Property not found" });
+        return;
+      }
+
+      // Resolve the caller — optional. If a Bearer token is present and valid,
+      // attribute the position to that user; otherwise fall back to the
+      // public shape (no position, just queue depth + window).
+      let userId: string | null = null;
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith("Bearer ")) {
+        try {
+          const jwt = await import("jsonwebtoken");
+          const decoded = jwt.verify(
+            authHeader.substring(7),
+            // Must match middleware/auth.ts default — mismatch would silently
+            // make every token "invalid" in dev/test and break enrolled GETs.
+            process.env.JWT_SECRET || "dev-secret-change-me"
+          ) as { id?: string };
+          if (decoded?.id) {
+            // Quick role + active check; not paying the full authenticate()
+            // tax (which 401s on miss — we want graceful unauth fallback).
+            const u = await query(
+              "SELECT id FROM users WHERE id = $1 AND is_active = TRUE",
+              [decoded.id]
+            );
+            if (u.rows.length > 0) userId = u.rows[0].id;
+          }
+        } catch {
+          // Invalid/expired token → treat as anonymous. No 401: the summary
+          // is informational and the unauth shape is intentional.
+        }
+      }
+
+      const summary = await buildWaitlistSummary(slug, propertyId, bedrooms, userId);
+      res.json(summary);
     } catch (err) {
       logger.error("Failed to fetch waitlist summary", { error: (err as Error).message });
       res.status(500).json({ error: "Failed to fetch waitlist summary" });
+    }
+  }
+);
+
+const waitlistJoinSchema = z.object({
+  bedrooms: z.number().int().min(0).max(6),
+});
+
+// POST /properties/:slug/waitlist-join — body { bedrooms }
+// Idempotent: re-joining the same (property, bedroom_count) is a no-op and
+// returns the existing position (does NOT shuffle the applicant to the back).
+router.post(
+  "/properties/:slug/waitlist-join",
+  authenticate,
+  requireEmailVerified,
+  unitWriteLimiter,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+      const slug = String(req.params.slug ?? "").trim();
+      if (!slug) {
+        res.status(400).json({ error: "Property slug required" });
+        return;
+      }
+      const parsed = waitlistJoinSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+        return;
+      }
+      const propertyId = await resolvePropertyIdBySlug(slug);
+      if (!propertyId) {
+        res.status(404).json({ error: "Property not found" });
+        return;
+      }
+      // ON CONFLICT DO NOTHING: re-clicking "Join" preserves the original
+      // created_at (and thus the original position).
+      await query(
+        `INSERT INTO waitlist_entries (property_id, bedroom_count, applicant_user_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (property_id, bedroom_count, applicant_user_id) DO NOTHING`,
+        [propertyId, parsed.data.bedrooms, req.user.id]
+      );
+
+      const summary = await buildWaitlistSummary(
+        slug,
+        propertyId,
+        parsed.data.bedrooms,
+        req.user.id
+      );
+      res.status(201).json(summary);
+    } catch (err) {
+      logger.error("Failed to join waitlist", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to join waitlist" });
+    }
+  }
+);
+
+// DELETE /properties/:slug/waitlist-leave?bedrooms=N — idempotent
+router.delete(
+  "/properties/:slug/waitlist-leave",
+  authenticate,
+  requireEmailVerified,
+  unitWriteLimiter,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+      const slug = String(req.params.slug ?? "").trim();
+      if (!slug) {
+        res.status(400).json({ error: "Property slug required" });
+        return;
+      }
+      const parsed = waitlistBedroomsSchema.safeParse(req.query);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: "bedrooms query param is required (0–6)",
+          details: parsed.error.errors,
+        });
+        return;
+      }
+      const propertyId = await resolvePropertyIdBySlug(slug);
+      if (!propertyId) {
+        res.status(404).json({ error: "Property not found" });
+        return;
+      }
+      await query(
+        `DELETE FROM waitlist_entries
+          WHERE property_id = $1 AND bedroom_count = $2 AND applicant_user_id = $3`,
+        [propertyId, parsed.data.bedrooms, req.user.id]
+      );
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error("Failed to leave waitlist", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to leave waitlist" });
     }
   }
 );
