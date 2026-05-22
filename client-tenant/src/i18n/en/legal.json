@@ -1,0 +1,128 @@
+{
+  "banner": {
+    "title": "Your privacy, your choice",
+    "body": "We use essential cookies to keep you signed in and your application secure. With your permission, we'd also use functional and analytics cookies to improve the experience. Marketing cookies are off by default.",
+    "acceptAll": "Accept all",
+    "rejectAll": "Reject non-essential",
+    "customize": "Customize",
+    "privacyLink": "Privacy policy",
+    "cookiesLink": "Cookies",
+    "ariaLabel": "Cookie consent"
+  },
+  "modal": {
+    "title": "Cookie preferences",
+    "intro": "Pick what's on. Essential cookies are required for sign-in and security — those can't be turned off. Save your choice and you can come back to it any time from the footer.",
+    "save": "Save preferences",
+    "cancel": "Cancel",
+    "categories": {
+      "essential": {
+        "label": "Essential",
+        "description": "Sign-in session and security. Required — can't be turned off."
+      },
+      "functional": {
+        "label": "Functional",
+        "description": "Remembers your language preference and similar choices that personalize the experience."
+      },
+      "analytics": {
+        "label": "Analytics",
+        "description": "Helps us see which screens are confusing so we can fix them. We don't run any analytics today — this is plumbing for the future."
+      },
+      "marketing": {
+        "label": "Marketing",
+        "description": "Ad and conversion tracking. Off by default. We don't run any marketing pixels today."
+      }
+    }
+  },
+  "footer": {
+    "privacy": "Privacy",
+    "cookies": "Cookies",
+    "preferences": "Cookie preferences",
+    "tagline": "Frank Pilot — affordable housing, treated with the respect it deserves."
+  },
+  "privacy": {
+    "title": "Privacy policy",
+    "lastUpdated": "Last updated: 22 May 2026",
+    "intro": "Frank Pilot is the tenant-facing portal operated by Community Development Programs Center of Nevada (CDPC). We collect and process applicant data because federal affordable-housing programs require it — HUD income certification, fair-housing reporting, and FCRA-governed screening. This policy explains exactly what we collect, why, and who sees it.",
+    "sections": {
+      "whatWeCollect": {
+        "title": "What we collect",
+        "body": "Account information — your name, email address, and a hashed password. Household composition — the number of people in your household, their relationship to you, and the ages of any minors (required for unit-size eligibility under 24 CFR §5.403). Income and AMI tier — gross annual household income, employment status, and your computed Area Median Income (AMI) tier. Application data — preferred unit type, intent date, accommodation requests, and selected property. Identity verification — government-issued ID for screening when you reach that stage. Communications — messages you send through the portal and our responses."
+      },
+      "whyWeCollect": {
+        "title": "Why we collect it",
+        "body": "Eligibility determination under HUD income limits and the Low-Income Housing Tax Credit (LIHTC) program. Fair-housing reporting required under the Fair Housing Act and HUD's affirmatively furthering fair housing rule. Tenant screening under the Fair Credit Reporting Act (FCRA) — you'll receive separate adverse-action notices if your application is denied based on a consumer report. Lease execution and ongoing tenancy management. Anti-fraud — we keep a record of applications to prevent duplicate or fraudulent submissions."
+      },
+      "whoWeShareWith": {
+        "title": "Who we share with",
+        "body": "By default: nobody outside CDPC. When you take specific actions, limited data goes to specific vendors: Resend (email delivery) receives your email address when we send you a magic-link or status notification — it does not see your application data. Stripe (payment processing) receives payment-method details if you pay rent through the portal — Stripe is PCI-DSS Level 1 compliant. Our database is hosted on Postgres infrastructure (currently Railway during the pilot) inside the United States. We do not sell your data. We do not share with marketers. We do not run analytics or advertising pixels today."
+      },
+      "retention": {
+        "title": "How long we keep it",
+        "body": "Active applications and tenancies — retained for the duration of your relationship with CDPC. Denied or withdrawn applications — retained for 36 months to satisfy fair-housing recordkeeping under 24 CFR §107.30, then deleted. Audit logs — retained for 7 years to satisfy LIHTC compliance auditing. Communications — retained for 3 years."
+      },
+      "yourRights": {
+        "title": "Your rights",
+        "body": "You can request a copy of all data we hold on you, ask us to correct anything wrong, withdraw your application at any time (and we'll delete supporting documents within 36 months per the retention schedule above), and ask us to delete your account once you have no active tenancy. If you believe you were discriminated against, you can file a complaint with HUD at 1-800-669-9777 or directly with us — we're required to investigate and document the response."
+      },
+      "contact": {
+        "title": "How to reach us",
+        "body": "Email privacy questions to privacy@cdpcnv.org. For tenancy questions, use the messaging panel in your portal."
+      }
+    }
+  },
+  "cookies": {
+    "title": "Cookies policy",
+    "lastUpdated": "Last updated: 22 May 2026",
+    "intro": "Frank Pilot uses browser storage (cookies and localStorage) for sign-in and a small number of personalisation features. We don't use third-party tracking cookies. We don't run analytics or advertising pixels today.",
+    "tableHeaders": {
+      "name": "Name",
+      "purpose": "Purpose",
+      "type": "Storage"
+    },
+    "categories": {
+      "essential": {
+        "title": "Essential",
+        "description": "Required for sign-in and security. Can't be turned off — the app doesn't work without these.",
+        "items": [
+          {
+            "name": "frank_tenant_token",
+            "purpose": "Your signed-in session (JWT). Sent on every API request to prove you're you.",
+            "type": "localStorage"
+          },
+          {
+            "name": "cf_clearance / __cf_bm",
+            "purpose": "Cloudflare bot-protection tokens (set by Cloudflare in front of our portal). Transient.",
+            "type": "Cookie (third-party, only on networks that route through Cloudflare)"
+          }
+        ]
+      },
+      "functional": {
+        "title": "Functional",
+        "description": "Personalisation. Off until you accept Functional cookies.",
+        "items": [
+          {
+            "name": "i18nextLng",
+            "purpose": "Your selected language (English or Spanish), so you don't have to pick it every visit.",
+            "type": "localStorage"
+          },
+          {
+            "name": "fp.consent.v1",
+            "purpose": "Records the cookie-banner choice you made on this device so we don't keep asking. This one is technically essential — it's how we honor your no-consent choice — but it stores nothing about you.",
+            "type": "localStorage"
+          }
+        ]
+      },
+      "analytics": {
+        "title": "Analytics",
+        "description": "We don't run any analytics today. If we ever add usage instrumentation, it'll be listed here and gated on this category.",
+        "items": []
+      },
+      "marketing": {
+        "title": "Marketing",
+        "description": "We don't run marketing pixels today and have no plans to. This category is included so the choice is yours if anything ever changes.",
+        "items": []
+      }
+    },
+    "managePreferences": "You can change your choice any time using the \"Cookie preferences\" link in the footer."
+  }
+}
