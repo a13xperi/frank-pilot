@@ -321,3 +321,10 @@ src/
 │   └── pii-filter.ts           # PII redaction engine
 └── cli/index.ts                # Admin CLI tool
 ```
+
+## CI
+
+Every PR and push to `main` runs `.github/workflows/ci.yml`, with three jobs in parallel: `api` (root `tsc --noEmit` + `jest`), `client-tenant` (vite-side `tsc --noEmit` + `vite build` + `vitest`), and `smoke-apply` (full Welcome → Claim e2e against a local backend/Vite stack with a Postgres service). The first two are fast gates on type and unit correctness; the third proves the apply funnel still works end-to-end before merge.
+
+A separate `.github/workflows/prod-smoke.yml` re-runs `scripts/qa-apply-handoff-prod.mjs` against the live tenant portal (`https://frank-pilot-tenant.vercel.app`) every six hours, so silent prod regressions show up without waiting for the next PR. To re-run it on demand: `gh workflow run prod-smoke.yml`. Failures publish failing check names to the run's job summary and upload screenshots as artifacts.
+
