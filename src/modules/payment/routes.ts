@@ -5,9 +5,16 @@ import { PaymentService } from "./service";
 import { logger } from "../../utils/logger";
 import { param } from "../../utils/params";
 import { z } from "zod";
+import intentsRouter from "./intents";
+import configRouter from "./config";
 
 const router = Router();
 const service = new PaymentService();
+
+// BP-08 sub-routes. Mounted at the top of the router so they take precedence
+// over any `:applicationId`-bound paths below.
+router.use("/intents", intentsRouter);
+router.use("/config", configRouter);
 
 const setupPaymentSchema = z.object({
   paymentMethodId: z.string().min(1),

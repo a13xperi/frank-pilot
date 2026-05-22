@@ -175,6 +175,62 @@ describe("logger PII redaction (LOW-1)", () => {
     expect(capture.lines[0].requestId).toBe("req-1");
   });
 
+  it("redacts jwt and cvv keys (Opus REQUEST_CHANGES on PR #101)", async () => {
+    const { logger, capture } = buildTestLogger();
+
+    await logAndWait(logger, capture, () =>
+      logger.info("payment event", {
+        jwt: "eyJhbGciOiJIUzI1NiJ9.payload.sig",
+        cvv: "123",
+        amount: 50,
+      })
+    );
+
+    expect(capture.lines).toHaveLength(1);
+    expect(capture.lines[0].jwt).toBe("[REDACTED]");
+    expect(capture.lines[0].cvv).toBe("[REDACTED]");
+    expect(capture.lines[0].amount).toBe(50);
+  });
+
+  it("matches PII keys case-insensitively (Email, SSN, DOB uppercase)", async () => {
+    const { logger, capture } = buildTestLogger();
+
+    await logAndWait(logger, capture, () =>
+      logger.info("mixed-case event", {
+        Email: "Alex@Example.com",
+        SSN: "111-22-3333",
+        DOB: "1990-01-01",
+        UserID: "u-1",
+      })
+    );
+
+    expect(capture.lines).toHaveLength(1);
+    expect(capture.lines[0].Email).toBe("[REDACTED]");
+    expect(capture.lines[0].SSN).toBe("[REDACTED]");
+    expect(capture.lines[0].DOB).toBe("[REDACTED]");
+    expect(capture.lines[0].UserID).toBe("u-1");
+  });
+
+  it("recurses into 3-level-deep nested metadata", async () => {
+    const { logger, capture } = buildTestLogger();
+
+    await logAndWait(logger, capture, () =>
+      logger.info("deep event", {
+        outer: {
+          middle: {
+            inner: { email: "deep@example.com", id: "x-1" },
+          },
+        },
+      })
+    );
+
+    expect(capture.lines).toHaveLength(1);
+    const middle = (capture.lines[0].outer as Record<string, unknown>).middle as Record<string, unknown>;
+    const inner = middle.inner as Record<string, unknown>;
+    expect(inner.email).toBe("[REDACTED]");
+    expect(inner.id).toBe("x-1");
+  });
+
   it("does NOT walk array elements (documents known gap from pii-filter.ts:56)", async () => {
     // sanitizeObject deliberately skips arrays (`!Array.isArray(value)`).
     // This test pins that behavior so a future fix is a conscious change,

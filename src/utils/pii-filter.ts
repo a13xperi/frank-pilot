@@ -24,6 +24,11 @@ const PII_KEYS = [
   "password",
   "secret",
   "token",
+  // Opus review on PR #101: `token` does not substring-match `jwt`, and the
+  // creditCard family does not cover `cvv`. A metadata key literally named
+  // `jwt` or `cvv` would have leaked. Add both explicitly.
+  "jwt",
+  "cvv",
   "date_of_birth",
   "dateOfBirth",
   "dob",

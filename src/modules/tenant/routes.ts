@@ -9,6 +9,7 @@ import {
   assertApplicationOwnership,
   requireEmailVerified,
 } from "../../middleware/scope";
+import { verifyTurnstile } from "../../middleware/verify-turnstile";
 import { query } from "../../config/database";
 import { LedgerService } from "../ledger/service";
 import { MaintenanceService } from "../maintenance/service";
@@ -416,6 +417,7 @@ router.get(
 
 // ---------------------------------------------------------------
 // POST /api/tenant/applications/:applicationId/messages — reply to staff
+// wedge #13: Turnstile fires first (anti-spam), then per-user rate-limit.
 // ---------------------------------------------------------------
 const messageBodySchema = z.object({
   body: z.string().trim().min(1).max(4000),
@@ -423,6 +425,7 @@ const messageBodySchema = z.object({
 
 router.post(
   "/applications/:applicationId/messages",
+  verifyTurnstile(),
   messageWriteLimiter,
   async (req: AuthRequest, res: Response) => {
     try {

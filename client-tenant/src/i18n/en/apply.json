@@ -116,7 +116,9 @@
     "continue": "Continue your application",
     "pickDifferent": "Pick a different unit",
     "noActive": "No active claim — let's pick a unit.",
-    "startOver": "Start over"
+    "startOver": "Start over",
+    "expiresIn": "expires in {{hours}}h {{minutes}}m",
+    "expired": "expired"
   },
   "details": {
     "title": "Application details",
