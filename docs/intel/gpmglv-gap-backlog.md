@@ -1,9 +1,20 @@
 # GPMGLV Gap Backlog — Competitive Build Tracker
 
 _Active backlog. Source: [`gpmglv-audit.md`](gpmglv-audit.md) + [`gpmglv-bp-03b-positioning.md`](gpmglv-bp-03b-positioning.md)._
-_Last updated: 2026-05-20._
+_Last updated: 2026-05-22._
 
 Every row is a wedge — a feature Frank-Pilot can ship where the evidence-based audit shows GPMGLV (and the "custom Next.js marketing site" tier of affordable-housing operator) has no answer. Pull tickets through this table to keep work grounded in actual competitor weakness, not opinions.
+
+## Recently shipped (as of 2026-05-22 @ `b376800`)
+
+| Wedge | Title | Shipped via | Demo surface |
+|---|---|---|---|
+| #2 | W0 AMI prefill (Welcome → Apply → Review) | PR #94 | `StepIntent`, `StepReview` |
+| #6 | i18n EN/ES parity + CI guard | PR #91 | All apply steps |
+| #7 | Mobile-first apply UX | PR #79 + #92 | Sticky CTA behind `MOBILE_APPLY_ENABLED` |
+| #14 | Sitemap + robots served as static assets | PR #95 | `vercel.json` negative-lookahead rewrite |
+
+The ranked table below reflects these shipped statuses inline.
 
 ## How to read this
 
@@ -17,19 +28,19 @@ Every row is a wedge — a feature Frank-Pilot can ship where the evidence-based
 | # | Wedge | gpmglv state (evidence) | Frank-Pilot anchor | Status | Cost | Punch | Lev |
 |---|---|---|---|---|---|---|---|
 | 1 | **Real online application** | Every "Apply now" = `href="#contact"` (audit §Apply Flow) | `client-tenant/src/pages/Apply.tsx` wizard | half-built — flag-gated | S | 5 | ★★★★★ |
-| 2 | **AMI pre-qualifier (W0)** | "Income-qualified" mentioned, zero AMI tables disclosed (audit §HUD) | `client-tenant/src/lib/ami.ts` + `components/AmiCalculator.tsx` | half-built — needs wiring | S–M | 5 | ★★★★★ |
+| 2 | **AMI pre-qualifier (W0)** | "Income-qualified" mentioned, zero AMI tables disclosed (audit §HUD) | `client-tenant/src/lib/ami.ts` + `components/AmiCalculator.tsx` | shipped 2026-05-22 (PR #94) | S–M | 5 | ★★★★★ |
 | 3 | **"Apply button does nothing" demo flip** | property page CTA = `#contact` anchor scroll-jump (audit §Per-Page Dumps) | demo script + landing page mount | none (asset, not feature) | S | 5 | ★★★★★ |
 | 4 | **Unit-claim FTU / "carrot" UX** | No unit-level state anywhere on gpmglv | unit-claim slice (PR #5 merged 2026-05-14, commit 58c1036) | shipped, low visibility | S (amplify) | 4 | ★★★★ |
 | 5 | **Position-aware waitlist** | Submit-and-wait black hole; no position field (audit §Waitlist) | Lane E waitlist banner | shipped, no position display | M | 4 | ★★★ |
-| 6 | **EN-ES from day one** | English-only, no language switcher (audit §Per-Page Dumps) | `src/i18n/{en,es}/` scaffold | scaffold — locales need filling | M | 3 | ★★★ |
-| 7 | **Mobile-first apply UX** | gpmglv site is responsive but apply = #contact = no flow to optimize | `MOBILE_APPLY_ENABLED` flag | flag exists, UX TBD | M–L | 3 | ★★ |
+| 6 | **EN-ES from day one** | English-only, no language switcher (audit §Per-Page Dumps) | `src/i18n/{en,es}/` scaffold | shipped 2026-05-22 (PR #91) | M | 3 | ★★★ |
+| 7 | **Mobile-first apply UX** | gpmglv site is responsive but apply = #contact = no flow to optimize | `MOBILE_APPLY_ENABLED` flag | shipped 2026-05-22 (PR #79 + #92) | M–L | 3 | ★★ |
 | 8 | **Live unit availability + filter** | 17 property cards, zero rent, zero availability dates (audit §Property Listing) | `client-tenant/src/pages/discover/PropertyList.tsx` | partial — cards exist, filters TBD | M | 3 | ★★ |
 | 9 | **Honest pricing / AMI disclosure on listings** | Zero rent figures public (audit §Property Listing) | `discover/PropertyList.tsx` + `UnitCard.tsx` | partial | S | 2 | ★★ |
 | 10 | **Real applicant accounts (auth)** | No login on tenant side (audit §Tenant Login) | wizard + magic-link infra | shipped (foundational) | n/a | 2 | ★★ |
 | 11 | **Eligibility-aware lead routing** | Generic "Community + Message" form, no structured signal (audit §Per-Page Dumps `/contact-us`) | W0 output → property filter | folds into #2 | n/a | n/a | — |
 | 12 | **Resident portal: rent pay / docs / lease** | gpmglv `/portal` = maintenance + message + lookup only (audit §Tenant Login) | NEW | none (stage 2, post-move-in) | L | 2 | ★ |
 | 13 | **Anti-spam (Turnstile / rate-limit)** | Waitlist + contact forms have no visible captcha (audit §Per-Page Dumps) | server-side rate limit + Turnstile/hCaptcha | none | S–M | 1 | ★ |
-| 14 | **SEO / sitemap / JSON-LD** | `robots.txt` 404, `sitemap.xml` 404 (audit §Robots/Sitemap) | infra | none | S | 1 | ★ |
+| 14 | **SEO / sitemap / JSON-LD** | `robots.txt` 404, `sitemap.xml` 404 (audit §Robots/Sitemap) | infra | partial — sitemap+robots static-serve fixed 2026-05-22 (PR #95) | S | 1 | ★ |
 | 15 | **Cookie banner / GDPR posture** | No `Set-Cookie` observed, thin privacy policy (audit §Cookies) | NEW | none | S | 1 | ★ |
 
 ## Top-5 detail
