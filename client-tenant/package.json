@@ -14,6 +14,7 @@
     "test:a11y": "vitest run --grep a11y"
   },
   "dependencies": {
+    "@rrweb/record": "^2.0.0-alpha.20",
     "html-to-image": "^1.11.13",
     "i18next": "^26.2.0",
     "i18next-browser-languagedetector": "^8.2.1",
