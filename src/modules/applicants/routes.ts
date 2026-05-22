@@ -587,21 +587,30 @@ router.post(
           return { error: "UNIT_UNAVAILABLE" as const };
         }
 
+        // Issue #15 Bug 2 (concurrent same-user leak): the per-user advisory
+        // lock above serializes claims from the same user, but we still need
+        // FOR UPDATE on the draft row itself so the prior-unit pointer we
+        // read is the one we'll mutate at the end of the txn. Without it, a
+        // sibling txn that already advanced past the lock could have rewritten
+        // claimed_unit_id between our read and our write.
         const draft = await client.query(
-          `SELECT a.id, a.claimed_unit_id
+          `SELECT a.id, a.claimed_unit_id, a.claim_expires_at
              FROM user_applications ua
              JOIN applications a ON a.id = ua.application_id
             WHERE ua.user_id = $1 AND a.status = 'draft'
             ORDER BY a.created_at DESC
-            LIMIT 1`,
+            LIMIT 1
+            FOR UPDATE OF a`,
           [req.user!.id]
         );
 
         let applicationId: string;
         let priorUnitId: string | null = null;
+        let priorExpiresAt: Date | string | null = null;
         if (draft.rows.length > 0) {
           applicationId = draft.rows[0].id;
           priorUnitId = draft.rows[0].claimed_unit_id;
+          priorExpiresAt = draft.rows[0].claim_expires_at;
         } else {
           const created = await client.query(
             `INSERT INTO applications (property_id, first_name, last_name, email, status)
@@ -624,13 +633,22 @@ router.post(
         }
 
         if (priorUnitId && priorUnitId !== unitId) {
+          // Issue #15 Bug 1 (cross-user clobber): the prior-unit release used
+          // to be an unconditional UPDATE on the unit row, so if the user's
+          // own hold had already expired and a different applicant had since
+          // re-claimed that unit, this UPDATE would silently destroy the new
+          // holder's claim. Gate the UPDATE on the expected (holder, expiry)
+          // predicate — if the row no longer matches what we held, the UPDATE
+          // is a no-op and the new holder is safe.
           await client.query(
             `UPDATE units
                 SET status = 'available',
                     claim_expires_at = NULL,
                     updated_at = NOW()
-              WHERE id = $1`,
-            [priorUnitId]
+              WHERE id = $1
+                AND status = 'held'
+                AND claim_expires_at IS NOT DISTINCT FROM $2`,
+            [priorUnitId, priorExpiresAt]
           );
         }
 
@@ -721,25 +739,36 @@ router.delete(
           `claim-unit:${req.user!.id}`,
         ]);
 
+        // Issue #15: lock the draft row so we read the (claimed_unit_id,
+        // claim_expires_at) pair that we'll guard the release UPDATE with.
         const draft = await client.query(
-          `SELECT a.id, a.claimed_unit_id
+          `SELECT a.id, a.claimed_unit_id, a.claim_expires_at
              FROM user_applications ua
              JOIN applications a ON a.id = ua.application_id
             WHERE ua.user_id = $1 AND a.status = 'draft' AND a.claimed_unit_id IS NOT NULL
             ORDER BY a.created_at DESC
-            LIMIT 1`,
+            LIMIT 1
+            FOR UPDATE OF a`,
           [req.user!.id]
         );
         if (draft.rows.length === 0) return;
-        const { id: applicationId, claimed_unit_id: unitId } = draft.rows[0];
+        const {
+          id: applicationId,
+          claimed_unit_id: unitId,
+          claim_expires_at: priorExpiresAt,
+        } = draft.rows[0];
 
+        // Issue #15 Bug 1: guard the release with holder+expiry so we can't
+        // clobber a unit that has lazy-expired into a different user's hold.
         await client.query(
           `UPDATE units
               SET status = 'available',
                   claim_expires_at = NULL,
                   updated_at = NOW()
-            WHERE id = $1`,
-          [unitId]
+            WHERE id = $1
+              AND status = 'held'
+              AND claim_expires_at IS NOT DISTINCT FROM $2`,
+          [unitId, priorExpiresAt]
         );
         await client.query(
           `UPDATE applications
