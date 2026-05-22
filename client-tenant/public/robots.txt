@@ -1,0 +1,11 @@
+# wedge #14 — SEO infrastructure (gpmglv differentiator)
+# Competitor gpmglv.com returns 404 for both robots.txt and sitemap.xml,
+# which leaves their 17 property pages effectively unindexed.
+#
+# NOTE: hard-coded host until a `VITE_PUBLIC_SITE_URL` pattern is wired
+# post-Railway. Update the Sitemap URL below once a production domain is
+# finalized — or switch the build to generate this file from the env var.
+User-agent: *
+Allow: /
+
+Sitemap: https://frank-pilot.vercel.app/sitemap.xml
