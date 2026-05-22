@@ -433,6 +433,21 @@ CREATE TABLE units (
   UNIQUE (property_id, unit_number)
 );
 
+-- Units indexes (mirrors 2026-05-14-units-and-intent.sql migration)
+CREATE INDEX idx_units_property_status ON units(property_id, status);
+CREATE INDEX idx_units_available ON units(status) WHERE status = 'available';
+CREATE INDEX idx_units_bedrooms_rent ON units(bedrooms, monthly_rent);
+-- Stale-hold scan support for the lazy-expire path in GET /applicants/units.
+CREATE INDEX idx_units_held_expires ON units(claim_expires_at) WHERE status = 'held';
+
+-- FK from applications.claimed_unit_id → units(id). Declared post-units because
+-- the applications table is created earlier in this bootstrap SQL.
+ALTER TABLE applications
+  ADD CONSTRAINT applications_claimed_unit_id_fkey
+  FOREIGN KEY (claimed_unit_id) REFERENCES units(id) ON DELETE SET NULL;
+
+CREATE INDEX idx_applications_claimed_unit ON applications(claimed_unit_id);
+
 -- Tenant/applicant join to applications (multiple users per application: primary, co-applicant, household member)
 CREATE TABLE user_applications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
