@@ -68,12 +68,29 @@ function decodeJwtClaims(token: string): Record<string, unknown> | null {
   } catch { return null; }
 }
 
+// Allowlist of storage keys we know are safe to dump. Unknown keys are
+// dropped silently rather than emitted, to avoid leaking PII or 3rd-party
+// data (e.g. analytics blobs) into the debug bundle. Update when the app
+// starts using a new key worth seeing.
+const STORAGE_ALLOWLIST: ReadonlyArray<string | RegExp> = [
+  TOKEN_KEY,
+  STORAGE_KEY,
+  'i18nextLng',
+  'fp.consent.v1',
+  'pendingEmail',
+  /^frank_/,
+];
+
+function isAllowedStorageKey(key: string): boolean {
+  return STORAGE_ALLOWLIST.some((m) => (typeof m === 'string' ? m === key : m.test(key)));
+}
+
 function dumpStorage(store: Storage | undefined): Record<string, string> {
   if (!store) return {};
   const out: Record<string, string> = {};
   for (let i = 0; i < store.length; i++) {
     const k = store.key(i);
-    if (!k) continue;
+    if (!k || !isAllowedStorageKey(k)) continue;
     const v = store.getItem(k);
     if (v == null) continue;
     out[k] = k === TOKEN_KEY ? '<redacted; see auth.claims>' : v;
@@ -151,9 +168,14 @@ export function ScreenshotButton() {
 
       const { toPng } = await import('html-to-image');
       const node = document.body;
+      // skipFonts: cross-origin Google Fonts stylesheets block cssRules access
+      // and spam two SecurityError lines per capture; we render with system
+      // fonts instead. pixelRatio: 1 keeps QA PNGs ~75KB on retina (vs ~280KB
+      // at the device 2x) — plenty for visual review.
       const dataUrl = await toPng(node, {
         cacheBust: true,
-        pixelRatio: window.devicePixelRatio || 2,
+        pixelRatio: 1,
+        skipFonts: true,
         filter: (el) => {
           if (!(el instanceof HTMLElement)) return true;
           return el.dataset?.screenshotExclude !== '1';

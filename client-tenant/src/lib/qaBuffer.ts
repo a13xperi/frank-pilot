@@ -29,7 +29,29 @@ export type QaEntry = QaFetchEntry | QaErrorEntry;
 
 const buf: QaEntry[] = [];
 
+// Drop fetch entries that are clearly noise so the 25-entry window is reserved
+// for real app traffic (API calls, magic-link, payment, etc). Covers:
+//   - Vite HMR / module loading (/@vite/, /@id/, /__vite_ping, /node_modules/)
+//   - Built static assets (/assets/*.{js,css,map,woff,woff2,ttf,png,svg,jpg})
+//   - Cross-origin font CDNs (fonts.googleapis.com, fonts.gstatic.com)
+//   - Self-uploads to the QA screenshot bucket (would otherwise self-poison
+//     the buffer on every camera click).
+const NOISE_PATTERNS: RegExp[] = [
+  /\/@vite\//,
+  /\/@id\//,
+  /\/__vite_ping/,
+  /\/node_modules\//,
+  /\/assets\/[^?]+\.(?:js|css|map|woff2?|ttf|otf|eot|png|svg|jpg|jpeg|gif|webp|ico)(?:\?|$)/i,
+  /fonts\.(?:googleapis|gstatic)\.com/i,
+  /\/storage\/v1\/object\/(?:public\/)?frank-qa-screenshots\//,
+];
+
+function isNoise(url: string): boolean {
+  return NOISE_PATTERNS.some((re) => re.test(url));
+}
+
 function push(entry: QaEntry): void {
+  if (entry.kind === 'fetch' && isNoise(entry.url)) return;
   buf.push(entry);
   if (buf.length > MAX_ENTRIES) buf.splice(0, buf.length - MAX_ENTRIES);
 }
