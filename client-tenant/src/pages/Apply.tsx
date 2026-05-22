@@ -29,6 +29,57 @@ const StepHousehold = lazy(() => import('./apply/steps/StepHousehold'));
 const StepPayment = lazy(() => import('./apply/steps/StepPayment'));
 const StepConfirm = lazy(() => import('./apply/steps/StepConfirm'));
 
+// Issue #8 — placeholder painted while the intent-step hydration fetch is in
+// flight on a fresh deep link (`?step=intent`). Mirrors the StepIntent layout
+// (title, bedroom row, slider, date, household, income, CTA) so swapping in
+// the real form doesn't shift layout. Reads as "loading" via aria-busy.
+function IntentSkeleton() {
+  const bar = (h: number, w: string) => (
+    <div
+      style={{
+        height: h,
+        width: w,
+        background: HF.border,
+        borderRadius: HF.r.sm,
+        opacity: 0.5,
+      }}
+    />
+  );
+  return (
+    <div aria-busy="true" aria-live="polite" data-testid="intent-skeleton" className="space-y-5">
+      <div className="space-y-2">
+        {bar(20, '60%')}
+        {bar(14, '80%')}
+      </div>
+      <div className="space-y-2">
+        {bar(12, '30%')}
+        <div className="grid grid-cols-5 gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i}>{bar(40, '100%')}</div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        {bar(12, '40%')}
+        {bar(16, '100%')}
+      </div>
+      <div className="space-y-2">
+        {bar(12, '35%')}
+        {bar(36, '100%')}
+      </div>
+      <div className="space-y-2">
+        {bar(12, '35%')}
+        {bar(36, '100%')}
+      </div>
+      <div className="space-y-2">
+        {bar(12, '55%')}
+        {bar(36, '100%')}
+      </div>
+      {bar(44, '100%')}
+    </div>
+  );
+}
+
 function parseStep(raw: string | null): Step {
   if (raw === '2') return 2;
   if (
@@ -55,11 +106,19 @@ export function Apply() {
   function setStep(next: Step) {
     setStepState(next);
     const value = next === 1 ? null : String(next);
-    // Preserve handoff params (unitType/propertyId/state) on step transitions.
-    const nextParams = new URLSearchParams(search);
-    if (value) nextParams.set('step', value);
-    else nextParams.delete('step');
-    setSearch(nextParams, { replace: true });
+    // Issue #9 — merge with the LATEST URLSearchParams snapshot rather than
+    // the closure-captured `search`. The functional form guarantees we don't
+    // clobber utm_* / unitType / propertyId / state / any inbound params that
+    // were added between renders or in a sibling effect.
+    setSearch(
+      (prev) => {
+        const nextParams = new URLSearchParams(prev);
+        if (value) nextParams.set('step', value);
+        else nextParams.delete('step');
+        return nextParams;
+      },
+      { replace: true },
+    );
   }
 
   const [error, setError] = useState<string | null>(null);
@@ -107,18 +166,37 @@ export function Apply() {
   // persisted to sessionStorage under key `frank_apply_state`.
   const wiz = useWizState();
 
+  // Issue #8 — gate render on intent-step deep links until hydration completes.
+  // Without this, landing on `?step=intent` paints the empty quiz form for a
+  // tick before /auth/me + /applicants/me/applications resolve and backfill
+  // bedrooms / budget / move-in / household size. We flip `hydrated` true in
+  // the same effect that does the fetch — including the early-out paths — so
+  // any code path that "doesn't need hydration" still unlocks render.
+  const [hydrated, setHydrated] = useState(false);
+
   // Hydrate identity + intent prefill on entering intent/checklist/pick/2 (deep links).
   useEffect(() => {
-    if (step !== 'intent' && step !== 'checklist' && step !== 'pick' && step !== 2) return;
-    if (email && firstName && lastName) return;
+    if (step !== 'intent' && step !== 'checklist' && step !== 'pick' && step !== 2) {
+      // Non-hydrating step (1 / verify / claim / review / household / payment /
+      // confirm): nothing to wait on, render immediately.
+      setHydrated(true);
+      return;
+    }
+    if (email && firstName && lastName) {
+      // Identity already in memory — no fetch needed, unblock render.
+      setHydrated(true);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
         const me = await api.get<{ user?: { email: string; firstName: string; lastName: string } }>('/auth/me');
-        if (cancelled || !me.user) return;
-        if (!email) setEmail(me.user.email);
-        if (!firstName) setFirstName(me.user.firstName);
-        if (!lastName) setLastName(me.user.lastName);
+        if (cancelled) return;
+        if (me.user) {
+          if (!email) setEmail(me.user.email);
+          if (!firstName) setFirstName(me.user.firstName);
+          if (!lastName) setLastName(me.user.lastName);
+        }
 
         const apps = await api.get<{ applications?: Array<{
           id: string; property_id?: string; unit_number?: string;
@@ -127,19 +205,23 @@ export function Apply() {
           intent_move_in_date?: string | null;
           intent_household_size?: number | null;
         }> }>('/applicants/me/applications');
+        if (cancelled) return;
         const latest = apps.applications?.[0];
-        if (cancelled || !latest) return;
-        if (latest.property_id && !propertyId) setPropertyId(latest.property_id);
-        if (latest.unit_number && !unitNumber) setUnitNumber(latest.unit_number);
-        if (latest.intent_bedrooms != null && wiz.intentBedrooms === null) wiz.setIntentBedrooms(latest.intent_bedrooms);
-        if (latest.intent_budget_max != null) setIntentBudgetMax(Number(latest.intent_budget_max));
-        if (latest.intent_move_in_date) setIntentMoveInDate(latest.intent_move_in_date.slice(0, 10));
-        if (latest.intent_household_size != null) {
-          wiz.setIntentHouseholdSize(latest.intent_household_size);
-          setHouseholdSize(String(latest.intent_household_size));
+        if (latest) {
+          if (latest.property_id && !propertyId) setPropertyId(latest.property_id);
+          if (latest.unit_number && !unitNumber) setUnitNumber(latest.unit_number);
+          if (latest.intent_bedrooms != null && wiz.intentBedrooms === null) wiz.setIntentBedrooms(latest.intent_bedrooms);
+          if (latest.intent_budget_max != null) setIntentBudgetMax(Number(latest.intent_budget_max));
+          if (latest.intent_move_in_date) setIntentMoveInDate(latest.intent_move_in_date.slice(0, 10));
+          if (latest.intent_household_size != null) {
+            wiz.setIntentHouseholdSize(latest.intent_household_size);
+            setHouseholdSize(String(latest.intent_household_size));
+          }
         }
       } catch {
-        /* ignored */
+        /* ignored — hydration is best-effort, unblock render on failure too */
+      } finally {
+        if (!cancelled) setHydrated(true);
       }
     })();
     return () => { cancelled = true; };
@@ -223,7 +305,7 @@ export function Apply() {
               )}
               {step === 1 && <Step1Register />}
               {step === 'verify' && <StepVerify />}
-              {step === 'intent' && <StepIntent />}
+              {step === 'intent' && (hydrated ? <StepIntent /> : <IntentSkeleton />)}
               {step === 'checklist' && <StepChecklist />}
               {step === 'pick' && <StepPick />}
               {step === 'claim' && <StepClaim />}
