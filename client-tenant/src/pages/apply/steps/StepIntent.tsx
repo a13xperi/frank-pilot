@@ -237,19 +237,36 @@ export function StepIntent() {
             ))}
           </select>
         </div>
-        <div>
+        <div
+          style={{
+            marginTop: 8,
+            paddingTop: 12,
+            borderTop: `1px dashed ${HF.border}`,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: HF.display,
+              fontSize: 13,
+              fontWeight: 700,
+              color: HF.ink,
+              letterSpacing: 0.2,
+            }}
+          >
+            {t('intent.ami.sectionTitle')}
+          </div>
+          <div style={{ fontSize: 12, color: HF.ink3, marginTop: 2, marginBottom: 8 }}>
+            {t('intent.ami.sectionHint')}
+          </div>
           <label style={labelStyle} htmlFor="intentIncome">
-            Gross annual income (USD)
-            <span className="ml-2 text-xs" style={{ fontWeight: 400, color: HF.ink3 }}>
-              Optional — used to pre-qualify you for affordable units.
-            </span>
+            {t('intent.ami.incomeLabel')}
           </label>
           <input
             id="intentIncome"
             type="text"
             inputMode="numeric"
             style={inputStyle}
-            placeholder="e.g. 42000"
+            placeholder={t('intent.ami.incomePlaceholder')}
             value={incomeStr}
             onChange={(e) => setIncomeStr(e.target.value)}
             aria-describedby="intentIncomeStatus"
@@ -262,11 +279,11 @@ export function StepIntent() {
           >
             {incomeNum == null ? null : previewTier ? (
               <span style={{ fontWeight: 500, color: HF.sage }}>
-                You qualify for {formatAmiTier(previewTier)} units.
+                {t('intent.ami.qualifies', { tier: formatAmiTier(previewTier) })}
               </span>
             ) : (
               <span style={{ fontWeight: 500, color: HF.warn }}>
-                Over income for affordable tiers. Market-rate units may still fit.
+                {t('intent.ami.overIncome')}
               </span>
             )}
           </div>

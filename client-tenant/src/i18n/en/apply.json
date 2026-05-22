@@ -54,6 +54,14 @@
       "2": "2 BR",
       "3": "3 BR",
       "4plus": "4+ BR"
+    },
+    "ami": {
+      "sectionTitle": "Income — for affordable pre-qualification",
+      "sectionHint": "Optional. We use this to show you only the units you qualify for.",
+      "incomeLabel": "Gross annual income (USD)",
+      "incomePlaceholder": "e.g. 42000",
+      "qualifies": "You qualify for {{tier}} units.",
+      "overIncome": "Over income for affordable tiers. Market-rate units may still fit."
     }
   },
   "checklist": {

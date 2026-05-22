@@ -54,6 +54,14 @@
       "2": "2 Rec",
       "3": "3 Rec",
       "4plus": "4+ Rec"
+    },
+    "ami": {
+      "sectionTitle": "Ingresos — para precalificación asequible",
+      "sectionHint": "Opcional. Lo usamos para mostrarte solo las unidades para las que calificas.",
+      "incomeLabel": "Ingreso anual bruto (USD)",
+      "incomePlaceholder": "ej. 42000",
+      "qualifies": "Calificas para unidades {{tier}}.",
+      "overIncome": "Sobre el límite de ingresos para tarifas asequibles. Aún pueden encajar unidades a precio de mercado."
     }
   },
   "checklist": {
