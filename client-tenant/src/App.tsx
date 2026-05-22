@@ -11,6 +11,7 @@ import { Pay } from '@/pages/Pay';
 import { Ledger } from '@/pages/Ledger';
 import { Maintenance } from '@/pages/Maintenance';
 import { Status } from '@/pages/Status';
+import { Settings } from '@/pages/Settings';
 import { Application } from '@/pages/Application';
 import { WelcomeShell } from '@/pages/welcome/WelcomeShell';
 import { PropertyList } from '@/pages/discover/PropertyList';
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/ledger" element={<Ledger />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/status" element={<Status />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>
 
