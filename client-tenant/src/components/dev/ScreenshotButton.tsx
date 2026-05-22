@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Camera, Check, X, Loader2, Copy } from 'lucide-react';
+import { getQaBuffer } from '@/lib/qaBuffer';
 
 const STORAGE_KEY = 'frank_qa';
+const TOKEN_KEY = 'frank_tenant_token';
 
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPA_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
@@ -38,33 +40,99 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   return (await fetch(dataUrl)).blob();
 }
 
-async function uploadToSupabase(blob: Blob, filename: string): Promise<string> {
+async function uploadToSupabase(body: BodyInit, filename: string, contentType: string): Promise<string> {
   if (!SUPA_URL || !SUPA_KEY) throw new Error('Supabase storage env vars missing');
-  const path = `${filename}`;
-  const res = await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}/${path}`, {
+  const res = await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}/${filename}`, {
     method: 'POST',
     headers: {
       apikey: SUPA_KEY,
       Authorization: `Bearer ${SUPA_KEY}`,
-      'Content-Type': 'image/png',
+      'Content-Type': contentType,
       'x-upsert': 'true',
     },
-    body: blob,
+    body,
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(`upload ${res.status}: ${detail.slice(0, 120)}`);
   }
-  return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+  return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${filename}`;
+}
+
+function decodeJwtClaims(token: string): Record<string, unknown> | null {
+  try {
+    const mid = token.split('.')[1];
+    if (!mid) return null;
+    const padded = mid.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((mid.length + 3) % 4);
+    return JSON.parse(atob(padded));
+  } catch { return null; }
+}
+
+function dumpStorage(store: Storage | undefined): Record<string, string> {
+  if (!store) return {};
+  const out: Record<string, string> = {};
+  for (let i = 0; i < store.length; i++) {
+    const k = store.key(i);
+    if (!k) continue;
+    const v = store.getItem(k);
+    if (v == null) continue;
+    out[k] = k === TOKEN_KEY ? '<redacted; see auth.claims>' : v;
+  }
+  return out;
+}
+
+function buildDebugPayload(pngUrl: string | null): Record<string, unknown> {
+  const token = (() => { try { return window.localStorage.getItem(TOKEN_KEY); } catch { return null; } })();
+  const claims = token ? decodeJwtClaims(token) : null;
+  return {
+    capturedAt: new Date().toISOString(),
+    screenshotUrl: pngUrl,
+    url: {
+      href: window.location.href,
+      pathname: window.location.pathname,
+      search: window.location.search,
+      hash: window.location.hash,
+      referrer: document.referrer || null,
+    },
+    viewport: {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      devicePixelRatio: window.devicePixelRatio,
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+    },
+    auth: {
+      hasToken: Boolean(token),
+      claims,
+    },
+    flags: {
+      VITE_PAYMENT_WIZARD_ENABLED: import.meta.env.VITE_PAYMENT_WIZARD_ENABLED ?? null,
+      VITE_PROPERTY_DL2_ENABLED: import.meta.env.VITE_PROPERTY_DL2_ENABLED ?? null,
+      VITE_MOBILE_APPLY_ENABLED: import.meta.env.VITE_MOBILE_APPLY_ENABLED ?? null,
+      MODE: import.meta.env.MODE,
+      DEV: import.meta.env.DEV,
+    },
+    storage: {
+      localStorage: dumpStorage(typeof window !== 'undefined' ? window.localStorage : undefined),
+      sessionStorage: dumpStorage(typeof window !== 'undefined' ? window.sessionStorage : undefined),
+    },
+    qaBuffer: getQaBuffer(),
+  };
 }
 
 type Status = 'idle' | 'capturing' | 'uploading' | 'done' | 'error';
+
+type Bundle = { png: string; json: string };
+
+function clipboardBlock(b: Bundle): string {
+  return `Screenshot: ${b.png}\nDebug: ${b.json}`;
+}
 
 export function ScreenshotButton() {
   const [visible, setVisible] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [msg, setMsg] = useState<string>('');
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [bundle, setBundle] = useState<Bundle | null>(null);
 
   useEffect(() => { setVisible(shouldShow()); }, []);
 
@@ -72,7 +140,7 @@ export function ScreenshotButton() {
     if (status === 'capturing' || status === 'uploading') return;
     setStatus('capturing');
     setMsg('');
-    setShareUrl(null);
+    setBundle(null);
     try {
       const { toPng } = await import('html-to-image');
       const node = document.body;
@@ -85,42 +153,60 @@ export function ScreenshotButton() {
         },
       });
 
-      const name = `frank-${slugFromPath()}-${timestamp()}.png`;
+      const stem = `frank-${slugFromPath()}-${timestamp()}`;
+      const pngName = `${stem}.png`;
+      const jsonName = `${stem}.json`;
+
       const a = document.createElement('a');
       a.href = dataUrl;
-      a.download = name;
+      a.download = pngName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
 
-      const blob = await dataUrlToBlob(dataUrl);
+      const pngBlob = await dataUrlToBlob(dataUrl);
 
-      let url: string | null = null;
-      if (SUPA_URL && SUPA_KEY) {
-        setStatus('uploading');
-        setMsg('Uploading…');
-        try {
-          url = await uploadToSupabase(blob, name);
-        } catch (err) {
-          setStatus('error');
-          setMsg(err instanceof Error ? err.message : 'Upload failed');
-          window.setTimeout(() => { setStatus('idle'); setMsg(''); }, 4500);
-          return;
-        }
+      if (!SUPA_URL || !SUPA_KEY) {
+        setStatus('done');
+        setMsg('Saved (no Supabase env)');
+        window.setTimeout(() => { setStatus('idle'); setMsg(''); }, 2200);
+        return;
       }
 
-      let clipboardText = false;
-      if (url && navigator.clipboard?.writeText) {
-        try { await navigator.clipboard.writeText(url); clipboardText = true; } catch { /* ignore */ }
+      setStatus('uploading');
+      setMsg('Uploading…');
+
+      let pngUrl: string;
+      try {
+        pngUrl = await uploadToSupabase(pngBlob, pngName, 'image/png');
+      } catch (err) {
+        setStatus('error');
+        setMsg(err instanceof Error ? err.message : 'PNG upload failed');
+        window.setTimeout(() => { setStatus('idle'); setMsg(''); }, 4500);
+        return;
+      }
+
+      const debugPayload = buildDebugPayload(pngUrl);
+      let jsonUrl: string;
+      try {
+        jsonUrl = await uploadToSupabase(JSON.stringify(debugPayload, null, 2), jsonName, 'application/json');
+      } catch (err) {
+        setStatus('error');
+        setMsg(err instanceof Error ? `Debug upload failed: ${err.message}` : 'Debug upload failed');
+        window.setTimeout(() => { setStatus('idle'); setMsg(''); }, 4500);
+        return;
+      }
+
+      const next: Bundle = { png: pngUrl, json: jsonUrl };
+      let copied = false;
+      if (navigator.clipboard?.writeText) {
+        try { await navigator.clipboard.writeText(clipboardBlock(next)); copied = true; } catch { /* ignore */ }
       }
 
       setStatus('done');
-      setShareUrl(url);
-      setMsg(url ? (clipboardText ? 'URL copied' : 'Uploaded') : 'Saved');
-      window.setTimeout(() => {
-        setStatus('idle');
-        setMsg('');
-      }, url ? 15000 : 2200);
+      setBundle(next);
+      setMsg(copied ? 'URLs copied' : 'Uploaded');
+      window.setTimeout(() => { setStatus('idle'); setMsg(''); }, 15000);
     } catch (err) {
       setStatus('error');
       setMsg(err instanceof Error ? err.message : 'Capture failed');
@@ -128,11 +214,11 @@ export function ScreenshotButton() {
     }
   }
 
-  async function copyUrl() {
-    if (!shareUrl) return;
+  async function copyBoth() {
+    if (!bundle) return;
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setMsg('URL copied');
+      await navigator.clipboard.writeText(clipboardBlock(bundle));
+      setMsg('URLs copied');
     } catch {
       setMsg('Copy failed');
     }
@@ -156,7 +242,7 @@ export function ScreenshotButton() {
         maxWidth: 380,
       }}
     >
-      {shareUrl && (
+      {bundle && (
         <div
           style={{
             background: 'white',
@@ -168,17 +254,18 @@ export function ScreenshotButton() {
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 4,
+            gap: 6,
             wordBreak: 'break-all',
           }}
         >
           <div style={{ fontSize: 10, color: '#6b7280', fontFamily: 'system-ui, sans-serif', fontWeight: 600 }}>
-            Paste this URL to Claude:
+            Paste both URLs to Claude:
           </div>
-          <div>{shareUrl}</div>
+          <div><span style={{ color: '#6b7280' }}>PNG:</span> {bundle.png}</div>
+          <div><span style={{ color: '#6b7280' }}>JSON:</span> {bundle.json}</div>
           <button
             type="button"
-            onClick={copyUrl}
+            onClick={copyBoth}
             style={{
               alignSelf: 'flex-start',
               marginTop: 2,
@@ -193,11 +280,11 @@ export function ScreenshotButton() {
               gap: 4,
             }}
           >
-            <Copy size={11} /> Copy
+            <Copy size={11} /> Copy both
           </button>
         </div>
       )}
-      {msg && !shareUrl && (
+      {msg && !bundle && (
         <div
           style={{
             background: status === 'error' ? '#7f1d1d' : '#064e3b',
