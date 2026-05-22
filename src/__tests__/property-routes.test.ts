@@ -122,6 +122,15 @@ function buildApp() {
 
 const app = buildApp();
 
+// `mockResolvedValueOnce` adds to a queue that survives `jest.clearAllMocks()`
+// (which only clears `.mock.calls/.instances/.results`). The GET /properties
+// listing is public, so its tests prime the queue but the route never consumes
+// — without this top-level reset the leftovers leak into POST/PATCH tests and
+// `authenticate` reads the wrong row, flipping role checks.
+beforeEach(() => {
+  mockQuery.mockReset();
+});
+
 // ── GET /properties — list all properties ─────────────────────────────────
 
 describe("GET /properties", () => {
