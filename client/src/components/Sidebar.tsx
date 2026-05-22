@@ -47,17 +47,25 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'QA Bundles', path: '/qa-bundles', icon: Camera, minRole: 'regional_manager' },
 ];
 
-export function Sidebar() {
+export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   const { user } = useAuth();
   if (!user) return null;
 
   const visible = NAV_ITEMS.filter((item) => hasMinRole(user.role, item.minRole));
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-gray-200 bg-white">
-      <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6">
-        <Building2 className="h-6 w-6 text-emerald-600" />
-        <span className="text-lg font-semibold text-gray-900">CDPC Hub</span>
+    <aside
+      className={`flex h-full flex-col border-r border-gray-200 bg-white transition-[width] duration-200 ${
+        collapsed ? 'w-16' : 'w-64'
+      }`}
+    >
+      <div
+        className={`flex h-16 items-center gap-2 border-b border-gray-200 ${
+          collapsed ? 'justify-center px-0' : 'px-6'
+        }`}
+      >
+        <Building2 className="h-6 w-6 shrink-0 text-emerald-600" />
+        {!collapsed && <span className="text-lg font-semibold text-gray-900">CDPC Hub</span>}
       </div>
       <nav className="flex-1 space-y-1 p-3">
         {visible.map((item) => (
@@ -65,21 +73,24 @@ export function Sidebar() {
             key={item.path}
             to={item.path}
             end={item.path === '/'}
+            title={collapsed ? item.label : undefined}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              `flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-colors ${
+                collapsed ? 'justify-center px-0' : 'px-3'
+              } ${
                 isActive
                   ? 'bg-emerald-50 text-emerald-700'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`
             }
           >
-            <item.icon className="h-5 w-5" />
-            {item.label}
+            <item.icon className="h-5 w-5 shrink-0" />
+            {!collapsed && item.label}
           </NavLink>
         ))}
       </nav>
       <div className="border-t border-gray-200 p-4">
-        <p className="text-xs text-gray-400">CDPC Nevada</p>
+        {!collapsed && <p className="text-xs text-gray-400">CDPC Nevada</p>}
       </div>
     </aside>
   );
