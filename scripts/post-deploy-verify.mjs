@@ -6,7 +6,7 @@
 //   2) POST /api/applicants/register returns 202 + ok:true (not 405).
 //   3) Magic-link path is reachable (either devLink in response when
 //      DEMO_LINK_IN_RESPONSE=true, or the route just doesn't 5xx).
-//   4) GET /api/tape/page-view (public BP-03b beacon) returns 200/204.
+//   4) POST /api/tape/welcome-view (BP-03b HUD_928_1 beacon) returns 204.
 //
 // Optional Vercel SPA static-asset checks (front-end domain):
 //   --site=https://frank-pilot-tenant.vercel.app
@@ -78,7 +78,7 @@ async function checkRegister() {
     record(
       "02-register-post",
       ok,
-      `${r.status} ok=${body.ok ?? "?"} userId=${body.userId ? "✓" : "✗"}`,
+      `${r.status} ok=${body.ok ?? "?"} message=${body.message ? "✓" : "✗"}`,
     );
     return body;
   } catch (e) {
@@ -92,27 +92,30 @@ function checkMagicLinkSurface(registerBody) {
     record("03-magic-link-surface", false, "skipped — no register body");
     return;
   }
-  // Either dev/demo mode surfaces devLink, or it doesn't — both are valid in
-  // prod. The fail case is a 5xx on register (already caught above) or a
-  // payload that drops `ok` / `userId`.
-  const hasUserId = typeof registerBody.userId === "string";
+  // W6: /register never returns userId (timing-side-channel mitigation for
+  // email enumeration). The uniform response is { ok: true, message: "..." }.
+  // Dev/demo mode additionally surfaces devLink. The fail case is a 5xx on
+  // register (already caught above) or a payload that drops `ok`.
   const hasOk = registerBody.ok === true;
+  const hasMessage = typeof registerBody.message === "string";
   record(
     "03-magic-link-surface",
-    hasUserId && hasOk,
-    `userId=${hasUserId ? "✓" : "✗"} devLink=${
+    hasOk && hasMessage,
+    `ok=${hasOk ? "✓" : "✗"} message=${hasMessage ? "✓" : "✗"} devLink=${
       registerBody.devLink ? "present" : "absent (prod-safe)"
     }`,
   );
 }
 
 async function checkTapeBeacon() {
-  const url = `${API}/api/tape/page-view`;
+  // Route is /api/tape/welcome-view (fires HUD_928_1_FAIR_HOUSING_POSTED).
+  // Schema requires session_id (min 8 chars); state and property_slug are optional.
+  const url = `${API}/api/tape/welcome-view`;
   try {
     const r = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ formId: "HUD-928.1", page: 1, ts: Date.now() }),
+      body: JSON.stringify({ session_id: `verify-${Date.now()}` }),
     });
     const ok = r.status === 200 || r.status === 202 || r.status === 204;
     record("04-tape-beacon", ok, `status=${r.status}`);
@@ -160,17 +163,12 @@ async function checkDualWriteParity() {
     return;
   }
   const sessionId = `verify-${Date.now()}`;
-  const url = `${API}/api/tape/page-view`;
+  const url = `${API}/api/tape/welcome-view`;
   try {
     const r = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        session_id: sessionId,
-        formId: "HUD-928.1",
-        page: 1,
-        ts: Date.now(),
-      }),
+      body: JSON.stringify({ session_id: sessionId }),
     });
     if (!r.ok && r.status !== 202 && r.status !== 204) {
       record("06-dual-write-parity", false, `beacon POST returned ${r.status}`);
