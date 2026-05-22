@@ -785,15 +785,27 @@ router.get(
       const propertyId = typeof req.query.propertyId === "string" ? req.query.propertyId : undefined;
 
       // W0 AMI filter — narrow to set-asides the applicant qualifies for.
-      // Tier '50' qualifies for ['50','60','80']% units (and market-rate);
-      // missing/invalid param → no filter (permissive default).
+      // Tier '50' qualifies for ['50','60','80']% units (and market-rate).
+      // The legal set is the union from `client-tenant/src/lib/ami.ts:AmiTier`
+      // (HUD LIHTC tier table). Validate strictly so that a typo in the
+      // query string (`?amiTier=70`) becomes a loud 400 instead of a silent
+      // "full list" surprise — this matches the W0 contract that any tier
+      // shown to the user must be one the calculator actually emits.
       const AMI_TIER_ORDER = ["30", "50", "60", "80"] as const;
-      const amiTierRaw =
-        typeof req.query.amiTier === "string" ? req.query.amiTier : undefined;
-      const amiTier =
-        amiTierRaw && (AMI_TIER_ORDER as readonly string[]).includes(amiTierRaw)
-          ? (amiTierRaw as (typeof AMI_TIER_ORDER)[number])
-          : undefined;
+      const amiTierSchema = z.enum(AMI_TIER_ORDER);
+      let amiTier: (typeof AMI_TIER_ORDER)[number] | undefined;
+      if (req.query.amiTier !== undefined) {
+        const parsed = amiTierSchema.safeParse(req.query.amiTier);
+        if (!parsed.success) {
+          res.status(400).json({
+            error: "Invalid amiTier",
+            details: parsed.error.errors,
+            allowed: AMI_TIER_ORDER,
+          });
+          return;
+        }
+        amiTier = parsed.data;
+      }
 
       const conditions: string[] = [
         "(u.status = 'available' OR (u.status = 'held' AND u.claim_expires_at < NOW()))",

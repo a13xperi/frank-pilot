@@ -244,6 +244,96 @@ describe("GET /applicants/units", () => {
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(403);
   });
+
+  // W0 — AMI tier filter coverage. The filter is the backend half of the
+  // landing → apply → discover cold-open: visitor types income on the
+  // welcome calculator, the tier flows into `qualifyingAmiTier`, and the
+  // unit list shows only set-asides at-or-above that tier.
+  describe("?amiTier= filter (W0)", () => {
+    it("with amiTier=50 — restricts set-aside whitelist to ['50','60','80']% AMI", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=50")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      const sql = mockQuery.mock.calls[1][0] as string;
+      const params = mockQuery.mock.calls[1][1] as unknown[];
+      // Filter is appended as an ANY($n) clause on p.ami_set_aside, with the
+      // market-rate (null/empty) fallback preserved so unaffordable applicants
+      // still see market-rate inventory when no tier matches.
+      expect(sql).toContain("p.ami_set_aside = ANY($1)");
+      expect(sql).toContain("p.ami_set_aside IS NULL OR p.ami_set_aside = ''");
+      expect(params).toEqual([["50% AMI", "60% AMI", "80% AMI"]]);
+    });
+
+    it("with amiTier=30 — includes every higher tier in the whitelist", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=30")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      const params = mockQuery.mock.calls[1][1] as unknown[];
+      expect(params).toEqual([["30% AMI", "50% AMI", "60% AMI", "80% AMI"]]);
+    });
+
+    it("with amiTier=80 — whitelist contains only the top tier", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=80")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      const params = mockQuery.mock.calls[1][1] as unknown[];
+      expect(params).toEqual([["80% AMI"]]);
+    });
+
+    it("rejects an invalid amiTier value with 400 (loud, not silent drop)", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=70")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/invalid amiTier/i);
+      expect(res.body.allowed).toEqual(["30", "50", "60", "80"]);
+      // No DB query should have been issued for the units fetch (auth row is
+      // already shifted off the queue at this point).
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects garbage strings with 400 (no SQL injection vector)", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=' OR '1'='1")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(400);
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it("without amiTier — returns the full list (no AMI condition appended)", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          { id: "u1", monthly_rent: 1500 },
+          { id: "u2", monthly_rent: 1600 },
+        ],
+      } as any);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.units).toHaveLength(2);
+      const sql = mockQuery.mock.calls[1][0] as string;
+      expect(sql).not.toMatch(/p\.ami_set_aside = ANY/);
+    });
+  });
 });
 
 describe("POST /applicants/claim-unit/:id", () => {
