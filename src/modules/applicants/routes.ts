@@ -9,6 +9,11 @@ import { createMagicLink, logMagicLink, sendMagicLink } from "../auth/magic-link
 import { ApplicationService } from "../application/service";
 import { createApplicationSchema } from "../application/validation";
 import { stampTape, TAPE_STAMP_KINDS } from "../tape";
+import {
+  stampV2WaitingListAppCaptured,
+  stampV2Hud92006SupplementCaptured,
+  stampV2PositionLetterSent,
+} from "../tape/v2-stamp";
 import { logger } from "../../utils/logger";
 
 const router: Router = Router();
@@ -255,6 +260,12 @@ router.post("/apply", authenticate, requireEmailVerified, async (req: AuthReques
       kind: TAPE_STAMP_KINDS.HUD_92006_SUPPLEMENT_CAPTURED,
       actor: req.user.id,
       payload: { application_id: created.id, email: req.user.email },
+    });
+    // BP-02 Lane G dual-write — gated on COMPLIANCE_TAPE_V2_ENABLED.
+    void stampV2Hud92006SupplementCaptured({
+      applicantId: req.user.id,
+      capturedAt: new Date().toISOString(),
+      supplementOptedIn: true,
     });
 
     res.status(201).json(created);
@@ -774,6 +785,12 @@ router.post(
         actor: req.user!.id,
         payload: { application_id: result, intent },
       });
+      // BP-02 Lane G dual-write — gated on COMPLIANCE_TAPE_V2_ENABLED.
+      void stampV2WaitingListAppCaptured({
+        applicantId: req.user!.id,
+        capturedAt: new Date().toISOString(),
+        bedroomCount: intent.bedrooms,
+      });
 
       res.json({ ok: true, application_id: result });
     } catch (err) {
@@ -1060,6 +1077,15 @@ router.post(
             unit_id: unitId,
             expires_at: result.expires_at,
           },
+        });
+        // BP-02 Lane G dual-write — gated on COMPLIANCE_TAPE_V2_ENABLED.
+        // position=1 reflects "claimant holds the unit" at claim time.
+        void stampV2PositionLetterSent({
+          applicantId: req.user!.id,
+          propertyId: result.unit.property_id,
+          bedroomCount: result.unit.bedrooms,
+          position: 1,
+          sentAt: new Date().toISOString(),
         });
       }
 
