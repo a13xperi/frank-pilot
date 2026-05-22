@@ -41,8 +41,8 @@ const messageReadLimiter = rateLimit({
   message: { error: "Too many requests, slow down" },
 });
 
-// All tenant routes require auth + applicant/tenant role + scope
-router.use(authenticate, requireTenantRole, scopeToOwnApplications);
+// All tenant routes require auth + applicant/tenant role + email verified + scope
+router.use(authenticate, requireTenantRole, requireEmailVerified, scopeToOwnApplications);
 
 // ---------------------------------------------------------------
 // GET /api/tenant/me — current user
@@ -423,7 +423,6 @@ const messageBodySchema = z.object({
 
 router.post(
   "/applications/:applicationId/messages",
-  requireEmailVerified,
   messageWriteLimiter,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -462,7 +461,6 @@ router.post(
 // ---------------------------------------------------------------
 router.post(
   "/applications/:applicationId/messages/:msgId/read",
-  requireEmailVerified,
   messageReadLimiter,
   async (req: AuthRequest, res: Response) => {
     try {

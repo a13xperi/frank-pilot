@@ -89,7 +89,13 @@ const unverifiedApplicant: AuthUser = {
 };
 
 describe("PR #4 P0 follow-ups — messaging routes", () => {
-  beforeEach(() => jest.clearAllMocks());
+  // resetAllMocks (not clearAllMocks) so unused mockResolvedValueOnce
+  // queue entries do not leak between tests. HIGH-1 lifted
+  // requireEmailVerified ahead of scopeToOwnApplications on the router
+  // chain, which means the unverified-path tests below no longer reach
+  // scopeToOwnApplications — their mockScopedApps stub would otherwise
+  // pollute the next test's queue.
+  beforeEach(() => jest.resetAllMocks());
 
   describe("P0 #1 / #5 — markRead IDOR scoped by application_id", () => {
     it("scopes the UPDATE by application_id so a foreign message cannot be flipped", async () => {
@@ -154,9 +160,9 @@ describe("PR #4 P0 follow-ups — messaging routes", () => {
 
       // authenticate users row — email_verified_at is null → emailVerified=false
       mockUsersRow(unverifiedApplicant, null);
-      // scopeToOwnApplications still runs (it's on the router-level chain)
-      mockScopedApps([ownedAppId]);
-      // requireEmailVerified should short-circuit BEFORE any further DB call.
+      // HIGH-1: requireEmailVerified now runs BEFORE scopeToOwnApplications
+      // on the router chain — no scopedApps stub needed for the unverified
+      // path, the chain short-circuits at requireEmailVerified.
 
       const res = await request(app)
         .post(`/tenant/applications/${ownedAppId}/messages`)
@@ -173,7 +179,7 @@ describe("PR #4 P0 follow-ups — messaging routes", () => {
       const token = generateToken(unverifiedApplicant, { emailVerified: false });
 
       mockUsersRow(unverifiedApplicant, null);
-      mockScopedApps([ownedAppId]);
+      // HIGH-1: see note above — scopeToOwnApplications is not reached.
 
       const res = await request(app)
         .post(`/tenant/applications/${ownedAppId}/messages/${someMsgId}/read`)
