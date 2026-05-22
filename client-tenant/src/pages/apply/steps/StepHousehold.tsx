@@ -18,7 +18,8 @@
  */
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Card, CTA } from '@/components/primitives';
+import { Card } from '@/components/primitives';
+import { StepCTA } from '../StepCTA';
 import { HF } from '@/styles/tokens';
 import { APPLICATION_FEE, useApply } from '../ApplyContext';
 
@@ -96,9 +97,9 @@ export function StepHousehold() {
           <div style={{ fontSize: 10, color: HF.ink3, marginTop: 4 }}>{t('household.disclaimer')}</div>
         </Card>
 
-        <CTA variant="mobile" onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'payment'); return next; }, { replace: true })}>
+        <StepCTA variant="mobile" onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'payment'); return next; }, { replace: true })}>
           {t('household.cta', { total })}
-        </CTA>
+        </StepCTA>
       </div>
     </div>
   );

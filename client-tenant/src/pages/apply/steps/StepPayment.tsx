@@ -15,7 +15,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { HF } from '@/styles/tokens';
-import { CTA } from '@/components/primitives';
+import { StepCTA } from '@/pages/apply/StepCTA';
 import { useApply } from '@/pages/apply/context/ApplyContext';
 import { PayHeader } from '@/pages/apply/PayHeader';
 import { api, getToken } from '@/api/client';
@@ -97,7 +97,7 @@ export function StepPayment() {
   return (
     <div style={{ background: HF.cream, minHeight: '100vh', color: HF.ink, fontFamily: HF.body }}>
       <PayHeader step={3} total={5} lang={lang} onBack={() => navigate(-1)} />
-      <form onSubmit={submit} className="mx-auto max-w-md p-4 flex flex-col gap-3" aria-label={t('payment.title') as string}>
+      <form id="apply-payment-form" onSubmit={submit} className="mx-auto max-w-md p-4 flex flex-col gap-3" aria-label={t('payment.title') as string}>
         <h1 style={{ fontFamily: HF.display, fontSize: 22, fontWeight: 700 }}>{t('payment.title')}</h1>
         <p style={{ color: HF.ink3, fontSize: 13 }}>{t('payment.subtitle')}</p>
 
@@ -123,9 +123,17 @@ export function StepPayment() {
           </div>
         )}
 
-        <CTA type="submit" tone="primary" size="lg" disabled={busy} block aria-busy={busy}>
+        <StepCTA
+          type="submit"
+          form="apply-payment-form"
+          tone="primary"
+          size="lg"
+          disabled={busy}
+          block
+          aria-busy={busy}
+        >
           {busy ? (t('payment.processing') as string) : `${t('payment.payCta')} $${total}`}
-        </CTA>
+        </StepCTA>
         <p style={{ textAlign: 'center', color: HF.ink3, fontSize: 11 }}>{t('payment.encrypted')}</p>
       </form>
     </div>

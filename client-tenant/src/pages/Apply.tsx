@@ -6,6 +6,8 @@ import { ClaimedUnitHeader } from '@/components/ClaimedUnitHeader';
 import { Card } from '@/components/primitives';
 import { HF } from '@/styles/tokens';
 import { useTranslation } from 'react-i18next';
+import { useFlag } from '@/lib/flags';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import {
   ApplyProvider,
   useWizState,
@@ -13,6 +15,7 @@ import {
   type Step,
 } from './apply/ApplyContext';
 import { StepIndicator } from './apply/StepIndicator';
+import { MobileApplyShell } from './apply/MobileApplyShell';
 import { Step1Register } from './apply/steps/Step1Register';
 import { StepVerify } from './apply/steps/StepVerify';
 import { StepIntent } from './apply/steps/StepIntent';
@@ -235,6 +238,15 @@ export function Apply() {
     return () => { cancelled = true; };
   }, [step, email, firstName, lastName, propertyId, unitNumber, wiz]);
 
+  // Wedge #7 — mobile-first shell behind MOBILE_APPLY_ENABLED. Active only
+  // when (a) flag on AND (b) viewport < md. Desktop and flag-off paths
+  // continue to render the legacy layout pixel-stable. These hooks MUST run
+  // before any early-return below to keep the hook count stable across
+  // renders (otherwise `if (done) return ...` short-circuits these).
+  const mobileFlag = useFlag('MOBILE_APPLY_ENABLED');
+  const isMobile = useIsMobile();
+  const useMobileShell = mobileFlag && isMobile;
+
   const value: ApplyState = {
     step, setStep, error, setError, loading, setLoading,
     email, setEmail, firstName, setFirstName, lastName, setLastName, phone, setPhone,
@@ -281,6 +293,75 @@ export function Apply() {
 
   const containerWidth = step === 'pick' ? 'max-w-3xl' : 'max-w-md';
 
+  const stepBody = (
+    <>
+      {step === 1 && <Step1Register />}
+      {step === 'verify' && <StepVerify />}
+      {step === 'intent' && (hydrated ? <StepIntent /> : <IntentSkeleton />)}
+      {step === 'checklist' && <StepChecklist />}
+      {step === 'pick' && <StepPick />}
+      {step === 'claim' && <StepClaim />}
+      {step === 'review' && (
+        <Suspense fallback={null}><StepReview /></Suspense>
+      )}
+      {step === 'household' && (
+        <Suspense fallback={null}><StepHousehold /></Suspense>
+      )}
+      {step === 'payment' && (
+        <Suspense fallback={null}><StepPayment /></Suspense>
+      )}
+      {step === 2 && <Step2Details />}
+      {step === 'confirm' && (
+        <Suspense fallback={null}><StepConfirm /></Suspense>
+      )}
+    </>
+  );
+
+  const errorBanner = error && (
+    <div
+      className="mb-4 p-3 text-sm"
+      role="alert"
+      style={{
+        background: HF.errLo,
+        color: HF.err,
+        border: `1px solid ${HF.err}33`,
+        borderRadius: HF.r.sm,
+      }}
+    >
+      {error}
+    </div>
+  );
+
+  if (useMobileShell) {
+    // Mobile shell — own progress strip (top) and sticky CTA bar
+    // (bottom, portaled into by StepCTA). Steps render edge-to-edge
+    // inside the scrollable middle region; no outer Card chrome.
+    return (
+      <ApplyProvider value={value}>
+        <MobileApplyShell>
+          {step === 2 && claimedUnit && claimExpiresAt && (
+            <ClaimedUnitHeader unit={claimedUnit} expiresAt={claimExpiresAt} />
+          )}
+          {errorBanner}
+          {stepBody}
+          <p
+            className="text-center text-sm"
+            style={{ color: HF.ink3, marginTop: 24 }}
+          >
+            {t('common.alreadyHaveAccount')}{' '}
+            <Link
+              to="/login"
+              className="font-medium hover:underline"
+              style={{ color: HF.accent }}
+            >
+              {t('common.signIn')}
+            </Link>
+          </p>
+        </MobileApplyShell>
+      </ApplyProvider>
+    );
+  }
+
   return (
     <ApplyProvider value={value}>
       <div
@@ -297,39 +378,8 @@ export function Apply() {
             )}
             <div className="lg:hidden"><StepIndicator /></div>
             <Card>
-              {error && (
-                <div
-                  className="mb-4 p-3 text-sm"
-                  role="alert"
-                  style={{
-                    background: HF.errLo,
-                    color: HF.err,
-                    border: `1px solid ${HF.err}33`,
-                    borderRadius: HF.r.sm,
-                  }}
-                >
-                  {error}
-                </div>
-              )}
-              {step === 1 && <Step1Register />}
-              {step === 'verify' && <StepVerify />}
-              {step === 'intent' && (hydrated ? <StepIntent /> : <IntentSkeleton />)}
-              {step === 'checklist' && <StepChecklist />}
-              {step === 'pick' && <StepPick />}
-              {step === 'claim' && <StepClaim />}
-              {step === 'review' && (
-                <Suspense fallback={null}><StepReview /></Suspense>
-              )}
-              {step === 'household' && (
-                <Suspense fallback={null}><StepHousehold /></Suspense>
-              )}
-              {step === 'payment' && (
-                <Suspense fallback={null}><StepPayment /></Suspense>
-              )}
-              {step === 2 && <Step2Details />}
-              {step === 'confirm' && (
-                <Suspense fallback={null}><StepConfirm /></Suspense>
-              )}
+              {errorBanner}
+              {stepBody}
             </Card>
             <p className="text-center text-sm" style={{ color: HF.ink3 }}>
               {t('common.alreadyHaveAccount')}{' '}

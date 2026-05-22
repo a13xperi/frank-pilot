@@ -4,7 +4,7 @@ import { saveIntent } from '@/api/units';
 import { getToken } from '@/api/client';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
-import { CTA } from '@/components/primitives';
+import { StepCTA } from '../StepCTA';
 import { HF } from '@/styles/tokens';
 import { formatAmiTier, qualifyAmiTier, type AmiTier } from '@/lib/ami';
 
@@ -162,7 +162,7 @@ export function StepIntent() {
         {t('intent.title')}
       </h1>
       <p className="mb-4 text-sm" style={{ color: HF.ink3 }}>{t('intent.subtitle')}</p>
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form id="apply-intent-form" onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label style={labelStyle}>{t('intent.bedrooms')}</label>
           <div className="grid grid-cols-5 gap-2">
@@ -265,6 +265,7 @@ export function StepIntent() {
             id="intentIncome"
             type="text"
             inputMode="numeric"
+            autoComplete="off"
             style={inputStyle}
             placeholder={t('intent.ami.incomePlaceholder')}
             value={incomeStr}
@@ -288,9 +289,13 @@ export function StepIntent() {
             )}
           </div>
         </div>
-        <CTA type="submit" disabled={s.loading || s.intentBedrooms === null || !s.intentMoveInDate}>
+        <StepCTA
+          type="submit"
+          form="apply-intent-form"
+          disabled={s.loading || s.intentBedrooms === null || !s.intentMoveInDate}
+        >
           {s.loading ? t('common.saving') : t('intent.submit')}
-        </CTA>
+        </StepCTA>
       </form>
     </>
   );

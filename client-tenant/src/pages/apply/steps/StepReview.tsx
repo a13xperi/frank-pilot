@@ -16,7 +16,8 @@
  */
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Card, CTA, Pill } from '@/components/primitives';
+import { Card, Pill } from '@/components/primitives';
+import { StepCTA } from '../StepCTA';
 import { HF } from '@/styles/tokens';
 import { formatAmiTier } from '@/lib/ami';
 import { useApply } from '../ApplyContext';
@@ -103,9 +104,9 @@ export function StepReview() {
           <div style={{ fontSize: 11, color: HF.ink3, marginTop: 2 }}>{t('review.confirmBody')}</div>
         </Card>
 
-        <CTA variant="mobile" onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'household'); return next; }, { replace: true })}>
+        <StepCTA variant="mobile" onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'household'); return next; }, { replace: true })}>
           {t('review.cta')}
-        </CTA>
+        </StepCTA>
       </div>
     </div>
   );

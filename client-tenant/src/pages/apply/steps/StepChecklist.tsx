@@ -1,7 +1,8 @@
 import { CheckCircle, Info, Clock } from 'lucide-react';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
-import { CTA, ListRow } from '@/components/primitives';
+import { ListRow } from '@/components/primitives';
+import { StepCTA } from '../StepCTA';
 import { HF } from '@/styles/tokens';
 
 const ITEM_KEYS = ['id', 'income', 'ssn', 'refs', 'household'] as const;
@@ -82,9 +83,9 @@ export function StepChecklist() {
         </div>
       </div>
 
-      <CTA tone="primary" block onClick={() => s.setStep('pick')}>
+      <StepCTA tone="primary" block onClick={() => s.setStep('pick')}>
         {t('checklist.continue')}
-      </CTA>
+      </StepCTA>
     </>
   );
 }
