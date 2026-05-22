@@ -61,7 +61,10 @@
       "incomeLabel": "Ingreso anual bruto (USD)",
       "incomePlaceholder": "ej. 42000",
       "qualifies": "Calificas para unidades {{tier}}.",
-      "overIncome": "Sobre el límite de ingresos para tarifas asequibles. Aún pueden encajar unidades a precio de mercado."
+      "overIncome": "Sobre el límite de ingresos para tarifas asequibles. Aún pueden encajar unidades a precio de mercado.",
+      "prefilledSummary": "Calificando para {{tier}}",
+      "prefilledHint": "Lo traímos de la calculadora de bienvenida. Puedes recalcularlo si tus ingresos cambiaron.",
+      "recalculate": "Recalcular"
     }
   },
   "checklist": {
@@ -150,6 +153,8 @@
     "position": "Posición",
     "openVacancy": "Hay vacancia",
     "lockedCriteria": "Tus criterios bloqueados",
+    "qualifyingTierLabel": "Categoría AMI calificante",
+    "qualifyingTierValue": "{{tier}}",
     "household": "Hogar de {{count}}",
     "bed": "RC",
     "confirmHeader": "¿Es esto lo que querías?",

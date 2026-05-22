@@ -61,7 +61,10 @@
       "incomeLabel": "Gross annual income (USD)",
       "incomePlaceholder": "e.g. 42000",
       "qualifies": "You qualify for {{tier}} units.",
-      "overIncome": "Over income for affordable tiers. Market-rate units may still fit."
+      "overIncome": "Over income for affordable tiers. Market-rate units may still fit.",
+      "prefilledSummary": "Qualifying at {{tier}}",
+      "prefilledHint": "We carried this over from the welcome calculator. You can recalculate if your income changed.",
+      "recalculate": "Recalculate"
     }
   },
   "checklist": {
@@ -150,6 +153,8 @@
     "position": "Position",
     "openVacancy": "Vacancy",
     "lockedCriteria": "Your locked criteria",
+    "qualifyingTierLabel": "Qualifying AMI tier",
+    "qualifyingTierValue": "{{tier}}",
     "household": "Household of {{count}}",
     "bed": "BR",
     "confirmHeader": "Is this what you wanted?",

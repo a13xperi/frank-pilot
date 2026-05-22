@@ -49,6 +49,13 @@ export function StepIntent() {
   const [search] = useSearchParams();
   const prefilled = useRef(false);
 
+  // Prefilled-mode: when the welcome AMI calculator already produced a tier
+  // (forwarded via ?amiTier= → ApplyContext on mount), we show a one-line
+  // summary + "Recalculate" rather than re-asking for income. The summary
+  // collapses to the full input when the applicant clicks Recalculate.
+  const [showAmiRecalc, setShowAmiRecalc] = useState(false);
+  const hasPrefilledTier = s.qualifyingAmiTier != null && !showAmiRecalc;
+
   // Welcome→Apply deep-link auth gate. POST /applicants/intent requires
   // authenticate + requireEmailVerified, so without a token submit will 401
   // and the API client will eject to /login — stranding handoff users who
@@ -255,39 +262,91 @@ export function StepIntent() {
           >
             {t('intent.ami.sectionTitle')}
           </div>
-          <div style={{ fontSize: 12, color: HF.ink3, marginTop: 2, marginBottom: 8 }}>
-            {t('intent.ami.sectionHint')}
-          </div>
-          <label style={labelStyle} htmlFor="intentIncome">
-            {t('intent.ami.incomeLabel')}
-          </label>
-          <input
-            id="intentIncome"
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            style={inputStyle}
-            placeholder={t('intent.ami.incomePlaceholder')}
-            value={incomeStr}
-            onChange={(e) => setIncomeStr(e.target.value)}
-            aria-describedby="intentIncomeStatus"
-          />
-          <div
-            id="intentIncomeStatus"
-            role="status"
-            aria-live="polite"
-            className="mt-2 min-h-[1.25rem] text-xs"
-          >
-            {incomeNum == null ? null : previewTier ? (
-              <span style={{ fontWeight: 500, color: HF.sage }}>
-                {t('intent.ami.qualifies', { tier: formatAmiTier(previewTier) })}
-              </span>
-            ) : (
-              <span style={{ fontWeight: 500, color: HF.warn }}>
-                {t('intent.ami.overIncome')}
-              </span>
-            )}
-          </div>
+          {hasPrefilledTier ? (
+            <>
+              <div style={{ fontSize: 12, color: HF.ink3, marginTop: 2, marginBottom: 8 }}>
+                {t('intent.ami.prefilledHint')}
+              </div>
+              <div
+                data-testid="intent-ami-prefilled"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 12px',
+                  borderRadius: HF.r.sm,
+                  background: HF.accentLo,
+                  border: `1px solid ${HF.accent}`,
+                }}
+              >
+                <span
+                  style={{
+                    fontWeight: 600,
+                    color: HF.accentInk,
+                    fontFamily: HF.body,
+                    fontSize: 14,
+                  }}
+                >
+                  {t('intent.ami.prefilledSummary', {
+                    tier: formatAmiTier(s.qualifyingAmiTier),
+                  })}
+                </span>
+                <button
+                  type="button"
+                  data-testid="intent-ami-recalc"
+                  onClick={() => setShowAmiRecalc(true)}
+                  style={{
+                    marginLeft: 'auto',
+                    background: 'transparent',
+                    border: 'none',
+                    color: HF.accent,
+                    fontSize: 12,
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    fontFamily: HF.body,
+                  }}
+                >
+                  {t('intent.ami.recalculate')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 12, color: HF.ink3, marginTop: 2, marginBottom: 8 }}>
+                {t('intent.ami.sectionHint')}
+              </div>
+              <label style={labelStyle} htmlFor="intentIncome">
+                {t('intent.ami.incomeLabel')}
+              </label>
+              <input
+                id="intentIncome"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                style={inputStyle}
+                placeholder={t('intent.ami.incomePlaceholder')}
+                value={incomeStr}
+                onChange={(e) => setIncomeStr(e.target.value)}
+                aria-describedby="intentIncomeStatus"
+              />
+              <div
+                id="intentIncomeStatus"
+                role="status"
+                aria-live="polite"
+                className="mt-2 min-h-[1.25rem] text-xs"
+              >
+                {incomeNum == null ? null : previewTier ? (
+                  <span style={{ fontWeight: 500, color: HF.sage }}>
+                    {t('intent.ami.qualifies', { tier: formatAmiTier(previewTier) })}
+                  </span>
+                ) : (
+                  <span style={{ fontWeight: 500, color: HF.warn }}>
+                    {t('intent.ami.overIncome')}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </div>
         <StepCTA
           type="submit"

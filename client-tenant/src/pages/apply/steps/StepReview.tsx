@@ -84,6 +84,19 @@ export function StepReview() {
               <div style={{ fontSize: 9, color: HF.ink3, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>
                 {t('review.lockedCriteria')}
               </div>
+              {state.qualifyingAmiTier && (
+                <div
+                  data-testid="review-ami-tier-line"
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 6 }}
+                >
+                  <span style={{ fontSize: 11, color: HF.ink3, fontFamily: HF.body }}>
+                    {t('review.qualifyingTierLabel')}
+                  </span>
+                  <span style={{ fontFamily: HF.display, fontSize: 13, fontWeight: 700, color: HF.ink }}>
+                    {t('review.qualifyingTierValue', { tier: formatAmiTier(state.qualifyingAmiTier) })}
+                  </span>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                 {incomeBand && <Pill>{incomeBand}</Pill>}
                 <Pill>{t('review.household', { count: householdSize })}</Pill>
