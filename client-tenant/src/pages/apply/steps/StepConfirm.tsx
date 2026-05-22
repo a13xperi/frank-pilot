@@ -4,7 +4,12 @@
  * Shows paid amount, paymentRef, queue position (if waitlist summary
  * available, else "position confirmed"), what-happens-next bullets,
  * link to /dashboard.
+ *
+ * Wedge #5 — when `outcome === 'waitlisted'` and `propertySlug` is provided,
+ * a secondary CTA links to `/waitlist/position/:slug?bedrooms=N` so the
+ * applicant can see their position immediately after joining the waitlist.
  */
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { HF } from '@/styles/tokens';
 import { Card } from '@/components/primitives';
@@ -19,15 +24,42 @@ interface WaitlistSummary {
 export interface StepConfirmProps {
   /** Optional pre-fetched waitlist summary (W1/W2 may inject) */
   waitlist?: WaitlistSummary | null;
+  /**
+   * Wedge #5 — whether the applicant claimed a unit or joined the waitlist.
+   * When `'waitlisted'`, a secondary CTA is rendered linking to the position
+   * page. Defaults to null (no CTA) for backward compatibility.
+   */
+  outcome?: 'claimed' | 'waitlisted' | null;
+  /**
+   * Wedge #5 — the property slug used to build the waitlist position URL.
+   * Required when `outcome === 'waitlisted'`; ignored otherwise.
+   */
+  propertySlug?: string | null;
+  /**
+   * Wedge #5 — the bedroom count to include in the position URL query param.
+   * Passed by the caller who knows the applicant's selected bedroom tier.
+   */
+  bedrooms?: number | null;
 }
 
-export function StepConfirm({ waitlist = null }: StepConfirmProps) {
+export function StepConfirm({
+  waitlist = null,
+  outcome = null,
+  propertySlug = null,
+  bedrooms = null,
+}: StepConfirmProps) {
   const { t, i18n } = useTranslation('apply');
   const lang = (i18n.language?.startsWith('es') ? 'es' : 'en') as 'en' | 'es';
   const { state } = useApply();
 
   const position = waitlist?.position;
   const hasRef = !!state.paymentRef;
+
+  // Wedge #5 — build position URL when the applicant landed on the waitlist.
+  const showPositionCta = outcome === 'waitlisted' && !!propertySlug;
+  const positionTo = showPositionCta
+    ? `/waitlist/position/${propertySlug}${typeof bedrooms === 'number' ? `?bedrooms=${bedrooms}` : ''}`
+    : null;
 
   const nextSteps = t('confirm.nextSteps', { returnObjects: true }) as string[];
 
@@ -101,6 +133,28 @@ export function StepConfirm({ waitlist = null }: StepConfirmProps) {
             ))}
           </ol>
         </Card>
+
+        {/* Wedge #5 — position CTA: only shown when outcome is waitlisted */}
+        {showPositionCta && positionTo && (
+          <Link
+            to={positionTo}
+            data-testid="check-position-cta"
+            style={{
+              display: 'block',
+              textAlign: 'center',
+              padding: '12px 16px',
+              borderRadius: HF.r.md,
+              border: `1px solid ${HF.accent}`,
+              color: HF.accent,
+              fontWeight: 600,
+              fontSize: 15,
+              textDecoration: 'none',
+              background: HF.accentLo ?? 'transparent',
+            }}
+          >
+            {t('confirm.checkPositionCta')}
+          </Link>
+        )}
 
         <StepCTA tone="primary" size="lg" block to="/dashboard">
           {t('confirm.toDashboard')}

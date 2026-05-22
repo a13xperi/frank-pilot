@@ -209,6 +209,7 @@
       "A Property Manager reviews your application in 2–3 business days.",
       "You sign your lease & addenda via DocuSign."
     ],
-    "toDashboard": "Go to my dashboard →"
+    "toDashboard": "Go to my dashboard →",
+    "checkPositionCta": "Check your position →"
   }
 }

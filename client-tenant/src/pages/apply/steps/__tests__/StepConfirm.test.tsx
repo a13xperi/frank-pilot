@@ -6,7 +6,13 @@ import axe from 'axe-core';
 import { StepConfirm } from '../StepConfirm';
 import { ApplyProvider } from '@/pages/apply/context/ApplyContext';
 
-function renderConfirm(opts?: { withRef?: boolean; position?: number | null }) {
+function renderConfirm(opts?: {
+  withRef?: boolean;
+  position?: number | null;
+  outcome?: 'claimed' | 'waitlisted' | null;
+  propertySlug?: string | null;
+  bedrooms?: number | null;
+}) {
   if (opts?.withRef) {
     sessionStorage.setItem(
       'frank_apply_state',
@@ -16,7 +22,12 @@ function renderConfirm(opts?: { withRef?: boolean; position?: number | null }) {
   return render(
     <MemoryRouter>
       <ApplyProvider>
-        <StepConfirm waitlist={opts?.position != null ? { position: opts.position } : null} />
+        <StepConfirm
+          waitlist={opts?.position != null ? { position: opts.position } : null}
+          outcome={opts?.outcome ?? null}
+          propertySlug={opts?.propertySlug ?? null}
+          bedrooms={opts?.bedrooms ?? null}
+        />
       </ApplyProvider>
     </MemoryRouter>,
   );
@@ -55,5 +66,31 @@ describe('StepConfirm', () => {
     const { container } = renderConfirm({ withRef: true });
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);
+  });
+
+  // Wedge #5 — position CTA tests
+  it('renders "Check your position" CTA when outcome is waitlisted with slug + bedrooms', () => {
+    renderConfirm({
+      withRef: true,
+      outcome: 'waitlisted',
+      propertySlug: 'donna-louise-2',
+      bedrooms: 2,
+    });
+    const cta = screen.getByText(/Check your position/i);
+    expect(cta).toBeInTheDocument();
+    // The CTA or its closest anchor must have the correct href
+    const anchor = cta.closest('a');
+    expect(anchor).not.toBeNull();
+    expect(anchor?.getAttribute('href')).toBe('/waitlist/position/donna-louise-2?bedrooms=2');
+  });
+
+  it('does NOT render "Check your position" CTA when outcome is claimed', () => {
+    renderConfirm({
+      withRef: true,
+      outcome: 'claimed',
+      propertySlug: 'donna-louise-2',
+      bedrooms: 2,
+    });
+    expect(screen.queryByText(/Check your position/i)).not.toBeInTheDocument();
   });
 });
