@@ -73,6 +73,14 @@ export function WelcomeShell() {
 
   const handleAmiResult = (r: AmiCalculatorResult) => {
     setAmiResult(r);
+    // Wedge #8 — when the calculator yields a qualifying tier, deep-link
+    // the applicant into /discover with their tier preselected so the
+    // landing → browse → apply loop closes. Over-income (tier=null) and
+    // missing-tier cases stay on the welcome shell so the operator can
+    // still walk them through the standard CTA path.
+    if (r.tier) {
+      navigate(`/discover?amiTier=${encodeURIComponent(r.tier)}`);
+    }
   };
 
   return (

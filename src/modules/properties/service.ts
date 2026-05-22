@@ -33,6 +33,45 @@ export interface PropertyRecord {
   updatedAt: Date;
 }
 
+// Wedge #8 — live unit availability rollup. Joined from the units table so the
+// browse surface ("3 available", "Fully leased") doesn't have to ship a second
+// request per tile.
+export interface AvailabilityRollup {
+  availableCount: number;
+  leasedCount: number;
+  totalUnits: number;
+  bedroomBreakdown: {
+    studio: number;
+    br1: number;
+    br2: number;
+    br3: number;
+  };
+}
+
+export type PropertyWithAvailability = PropertyRecord & {
+  availability: AvailabilityRollup;
+};
+
+// AMI tier order (lowest first). Mirrors `applicants/units?amiTier=` so the
+// browse surface and the apply funnel use the same legal set.
+export const AMI_TIER_ORDER = ["30", "50", "60", "80"] as const;
+export type AmiTier = (typeof AMI_TIER_ORDER)[number];
+
+// Bedroom filter values — kebab/lowercase to match URL chip semantics
+// (?bedroom=studio|1|2|3). "3" is inclusive of 3BR+ on the rollup side so
+// applicants browsing for a big home don't lose 4BR inventory.
+export const BEDROOM_FILTERS = ["studio", "1", "2", "3"] as const;
+export type BedroomFilter = (typeof BEDROOM_FILTERS)[number];
+
+export const AVAILABILITY_FILTERS = ["available_now"] as const;
+export type AvailabilityFilter = (typeof AVAILABILITY_FILTERS)[number];
+
+export interface DiscoverFilters {
+  amiTier?: AmiTier;
+  bedroom?: BedroomFilter;
+  availability?: AvailabilityFilter;
+}
+
 export interface CreatePropertyInput {
   name: string;
   addressLine1: string;
@@ -99,6 +138,207 @@ export class PropertyService {
       []
     );
     return result.rows.map(this.rowToRecord);
+  }
+
+  /**
+   * Wedge #8 — list properties with a per-property availability rollup
+   * (available/leased/total + Studio/1BR/2BR/3BR bedroom counts) and optional
+   * filters that match `applicants/units?amiTier=` semantics so the browse
+   * surface and the apply funnel agree.
+   *
+   *  - `amiTier` narrows to set-asides at or above the applicant's lowest
+   *    qualifying tier (30 → all; 80 → 80% only). Market-rate properties
+   *    (NULL/empty `ami_set_aside`) stay visible.
+   *  - `bedroom` narrows by the rollup column (studio/1/2/3 — "3" is inclusive
+   *    of 3BR+; a 3BR filter shows properties with at least one 3+ bedroom
+   *    available unit).
+   *  - `availability='available_now'` drops properties with zero currently
+   *    available units (stale-held units treated as available, matching
+   *    `applicants/units` behaviour).
+   */
+  async listWithAvailability(
+    filters: DiscoverFilters = {}
+  ): Promise<PropertyWithAvailability[]> {
+    // Build the aggregate join — note: held units with a stale claim are
+    // treated as available so the browse rollup matches the applicants/units
+    // route's lazy-expire semantics (no cron required).
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.amiTier) {
+      const idx = AMI_TIER_ORDER.indexOf(filters.amiTier);
+      const allowedSetAsides = AMI_TIER_ORDER.slice(idx).map((t) => `${t}% AMI`);
+      params.push(allowedSetAsides);
+      conditions.push(
+        `(p.ami_set_aside = ANY($${params.length}) OR p.ami_set_aside IS NULL OR p.ami_set_aside = '')`
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    // `is_available` mirrors applicants/units: status='available' OR a stale
+    // hold. The bedroom buckets only count *available* units so the badge
+    // "3 available · 2 BR" actually reflects what an applicant can claim.
+    const propColumnsWithAlias = ALL_COLUMNS
+      .split(",")
+      .map((c) => c.trim())
+      .map((c) => `p.${c}`)
+      .join(", ");
+
+    const sql = `
+      SELECT
+        ${propColumnsWithAlias},
+        COALESCE(a.available_count, 0) AS available_count,
+        COALESCE(a.leased_count, 0) AS leased_count,
+        COALESCE(a.total_units, 0) AS total_units_actual,
+        COALESCE(a.studio_count, 0) AS studio_count,
+        COALESCE(a.br1_count, 0) AS br1_count,
+        COALESCE(a.br2_count, 0) AS br2_count,
+        COALESCE(a.br3_count, 0) AS br3_count
+      FROM properties p
+      LEFT JOIN (
+        SELECT
+          u.property_id,
+          COUNT(*) FILTER (
+            WHERE u.status = 'available'
+               OR (u.status = 'held' AND u.claim_expires_at < NOW())
+          ) AS available_count,
+          COUNT(*) FILTER (WHERE u.status = 'leased') AS leased_count,
+          COUNT(*) AS total_units,
+          COUNT(*) FILTER (
+            WHERE u.bedrooms = 0
+              AND (u.status = 'available'
+                   OR (u.status = 'held' AND u.claim_expires_at < NOW()))
+          ) AS studio_count,
+          COUNT(*) FILTER (
+            WHERE u.bedrooms = 1
+              AND (u.status = 'available'
+                   OR (u.status = 'held' AND u.claim_expires_at < NOW()))
+          ) AS br1_count,
+          COUNT(*) FILTER (
+            WHERE u.bedrooms = 2
+              AND (u.status = 'available'
+                   OR (u.status = 'held' AND u.claim_expires_at < NOW()))
+          ) AS br2_count,
+          COUNT(*) FILTER (
+            WHERE u.bedrooms >= 3
+              AND (u.status = 'available'
+                   OR (u.status = 'held' AND u.claim_expires_at < NOW()))
+          ) AS br3_count
+        FROM units u
+        GROUP BY u.property_id
+      ) a ON a.property_id = p.id
+      ${whereClause}
+      ORDER BY p.name
+    `;
+
+    const result = await query(sql, params);
+
+    let rows = result.rows.map((row) => {
+      const record = this.rowToRecord(row);
+      const availability: AvailabilityRollup = {
+        availableCount: Number(row.available_count) || 0,
+        leasedCount: Number(row.leased_count) || 0,
+        totalUnits: Number(row.total_units_actual) || 0,
+        bedroomBreakdown: {
+          studio: Number(row.studio_count) || 0,
+          br1: Number(row.br1_count) || 0,
+          br2: Number(row.br2_count) || 0,
+          br3: Number(row.br3_count) || 0,
+        },
+      };
+      return { ...record, availability } as PropertyWithAvailability;
+    });
+
+    // Bedroom filter is applied post-aggregate so a single SQL covers all
+    // bedroom columns and amiTier; the alternative (predicate per chip) would
+    // duplicate the WHERE-clause logic into the FILTER expressions.
+    if (filters.bedroom) {
+      rows = rows.filter((r) => {
+        switch (filters.bedroom) {
+          case "studio":
+            return r.availability.bedroomBreakdown.studio > 0;
+          case "1":
+            return r.availability.bedroomBreakdown.br1 > 0;
+          case "2":
+            return r.availability.bedroomBreakdown.br2 > 0;
+          case "3":
+            return r.availability.bedroomBreakdown.br3 > 0;
+          default:
+            return true;
+        }
+      });
+    }
+
+    if (filters.availability === "available_now") {
+      rows = rows.filter((r) => r.availability.availableCount > 0);
+    }
+
+    return rows;
+  }
+
+  /**
+   * Wedge #8 — bedroom-grouped available units for a single property.
+   * Drives the "Live availability" section on /property/:slug. Stale-held
+   * units are treated as available (matching applicants/units behaviour).
+   */
+  async getAvailability(
+    propertyId: string
+  ): Promise<{
+    propertyId: string;
+    availableCount: number;
+    bedroomBreakdown: AvailabilityRollup["bedroomBreakdown"];
+    units: Array<{
+      id: string;
+      unitNumber: string;
+      bedrooms: number;
+      bathrooms: number;
+      sqft: number | null;
+      monthlyRent: number;
+      availableFrom: string | null;
+    }>;
+  } | null> {
+    const propertyExists = await query(
+      `SELECT id FROM properties WHERE id = $1`,
+      [propertyId]
+    );
+    if (propertyExists.rows.length === 0) return null;
+
+    const unitsResult = await query(
+      `SELECT id, unit_number, bedrooms, bathrooms, sqft, monthly_rent, available_from
+         FROM units
+        WHERE property_id = $1
+          AND (status = 'available'
+               OR (status = 'held' AND claim_expires_at < NOW()))
+        ORDER BY bedrooms ASC, monthly_rent ASC, unit_number ASC`,
+      [propertyId]
+    );
+
+    const units = unitsResult.rows.map((row) => ({
+      id: row.id,
+      unitNumber: row.unit_number,
+      bedrooms: Number(row.bedrooms),
+      bathrooms: Number(row.bathrooms),
+      sqft: row.sqft === null ? null : Number(row.sqft),
+      monthlyRent: Number(row.monthly_rent),
+      availableFrom: row.available_from
+        ? new Date(row.available_from).toISOString().split("T")[0] ?? null
+        : null,
+    }));
+
+    const bedroomBreakdown = {
+      studio: units.filter((u) => u.bedrooms === 0).length,
+      br1: units.filter((u) => u.bedrooms === 1).length,
+      br2: units.filter((u) => u.bedrooms === 2).length,
+      br3: units.filter((u) => u.bedrooms >= 3).length,
+    };
+
+    return {
+      propertyId,
+      availableCount: units.length,
+      bedroomBreakdown,
+      units,
+    };
   }
 
   async getById(propertyId: string): Promise<PropertyRecord | null> {

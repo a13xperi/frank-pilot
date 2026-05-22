@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { fetchUnits } from '@/api/units';
 import { getToken } from '@/api/client';
 import {
@@ -12,9 +13,15 @@ import {
 import { Card } from '@/components/primitives';
 import { UNIT_PLACEHOLDER } from '@/utils/unitPlaceholder';
 import { HF } from '@/styles/tokens';
+import {
+  getPropertyAvailability,
+  propertyMatchesAmiTier,
+  type BedroomBucket,
+} from '@/utils/availability';
 
 type TypeFilter = 'all' | GPMGType;
 type CityFilter = 'all' | 'Las Vegas' | 'North Las Vegas' | 'Henderson';
+type BedroomFilter = 'all' | 'studio' | '1' | '2' | '3';
 
 const TYPE_LABELS: Record<TypeFilter, string> = {
   all: 'All',
@@ -29,20 +36,26 @@ const CITY_LABELS: Record<CityFilter, string> = {
   Henderson: 'Henderson',
 };
 
+const VALID_AMI_TIERS = new Set(['30', '50', '60', '80'] as const);
+type AmiTier = '30' | '50' | '60' | '80';
+
 function ChipButton({
   active,
   onClick,
   children,
+  testId,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  testId?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       data-active={active}
+      data-testid={testId}
       style={{
         background: active ? HF.accent : HF.paper,
         color: active ? HF.paper : HF.ink2,
@@ -61,9 +74,49 @@ function ChipButton({
   );
 }
 
+function bedroomBucketFromFilter(filter: BedroomFilter): BedroomBucket | null {
+  switch (filter) {
+    case 'studio':
+      return 'studio';
+    case '1':
+      return 'br1';
+    case '2':
+      return 'br2';
+    case '3':
+      return 'br3';
+    default:
+      return null;
+  }
+}
+
 export function PropertyList() {
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
-  const [cityFilter, setCityFilter] = useState<CityFilter>('all');
+  const { t } = useTranslation('discover');
+  const [params, setParams] = useSearchParams();
+
+  // Single source of truth for filters: URL params. This is what lets the
+  // chips deep-link cleanly and what the AMI-banner X-button needs to
+  // dismiss (just drop the param). It also means a reload preserves filter
+  // state, which matches the rest of the wizard.
+  const typeFilter = (params.get('type') as TypeFilter | null) ?? 'all';
+  const cityFilter = (params.get('city') as CityFilter | null) ?? 'all';
+  const bedroomFilter = (params.get('bedroom') as BedroomFilter | null) ?? 'all';
+  const availableNow = params.get('availability') === 'available_now';
+
+  const amiTierRaw = params.get('amiTier');
+  const amiTier: AmiTier | null =
+    amiTierRaw && VALID_AMI_TIERS.has(amiTierRaw as AmiTier)
+      ? (amiTierRaw as AmiTier)
+      : null;
+
+  const updateParam = (key: string, value: string | null) => {
+    const next = new URLSearchParams(params);
+    if (value === null || value === '') {
+      next.delete(key);
+    } else {
+      next.set(key, value);
+    }
+    setParams(next, { replace: true });
+  };
 
   useEffect(() => {
     // Authed users still get the live catalog warm-fetched so cached
@@ -85,12 +138,23 @@ export function PropertyList() {
   }, []);
 
   const filtered = useMemo(() => {
+    const bucket = bedroomBucketFromFilter(bedroomFilter);
     return GPMG_FIXTURES.filter((p) => {
       if (typeFilter !== 'all' && p.type !== typeFilter) return false;
       if (cityFilter !== 'all' && p.city !== cityFilter) return false;
+      if (amiTier && !propertyMatchesAmiTier(p, amiTier)) return false;
+
+      // Bedroom / availability filters compare against the deterministic
+      // availability rollup (mirrors the seed). Studio/1BR/2BR/3BR show only
+      // properties with at least one available unit of that size.
+      if (bucket || availableNow) {
+        const avail = getPropertyAvailability(p.name);
+        if (availableNow && avail.availableCount === 0) return false;
+        if (bucket && avail.bedroomBreakdown[bucket] === 0) return false;
+      }
       return true;
     });
-  }, [typeFilter, cityFilter]);
+  }, [typeFilter, cityFilter, bedroomFilter, availableNow, amiTier]);
 
   return (
     <div
@@ -114,6 +178,47 @@ export function PropertyList() {
           </p>
         </header>
 
+        {amiTier && (
+          <div
+            data-testid="ami-banner"
+            role="status"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              background: HF.accentLo,
+              color: HF.accentInk,
+              border: '1px solid #F3D7CB',
+              borderRadius: HF.r.md,
+              padding: '10px 14px',
+              fontSize: 13,
+              fontWeight: 600,
+              marginBottom: 12,
+            }}
+          >
+            <span style={{ flex: 1 }}>
+              {t('amiBanner.text', { tier: amiTier })}
+            </span>
+            <button
+              type="button"
+              aria-label={t('amiBanner.dismiss')}
+              data-testid="ami-banner-dismiss"
+              onClick={() => updateParam('amiTier', null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: HF.accentInk,
+                cursor: 'pointer',
+                fontSize: 18,
+                lineHeight: 1,
+                padding: 4,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         <div
           className="sticky top-12 z-10 -mx-4 px-4 py-3 sm:-mx-6 sm:px-6"
           style={{ background: HF.cream, borderBottom: `1px solid ${HF.border}` }}
@@ -130,13 +235,13 @@ export function PropertyList() {
                   minWidth: 36,
                 }}
               >
-                Type
+                {t('filter.type')}
               </span>
               {(Object.keys(TYPE_LABELS) as TypeFilter[]).map((k) => (
                 <ChipButton
                   key={k}
                   active={typeFilter === k}
-                  onClick={() => setTypeFilter(k)}
+                  onClick={() => updateParam('type', k === 'all' ? null : k)}
                 >
                   {TYPE_LABELS[k]}
                 </ChipButton>
@@ -153,17 +258,67 @@ export function PropertyList() {
                   minWidth: 36,
                 }}
               >
-                City
+                {t('filter.city')}
               </span>
               {(Object.keys(CITY_LABELS) as CityFilter[]).map((k) => (
                 <ChipButton
                   key={k}
                   active={cityFilter === k}
-                  onClick={() => setCityFilter(k)}
+                  onClick={() => updateParam('city', k === 'all' ? null : k)}
                 >
                   {CITY_LABELS[k]}
                 </ChipButton>
               ))}
+            </div>
+            <div
+              className="flex items-center gap-2 overflow-x-auto"
+              data-testid="bedroom-filter-row"
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  color: HF.ink3,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontWeight: 700,
+                  minWidth: 36,
+                }}
+              >
+                {t('filter.bedroom')}
+              </span>
+              {(['all', 'studio', '1', '2', '3'] as BedroomFilter[]).map((k) => (
+                <ChipButton
+                  key={k}
+                  active={bedroomFilter === k}
+                  testId={`chip-bedroom-${k}`}
+                  onClick={() => updateParam('bedroom', k === 'all' ? null : k)}
+                >
+                  {k === 'all' ? TYPE_LABELS.all : t(`filter.bedroom.${k}`)}
+                </ChipButton>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <span
+                style={{
+                  fontSize: 12,
+                  color: HF.ink3,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontWeight: 700,
+                  minWidth: 36,
+                }}
+              >
+                {t('filter.availability')}
+              </span>
+              <ChipButton
+                active={availableNow}
+                testId="chip-available-now"
+                onClick={() =>
+                  updateParam('availability', availableNow ? null : 'available_now')
+                }
+              >
+                {t('filter.availableNow')}
+              </ChipButton>
             </div>
           </div>
         </div>
@@ -182,17 +337,63 @@ export function PropertyList() {
   );
 }
 
+function AvailabilityBadge({ availableCount }: { availableCount: number }) {
+  const { t } = useTranslation('discover');
+  if (availableCount === 0) {
+    return (
+      <span
+        data-testid="availability-badge"
+        data-state="fully-leased"
+        style={{
+          background: HF.paper,
+          color: HF.ink3,
+          border: `1px solid ${HF.border}`,
+          borderRadius: HF.r.pill,
+          padding: '2px 10px',
+          fontSize: 11,
+          fontWeight: 700,
+          fontFamily: HF.body,
+        }}
+      >
+        {t('badge.fullyLeased')}
+      </span>
+    );
+  }
+  return (
+    <span
+      data-testid="availability-badge"
+      data-state="available"
+      style={{
+        background: HF.sageLo,
+        color: HF.ink2,
+        border: `1px solid ${HF.border}`,
+        borderRadius: HF.r.pill,
+        padding: '2px 10px',
+        fontSize: 11,
+        fontWeight: 700,
+        fontFamily: HF.body,
+      }}
+    >
+      {t('badge.available', { count: availableCount })}
+    </span>
+  );
+}
+
 function PropertyTile({ prop }: { prop: GPMGProperty }) {
   const slug = slugify(prop.name);
   const est = rentEstimate(prop);
-  const unitsLine =
-    prop.units !== null ? `${prop.units} units` : 'Contact for availability';
+  const availability = getPropertyAvailability(prop.name);
+  // For DL2 (units=null in fixture, but seed.ts seeds 48), we still want a
+  // count. We trust the rollup even when fixture `units` is null — the
+  // sentinel test asserts the rollup totals reflect the seed truth.
+  const showCount = availability.totalUnits > 0;
 
   return (
     <li>
       <Link
         to={`/property/${slug}`}
         aria-label={prop.name}
+        data-testid={`property-tile-${slug}`}
         style={{
           display: 'block',
           textDecoration: 'none',
@@ -231,7 +432,13 @@ function PropertyTile({ prop }: { prop: GPMGProperty }) {
               className="flex items-center justify-between"
               style={{ marginTop: 10, gap: 8 }}
             >
-              <span style={{ fontSize: 12, color: HF.ink3 }}>{unitsLine}</span>
+              <span style={{ fontSize: 12, color: HF.ink3 }}>
+                {showCount
+                  ? `${availability.totalUnits} units`
+                  : prop.units !== null
+                  ? `${prop.units} units`
+                  : ''}
+              </span>
               <span
                 style={{
                   background: HF.accentLo,
@@ -254,6 +461,7 @@ function PropertyTile({ prop }: { prop: GPMGProperty }) {
                 marginTop: 12,
                 paddingTop: 12,
                 borderTop: `1px solid ${HF.border}`,
+                gap: 8,
               }}
             >
               <span
@@ -266,15 +474,18 @@ function PropertyTile({ prop }: { prop: GPMGProperty }) {
               >
                 From ${est}/mo
               </span>
-              <span
-                style={{
-                  fontSize: 13,
-                  color: HF.accent,
-                  fontWeight: 600,
-                }}
-              >
-                View →
-              </span>
+              <div className="flex items-center" style={{ gap: 8 }}>
+                <AvailabilityBadge availableCount={availability.availableCount} />
+                <span
+                  style={{
+                    fontSize: 13,
+                    color: HF.accent,
+                    fontWeight: 600,
+                  }}
+                >
+                  View →
+                </span>
+              </div>
             </div>
           </div>
         </Card>
