@@ -73,3 +73,50 @@ jobs:
             /tmp/smoke-logs
           if-no-files-found: warn
           retention-days: 7
+
+  compliance-tape-verify:
+    name: compliance-tape-verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Independent of the Playwright smoke — chain-integrity health does not
+    # depend on UI handoff health. Both jobs surface as separate checks.
+    steps:
+      - name: Gate on secrets
+        id: gate
+        env:
+          TOKEN: ${{ secrets.SMOKE_AUDIT_TOKEN }}
+          APPLICANT_ID: ${{ secrets.SMOKE_APPLICANT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$APPLICANT_ID" ]; then
+            echo "::notice::SMOKE_AUDIT_TOKEN and/or SMOKE_APPLICANT_ID not set — skipping. Set repo secrets to enable. Token must have audit:view scope; rotate quarterly. See docs/runbooks/bp02-rollback.md."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify chain integrity
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          TOKEN: ${{ secrets.SMOKE_AUDIT_TOKEN }}
+          APPLICANT_ID: ${{ secrets.SMOKE_APPLICANT_ID }}
+          API_BASE: https://api-production-ed89.up.railway.app
+        run: |
+          set -euo pipefail
+          status=$(curl -sS -o /tmp/verify.json -w "%{http_code}" \
+            -H "Authorization: Bearer $TOKEN" \
+            "$API_BASE/api/compliance-tape/verify?applicantId=$APPLICANT_ID")
+          echo "HTTP $status"
+          cat /tmp/verify.json
+          echo ""
+          if [ "$status" != "200" ]; then
+            echo "::error::compliance-tape/verify returned HTTP $status"
+            exit 1
+          fi
+          ok=$(jq -r '.ok' < /tmp/verify.json)
+          if [ "$ok" != "true" ]; then
+            broke_at=$(jq -r '.brokeAt // "n/a"' < /tmp/verify.json)
+            reason=$(jq -r '.reason // "no reason given"' < /tmp/verify.json)
+            echo "::error::chain break detected at sequence $broke_at: $reason"
+            exit 1
+          fi
+          echo "compliance-tape chain ok"
