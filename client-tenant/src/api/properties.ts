@@ -26,9 +26,15 @@ export interface PropertyDetail {
 }
 
 export interface WaitlistSummary {
-  position: number;
+  // Server returns "estimatedWindow"; we expose it under the legacy
+  // property name `expectedNotificationWindow` too via the fetcher below so
+  // existing call sites keep working. New code should read `estimatedWindow`.
+  position?: number;
   totalQueue: number;
+  movement?: { spotsThisMonth: number; direction: 'up' | 'down' | 'flat' } | null;
+  estimatedWindow: string;
   expectedNotificationWindow: string;
+  enrolled?: boolean;
 }
 
 // Donna Louise 2 — MVP fixture. Mirrors the DL2 data the prototype implies.
@@ -87,10 +93,62 @@ export async function fetchProperty(slug: string): Promise<PropertyDetail> {
   }
 }
 
-export async function fetchWaitlistSummary(slug: string): Promise<WaitlistSummary> {
+// Wedge #5: the summary endpoint requires ?bedrooms now that it returns a real
+// per-tier position. Callers without a tier (the discover banner) pass a
+// sensible default; the Position page wires through the applicant's intent.
+export async function fetchWaitlistSummary(
+  slug: string,
+  bedrooms = 2,
+): Promise<WaitlistSummary> {
   try {
-    return await api.get<WaitlistSummary>(`/applicants/properties/${slug}/waitlist-summary`);
+    const raw = await api.get<{
+      position?: number;
+      totalQueue: number;
+      movement?: { spotsThisMonth: number; direction: 'up' | 'down' | 'flat' } | null;
+      estimatedWindow: string;
+      enrolled?: boolean;
+    }>(`/applicants/properties/${slug}/waitlist-summary?bedrooms=${bedrooms}`);
+    return {
+      position: raw.position,
+      totalQueue: raw.totalQueue,
+      movement: raw.movement,
+      estimatedWindow: raw.estimatedWindow,
+      // Back-compat alias: a few legacy spots still read this field name.
+      expectedNotificationWindow: raw.estimatedWindow,
+      enrolled: raw.enrolled,
+    };
   } catch {
-    return { position: 38, totalQueue: 38, expectedNotificationWindow: '3–6 months' };
+    return {
+      totalQueue: 38,
+      estimatedWindow: '3–6 months',
+      expectedNotificationWindow: '3–6 months',
+    };
   }
+}
+
+export async function joinWaitlist(
+  slug: string,
+  bedrooms: number,
+): Promise<WaitlistSummary> {
+  const raw = await api.post<{
+    position?: number;
+    totalQueue: number;
+    movement?: { spotsThisMonth: number; direction: 'up' | 'down' | 'flat' } | null;
+    estimatedWindow: string;
+    enrolled?: boolean;
+  }>(`/applicants/properties/${slug}/waitlist-join`, { bedrooms });
+  return {
+    position: raw.position,
+    totalQueue: raw.totalQueue,
+    movement: raw.movement,
+    estimatedWindow: raw.estimatedWindow,
+    expectedNotificationWindow: raw.estimatedWindow,
+    enrolled: raw.enrolled,
+  };
+}
+
+export async function leaveWaitlist(slug: string, bedrooms: number): Promise<void> {
+  await api.del<{ ok: true }>(
+    `/applicants/properties/${slug}/waitlist-leave?bedrooms=${bedrooms}`,
+  );
 }

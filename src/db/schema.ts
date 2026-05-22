@@ -448,6 +448,28 @@ ALTER TABLE applications
 
 CREATE INDEX idx_applications_claimed_unit ON applications(claimed_unit_id);
 
+-- Position-aware waitlist (gpmglv-gap wedge #5).
+-- One row per (property, bedroom_count, user). Position is derived from
+-- created_at ordering at query time. notified_position_at /
+-- last_notified_position snapshot what we last told the applicant so the
+-- API can compute monthly "moved up N spots" movement without storing a
+-- per-day position history.
+CREATE TABLE waitlist_entries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  bedroom_count SMALLINT NOT NULL,
+  applicant_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  notified_position_at TIMESTAMPTZ,
+  last_notified_position SMALLINT,
+  UNIQUE (property_id, bedroom_count, applicant_user_id)
+);
+-- Hot query path: rank by created_at within a (property, bedroom_count) lane.
+CREATE INDEX idx_waitlist_entries_lane_created
+  ON waitlist_entries(property_id, bedroom_count, created_at);
+CREATE INDEX idx_waitlist_entries_user
+  ON waitlist_entries(applicant_user_id);
+
 -- Tenant/applicant join to applications (multiple users per application: primary, co-applicant, household member)
 CREATE TABLE user_applications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -948,6 +970,7 @@ DROP TABLE IF EXISTS adverse_action_notices CASCADE;
 DROP TABLE IF EXISTS audit_log CASCADE;
 DROP TABLE IF EXISTS lease_modifications CASCADE;
 DROP TABLE IF EXISTS fraud_flags CASCADE;
+DROP TABLE IF EXISTS waitlist_entries CASCADE;
 DROP TABLE IF EXISTS known_problem_addresses CASCADE;
 DROP TABLE IF EXISTS ami_limits CASCADE;
 DROP TABLE IF EXISTS applications CASCADE;
