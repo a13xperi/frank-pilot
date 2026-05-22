@@ -27,6 +27,12 @@ const PII_KEYS = [
   "date_of_birth",
   "dateOfBirth",
   "dob",
+  // LOW-1 (SECURITY-AUDIT-2026-05-21): metadata redaction targets — the
+  // audit calls out `logger.info("Magic link issued", { email })` and
+  // similar shapes leaking emails/phones into combined.log via Winston's
+  // JSON serializer.
+  "email",
+  "phone",
 ];
 
 export function filterPII(input: string): string {
