@@ -1015,9 +1015,52 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_audit_log_immutable
   BEFORE UPDATE OR DELETE ON audit_log
   FOR EACH ROW EXECUTE FUNCTION prevent_audit_modification();
+
+-- ============================================================
+-- BP-08 — Stripe PaymentIntents wiring
+-- See docs/bp-08-stripe-spec.md and
+-- src/db/migrations/2026-05-25-bp08-payment-tables.sql for the rationale.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS payment_idempotency (
+  idempotency_key   TEXT PRIMARY KEY,
+  application_id    UUID NOT NULL,
+  attempt_n         INT  NOT NULL,
+  status            TEXT NOT NULL CHECK (status IN ('pending','succeeded','failed')),
+  payment_intent_id TEXT,
+  client_secret     TEXT,
+  amount_cents      INT,
+  currency          CHAR(3),
+  last_event_at     TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_idempotency_app_attempt
+  ON payment_idempotency (application_id, attempt_n);
+
+CREATE TABLE IF NOT EXISTS stripe_processed_events (
+  event_id       TEXT PRIMARY KEY,
+  event_type     TEXT NOT NULL,
+  application_id UUID,
+  processed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS stripe_webhook_dlq (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id        TEXT UNIQUE NOT NULL,
+  event_type      TEXT NOT NULL,
+  raw_payload     JSONB NOT NULL,
+  error_message   TEXT,
+  attempt_count   INT NOT NULL DEFAULT 1,
+  first_failed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_failed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 `;
 
 export const DROP_SCHEMA_SQL = `
+DROP TABLE IF EXISTS stripe_webhook_dlq CASCADE;
+DROP TABLE IF EXISTS stripe_processed_events CASCADE;
+DROP TABLE IF EXISTS payment_idempotency CASCADE;
 DROP TABLE IF EXISTS application_messages CASCADE;
 DROP TABLE IF EXISTS work_orders CASCADE;
 DROP TABLE IF EXISTS inspections CASCADE;

@@ -14,6 +14,8 @@ import applicationRoutes from "./modules/application/routes";
 import screeningRoutes from "./modules/screening/routes";
 import approvalRoutes from "./modules/approval/routes";
 import paymentRoutes from "./modules/payment/routes";
+import paymentWebhookRouter from "./modules/payment/webhook";
+import { assertStripeProdConfig } from "./modules/payment/boot-guard";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
 import adverseActionRoutes from "./modules/adverse-action/routes";
@@ -48,6 +50,8 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
+assertStripeProdConfig(process.env);
+
 const app = express();
 app.set("trust proxy", 1);
 const PORT = parseInt(process.env.PORT || "3000");
@@ -55,6 +59,14 @@ const PORT = parseInt(process.env.PORT || "3000");
 // Security middleware
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+
+// BP-08 Stripe webhook — MUST be mounted before `express.json()` so the raw
+// request body survives intact for `stripe.webhooks.constructEvent`. Moving
+// this below the JSON parser silently breaks signature verification: the
+// parser consumes the buffer and we lose the bytes the HMAC was computed
+// over. Do not reorder.
+app.use("/api/payments/webhook", paymentWebhookRouter);
+
 app.use(express.json({ limit: "1mb" }));
 
 // Request logging (PII-safe)
