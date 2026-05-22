@@ -34,7 +34,8 @@ function sessionId(): string {
 }
 
 async function fireBeacon(path: string, body: object): Promise<Response> {
-  return fetch(path, {
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  return fetch(`${baseUrl}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
