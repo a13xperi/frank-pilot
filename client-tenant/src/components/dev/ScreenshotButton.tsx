@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Camera, Check, X, Loader2, Copy } from 'lucide-react';
-import { getQaBuffer } from '@/lib/qaBuffer';
+import { getQaBuffer, type QaEntry } from '@/lib/qaBuffer';
 
 const STORAGE_KEY = 'frank_qa';
 const TOKEN_KEY = 'frank_tenant_token';
@@ -81,7 +81,7 @@ function dumpStorage(store: Storage | undefined): Record<string, string> {
   return out;
 }
 
-function buildDebugPayload(pngUrl: string | null): Record<string, unknown> {
+function buildDebugPayload(pngUrl: string | null, qaBufferSnapshot: QaEntry[]): Record<string, unknown> {
   const token = (() => { try { return window.localStorage.getItem(TOKEN_KEY); } catch { return null; } })();
   const claims = token ? decodeJwtClaims(token) : null;
   return {
@@ -116,7 +116,7 @@ function buildDebugPayload(pngUrl: string | null): Record<string, unknown> {
       localStorage: dumpStorage(typeof window !== 'undefined' ? window.localStorage : undefined),
       sessionStorage: dumpStorage(typeof window !== 'undefined' ? window.sessionStorage : undefined),
     },
-    qaBuffer: getQaBuffer(),
+    qaBuffer: qaBufferSnapshot,
   };
 }
 
@@ -142,6 +142,11 @@ export function ScreenshotButton() {
     setMsg('');
     setBundle(null);
     try {
+      // Snapshot the qaBuffer BEFORE toPng() runs — html-to-image inlines fonts
+      // by fetching them, which would otherwise flood the 25-entry buffer and
+      // push real app traffic out.
+      const qaSnapshot = getQaBuffer();
+
       const { toPng } = await import('html-to-image');
       const node = document.body;
       const dataUrl = await toPng(node, {
@@ -186,7 +191,7 @@ export function ScreenshotButton() {
         return;
       }
 
-      const debugPayload = buildDebugPayload(pngUrl);
+      const debugPayload = buildDebugPayload(pngUrl, qaSnapshot);
       let jsonUrl: string;
       try {
         jsonUrl = await uploadToSupabase(JSON.stringify(debugPayload, null, 2), jsonName, 'application/json');
