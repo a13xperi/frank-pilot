@@ -13,9 +13,11 @@
  * The output is also committed to the repo so `public/sitemap.xml` exists at
  * HEAD (Vercel serves `public/` even on first deploy).
  *
- * Host: hard-coded to https://frank-pilot.vercel.app — replace once a real
- * production domain is wired post-Railway. (No VITE_PUBLIC_SITE_URL pattern
- * exists in this repo yet; introduce one before changing this.)
+ * Host: read from the VITE_PUBLIC_SITE_URL environment variable at generation
+ * time; falls back to https://frank-pilot-tenant.vercel.app when the variable
+ * is not set (e.g. local dev, CI environments that don't inject it). Set
+ * VITE_PUBLIC_SITE_URL in your Vercel project environment variables to
+ * override for any deployment target.
  *
  * Node-version note: CI runs node 18/20/22. We avoid Node TS-strip features
  * (only available 22.6+ and behind a flag) by using esbuild's programmatic
@@ -33,8 +35,7 @@ const ROOT = path.resolve(__dirname, '..');
 const FIXTURE_PATH = path.join(ROOT, 'src', 'api', 'gpmg-fixtures.ts');
 const OUTPUT_PATH = path.join(ROOT, 'public', 'sitemap.xml');
 
-// Hard-coded for now; see file header for follow-up.
-const SITE_URL = 'https://frank-pilot.vercel.app';
+const SITE_URL = process.env.VITE_PUBLIC_SITE_URL || 'https://frank-pilot-tenant.vercel.app';
 
 const ROUTES = [
   { loc: '/', changefreq: 'monthly', priority: '1.0' },
