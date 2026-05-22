@@ -32,6 +32,7 @@ import applicantRoutes from "./modules/applicants/routes";
 import tenantRoutes from "./modules/tenant/routes";
 import messagesRoutes from "./modules/messages/routes";
 import tapeRoutes from "./modules/tape/routes";
+import { createTapeViewerRoutes } from "./modules/tape/routes-viewer";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -106,6 +107,25 @@ app.use("/api/applicants", applicantRoutes);
 // Stub module — see src/modules/tape/index.ts. Replace with canonical BP-02
 // helper when it lands.
 app.use("/api/tape", tapeRoutes);
+
+// BP-02 compliance tape viewer (operator-only: list, verify, export.pdf).
+// TODO(BP-02-Phase-2): Replace the stub service below with the real TapeService
+// from Lane B once it is wired. The stub returns 503 for all calls so the
+// routes exist in production but remain inert until Phase 2 completes.
+app.use(
+  "/api/compliance-tape",
+  createTapeViewerRoutes({
+    async list() {
+      throw Object.assign(new Error("service not wired"), { stub: true });
+    },
+    async verify() {
+      throw Object.assign(new Error("service not wired"), { stub: true });
+    },
+    async exportPdf() {
+      throw Object.assign(new Error("service not wired"), { stub: true });
+    },
+  })
+);
 
 // Password login (staff)
 app.post("/api/auth/login", async (req, res) => {
