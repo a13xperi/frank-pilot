@@ -54,7 +54,13 @@ const PORT = parseInt(process.env.PORT || "3000");
 
 // Security middleware
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+// HIGH-2 (SECURITY-AUDIT-2026-05-21): fail closed on CORS — refuse to boot
+// without an explicit allow-list. Wildcard fallback removed.
+const corsOrigin = process.env.CORS_ORIGIN;
+if (!corsOrigin) {
+  throw new Error("CORS_ORIGIN is required (no wildcard fallback)");
+}
+app.use(cors({ origin: corsOrigin.split(",").map((s) => s.trim()) }));
 app.use(express.json({ limit: "1mb" }));
 
 // Request logging (PII-safe)
