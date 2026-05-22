@@ -18,6 +18,12 @@ import {
   propertyMatchesAmiTier,
   type BedroomBucket,
 } from '@/utils/availability';
+import {
+  propertyRentRange,
+  propertyAmiTier,
+  formatRentBucket,
+  populatedBuckets,
+} from '@/utils/pricing';
 
 type TypeFilter = 'all' | GPMGType;
 type CityFilter = 'all' | 'Las Vegas' | 'North Las Vegas' | 'Henderson';
@@ -380,6 +386,7 @@ function AvailabilityBadge({ availableCount }: { availableCount: number }) {
 }
 
 function PropertyTile({ prop }: { prop: GPMGProperty }) {
+  const { t } = useTranslation('discover');
   const slug = slugify(prop.name);
   const est = rentEstimate(prop);
   const availability = getPropertyAvailability(prop.name);
@@ -387,6 +394,13 @@ function PropertyTile({ prop }: { prop: GPMGProperty }) {
   // count. We trust the rollup even when fixture `units` is null — the
   // sentinel test asserts the rollup totals reflect the seed truth.
   const showCount = availability.totalUnits > 0;
+
+  // Wedge #9 — per-bedroom rent ranges + AMI tier. Only populated buckets
+  // render (no "Studio $0" placeholders) and the chip only appears for
+  // properties with a real set-aside (all 17 GPMG fixtures qualify today).
+  const rentRange = propertyRentRange(prop.name);
+  const buckets = populatedBuckets(rentRange);
+  const amiTier = propertyAmiTier(prop.name);
 
   return (
     <li>
@@ -439,21 +453,42 @@ function PropertyTile({ prop }: { prop: GPMGProperty }) {
                   ? `${prop.units} units`
                   : ''}
               </span>
-              <span
-                style={{
-                  background: HF.accentLo,
-                  color: HF.accentInk,
-                  border: '1px solid #F3D7CB',
-                  borderRadius: HF.r.pill,
-                  padding: '2px 10px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: 'capitalize',
-                  fontFamily: HF.body,
-                }}
-              >
-                {prop.type}
-              </span>
+              <div className="flex items-center" style={{ gap: 6 }}>
+                {amiTier && (
+                  <span
+                    data-testid={`ami-tier-chip-${slug}`}
+                    aria-label={t('amiDisclosure.tooltip', { tier: amiTier })}
+                    title={t('amiDisclosure.tooltip', { tier: amiTier })}
+                    style={{
+                      background: HF.sageLo,
+                      color: HF.sage,
+                      border: `1px solid ${HF.border}`,
+                      borderRadius: HF.r.pill,
+                      padding: '2px 10px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      fontFamily: HF.body,
+                    }}
+                  >
+                    {t('amiDisclosure.chipLabel', { tier: amiTier })}
+                  </span>
+                )}
+                <span
+                  style={{
+                    background: HF.accentLo,
+                    color: HF.accentInk,
+                    border: '1px solid #F3D7CB',
+                    borderRadius: HF.r.pill,
+                    padding: '2px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: 'capitalize',
+                    fontFamily: HF.body,
+                  }}
+                >
+                  {prop.type}
+                </span>
+              </div>
             </div>
             <div
               className="flex items-center justify-between"
@@ -487,6 +522,32 @@ function PropertyTile({ prop }: { prop: GPMGProperty }) {
                 </span>
               </div>
             </div>
+            {buckets.length > 0 && (
+              <div
+                data-testid={`rent-row-${slug}`}
+                style={{
+                  marginTop: 10,
+                  fontSize: 12,
+                  color: HF.ink2,
+                  fontFamily: HF.body,
+                  lineHeight: 1.5,
+                }}
+              >
+                {buckets.map(({ key, bucket }, idx) => (
+                  <span key={key}>
+                    {idx > 0 && (
+                      <span aria-hidden="true" style={{ color: HF.ink4, margin: '0 6px' }}>
+                        ·
+                      </span>
+                    )}
+                    <span style={{ fontWeight: 600, color: HF.ink }}>
+                      {t(`pricing.label.${key}`)}
+                    </span>{' '}
+                    <span>{formatRentBucket(bucket)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </Card>
       </Link>

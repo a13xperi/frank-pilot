@@ -32,6 +32,7 @@ const mockList = jest.fn();
 const mockListWithAvailability = jest.fn();
 const mockGetById = jest.fn();
 const mockGetAvailability = jest.fn();
+const mockGetRentRange = jest.fn();
 const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 
@@ -43,6 +44,7 @@ jest.mock("../modules/properties/service", () => ({
     listWithAvailability: mockListWithAvailability,
     getById: mockGetById,
     getAvailability: mockGetAvailability,
+    getRentRange: mockGetRentRange,
     create: mockCreate,
     update: mockUpdate,
   })),
@@ -323,6 +325,60 @@ describe("GET /properties/:propertyId/availability", () => {
       .get("/properties/prop-001/availability")
       .set("Authorization", tokenFor(assetManager));
     expect(res.status).toBe(500);
+  });
+});
+
+// ── GET /properties/:propertyId/rent-range — wedge #9 ─────────────────────
+
+describe("GET /properties/:propertyId/rent-range", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("returns 401 without auth", async () => {
+    const res = await request(app).get("/properties/prop-001/rent-range");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 200 with rentRange + amiTier when found", async () => {
+    const payload = {
+      propertyId: "prop-001",
+      rentRange: {
+        studio: { low: 747, high: 747 },
+        br1: { low: 995, high: 995 },
+        br2: null,
+        br3: null,
+      },
+      amiTier: "60% AMI",
+    };
+    mockAuthQuery(leasingAgent);
+    mockGetRentRange.mockResolvedValue(payload);
+    const res = await request(app)
+      .get("/properties/prop-001/rent-range")
+      .set("Authorization", tokenFor(leasingAgent));
+    expect(res.status).toBe(200);
+    expect(res.body.amiTier).toBe("60% AMI");
+    expect(res.body.rentRange.br1).toEqual({ low: 995, high: 995 });
+    expect(res.body.rentRange.br2).toBeNull();
+    expect(res.body.rentRange.br3).toBeNull();
+  });
+
+  it("returns 404 when property is not found", async () => {
+    mockAuthQuery(leasingAgent);
+    mockGetRentRange.mockResolvedValue(null);
+    const res = await request(app)
+      .get("/properties/missing/rent-range")
+      .set("Authorization", tokenFor(leasingAgent));
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/property not found/i);
+  });
+
+  it("returns 500 when service throws", async () => {
+    mockAuthQuery(assetManager);
+    mockGetRentRange.mockRejectedValue(new Error("DB timeout"));
+    const res = await request(app)
+      .get("/properties/prop-001/rent-range")
+      .set("Authorization", tokenFor(assetManager));
+    expect(res.status).toBe(500);
+    expect(res.body.error).toMatch(/failed to get property rent range/i);
   });
 });
 

@@ -67,4 +67,52 @@ describe('PropertyDetail (GPMG fixture)', () => {
     expect(cta).toBeInTheDocument();
     expect(cta.textContent).toMatch(/Apply for this property/i);
   });
+
+  // ── Wedge #9 — Rent & AMI disclosure ────────────────────────────────────
+
+  it('renders the Rent & AMI disclosure section with per-bedroom rent table', () => {
+    renderAt('/property/david-j-hoggard-family-community');
+    const section = screen.getByTestId('rent-ami-disclosure');
+    expect(section).toBeInTheDocument();
+    const table = screen.getByTestId('rent-table');
+    expect(table).toBeInTheDocument();
+    // Hoggard: 1BR=$995, 2BR=$1,194, 3BR=$1,380–$1,539 (3BR+4BR collapse).
+    expect(screen.getByTestId('rent-row-br1').textContent).toMatch(/\$995/);
+    expect(screen.getByTestId('rent-row-br2').textContent).toMatch(/\$1,194/);
+    expect(screen.getByTestId('rent-row-br3').textContent).toMatch(
+      /\$1,380.+\$1,539/
+    );
+    // No Studio row for Hoggard (family-only).
+    expect(screen.queryByTestId('rent-row-studio')).not.toBeInTheDocument();
+  });
+
+  it('renders the 60% AMI set-aside explainer with income calculator link to "/"', () => {
+    renderAt('/property/owens-senior-housing');
+    const explainer = screen.getByTestId('set-aside-explainer');
+    expect(explainer.textContent).toMatch(/Set-aside: 60% AMI/);
+    expect(explainer.textContent).toMatch(/Las Vegas Area Median Income/);
+    const link = screen.getByTestId('income-calculator-link');
+    expect(link.getAttribute('href')).toBe('/');
+    expect(link.textContent).toMatch(/income calculator/i);
+  });
+
+  it('renders the HUD-LV income limits disclosure with rows 1–8 (60% AMI)', () => {
+    renderAt('/property/owens-senior-housing');
+    const disclosure = screen.getByTestId('income-limits-disclosure');
+    expect(disclosure).toBeInTheDocument();
+    // Header copy
+    expect(disclosure.textContent).toMatch(/Las Vegas-Henderson-Paradise MSA/);
+    // 8 household-size rows
+    for (let i = 1; i <= 8; i++) {
+      expect(screen.getByTestId(`income-limits-row-${i}`)).toBeInTheDocument();
+    }
+    // Anchor: household size 4 @ 60% AMI = $51,840 per ami.ts.
+    expect(screen.getByTestId('income-limits-row-4').textContent).toMatch(
+      /\$51,840/
+    );
+    // Anchor: household size 1 @ 60% AMI = $36,300.
+    expect(screen.getByTestId('income-limits-row-1').textContent).toMatch(
+      /\$36,300/
+    );
+  });
 });

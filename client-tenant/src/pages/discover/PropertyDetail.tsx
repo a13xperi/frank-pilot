@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { findGPMGBySlug, rentEstimate } from '@/api/gpmg-fixtures';
 import { CTA } from '@/components/primitives';
 import { getToken } from '@/api/client';
@@ -10,6 +10,30 @@ import {
   getPropertyAvailability,
   type BedroomBucket,
 } from '@/utils/availability';
+import {
+  propertyRentRange,
+  propertyAmiTier,
+  formatRentBucket,
+  populatedBuckets,
+  type BedroomBucket as PricingBedroomBucket,
+} from '@/utils/pricing';
+import { AMI_TABLES } from '@/lib/ami';
+
+// Household sizes 1–8 for the HUD income-limits disclosure (per spec).
+const HOUSEHOLD_SIZES: ReadonlyArray<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8> = [
+  1, 2, 3, 4, 5, 6, 7, 8,
+];
+
+const RENT_TABLE_BEDROOM_I18N: Record<PricingBedroomBucket, string> = {
+  studio: 'availability.studio',
+  br1: 'availability.1',
+  br2: 'availability.2',
+  br3: 'availability.3',
+};
+
+function formatUSD(n: number): string {
+  return `$${n.toLocaleString('en-US')}`;
+}
 
 const AMENITIES = [
   'Affordable rents',
@@ -77,6 +101,17 @@ export function PropertyDetail() {
   const est = rentEstimate(prop);
   const availability = getPropertyAvailability(prop.name);
   const hasAvailability = availability.availableCount > 0;
+
+  // Wedge #9 — rent range + AMI disclosure. `rentBuckets` drives the per-
+  // bedroom table; `propertySetAside` is "60% AMI" for every GPMG fixture
+  // today (the mirror in utils/pricing.ts returns null for non-fixture
+  // properties so the section is suppressed for any future off-catalog case).
+  // Distinct from the URL `amiTier` deep-link (applicant's tier from W0).
+  const rentRange = propertyRentRange(prop.name);
+  const rentBuckets = populatedBuckets(rentRange);
+  const propertySetAside = propertyAmiTier(prop.name);
+  const amiTable = AMI_TABLES.LAS_VEGAS_HENDERSON;
+  const showAmiDisclosure = !!propertySetAside && rentBuckets.length > 0;
 
   const onApply = () => {
     // Apply requires auth; bounce unauthed users through /login with a return.
@@ -187,6 +222,253 @@ export function PropertyDetail() {
               </span>
             </div>
           </header>
+
+          {/* Wedge #9 — Rent & AMI disclosure (the gpmglv differentiator).
+              Honest, public, per-bedroom rent figures + the 60% AMI set-
+              aside callout. Sits above Live availability so a user can see
+              "yes, I can afford this and I qualify" before counting units. */}
+          {showAmiDisclosure && (
+            <section
+              data-testid="rent-ami-disclosure"
+              style={{
+                marginTop: 24,
+                background: HF.paper,
+                border: `1px solid ${HF.border}`,
+                borderRadius: HF.r.md,
+                padding: 16,
+                boxShadow: HF.shadow.xs,
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: HF.display,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: HF.ink2,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  margin: 0,
+                }}
+              >
+                {t('amiDisclosure.sectionTitle')}
+              </h2>
+
+              <table
+                data-testid="rent-table"
+                style={{
+                  width: '100%',
+                  marginTop: 12,
+                  borderCollapse: 'collapse',
+                  fontSize: 13,
+                  color: HF.ink2,
+                }}
+              >
+                <thead>
+                  <tr style={{ textAlign: 'left', color: HF.ink3 }}>
+                    <th
+                      scope="col"
+                      style={{
+                        padding: '6px 8px',
+                        borderBottom: `1px solid ${HF.border}`,
+                        fontWeight: 700,
+                        fontSize: 12,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {t('amiDisclosure.tableHeader.bedroom')}
+                    </th>
+                    <th
+                      scope="col"
+                      style={{
+                        padding: '6px 8px',
+                        borderBottom: `1px solid ${HF.border}`,
+                        fontWeight: 700,
+                        fontSize: 12,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        textAlign: 'right',
+                      }}
+                    >
+                      {t('amiDisclosure.tableHeader.rent')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rentBuckets.map(({ key, bucket }) => (
+                    <tr key={key} data-testid={`rent-row-${key}`}>
+                      <td
+                        style={{
+                          padding: '8px',
+                          borderBottom: `1px solid ${HF.border}`,
+                          color: HF.ink,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {t(RENT_TABLE_BEDROOM_I18N[key])}
+                      </td>
+                      <td
+                        style={{
+                          padding: '8px',
+                          borderBottom: `1px solid ${HF.border}`,
+                          color: HF.ink,
+                          textAlign: 'right',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {formatRentBucket(bucket)}
+                        <span style={{ color: HF.ink3 }}>{t('pricing.suffix')}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div
+                data-testid="set-aside-explainer"
+                style={{
+                  marginTop: 14,
+                  background: HF.sageLo,
+                  border: `1px solid ${HF.border}`,
+                  borderRadius: HF.r.sm,
+                  padding: 12,
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: HF.display,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    color: HF.sage,
+                  }}
+                >
+                  {t('amiDisclosure.setAsideHeading', { tier: propertySetAside })}
+                </p>
+                <p
+                  style={{
+                    margin: '6px 0 0',
+                    fontSize: 13,
+                    color: HF.ink2,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <Trans
+                    i18nKey="amiDisclosure.explainer"
+                    t={t}
+                    values={{ tier: propertySetAside }}
+                    components={{
+                      1: (
+                        <Link
+                          to="/"
+                          data-testid="income-calculator-link"
+                          style={{
+                            color: HF.accent,
+                            textDecoration: 'underline',
+                            fontWeight: 600,
+                          }}
+                        />
+                      ),
+                    }}
+                  />
+                </p>
+              </div>
+
+              <details
+                data-testid="income-limits-disclosure"
+                style={{ marginTop: 12 }}
+              >
+                <summary
+                  style={{
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    color: HF.accent,
+                    fontWeight: 600,
+                    fontFamily: HF.body,
+                  }}
+                >
+                  {t('amiDisclosure.incomeLimitsToggle')}
+                </summary>
+                <p
+                  style={{
+                    margin: '10px 0 0',
+                    fontSize: 12,
+                    color: HF.ink3,
+                  }}
+                >
+                  {t('amiDisclosure.incomeLimitsTitle', { tier: propertySetAside })}
+                </p>
+                <table
+                  data-testid="income-limits-table"
+                  style={{
+                    width: '100%',
+                    marginTop: 8,
+                    borderCollapse: 'collapse',
+                    fontSize: 13,
+                    color: HF.ink2,
+                  }}
+                >
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: HF.ink3 }}>
+                      <th
+                        scope="col"
+                        style={{
+                          padding: '6px 8px',
+                          borderBottom: `1px solid ${HF.border}`,
+                          fontWeight: 700,
+                          fontSize: 12,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {t('amiDisclosure.incomeLimitsHeader.size')}
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          padding: '6px 8px',
+                          borderBottom: `1px solid ${HF.border}`,
+                          fontWeight: 700,
+                          fontSize: 12,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          textAlign: 'right',
+                        }}
+                      >
+                        {t('amiDisclosure.incomeLimitsHeader.max')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {HOUSEHOLD_SIZES.map((size) => (
+                      <tr key={size} data-testid={`income-limits-row-${size}`}>
+                        <td
+                          style={{
+                            padding: '6px 8px',
+                            borderBottom: `1px solid ${HF.border}`,
+                            color: HF.ink,
+                          }}
+                        >
+                          {t('amiDisclosure.incomeLimitsRow', { count: size })}
+                        </td>
+                        <td
+                          style={{
+                            padding: '6px 8px',
+                            borderBottom: `1px solid ${HF.border}`,
+                            color: HF.ink,
+                            textAlign: 'right',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {formatUSD(amiTable.limits[size]['60'])}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            </section>
+          )}
 
           {/* Live availability section — bedroom-grouped counts derived from
               the deterministic seed rollup. Hidden when totalUnits=0 (e.g.

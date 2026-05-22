@@ -48,8 +48,31 @@ export interface AvailabilityRollup {
   };
 }
 
+// Wedge #9 — honest-pricing rollup. Per-bedroom rent ranges + AMI tier
+// disclosure so the public discover surface can show "Studio $850 · 1BR
+// $975–1,100" without the applicant having to call a leasing agent first.
+// Buckets with zero units in that bedroom are reported as null so callers
+// can omit them cleanly.
+export interface RentBucket {
+  low: number;
+  high: number;
+}
+
+export interface RentRange {
+  studio: RentBucket | null;
+  br1: RentBucket | null;
+  br2: RentBucket | null;
+  br3: RentBucket | null;
+}
+
 export type PropertyWithAvailability = PropertyRecord & {
   availability: AvailabilityRollup;
+  // Wedge #9 — rent rollup + AMI tier on every listing tile.
+  rentRange: RentRange;
+  // Normalized AMI tier label (e.g. "60% AMI"). Falls back to the raw
+  // `amiSetAside` column when it doesn't match the canonical tier set, and
+  // to null for market-rate properties (NULL/empty `ami_set_aside`).
+  amiTier: string | null;
 };
 
 // AMI tier order (lowest first). Mirrors `applicants/units?amiTier=` so the
@@ -194,7 +217,11 @@ export class PropertyService {
         COALESCE(a.studio_count, 0) AS studio_count,
         COALESCE(a.br1_count, 0) AS br1_count,
         COALESCE(a.br2_count, 0) AS br2_count,
-        COALESCE(a.br3_count, 0) AS br3_count
+        COALESCE(a.br3_count, 0) AS br3_count,
+        a.studio_rent_min, a.studio_rent_max,
+        a.br1_rent_min, a.br1_rent_max,
+        a.br2_rent_min, a.br2_rent_max,
+        a.br3_rent_min, a.br3_rent_max
       FROM properties p
       LEFT JOIN (
         SELECT
@@ -224,7 +251,18 @@ export class PropertyService {
             WHERE u.bedrooms >= 3
               AND (u.status = 'available'
                    OR (u.status = 'held' AND u.claim_expires_at < NOW()))
-          ) AS br3_count
+          ) AS br3_count,
+          -- Wedge #9 — per-bedroom rent ranges. Min/max over every unit
+          -- regardless of status, so the public range reflects the whole
+          -- community's rent schedule, not just what's available today.
+          MIN(u.monthly_rent) FILTER (WHERE u.bedrooms = 0) AS studio_rent_min,
+          MAX(u.monthly_rent) FILTER (WHERE u.bedrooms = 0) AS studio_rent_max,
+          MIN(u.monthly_rent) FILTER (WHERE u.bedrooms = 1) AS br1_rent_min,
+          MAX(u.monthly_rent) FILTER (WHERE u.bedrooms = 1) AS br1_rent_max,
+          MIN(u.monthly_rent) FILTER (WHERE u.bedrooms = 2) AS br2_rent_min,
+          MAX(u.monthly_rent) FILTER (WHERE u.bedrooms = 2) AS br2_rent_max,
+          MIN(u.monthly_rent) FILTER (WHERE u.bedrooms >= 3) AS br3_rent_min,
+          MAX(u.monthly_rent) FILTER (WHERE u.bedrooms >= 3) AS br3_rent_max
         FROM units u
         GROUP BY u.property_id
       ) a ON a.property_id = p.id
@@ -247,7 +285,18 @@ export class PropertyService {
           br3: Number(row.br3_count) || 0,
         },
       };
-      return { ...record, availability } as PropertyWithAvailability;
+      const rentRange: RentRange = {
+        studio: rentBucket(row.studio_rent_min, row.studio_rent_max),
+        br1: rentBucket(row.br1_rent_min, row.br1_rent_max),
+        br2: rentBucket(row.br2_rent_min, row.br2_rent_max),
+        br3: rentBucket(row.br3_rent_min, row.br3_rent_max),
+      };
+      return {
+        ...record,
+        availability,
+        rentRange,
+        amiTier: normalizeAmiTier(record.amiSetAside),
+      } as PropertyWithAvailability;
     });
 
     // Bedroom filter is applied post-aggregate so a single SQL covers all
@@ -474,6 +523,54 @@ export class PropertyService {
     return updated;
   }
 
+  /**
+   * Wedge #9 — per-bedroom rent range + AMI tier for a single property.
+   * Drives the "Rent & AMI disclosure" section on /property/:slug. Buckets
+   * with zero units in that bedroom return null so callers can omit them.
+   */
+  async getRentRange(
+    propertyId: string
+  ): Promise<{
+    propertyId: string;
+    rentRange: RentRange;
+    amiTier: string | null;
+  } | null> {
+    const propResult = await query(
+      `SELECT ami_set_aside FROM properties WHERE id = $1`,
+      [propertyId]
+    );
+    if (propResult.rows.length === 0) return null;
+
+    const rentResult = await query(
+      `SELECT
+         MIN(monthly_rent) FILTER (WHERE bedrooms = 0) AS studio_min,
+         MAX(monthly_rent) FILTER (WHERE bedrooms = 0) AS studio_max,
+         MIN(monthly_rent) FILTER (WHERE bedrooms = 1) AS br1_min,
+         MAX(monthly_rent) FILTER (WHERE bedrooms = 1) AS br1_max,
+         MIN(monthly_rent) FILTER (WHERE bedrooms = 2) AS br2_min,
+         MAX(monthly_rent) FILTER (WHERE bedrooms = 2) AS br2_max,
+         MIN(monthly_rent) FILTER (WHERE bedrooms >= 3) AS br3_min,
+         MAX(monthly_rent) FILTER (WHERE bedrooms >= 3) AS br3_max
+       FROM units
+       WHERE property_id = $1`,
+      [propertyId]
+    );
+
+    const r = rentResult.rows[0] || {};
+    const rentRange: RentRange = {
+      studio: rentBucket(r.studio_min, r.studio_max),
+      br1: rentBucket(r.br1_min, r.br1_max),
+      br2: rentBucket(r.br2_min, r.br2_max),
+      br3: rentBucket(r.br3_min, r.br3_max),
+    };
+
+    return {
+      propertyId,
+      rentRange,
+      amiTier: normalizeAmiTier(propResult.rows[0].ami_set_aside),
+    };
+  }
+
   private rowToRecord(row: any): PropertyRecord {
     return {
       id: row.id,
@@ -510,4 +607,33 @@ export class PropertyService {
       updatedAt: row.updated_at,
     };
   }
+}
+
+// ── Wedge #9 helpers ────────────────────────────────────────────────────────
+
+/**
+ * Build a `{low, high}` rent bucket from raw SQL min/max aggregates. Returns
+ * null when either side is missing (no units in that bedroom for the
+ * property). Coerces NUMERIC strings out of pg into integers — monthly_rent
+ * is stored whole-dollar.
+ */
+function rentBucket(min: unknown, max: unknown): RentBucket | null {
+  if (min === null || min === undefined || max === null || max === undefined) {
+    return null;
+  }
+  const low = Number(min);
+  const high = Number(max);
+  if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
+  return { low: Math.round(low), high: Math.round(high) };
+}
+
+/**
+ * Canonicalize the `ami_set_aside` column for the discover disclosure. The
+ * column stores values like "60% AMI" verbatim (see seed.ts:189) — pass
+ * those through. Empty/NULL → null (market-rate). Anything else → return
+ * the raw value so we don't silently drop unfamiliar tiers.
+ */
+function normalizeAmiTier(amiSetAside: string | null): string | null {
+  if (!amiSetAside || amiSetAside.trim() === "") return null;
+  return amiSetAside;
 }
