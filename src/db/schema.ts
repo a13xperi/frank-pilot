@@ -502,6 +502,14 @@ CREATE INDEX idx_compliance_tape_applicant_sequence
   ON compliance_tape (applicant_id, sequence)
   WHERE applicant_id IS NOT NULL;
 
+-- Backs the repository's ON CONFLICT (kind, session_id) idempotency clause.
+-- Non-partial: PostgreSQL's default NULL semantics treat each NULL as distinct,
+-- so stamps without a session_id remain insertable as separate rows (no
+-- idempotency unless caller passes a session_id). A partial index would force
+-- ON CONFLICT to repeat the WHERE predicate; non-partial avoids that.
+CREATE UNIQUE INDEX idx_compliance_tape_kind_session
+  ON compliance_tape (kind, session_id);
+
 CREATE OR REPLACE FUNCTION compliance_tape_reject_mutation()
   RETURNS trigger
   LANGUAGE plpgsql
