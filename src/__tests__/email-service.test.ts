@@ -17,11 +17,19 @@ jest.mock("../utils/logger", () => ({
 }));
 
 const mockSend = jest.fn();
-jest.mock("resend", () => ({
-  Resend: jest.fn().mockImplementation(() => ({
-    emails: { send: mockSend },
-  })),
-}));
+jest.mock(
+  "resend",
+  () => ({
+    Resend: jest.fn().mockImplementation(() => ({
+      emails: { send: mockSend },
+    })),
+  }),
+  // `resend` is lazily `require()`'d inside email.ts only when RESEND_API_KEY
+  // is set in prod. We mock it virtually so the test doesn't depend on the SDK
+  // actually being present in node_modules (CI installs it from package.json,
+  // local dev caches can drift).
+  { virtual: true }
+);
 
 import { EmailService, __resetEmailServiceForTests } from "../modules/integrations/email";
 
