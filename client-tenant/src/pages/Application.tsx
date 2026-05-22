@@ -14,6 +14,8 @@ import {
   Clock,
   X,
 } from 'lucide-react';
+import { HF } from '@/styles/tokens';
+import { Card, CTA, Pill, type PillTone } from '@/components/primitives';
 
 interface ClaimedUnit {
   id: string;
@@ -159,33 +161,47 @@ export function Application() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+      <div
+        className="flex min-h-[60vh] items-center justify-center"
+        style={{ background: HF.cream }}
+      >
+        <Loader2 className="h-7 w-7 animate-spin" style={{ color: HF.accent }} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4">
-        <div className="flex items-center gap-2 rounded-lg bg-red-50 p-4 text-red-700">
-          <AlertCircle className="h-5 w-5 shrink-0" />
-          <p className="text-sm">{error}</p>
-        </div>
+      <div className="p-4" style={{ background: HF.cream, minHeight: '60vh' }}>
+        <Card
+          variant="mobile"
+          padding={14}
+          style={{ background: HF.errLo, border: `1px solid ${HF.err}` }}
+        >
+          <div className="flex items-center gap-2" style={{ color: HF.err }}>
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <p style={{ fontFamily: HF.body, fontSize: 13 }}>{error}</p>
+          </div>
+        </Card>
       </div>
     );
   }
 
   if (!data || !data.activeApplication) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-center">
-        <FileText className="h-10 w-10 text-gray-300" />
-        <h2 className="text-lg font-semibold text-gray-900">No active application</h2>
-        <p className="text-sm text-gray-500">
+      <div
+        className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-center"
+        style={{ background: HF.cream, color: HF.ink, fontFamily: HF.body }}
+      >
+        <FileText className="h-10 w-10" style={{ color: HF.ink4 }} />
+        <h2 style={{ fontFamily: HF.display, fontSize: 18, fontWeight: 800, color: HF.ink }}>
+          No active application
+        </h2>
+        <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}>
           Submit an application to track its progress and message staff here.
         </p>
-        <Link to="/apply" className="btn-primary">
-          Start an application
+        <Link to="/apply" style={{ textDecoration: 'none' }}>
+          <CTA tone="primary">Start an application</CTA>
         </Link>
       </div>
     );
@@ -195,12 +211,20 @@ export function Application() {
   const userId = data.user.id;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 p-4 pb-24 sm:p-6">
+    <div
+      className="mx-auto max-w-3xl space-y-5 p-4 pb-24 sm:p-6"
+      style={{ background: HF.cream, minHeight: '100vh', color: HF.ink, fontFamily: HF.body }}
+    >
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">My Application</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 style={{ fontFamily: HF.display, fontSize: 22, fontWeight: 800, color: HF.ink }}>
+            My Application
+          </h1>
+          <p
+            className="mt-1"
+            style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}
+          >
             {app.property_name}
             {app.unit_number ? ` · Unit ${app.unit_number}` : ''}
           </p>
@@ -220,8 +244,17 @@ export function Application() {
       )}
 
       {/* Key dates */}
-      <section className="rounded-xl bg-white p-5 shadow-sm">
-        <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+      <Card variant="mobile" padding={20}>
+        <h2
+          className="mb-3 flex items-center gap-2 uppercase"
+          style={{
+            fontFamily: HF.body,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 1,
+            color: HF.ink3,
+          }}
+        >
           <Calendar className="h-4 w-4" /> Key dates
         </h2>
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -229,11 +262,20 @@ export function Application() {
           <Field label="Requested move-in" value={fmtDate(app.requested_move_in_date)} />
           <Field label="Last updated" value={fmtDate(app.created_at)} />
         </dl>
-      </section>
+      </Card>
 
       {/* Property / lease snapshot */}
-      <section className="rounded-xl bg-white p-5 shadow-sm">
-        <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+      <Card variant="mobile" padding={20}>
+        <h2
+          className="mb-3 flex items-center gap-2 uppercase"
+          style={{
+            fontFamily: HF.body,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 1,
+            color: HF.ink3,
+          }}
+        >
           <Home className="h-4 w-4" /> Property
         </h2>
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -242,7 +284,7 @@ export function Application() {
           <Field label="Unit" value={app.unit_number || 'TBD'} />
           <Field label="Requested rent" value={fmt(app.requested_rent_amount)} />
         </dl>
-      </section>
+      </Card>
 
       {/* Next steps */}
       <NextStepsCard app={app} />
@@ -307,30 +349,70 @@ function ClaimedUnitCard({
   }
 
   return (
-    <section className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-emerald-100">
+    <Card
+      variant="mobile"
+      padding={0}
+      style={{ overflow: 'hidden', border: `1px solid ${HF.accentLo}` }}
+    >
       <div className="relative">
         <img src={photo} alt="" className="h-40 w-full object-cover sm:h-48" />
-        <div className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+        <div
+          className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1"
+          style={{
+            background: 'rgba(255,255,255,0.95)',
+            color: HF.accentInk,
+            fontFamily: HF.body,
+            fontSize: 12,
+            fontWeight: 700,
+            boxShadow: HF.shadow.xs,
+          }}
+        >
           <Clock className="h-3.5 w-3.5" />
-          <span className="font-mono">{formatCountdown(remaining)}</span>
+          <span style={{ fontFamily: HF.mono }}>{formatCountdown(remaining)}</span>
         </div>
       </div>
-      <div className="p-5">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+      <div style={{ padding: 20 }}>
+        <div
+          className="uppercase"
+          style={{
+            fontFamily: HF.body,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 1,
+            color: HF.accent,
+          }}
+        >
           You're holding this unit
         </div>
-        <h3 className="mt-1 text-base font-semibold text-gray-900">
+        <h3
+          className="mt-1"
+          style={{ fontFamily: HF.display, fontSize: 16, fontWeight: 700, color: HF.ink }}
+        >
           {unit.property_name} · Unit {unit.unit_number}
         </h3>
-        <div className="mt-1 text-sm text-gray-600">
+        <div
+          className="mt-1"
+          style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink2 }}
+        >
           {unit.bedrooms} bd · {unit.bathrooms} ba
           {unit.sqft ? ` · ${unit.sqft} sqft` : ''} · {formatRent(unit.monthly_rent)}
         </div>
-        <p className="mt-3 text-xs text-gray-500">
+        <p
+          className="mt-3"
+          style={{ fontFamily: HF.body, fontSize: 12, color: HF.ink3 }}
+        >
           Complete your application before the hold expires to keep this unit.
         </p>
         {releaseError && (
-          <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+          <div
+            className="mt-3 rounded-lg px-3 py-2"
+            style={{
+              background: HF.errLo,
+              color: HF.err,
+              fontFamily: HF.body,
+              fontSize: 12,
+            }}
+          >
             {releaseError}
           </div>
         )}
@@ -339,27 +421,36 @@ function ClaimedUnitCard({
             type="button"
             onClick={handleRelease}
             disabled={releasing}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 disabled:opacity-50"
+            style={{
+              border: `1px solid ${HF.border}`,
+              background: HF.paper,
+              color: HF.ink2,
+              fontFamily: HF.body,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
           >
             <X className="h-3.5 w-3.5" />
             {releasing ? 'Releasing…' : 'Release this unit'}
           </button>
         </div>
       </div>
-    </section>
+    </Card>
   );
 }
 
 function StatusPill({ status }: { status: string }) {
   const label = STATUS_LABELS[status] ?? status;
-  const tone = DENIED.has(status)
-    ? 'bg-red-100 text-red-700'
+  const tone: PillTone = DENIED.has(status)
+    ? 'err'
     : status === 'onboarded'
-    ? 'bg-emerald-100 text-emerald-700'
-    : 'bg-emerald-50 text-emerald-700';
+    ? 'sage'
+    : 'accent';
   return (
-    <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${tone}`}>
-      {label}
+    <span className="shrink-0">
+      <Pill tone={tone}>{label}</Pill>
     </span>
   );
 }
@@ -367,8 +458,23 @@ function StatusPill({ status }: { status: string }) {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-wider text-gray-400">{label}</dt>
-      <dd className="text-sm font-medium text-gray-900">{value}</dd>
+      <dt
+        className="uppercase"
+        style={{
+          fontFamily: HF.body,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 1,
+          color: HF.ink4,
+        }}
+      >
+        {label}
+      </dt>
+      <dd
+        style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 500, color: HF.ink }}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
@@ -396,21 +502,39 @@ function NextStepsCard({ app }: { app: ApplicationDetail }) {
   ];
 
   return (
-    <section className="rounded-xl bg-white p-5 shadow-sm">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+    <Card variant="mobile" padding={20}>
+      <h2
+        className="mb-3 uppercase"
+        style={{
+          fontFamily: HF.body,
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: 1,
+          color: HF.ink3,
+        }}
+      >
         Next steps
       </h2>
       <ol className="space-y-2">
         {steps.map((s) => (
-          <li key={s.label} className="flex items-center gap-2 text-sm">
+          <li key={s.label} className="flex items-center gap-2">
             <CheckCircle2
-              className={`h-4 w-4 ${s.done ? 'text-emerald-600' : 'text-gray-300'}`}
+              className="h-4 w-4"
+              style={{ color: s.done ? HF.sage : HF.ink4 }}
             />
-            <span className={s.done ? 'text-gray-800' : 'text-gray-400'}>{s.label}</span>
+            <span
+              style={{
+                fontFamily: HF.body,
+                fontSize: 13,
+                color: s.done ? HF.ink2 : HF.ink4,
+              }}
+            >
+              {s.label}
+            </span>
           </li>
         ))}
       </ol>
-    </section>
+    </Card>
   );
 }
 
@@ -501,10 +625,17 @@ function MessagesThread({
   }
 
   return (
-    <section className="rounded-xl bg-white shadow-sm">
-      <header className="border-b border-gray-100 px-5 py-3">
-        <h2 className="text-sm font-semibold text-gray-900">Messages</h2>
-        <p className="text-xs text-gray-500">Talk directly to your leasing team.</p>
+    <Card variant="mobile" padding={0}>
+      <header
+        className="px-5 py-3"
+        style={{ borderBottom: `1px solid ${HF.border}` }}
+      >
+        <h2 style={{ fontFamily: HF.display, fontSize: 14, fontWeight: 700, color: HF.ink }}>
+          Messages
+        </h2>
+        <p style={{ fontFamily: HF.body, fontSize: 12, color: HF.ink3 }}>
+          Talk directly to your leasing team.
+        </p>
       </header>
 
       <div
@@ -512,11 +643,17 @@ function MessagesThread({
         className="max-h-[26rem] min-h-[12rem] space-y-3 overflow-y-auto px-5 py-4"
       >
         {loading ? (
-          <div className="flex items-center justify-center py-6 text-gray-400">
+          <div
+            className="flex items-center justify-center py-6"
+            style={{ color: HF.ink4 }}
+          >
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : messages.length === 0 ? (
-          <p className="py-6 text-center text-sm text-gray-400">
+          <p
+            className="py-6 text-center"
+            style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink4 }}
+          >
             No messages yet. Send the first one below.
           </p>
         ) : (
@@ -525,14 +662,23 @@ function MessagesThread({
       </div>
 
       {error && (
-        <div className="mx-5 mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div
+          className="mx-5 mb-2 rounded-lg px-3 py-2"
+          style={{
+            background: HF.errLo,
+            color: HF.err,
+            fontFamily: HF.body,
+            fontSize: 12,
+          }}
+        >
           {error}
         </div>
       )}
 
       <form
         onSubmit={handleSend}
-        className="flex items-end gap-2 border-t border-gray-100 px-5 py-3"
+        className="flex items-end gap-2 px-5 py-3"
+        style={{ borderTop: `1px solid ${HF.border}` }}
       >
         <textarea
           value={draft}
@@ -540,50 +686,59 @@ function MessagesThread({
           rows={2}
           maxLength={4000}
           placeholder="Type a message…"
-          className="flex-1 resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="flex-1 resize-none rounded-lg px-3 py-2 focus:outline-none"
+          style={{
+            border: `1px solid ${HF.border}`,
+            background: HF.paper,
+            color: HF.ink,
+            fontFamily: HF.body,
+            fontSize: 13,
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
               handleSend(e);
             }
           }}
         />
-        <button
+        <CTA
           type="submit"
+          tone="primary"
           disabled={sending || draft.trim().length === 0}
-          className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
         >
           <Send className="h-4 w-4" />
           {sending ? 'Sending…' : 'Send'}
-        </button>
+        </CTA>
       </form>
-    </section>
+    </Card>
   );
 }
 
 function MessageBubble({ m, selfId }: { m: Message; selfId: string }) {
   const isMine = m.senderUserId === selfId;
+  const roleTone: PillTone = m.senderRole === 'staff' ? 'sage' : 'accent';
   return (
     <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[80%] ${isMine ? 'text-right' : 'text-left'}`}>
-        <div className="mb-1 flex items-center gap-2 text-[11px] text-gray-400">
-          {!isMine && <span className="font-medium text-gray-600">{m.senderName}</span>}
-          <span
-            className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-              m.senderRole === 'staff'
-                ? 'bg-blue-100 text-blue-700'
-                : 'bg-emerald-100 text-emerald-700'
-            }`}
-          >
+        <div
+          className="mb-1 flex items-center gap-2"
+          style={{ fontFamily: HF.body, fontSize: 11, color: HF.ink4 }}
+        >
+          {!isMine && (
+            <span style={{ fontWeight: 500, color: HF.ink2 }}>{m.senderName}</span>
+          )}
+          <Pill tone={roleTone} style={{ padding: '1px 8px', fontSize: 10 }}>
             {isMine ? 'You' : m.senderRole === 'staff' ? 'Staff' : 'Tenant'}
-          </span>
+          </Pill>
           <span>{fmtTime(m.createdAt)}</span>
         </div>
         <div
-          className={`whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm ${
-            isMine
-              ? 'bg-emerald-600 text-white'
-              : 'bg-gray-100 text-gray-900'
-          }`}
+          className="whitespace-pre-wrap break-words rounded-2xl px-3 py-2"
+          style={{
+            background: isMine ? HF.accent : HF.sageLo,
+            color: isMine ? HF.paper : HF.ink,
+            fontFamily: HF.body,
+            fontSize: 13,
+          }}
         >
           {m.body}
         </div>

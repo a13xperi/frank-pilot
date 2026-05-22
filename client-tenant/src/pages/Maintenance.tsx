@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/api/client';
 import { Loader2, AlertCircle, ChevronDown, ChevronUp, Wrench } from 'lucide-react';
+import { HF } from '@/styles/tokens';
+import { Card, CTA, Pill, type PillTone } from '@/components/primitives';
 
 interface WorkOrder {
   id: string;
@@ -17,10 +19,10 @@ interface DashboardData {
   activeApplication: { id: string } | null;
 }
 
-const PRIORITY_STYLES: Record<string, string> = {
-  routine: 'bg-emerald-100 text-emerald-700',
-  urgent: 'bg-amber-100 text-amber-700',
-  emergency: 'bg-red-100 text-red-700',
+const PRIORITY_TONES: Record<string, PillTone> = {
+  routine: 'sage',
+  urgent: 'warn',
+  emergency: 'err',
 };
 
 function relativeTime(dateStr: string) {
@@ -95,47 +97,83 @@ export function Maintenance() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+      <div
+        className="flex min-h-[60vh] items-center justify-center"
+        style={{ background: HF.cream }}
+      >
+        <Loader2 className="h-7 w-7 animate-spin" style={{ color: HF.accent }} />
       </div>
     );
   }
 
   if (!appId) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-center">
-        <Wrench className="h-10 w-10 text-gray-300" />
-        <p className="text-gray-500">No active application found.</p>
-        <Link to="/dashboard" className="btn-primary">Back to dashboard</Link>
+      <div
+        className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-center"
+        style={{ background: HF.cream, color: HF.ink, fontFamily: HF.body }}
+      >
+        <Wrench className="h-10 w-10" style={{ color: HF.ink4 }} />
+        <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}>
+          No active application found.
+        </p>
+        <Link to="/dashboard" style={{ textDecoration: 'none' }}>
+          <CTA tone="primary">Back to dashboard</CTA>
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="p-4 pb-24 sm:p-6">
+    <div
+      className="p-4 pb-24 sm:p-6"
+      style={{ background: HF.cream, minHeight: '100vh', color: HF.ink, fontFamily: HF.body }}
+    >
       <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Maintenance</h1>
-        <button
-          onClick={() => setFormOpen(v => !v)}
-          className="btn-primary inline-flex items-center gap-1"
-        >
+        <h1 style={{ fontFamily: HF.display, fontSize: 22, fontWeight: 800, color: HF.ink }}>
+          Maintenance
+        </h1>
+        <CTA tone="primary" onClick={() => setFormOpen(v => !v)}>
           New request
           {formOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
+        </CTA>
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-          <AlertCircle className="h-4 w-4 shrink-0" />{error}
-        </div>
+        <Card
+          variant="mobile"
+          padding={12}
+          elevation="none"
+          className="mb-4"
+          style={{ background: HF.errLo, border: `1px solid ${HF.err}` }}
+        >
+          <div className="flex items-center gap-2" style={{ color: HF.err }}>
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span style={{ fontFamily: HF.body, fontSize: 13 }}>{error}</span>
+          </div>
+        </Card>
       )}
 
       {/* New request form */}
       {formOpen && (
-        <div className="mb-5 rounded-xl bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-sm font-semibold text-gray-700">Submit a new request</h2>
+        <Card variant="mobile" padding={20} className="mb-5">
+          <h2
+            className="mb-4"
+            style={{ fontFamily: HF.display, fontSize: 14, fontWeight: 700, color: HF.ink2 }}
+          >
+            Submit a new request
+          </h2>
           {formError && (
-            <div className="mb-3 rounded-lg bg-red-50 p-2 text-xs text-red-700">{formError}</div>
+            <div
+              className="mb-3 rounded-lg p-2"
+              style={{
+                background: HF.errLo,
+                color: HF.err,
+                fontFamily: HF.body,
+                fontSize: 12,
+              }}
+            >
+              {formError}
+            </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -171,9 +209,14 @@ export function Maintenance() {
                       value={p}
                       checked={priority === p}
                       onChange={() => setPriority(p)}
-                      className="accent-emerald-600"
+                      style={{ accentColor: HF.accent }}
                     />
-                    <span className="text-sm capitalize">{p}</span>
+                    <span
+                      className="capitalize"
+                      style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink2 }}
+                    >
+                      {p}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -188,41 +231,62 @@ export function Maintenance() {
                 onChange={e => setCategory(e.target.value)}
               />
             </div>
-            <button
+            <CTA
               type="submit"
+              tone="primary"
+              block
               disabled={submitting || !title || !description}
-              className="btn-primary w-full"
             >
               {submitting ? 'Submitting…' : 'Submit request'}
-            </button>
+            </CTA>
           </form>
-        </div>
+        </Card>
       )}
 
       {/* Work order list */}
       {workOrders.length === 0 ? (
-        <div className="rounded-xl bg-white p-8 text-center shadow-sm">
-          <Wrench className="mx-auto mb-2 h-8 w-8 text-gray-300" />
-          <p className="text-sm text-gray-400">No maintenance requests yet.</p>
-        </div>
+        <Card variant="mobile" padding={32} style={{ textAlign: 'center' }}>
+          <Wrench className="mx-auto mb-2 h-8 w-8" style={{ color: HF.ink4 }} />
+          <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink4 }}>
+            No maintenance requests yet.
+          </p>
+        </Card>
       ) : (
         <div className="space-y-3">
           {workOrders.map(wo => (
-            <div key={wo.id} className="rounded-xl bg-white p-4 shadow-sm">
+            <Card key={wo.id} variant="mobile" padding={16}>
               <div className="flex items-start justify-between gap-2">
-                <p className="font-medium text-gray-900">{wo.title}</p>
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize
-                  ${PRIORITY_STYLES[wo.priority] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {wo.priority}
+                <p
+                  style={{
+                    fontFamily: HF.display,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: HF.ink,
+                  }}
+                >
+                  {wo.title}
+                </p>
+                <span className="shrink-0 capitalize">
+                  <Pill tone={PRIORITY_TONES[wo.priority] ?? 'neutral'}>
+                    {wo.priority}
+                  </Pill>
                 </span>
               </div>
-              <p className="mt-1 text-sm text-gray-500 line-clamp-2">{wo.description}</p>
-              <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
+              <p
+                className="mt-1 line-clamp-2"
+                style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}
+              >
+                {wo.description}
+              </p>
+              <div
+                className="mt-2 flex items-center gap-3"
+                style={{ fontFamily: HF.body, fontSize: 11, color: HF.ink4 }}
+              >
                 <span className="capitalize">{wo.status.replace(/_/g, ' ')}</span>
                 {wo.category && <span>· {wo.category}</span>}
                 <span>· {relativeTime(wo.created_at)}</span>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

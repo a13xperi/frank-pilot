@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
 import { useFlag } from '@/lib/flags';
 import { getUnitPhoto } from '@/utils/unitPlaceholder';
+import { HF } from '@/styles/tokens';
 
 export function StepClaim() {
   const s = useApply();
@@ -15,8 +16,10 @@ export function StepClaim() {
   if (!s.claimedUnit || !s.claimExpiresAt) {
     return (
       <div className="space-y-4 text-center">
-        <p className="text-sm text-gray-500">{t('claim.noActive')}</p>
-        <CTA onClick={() => s.setStep('intent')}>{t('claim.startOver')}</CTA>
+        <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}>{t('claim.noActive')}</p>
+        <CTA tone="primary" block onClick={() => s.setStep('intent')}>
+          {t('claim.startOver')}
+        </CTA>
       </div>
     );
   }
@@ -25,7 +28,13 @@ export function StepClaim() {
 
   return (
     <div className="space-y-4 text-center">
-      <div className="overflow-hidden rounded-xl">
+      <div
+        style={{
+          overflow: 'hidden',
+          borderRadius: HF.r.lg,
+          border: `1px solid ${HF.border}`,
+        }}
+      >
         <img
           src={getUnitPhoto(unit.photo_url)}
           alt=""
@@ -33,19 +42,30 @@ export function StepClaim() {
         />
       </div>
       <div>
-        <h1 className="text-xl font-bold text-gray-900">
+        <h1 style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 22, color: HF.ink }}>
           {t('claim.yours').replace('{unitNumber}', unit.unit_number)}
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3, marginTop: 4 }}>
           {unit.property_name}
           {unit.property_city && `, ${unit.property_city}`}
         </p>
       </div>
       <ClaimCountdown expiresAt={s.claimExpiresAt} />
-      <CTA onClick={() => s.setStep(nextStep)}>{t('claim.continue')}</CTA>
+      <CTA tone="primary" block onClick={() => s.setStep(nextStep)}>
+        {t('claim.continue')}
+      </CTA>
       <button
         onClick={() => s.setStep('pick')}
-        className="text-sm text-gray-500 hover:text-gray-700 hover:underline"
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          fontFamily: HF.body,
+          fontSize: 13,
+          color: HF.ink3,
+          textDecoration: 'underline',
+          cursor: 'pointer',
+        }}
       >
         {t('claim.pickDifferent')}
       </button>
@@ -66,12 +86,47 @@ function ClaimCountdown({ expiresAt }: { expiresAt: string }) {
   const m = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
   const sec = String(total % 60).padStart(2, '0');
   return (
-    <div className="rounded-lg bg-emerald-50 p-4">
-      <div className="text-xs uppercase tracking-wide text-emerald-700">{t('claim.heldUntil')}</div>
-      <div className="mt-1 font-mono text-2xl font-bold text-emerald-800">
+    <div
+      style={{
+        background: HF.accent,
+        color: HF.paper,
+        borderRadius: HF.r.lg,
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: HF.body,
+          fontSize: 11,
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          fontWeight: 700,
+          color: 'rgba(255,255,255,0.85)',
+        }}
+      >
+        {t('claim.heldUntil')}
+      </div>
+      <div
+        style={{
+          fontFamily: HF.mono,
+          fontSize: 28,
+          fontWeight: 800,
+          marginTop: 4,
+          color: HF.paper,
+        }}
+      >
         {h}:{m}:{sec}
       </div>
-      <div className="mt-1 text-xs text-emerald-700">{t('claim.finishBeforeTimer')}</div>
+      <div
+        style={{
+          fontFamily: HF.body,
+          fontSize: 11,
+          color: 'rgba(255,255,255,0.85)',
+          marginTop: 4,
+        }}
+      >
+        {t('claim.finishBeforeTimer')}
+      </div>
     </div>
   );
 }
