@@ -177,6 +177,18 @@ export function Apply() {
   // persisted to sessionStorage under key `frank_apply_state`.
   const wiz = useWizState();
 
+  // Wedge #5 — seed propertySlug from the ?propertyId= query param (set by
+  // PropertyDetail when bouncing the user to /apply). Falls back to wiz state
+  // (persisted) so a reload on the confirm step doesn't lose the CTA.
+  useEffect(() => {
+    const slugFromUrl = search.get('propertyId');
+    if (slugFromUrl && !wiz.propertySlug) {
+      wiz.setPropertySlug(slugFromUrl);
+    }
+    // Run only on mount — URL param is consumed once, wiz state owns it after.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Issue #8 — gate render on intent-step deep links until hydration completes.
   // Without this, landing on `?step=intent` paints the empty quiz form for a
   // tick before /auth/me + /applicants/me/applications resolve and backfill
@@ -268,6 +280,9 @@ export function Apply() {
     dateOfBirth, setDateOfBirth, addressLine1, setAddressLine1, city, setCity, state, setState, zip, setZip,
     employerName, setEmployerName, annualIncome, setAnnualIncome, householdSize, setHouseholdSize, moveInDate, setMoveInDate,
     done, setDone,
+    // Wedge #5 — waitlist outcome
+    outcome: wiz.outcome, setOutcome: wiz.setOutcome,
+    propertySlug: wiz.propertySlug, setPropertySlug: wiz.setPropertySlug,
     // Contract 2 — wizard
     adults: wiz.adults, setAdults: wiz.setAdults,
     paymentTotal: wiz.paymentTotal,
@@ -312,7 +327,13 @@ export function Apply() {
       )}
       {step === 2 && <Step2Details />}
       {step === 'confirm' && (
-        <Suspense fallback={null}><StepConfirm /></Suspense>
+        <Suspense fallback={null}>
+          <StepConfirm
+            outcome={value.outcome}
+            propertySlug={value.propertySlug}
+            bedrooms={value.intentBedrooms}
+          />
+        </Suspense>
       )}
     </>
   );
