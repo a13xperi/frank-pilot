@@ -1,41 +1,166 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { fetchUnits, claimUnit } from '@/api/units';
-import { UnitCard } from '@/components/UnitCard';
+import { fetchUnits, claimUnit, type Unit } from '@/api/units';
+import { UnitCard, type UnitMismatch } from '@/components/UnitCard';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { HF } from '@/styles/tokens';
 
 const BEDROOMS_INCLUSIVE_MIN = 4;
 
+interface IntentSnapshot {
+  bedrooms: number;
+  bedroomsInclusive: boolean;
+  maxRent: number;
+  moveInBy: string;
+}
+
+function bedroomsFilter(bedrooms: number) {
+  return bedrooms >= BEDROOMS_INCLUSIVE_MIN
+    ? { bedroomsMin: bedrooms }
+    : { bedrooms };
+}
+
+function rentNumber(rent: string | number): number {
+  return typeof rent === 'string' ? Number(rent) : rent;
+}
+
+function formatDate(iso: string, lang: string): string {
+  // Render the unit's available_from date in the user's locale. Falls back to
+  // the raw ISO if Date construction fails (defensive against API quirks).
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString(lang.startsWith('es') ? 'es' : 'en', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function computeMismatch(
+  unit: Unit,
+  intent: IntentSnapshot,
+  t: TFunction<'apply'>,
+  lang: string,
+): UnitMismatch {
+  const notes: string[] = [];
+
+  // Bedrooms. `bedroomsInclusive` means the user asked for "4+ BR", so we only
+  // flag below-spec units, not above.
+  if (intent.bedroomsInclusive) {
+    if (unit.bedrooms < intent.bedrooms) {
+      if (unit.bedrooms === 0) {
+        notes.push(t('pick.mismatch.studioInstead', { wanted: intent.bedrooms }) as string);
+      } else {
+        notes.push(
+          t('pick.mismatch.bedroomsFewer', { actual: unit.bedrooms, wanted: intent.bedrooms }) as string,
+        );
+      }
+    }
+  } else if (unit.bedrooms !== intent.bedrooms) {
+    if (unit.bedrooms === 0) {
+      notes.push(t('pick.mismatch.studioInstead', { wanted: intent.bedrooms }) as string);
+    } else {
+      notes.push(
+        t('pick.mismatch.bedroomsMore', { actual: unit.bedrooms, wanted: intent.bedrooms }) as string,
+      );
+    }
+  }
+
+  // Budget.
+  const rent = rentNumber(unit.monthly_rent);
+  if (Number.isFinite(rent) && rent > intent.maxRent) {
+    notes.push(
+      t('pick.mismatch.overBudget', { amount: Math.ceil(rent - intent.maxRent).toLocaleString() }) as string,
+    );
+  }
+
+  // Move-in availability.
+  if (unit.available_from && intent.moveInBy && unit.available_from > intent.moveInBy) {
+    notes.push(
+      t('pick.mismatch.availableLater', { date: formatDate(unit.available_from, lang) }) as string,
+    );
+  }
+
+  return { notes };
+}
+
 export function StepPick() {
   const s = useApply();
-  const { t } = useTranslation('apply');
+  const { t, i18n } = useTranslation('apply');
+  const [isFallback, setIsFallback] = useState(false);
+  const [intentSnapshot, setIntentSnapshot] = useState<IntentSnapshot | null>(null);
 
-  // Bounce back to intent if quiz incomplete (deep-link guard).
   useEffect(() => {
     if (s.intentBedrooms === null || !s.intentMoveInDate) {
       s.setStep('intent');
       return;
     }
     let cancelled = false;
+    const snapshot: IntentSnapshot = {
+      bedrooms: s.intentBedrooms,
+      bedroomsInclusive: s.intentBedrooms >= BEDROOMS_INCLUSIVE_MIN,
+      maxRent: s.intentBudgetMax,
+      moveInBy: s.intentMoveInDate,
+    };
+
     (async () => {
       s.setUnitsLoading(true);
       s.setError(null);
-      try {
-        const res = await fetchUnits({
-          ...(s.intentBedrooms! >= BEDROOMS_INCLUSIVE_MIN
-            ? { bedroomsMin: s.intentBedrooms! }
-            : { bedrooms: s.intentBedrooms! }),
-          maxRent: s.intentBudgetMax,
-          moveInBy: s.intentMoveInDate,
-          // Permissive default: null tier (no income / over-income) omits the
-          // filter, so applicants always see something to apply to.
+      setIntentSnapshot(snapshot);
+
+      // Progressive relaxation. Try strict first, then loosen one constraint at
+      // a time so we always have *something* to show — the claimed-unit-as-
+      // carrot pattern dies if the user hits a dead-end here.
+      const stages: Array<Parameters<typeof fetchUnits>[0]> = [
+        // Strict.
+        {
+          ...bedroomsFilter(snapshot.bedrooms),
+          maxRent: snapshot.maxRent,
+          moveInBy: snapshot.moveInBy,
           ...(s.qualifyingAmiTier ? { amiTier: s.qualifyingAmiTier } : {}),
-        });
-        if (!cancelled) s.setUnits(res.units);
+        },
+        // Drop AMI tier — show units they may not income-qualify for; PM can
+        // still review.
+        {
+          ...bedroomsFilter(snapshot.bedrooms),
+          maxRent: snapshot.maxRent,
+          moveInBy: snapshot.moveInBy,
+        },
+        // Also drop budget cap.
+        {
+          ...bedroomsFilter(snapshot.bedrooms),
+          moveInBy: snapshot.moveInBy,
+        },
+        // Also drop move-in date.
+        {
+          ...bedroomsFilter(snapshot.bedrooms),
+        },
+        // Drop bedrooms — worst case, show anything.
+        {},
+      ];
+
+      try {
+        let units: Unit[] = [];
+        let stageIndex = 0;
+        for (; stageIndex < stages.length; stageIndex += 1) {
+          const res = await fetchUnits(stages[stageIndex]);
+          if (cancelled) return;
+          if (res.units.length > 0) {
+            units = res.units;
+            break;
+          }
+        }
+        if (cancelled) return;
+        setIsFallback(stageIndex > 0);
+        s.setUnits(units);
       } catch (err) {
-        if (!cancelled) s.setError(err instanceof Error ? err.message : t('pick.loadError'));
+        if (!cancelled) s.setError(err instanceof Error ? err.message : (t('pick.loadError') as string));
       } finally {
         if (!cancelled) s.setUnitsLoading(false);
       }
@@ -57,7 +182,7 @@ export function StepPick() {
       s.setUnitNumber(res.unit.unit_number);
       s.setStep('claim');
     } catch (err) {
-      s.setError(err instanceof Error ? err.message : t('pick.claimError'));
+      s.setError(err instanceof Error ? err.message : (t('pick.claimError') as string));
     } finally {
       s.setClaimingUnitId(null);
     }
@@ -90,7 +215,7 @@ export function StepPick() {
             borderRadius: HF.r.sm,
           }}
         >
-          {t('pick.noMatch')}{' '}
+          {t('pick.noUnitsAvailable')}{' '}
           <button
             onClick={() => s.setStep('intent')}
             className="font-medium underline"
@@ -100,16 +225,44 @@ export function StepPick() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {s.units.map((u) => (
-            <UnitCard
-              key={u.id}
-              unit={u}
-              onClaim={handleClaim}
-              claiming={s.claimingUnitId === u.id}
-            />
-          ))}
-        </div>
+        <>
+          {isFallback && (
+            <div
+              role="status"
+              className="mb-4 p-3 text-sm"
+              style={{
+                background: `${HF.warn}14`,
+                color: HF.warn,
+                border: `1px solid ${HF.warn}33`,
+                borderRadius: HF.r.sm,
+              }}
+            >
+              {t('pick.fallbackBanner')}{' '}
+              <button
+                onClick={() => s.setStep('intent')}
+                className="font-medium underline"
+                style={{ color: HF.warn }}
+              >
+                {t('pick.adjust')}
+              </button>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {s.units.map((u) => (
+              <UnitCard
+                key={u.id}
+                unit={u}
+                onClaim={handleClaim}
+                claiming={s.claimingUnitId === u.id}
+                mismatch={
+                  isFallback && intentSnapshot
+                    ? computeMismatch(u, intentSnapshot, t, i18n.language)
+                    : undefined
+                }
+              />
+            ))}
+          </div>
+        </>
       )}
       <button
         onClick={() => s.setStep('intent')}

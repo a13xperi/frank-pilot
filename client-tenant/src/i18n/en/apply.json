@@ -81,10 +81,19 @@
     "subtitle": "Claiming a unit holds it for you for 48 hours while you finish your application.",
     "loading": "Loading units…",
     "noMatch": "No units match your preferences right now.",
+    "noUnitsAvailable": "We don't have any units available at the moment. Check back soon.",
+    "fallbackBanner": "No exact matches. Here are the closest options — your preferences are noted on each card.",
     "adjust": "Adjust your search",
     "editPrefs": "← Edit preferences",
     "claimError": "Could not claim this unit",
-    "loadError": "Could not load units"
+    "loadError": "Could not load units",
+    "mismatch": {
+      "overBudget": "${{amount}}/mo over your budget",
+      "bedroomsMore": "{{actual}} BR — you wanted {{wanted}}",
+      "bedroomsFewer": "{{actual}} BR — you wanted {{wanted}}+",
+      "studioInstead": "Studio — you wanted {{wanted}} BR",
+      "availableLater": "Available {{date}}"
+    }
   },
   "claim": {
     "yours": "Unit {unitNumber} is yours",

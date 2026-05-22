@@ -1,8 +1,8 @@
 /**
  * StepHousehold — Lane W2. Adults stepper drives fee math.
  *
- * Fee: $35.95 × (adults + 1) — applicant + each additional adult. Computed in
- * ApplyContext as `state.paymentTotal`. Adults range 1–12.
+ * Fee: $35.95 × adults — one fee per adult living in the unit (applicant
+ * counted). Computed in ApplyContext as `state.paymentTotal`. Adults range 1–12.
  *
  * WF → HF TOKEN MAP:
  *   WF.ink    (#1a1814) → HF.ink
@@ -29,7 +29,7 @@ export function StepHousehold() {
   const { t } = useTranslation('apply');
   const [, setSearch] = useSearchParams();
   const { adults, setAdults, paymentTotal } = useApply();
-  const billable = adults + 1; // applicant + each additional adult
+  const billable = adults;
   const total = paymentTotal;
 
   return (
