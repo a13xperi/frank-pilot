@@ -470,6 +470,60 @@ CREATE INDEX idx_waitlist_entries_lane_created
 CREATE INDEX idx_waitlist_entries_user
   ON waitlist_entries(applicant_user_id);
 
+-- BP-02 Compliance Tape — append-only hash-chained audit ledger.
+-- One row per regulated event; UPDATE/DELETE/TRUNCATE rejected by trigger.
+-- Sequence is monotonic per scope (applicant_id, or global when NULL).
+-- Hash chain: each row's prev_hash = previous row's entry_hash; entry_hash =
+-- SHA-256(sequence || prev_hash || canonicalJson(payload) || created_at).
+-- See docs/bp-02-contracts.md and src/modules/tape/{types,hashing,api-contract}.ts.
+CREATE TABLE compliance_tape (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sequence BIGINT NOT NULL CHECK (sequence >= 1),
+  kind TEXT NOT NULL,
+  citation TEXT NOT NULL,
+  applicant_id UUID NULL REFERENCES users(id) ON DELETE RESTRICT,
+  payload JSONB NOT NULL,
+  prev_hash BYTEA NOT NULL CHECK (octet_length(prev_hash) = 32),
+  entry_hash BYTEA NOT NULL UNIQUE CHECK (octet_length(entry_hash) = 32),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  session_id TEXT NULL
+);
+
+-- Per-scope monotonic sequence: applicant_id NULL collapses to a sentinel
+-- UUID so the same index enforces "no gaps, no dupes per scope" for both
+-- the per-applicant chain and the global chain.
+CREATE UNIQUE INDEX idx_compliance_tape_scope_sequence
+  ON compliance_tape (
+    COALESCE(applicant_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    sequence
+  );
+
+CREATE INDEX idx_compliance_tape_applicant_sequence
+  ON compliance_tape (applicant_id, sequence)
+  WHERE applicant_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION compliance_tape_reject_mutation()
+  RETURNS trigger
+  LANGUAGE plpgsql
+AS $func$
+BEGIN
+  RAISE EXCEPTION 'compliance_tape is append-only (% blocked)', TG_OP
+    USING ERRCODE = 'restrict_violation';
+END;
+$func$;
+
+DROP TRIGGER IF EXISTS compliance_tape_no_update ON compliance_tape;
+CREATE TRIGGER compliance_tape_no_update
+  BEFORE UPDATE OR DELETE ON compliance_tape
+  FOR EACH ROW
+  EXECUTE FUNCTION compliance_tape_reject_mutation();
+
+DROP TRIGGER IF EXISTS compliance_tape_no_truncate ON compliance_tape;
+CREATE TRIGGER compliance_tape_no_truncate
+  BEFORE TRUNCATE ON compliance_tape
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION compliance_tape_reject_mutation();
+
 -- Tenant/applicant join to applications (multiple users per application: primary, co-applicant, household member)
 CREATE TABLE user_applications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -970,6 +1024,8 @@ DROP TABLE IF EXISTS adverse_action_notices CASCADE;
 DROP TABLE IF EXISTS audit_log CASCADE;
 DROP TABLE IF EXISTS lease_modifications CASCADE;
 DROP TABLE IF EXISTS fraud_flags CASCADE;
+DROP TABLE IF EXISTS compliance_tape CASCADE;
+DROP FUNCTION IF EXISTS compliance_tape_reject_mutation() CASCADE;
 DROP TABLE IF EXISTS waitlist_entries CASCADE;
 DROP TABLE IF EXISTS known_problem_addresses CASCADE;
 DROP TABLE IF EXISTS ami_limits CASCADE;
