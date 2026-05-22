@@ -2,19 +2,33 @@
  * QA debug-bundle viewer — operator-side routes.
  *
  * The tenant app's ScreenshotButton (client-tenant/src/components/dev/ScreenshotButton.tsx)
- * uploads three artifacts per capture to the public `frank-qa-screenshots` Supabase
+ * uploads three artifacts per capture to the `frank-qa-screenshots` Supabase
  * Storage bucket: `frank-{slug}-{YYYYMMDD-HHMMSS}.{png|json|replay.json}`. These
  * endpoints list and resolve those bundles for the operator UI.
  *
  * Auth: `audit:view` — same gate as /api/audit, so any role that can read the
  * audit log can read QA bundles.
  *
+ * SECURITY (post-#103 audit, this PR):
+ * The list/detail endpoints return public bucket URLs for backwards-compat
+ * during rollout, but the operator UI now fetches artifact bytes via the
+ * three streaming proxy endpoints below (`/bundles/:stem/png`,
+ * `/bundles/:stem/sidecar`, `/bundles/:stem/replay`). Each proxy is gated by
+ * `authenticate` + `requirePermission("audit:view")` and writes a
+ * `qa_bundle_read` audit log entry on success.
+ *
+ * After this PR lands, the `frank-qa-screenshots` bucket SHOULD be set to
+ * private. Until that ops change happens, the new endpoints work but the old
+ * public URLs are still accessible directly. Both paths coexist for the
+ * rollback window. Track bucket privatization as a separate ops follow-up.
+ *
  * The grouping and stem-parsing logic is pure and exported for unit tests.
  */
 
 import { Router, Request, Response } from "express";
-import { authenticate } from "../../middleware/auth";
+import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requirePermission } from "../../middleware/rbac";
+import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 
 export const QA_BUCKET = "frank-qa-screenshots";
@@ -188,6 +202,60 @@ function publicUrlBase(env: StorageEnv): string {
 }
 
 // ---------------------------------------------------------------------------
+// Server-proxy: fetch object bytes from Supabase Storage with the service-role
+// key, so the bucket can be flipped to private without breaking the viewer.
+// ---------------------------------------------------------------------------
+
+/** Map the artifact kind to its on-disk filename suffix in the bucket. */
+const ARTIFACT_SUFFIX: Record<"png" | "sidecar" | "replay", string> = {
+  png: ".png",
+  sidecar: ".json",
+  replay: ".replay.json",
+};
+
+const ARTIFACT_CONTENT_TYPE: Record<"png" | "sidecar" | "replay", string> = {
+  png: "image/png",
+  sidecar: "application/json",
+  replay: "application/json",
+};
+
+/**
+ * Fetch a single object's bytes from the Supabase Storage REST API using the
+ * authenticated (service-role) endpoint. Works whether the bucket is public
+ * or private.
+ *
+ * Returns null when the object is missing (404) so the caller can map to a
+ * clean 404 response. Throws for transport / 5xx failures.
+ */
+export async function fetchStorageObject(
+  env: StorageEnv,
+  objectName: string
+): Promise<{
+  body: ArrayBuffer;
+  contentType: string | null;
+} | null> {
+  const res = await fetch(
+    `${env.url}/storage/v1/object/${env.bucket}/${encodeURIComponent(objectName)}`,
+    {
+      method: "GET",
+      headers: {
+        apikey: env.key,
+        Authorization: `Bearer ${env.key}`,
+      },
+    }
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `Storage fetch failed (${res.status}): ${detail.slice(0, 200)}`
+    );
+  }
+  const buf = await res.arrayBuffer();
+  return { body: buf, contentType: res.headers.get("content-type") };
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -221,6 +289,70 @@ export function qaRouter(): Router {
       res.status(500).json({ error: "Failed to list QA bundles" });
     }
   });
+
+  /**
+   * Internal: build a streaming-proxy handler for one artifact kind. Each
+   * call gates on the stem regex, fetches the object via the service-role
+   * Supabase endpoint, writes a `qa_bundle_read` audit entry on success, and
+   * streams the bytes back with the appropriate Content-Type.
+   */
+  function makeArtifactHandler(kind: "png" | "sidecar" | "replay") {
+    return async (req: AuthRequest, res: Response): Promise<void> => {
+      const env = readStorageEnv();
+      if (!env) {
+        res.status(503).json({
+          error:
+            "Supabase Storage is not configured on this server — set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+        });
+        return;
+      }
+      const raw = req.params.stem;
+      const stem = Array.isArray(raw) ? raw[0] : raw;
+      if (typeof stem !== "string" || !parseStem(stem)) {
+        res.status(400).json({ error: "Malformed bundle stem" });
+        return;
+      }
+      const objectName = `${stem}${ARTIFACT_SUFFIX[kind]}`;
+      try {
+        const obj = await fetchStorageObject(env, objectName);
+        if (!obj) {
+          res.status(404).json({ error: "Bundle artifact not found" });
+          return;
+        }
+
+        // Audit FIRST — if the DB write fails, we don't want to silently leak
+        // bytes to the client. writeAuditLog throws on failure.
+        await writeAuditLog({
+          action: "qa_bundle_read",
+          actorId: req.user?.id,
+          actorRole: req.user?.role,
+          resourceType: "qa_bundle",
+          resourceId: stem,
+          details: { artifact: kind },
+          ipAddress: (req.ip || req.socket.remoteAddress) as string | undefined,
+          userAgent: req.headers["user-agent"] as string | undefined,
+        });
+
+        res.setHeader(
+          "Content-Type",
+          obj.contentType ?? ARTIFACT_CONTENT_TYPE[kind]
+        );
+        res.setHeader("Cache-Control", "private, no-store");
+        res.status(200).send(Buffer.from(obj.body));
+      } catch (err) {
+        logger.error("QA bundle artifact proxy failed", {
+          stem,
+          artifact: kind,
+          error: (err as Error).message,
+        });
+        res.status(500).json({ error: "Failed to fetch QA bundle artifact" });
+      }
+    };
+  }
+
+  router.get("/bundles/:stem/png", makeArtifactHandler("png"));
+  router.get("/bundles/:stem/sidecar", makeArtifactHandler("sidecar"));
+  router.get("/bundles/:stem/replay", makeArtifactHandler("replay"));
 
   router.get("/bundles/:stem", async (req: Request, res: Response) => {
     const env = readStorageEnv();
