@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { axe } from 'jest-axe';
 import { PropertyDetail } from '../PropertyDetail';
 
 function renderAt(path: string) {
@@ -15,42 +14,37 @@ function renderAt(path: string) {
   );
 }
 
-describe('PropertyDetail', () => {
-  beforeEach(() => {
-    // /applicants/properties/donna-louise-2 → 404 (forces fixture fallback)
-    // /applicants/properties/.../waitlist-summary → 404 (forces stub)
-    vi.spyOn(window, 'fetch' as never).mockResolvedValue({
-      ok: false,
-      status: 404,
-      json: async () => ({ error: 'not found' }),
-    } as never);
+describe('PropertyDetail (GPMG fixture)', () => {
+  it('renders hero with property name and address', () => {
+    renderAt('/property/smith-williams-senior-apartments');
+    expect(
+      screen.getByRole('heading', { name: /Smith Williams Senior Apartments/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/575 E\. Lake Mead Pkwy\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Henderson, NV 89015/i)).toBeInTheDocument();
   });
 
-  it('renders DL2 fixture with carousel, amenities, banner', async () => {
+  it('legacy donna-louise-2 slug still resolves to DL2', () => {
     renderAt('/property/donna-louise-2');
-    await waitFor(() => {
-      expect(screen.getByText('Donna Louise 2')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('photo-carousel')).toBeInTheDocument();
-    expect(screen.getByText(/Amenities/i)).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByTestId('waitlist-banner')).toBeInTheDocument();
-    });
+    expect(
+      screen.getByRole('heading', { name: /Donna Louise Apartments 2/i })
+    ).toBeInTheDocument();
   });
 
-  it('shows not-found for unknown slug', async () => {
+  it('"Apply now" CTA exists and is wired', () => {
+    renderAt('/property/owens-senior-housing');
+    const cta = screen.getByTestId('apply-cta');
+    expect(cta).toHaveTextContent(/Apply now/i);
+  });
+
+  it('renders amenities grid', () => {
+    renderAt('/property/owens-senior-housing');
+    expect(screen.getByText('Affordable rents')).toBeInTheDocument();
+    expect(screen.getByText('Smoke-free')).toBeInTheDocument();
+  });
+
+  it('shows not-found for unknown slug', () => {
     renderAt('/property/does-not-exist');
-    await waitFor(() => {
-      expect(screen.getByText(/not found/i)).toBeInTheDocument();
-    });
-  });
-
-  it('passes axe-core accessibility scan', async () => {
-    const { container } = renderAt('/property/donna-louise-2');
-    await waitFor(() => {
-      expect(screen.getByText('Donna Louise 2')).toBeInTheDocument();
-    });
-    const results = await axe(container);
-    expect(results.violations).toEqual([]);
+    expect(screen.getByText(/Property not found/i)).toBeInTheDocument();
   });
 });

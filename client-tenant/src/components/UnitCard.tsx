@@ -1,13 +1,18 @@
-import { Bed, Bath, Square } from 'lucide-react';
+import { Bed, Bath, Square, AlertCircle } from 'lucide-react';
 import type { Unit } from '@/api/units';
 import { CTA } from '@/components/primitives';
 import { HF } from '@/styles/tokens';
 import { getUnitPhoto } from '@/utils/unitPlaceholder';
 
+export interface UnitMismatch {
+  notes: string[];
+}
+
 interface Props {
   unit: Unit;
   onClaim: (unitId: string) => void;
   claiming?: boolean;
+  mismatch?: UnitMismatch;
 }
 
 function formatRent(rent: string | number): string {
@@ -24,9 +29,10 @@ const chipStyle = {
   fontFamily: HF.body,
 } as const;
 
-export function UnitCard({ unit, onClaim, claiming }: Props) {
+export function UnitCard({ unit, onClaim, claiming, mismatch }: Props) {
   const photo = getUnitPhoto(unit.photo_url);
   const location = [unit.property_city, unit.property_state].filter(Boolean).join(', ');
+  const hasMismatch = mismatch && mismatch.notes.length > 0;
 
   return (
     <div
@@ -83,6 +89,29 @@ export function UnitCard({ unit, onClaim, claiming }: Props) {
             </span>
           )}
         </div>
+
+        {hasMismatch && (
+          <ul
+            aria-label="Differences from your preferences"
+            className="space-y-1 text-xs"
+            style={{
+              background: `${HF.warn}14`,
+              border: `1px solid ${HF.warn}33`,
+              borderRadius: HF.r.sm,
+              color: HF.warn,
+              padding: '8px 10px',
+              listStyle: 'none',
+              margin: 0,
+            }}
+          >
+            {mismatch!.notes.map((note, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" style={{ marginTop: 1 }} />
+                <span>{note}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <CTA
           type="button"

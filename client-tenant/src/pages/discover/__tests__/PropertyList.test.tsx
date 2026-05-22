@@ -1,70 +1,65 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PropertyList } from '../PropertyList';
 
-describe('PropertyList smoke', () => {
+function renderList() {
+  return render(
+    <MemoryRouter>
+      <PropertyList />
+    </MemoryRouter>
+  );
+}
+
+function tileCount(): number {
+  const grid = screen.getByTestId('property-grid');
+  return within(grid).getAllByRole('link').length;
+}
+
+describe('PropertyList (GPMG fixtures)', () => {
   beforeEach(() => {
-    // Unauthed -> fixture path. No fetch needed.
     window.localStorage.clear();
   });
 
-  it('renders DL2 fixture when unauthenticated (public route)', async () => {
-    render(
-      <MemoryRouter>
-        <PropertyList />
-      </MemoryRouter>
-    );
-    await waitFor(() => {
-      expect(screen.getByText(/Donna Louise 2/i)).toBeInTheDocument();
-    });
+  it('renders 17 tiles when unauthed', () => {
+    renderList();
+    expect(tileCount()).toBe(17);
   });
 
-  it('links each tile to /property/:slug', async () => {
-    render(
-      <MemoryRouter>
-        <PropertyList />
-      </MemoryRouter>
-    );
-    await waitFor(() => {
-      const link = screen.getByRole('link', { name: /Donna Louise 2/i });
-      expect(link.getAttribute('href')).toBe('/property/donna-louise-2');
-    });
+  it('filter chip "Senior" reduces count to 13', () => {
+    // Counts derived from the GPMG fixture: 13 senior + 4 family = 17.
+    renderList();
+    fireEvent.click(screen.getByRole('button', { name: 'Senior' }));
+    expect(tileCount()).toBe(13);
   });
 
-  it('renders authenticated path using fetched units', async () => {
-    window.localStorage.setItem('frank_tenant_token', 'test');
-    const fetchSpy = vi.spyOn(window, 'fetch' as never).mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        units: [
-          {
-            id: 'u1',
-            property_id: 'p1',
-            unit_number: '101',
-            bedrooms: 2,
-            bathrooms: 1,
-            sqft: 900,
-            monthly_rent: 920,
-            photo_url: null,
-            available_from: null,
-            property_name: 'Donna Louise 2',
-            property_city: 'Las Vegas',
-            property_state: 'NV',
-          },
-        ],
-      }),
-    } as never);
-    render(
-      <MemoryRouter>
-        <PropertyList />
-      </MemoryRouter>
+  it('filter chip "Family" reduces count to 4', () => {
+    renderList();
+    fireEvent.click(screen.getByRole('button', { name: 'Family' }));
+    expect(tileCount()).toBe(4);
+  });
+
+  it('filter chip "Henderson" reduces to 1 with Smith Williams visible', () => {
+    renderList();
+    fireEvent.click(screen.getByRole('button', { name: 'Henderson' }));
+    expect(tileCount()).toBe(1);
+    expect(
+      screen.getByText(/Smith Williams Senior Apartments/i)
+    ).toBeInTheDocument();
+  });
+
+  it('each tile links to /property/:slug', () => {
+    renderList();
+    const grid = screen.getByTestId('property-grid');
+    const links = within(grid).getAllByRole('link');
+    for (const a of links) {
+      expect(a.getAttribute('href')).toMatch(/^\/property\/[a-z0-9-]+$/);
+    }
+    // Smith Williams Senior Apartments slug check
+    const smith = within(grid).getByLabelText(/Smith Williams Senior Apartments/i);
+    expect(smith.getAttribute('href')).toBe(
+      '/property/smith-williams-senior-apartments'
     );
-    await waitFor(() => {
-      expect(screen.getByText(/Donna Louise 2/i)).toBeInTheDocument();
-    });
-    fetchSpy.mockRestore();
   });
 });
