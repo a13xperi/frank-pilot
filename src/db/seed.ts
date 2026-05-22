@@ -4,6 +4,19 @@ dotenv.config();
 import { pool, query } from "../config/database";
 import bcrypt from "bcrypt";
 
+// ── Unit status distribution ─────────────────────────────────────────────────
+// Target: 70% available / 20% leased / 10% held
+// Uses (i % 10) for a fully deterministic, Math.random-free pattern that repeats
+// uniformly across every property + bedroom-type loop. Indices 0-6 → available,
+// 7-8 → leased, 9 → held. A post-seed assertion (below) verifies actual
+// percentages stay within ±5 pp of these targets and will throw if they drift.
+function unitStatus(i: number): "available" | "leased" | "held" {
+  const bucket = i % 10;
+  if (bucket < 7) return "available"; // 0-6 → 70%
+  if (bucket < 9) return "leased";    // 7-8 → 20%
+  return "held";                      // 9   → 10%
+}
+
 async function seed() {
   console.log("Seeding database...");
 
@@ -228,9 +241,8 @@ async function seed() {
             ? `S-${String(i + 1).padStart(3, "0")}`
             : `${meta.letter}-${meta.floor}${seq}`;
 
-          // Deterministic status distribution: 70% available, 30% leased.
-          // Skip 'held' — that gets created live when applicants claim.
-          const status = i % 10 < 7 ? "available" : "leased";
+          // Target: 70% available / 20% leased / 10% held (see unitStatus above).
+          const status = unitStatus(i);
           const photoUrl = `https://picsum.photos/seed/${propSlug}-${unitNumber}/800/600`;
 
           await query(
@@ -244,8 +256,37 @@ async function seed() {
         }
       }
     }
-    const availCount = await query("SELECT count(*)::int AS n FROM units WHERE status='available'");
-    console.log(`  Units: ${unitsCreated} generated across ${properties.length} properties (${availCount.rows[0].n} available)`);
+    // ── Post-seed distribution assertion ────────────────────────────────────
+    // Targets: 70% available / 20% leased / 10% held (±5 pp each).
+    // Throws loudly if actual percentages drift so CI catches future regressions.
+    const distRows = await query(
+      `SELECT status, count(*)::int AS n FROM units GROUP BY status ORDER BY status`
+    );
+    const distMap: Record<string, number> = {};
+    let totalUnits = 0;
+    for (const row of distRows.rows) {
+      distMap[row.status] = row.n;
+      totalUnits += row.n;
+    }
+    const targets: Record<string, number> = { available: 70, leased: 20, held: 10 };
+    const TOLERANCE = 5; // ±5 percentage points
+    const distReport = Object.entries(targets).map(([s, target]) => {
+      const actual = totalUnits > 0 ? ((distMap[s] ?? 0) / totalUnits) * 100 : 0;
+      const drift = Math.abs(actual - target);
+      return { status: s, count: distMap[s] ?? 0, actual: actual.toFixed(1), target, drift };
+    });
+    const failures = distReport.filter((r) => r.drift > TOLERANCE);
+    console.log(
+      `  Units: ${unitsCreated} generated across ${properties.length} properties` +
+      ` (${distMap.available ?? 0} available / ${distMap.leased ?? 0} leased / ${distMap.held ?? 0} held)`
+    );
+    if (failures.length > 0) {
+      const msg = failures.map((f) =>
+        `${f.status}: actual ${f.actual}% vs target ${f.target}% (drift ${f.drift.toFixed(1)} pp)`
+      ).join("; ");
+      throw new Error(`Seed distribution assertion failed — ${msg}. Fix unitStatus() or the seed data.`);
+    }
+    console.log(`  Distribution check passed: ${distReport.map((r) => `${r.status}=${r.actual}%`).join(" / ")}`);
 
     // Seed known problem addresses
     const problemAddresses = [
