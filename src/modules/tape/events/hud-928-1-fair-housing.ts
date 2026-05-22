@@ -31,8 +31,10 @@ export interface Hud9281FairHousingPostedInput {
  * Pure function — no IO, no DB, no clock.
  * Caller is responsible for supplying `postedAt`.
  *
- * Note: this event is property-scoped, not applicant-scoped; subjectId is
- * set to propertyId when available, otherwise "n/a".
+ * Note: this event is property-scoped, not applicant-scoped. The service
+ * routes subjectId → compliance_tape.applicant_id (UUID column), so when
+ * propertyId is unknown subjectId must be null (= global-scope chain). A
+ * non-UUID sentinel like "n/a" trips the column type and the stamp errors.
  */
 export function makeHud9281FairHousingPostedPayload(
   input: Hud9281FairHousingPostedInput
@@ -43,7 +45,7 @@ export function makeHud9281FairHousingPostedPayload(
     "@context": "https://frank-pilot.example/compliance-tape/v1",
     "@type": "ComplianceEvent.Hud9281FairHousingPosted",
     actorId: null,
-    subjectId: propertyId ?? "n/a",
+    subjectId: propertyId ?? null,
     ruleCitation: TAPE_CITATIONS[KIND],
     evidence: {
       postedAt,
