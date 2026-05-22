@@ -7,30 +7,56 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  api:
+    name: api (tsc + jest)
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [18, 20, 22]
-
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      - name: Type-check (tsc --noEmit)
+        run: npx tsc --noEmit
 
       - name: Run tests
-        run: npx jest --passWithNoTests --ci --forceExit
+        run: npm test -- --ci
+
+  client-tenant:
+    name: client-tenant (tsc + vite build + vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: client-tenant
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: client-tenant/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check (tsc --noEmit)
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Build (vite)
+        run: npm run build
+
+      - name: Run tests (vitest)
+        run: npm test -- --run
 
   check-i18n:
     name: check-i18n (EN-ES parity)

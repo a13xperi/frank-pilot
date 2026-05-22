@@ -1,0 +1,75 @@
+name: Prod smoke
+
+# Catches silent prod regressions on https://frank-pilot-tenant.vercel.app.
+# Manual: `gh workflow run prod-smoke.yml`
+# Scheduled: every 6 hours.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  prod-smoke:
+    name: prod-smoke (apply handoff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright (no-save, no full root install)
+        run: npm install playwright@^1.60.0 --no-save --no-audit --no-fund
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run prod smoke
+        id: smoke
+        env:
+          BASE: https://frank-pilot-tenant.vercel.app
+          OUT: /tmp/qa-apply-handoff-prod
+        run: |
+          mkdir -p /tmp/smoke-logs
+          set -o pipefail
+          node scripts/qa-apply-handoff-prod.mjs 2>&1 | tee /tmp/smoke-logs/smoke.log
+
+      - name: Summarize failing checks
+        if: failure()
+        run: |
+          {
+            echo "## Prod smoke failed"
+            echo ""
+            echo "Target: \`https://frank-pilot-tenant.vercel.app\`"
+            echo ""
+            if [ -f /tmp/smoke-logs/smoke.log ]; then
+              echo "### Failing checks"
+              echo ""
+              echo '```'
+              grep -E "^FAIL " /tmp/smoke-logs/smoke.log || echo "(no FAIL lines — runtime or setup error; see full log below)"
+              echo '```'
+              echo ""
+              echo "### Full output (tail)"
+              echo ""
+              echo '```'
+              tail -n 80 /tmp/smoke-logs/smoke.log
+              echo '```'
+            else
+              echo "No smoke log captured."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-smoke-failure
+          path: |
+            /tmp/qa-apply-handoff-prod
+            /tmp/smoke-logs
+          if-no-files-found: warn
+          retention-days: 7
