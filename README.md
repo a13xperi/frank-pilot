@@ -289,6 +289,31 @@ Environment variables required for production:
 - `STRIPE_SECRET_KEY` — Stripe API key
 - Integration API keys as needed
 
+### Tenant client (Vercel)
+
+The `client-tenant` Vite SPA is hosted on Vercel at
+`frank-pilot-tenant.vercel.app`. As of 2026-05-22 the Vercel project does
+**not** auto-deploy on push to `main` — six merged PRs (between #71 and #95)
+served the stale #71 build until a manual deploy was run. Until the GitHub
+integration is re-linked in the Vercel dashboard, ship the tenant client
+with:
+
+```bash
+cd client-tenant && vercel --prod --yes
+```
+
+After deploy, verify both the API and the static-asset surface in one call:
+
+```bash
+node scripts/post-deploy-verify.mjs \
+  https://api-production-ed89.up.railway.app \
+  --site=https://frank-pilot-tenant.vercel.app
+```
+
+The `--site=` checks confirm `/sitemap.xml` and `/robots.txt` are served as
+static files (non-`text/html` content-type) — the regression that PR #95
+fixed via a negative-lookahead catch-all in `client-tenant/vercel.json`.
+
 ## Project Structure
 
 ```

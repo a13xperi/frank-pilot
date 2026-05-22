@@ -63,6 +63,20 @@ During cutover the system **dual-writes** — new Postgres tape and legacy NDJSO
 simultaneously. The NDJSON writer is removed in a follow-up PR once one full
 deploy cycle in staging is clean.
 
+### Rollout status (as of 2026-05-22)
+
+| Env       | `COMPLIANCE_TAPE_V2_ENABLED` | Writes to        | Verify command |
+| --------- | ---------------------------- | ---------------- | -------------- |
+| local-dev | `true` (developer choice)    | Postgres + NDJSON | `node scripts/post-deploy-verify.mjs http://localhost:3000 --verify-dual-write` (requires `DATABASE_URL` to local Postgres) |
+| Railway prod | `false` (legacy NDJSON only) | NDJSON only      | `node scripts/post-deploy-verify.mjs https://api-production-ed89.up.railway.app` |
+
+**Cutover gate** (per [`docs/bp-02-contracts.md`](bp-02-contracts.md)): flip
+Railway to `true` only after one clean staging deploy where the dual-write
+parity check passes — NDJSON line-count == `compliance_tape` row-count for
+the same `session_id` over a representative window. Use
+`--verify-dual-write` against staging to confirm. Once parity has held for
+one full deploy cycle, remove the NDJSON writer in a follow-up PR.
+
 ### Where the data lives
 
 - **Table:** `compliance_tape` (Postgres)
