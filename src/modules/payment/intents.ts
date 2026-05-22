@@ -77,7 +77,7 @@ router.post(
       input = intentSchema.parse(req.body);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation failed", details: err.errors });
+        res.status(400).json({ error: "Validation failed", details: err.issues });
         return;
       }
       throw err;
