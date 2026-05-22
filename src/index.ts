@@ -33,6 +33,7 @@ import tenantRoutes from "./modules/tenant/routes";
 import messagesRoutes from "./modules/messages/routes";
 import tapeRoutes from "./modules/tape/routes";
 import { createTapeViewerRoutes } from "./modules/tape/routes-viewer";
+import { qaRouter } from "./modules/qa/routes";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -201,6 +202,9 @@ app.use("/api/moveouts", moveoutRoutes);
 
 // Tenant portal (auth'd, scoped to user's own applications)
 app.use("/api/tenant", tenantRoutes);
+
+// QA debug bundles (audit:view) — operator viewer for screenshots / sidecars / rrweb
+app.use("/api/qa", qaRouter());
 
 // Audit log
 app.get(
