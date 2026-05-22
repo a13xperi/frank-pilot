@@ -124,7 +124,7 @@ router.post(
       // Request-shape rejection (malformed payload) — no DB work yet, so the
       // INFO-1 floor doesn't apply: this path doesn't disclose which branch
       // the email would have taken.
-      res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+      res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
       return;
     }
 
@@ -271,7 +271,7 @@ router.post("/apply", authenticate, requireEmailVerified, async (req: AuthReques
     res.status(201).json(created);
   } catch (err: any) {
     if (err.name === "ZodError") {
-      res.status(400).json({ error: "Validation failed", details: err.errors });
+      res.status(400).json({ error: "Validation failed", details: err.issues });
       return;
     }
     logger.error("Applicant apply failed", { error: (err as Error).message });
@@ -471,7 +471,7 @@ router.get(
       if (!parsed.success) {
         res.status(400).json({
           error: "bedrooms query param is required (0–6)",
-          details: parsed.error.errors,
+          details: parsed.error.issues,
         });
         return;
       }
@@ -546,7 +546,7 @@ router.post(
       }
       const parsed = waitlistJoinSchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+        res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
         return;
       }
       const propertyId = await resolvePropertyIdBySlug(slug);
@@ -598,7 +598,7 @@ router.delete(
       if (!parsed.success) {
         res.status(400).json({
           error: "bedrooms query param is required (0–6)",
-          details: parsed.error.errors,
+          details: parsed.error.issues,
         });
         return;
       }
@@ -673,7 +673,7 @@ router.post(
 
       const parsed = intentSchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+        res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
         return;
       }
       const intent = parsed.data;
@@ -841,7 +841,7 @@ router.get(
         if (!parsed.success) {
           res.status(400).json({
             error: "Invalid amiTier",
-            details: parsed.error.errors,
+            details: parsed.error.issues,
             allowed: AMI_TIER_ORDER,
           });
           return;

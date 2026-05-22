@@ -21,7 +21,7 @@ router.post(
       res.status(201).json(result);
     } catch (err: any) {
       if (err.name === "ZodError") {
-        res.status(400).json({ error: "Validation failed", details: err.errors });
+        res.status(400).json({ error: "Validation failed", details: err.issues });
         return;
       }
       logger.error("Failed to create application", { error: err.message });
@@ -83,7 +83,7 @@ router.patch(
       res.json(result);
     } catch (err: any) {
       if (err.name === "ZodError") {
-        res.status(400).json({ error: "Validation failed", details: err.errors });
+        res.status(400).json({ error: "Validation failed", details: err.issues });
         return;
       }
       logger.error("Failed to update application", { error: err.message });

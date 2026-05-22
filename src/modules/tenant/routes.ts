@@ -261,7 +261,7 @@ router.post(
 
       const parsed = paySchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+        res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
         return;
       }
 
@@ -328,7 +328,7 @@ router.post("/maintenance", async (req: AuthRequest, res: Response) => {
   try {
     const parsed = submitWorkOrderSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+      res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
       return;
     }
     if (!(await assertApplicationOwnership(req, res, parsed.data.applicationId))) return;
@@ -433,7 +433,7 @@ router.post(
       if (!parsed.success) {
         res
           .status(400)
-          .json({ error: "Validation failed", details: parsed.error.errors });
+          .json({ error: "Validation failed", details: parsed.error.issues });
         return;
       }
 
