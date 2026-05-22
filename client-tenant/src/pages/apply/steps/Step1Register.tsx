@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { api } from '@/api/client';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
-import { CTA } from '@/components/primitives';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
+import { StepCTA } from '../StepCTA';
 import { HF } from '@/styles/tokens';
 
 const labelStyle = {
@@ -65,7 +65,7 @@ export function Step1Register() {
       >
         {t('register.title')}
       </h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="step1-register-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label style={labelStyle} htmlFor="firstName">{t('register.firstName')}</label>
@@ -111,13 +111,14 @@ export function Step1Register() {
           />
         </div>
         <TurnstileWidget onVerify={setTurnstileToken} />
-        <CTA
-          type="submit"
-          disabled={s.loading || !s.email || !s.firstName || !s.lastName}
-        >
-          {s.loading ? t('register.submitting') : t('register.submit')}
-        </CTA>
       </form>
+      <StepCTA
+        type="submit"
+        form="step1-register-form"
+        disabled={s.loading || !s.email || !s.firstName || !s.lastName}
+      >
+        {s.loading ? t('register.submitting') : t('register.submit')}
+      </StepCTA>
     </>
   );
 }
