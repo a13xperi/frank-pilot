@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthGuard } from '@/components/AuthGuard';
 import { Layout } from '@/components/Layout';
@@ -23,12 +24,23 @@ import { SiteFooter } from '@/components/SiteFooter';
 import { PrivacyPolicy } from '@/pages/legal/PrivacyPolicy';
 import { CookiesPolicy } from '@/pages/legal/CookiesPolicy';
 import { getToken } from '@/api/client';
+import { initAnalytics, watchConsentAndInit } from '@/lib/analytics';
 
 function RootRedirect() {
   return <Navigate to={getToken() ? '/dashboard' : '/login'} replace />;
 }
 
 export default function App() {
+  // gpmglv wedge #15 — gate analytics on consent.
+  // Run once on mount (covers users who already accepted before this load),
+  // then subscribe so a user who accepts mid-session gets tracked without a
+  // reload.
+  useEffect(() => {
+    initAnalytics();
+    const unsubscribe = watchConsentAndInit();
+    return unsubscribe;
+  }, []);
+
   return (
     <>
     <Routes>
