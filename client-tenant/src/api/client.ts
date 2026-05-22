@@ -25,7 +25,9 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const fullPath = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? path : `/${path}`}`;
+  const relativePath = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? path : `/${path}`}`;
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  const fullPath = baseUrl ? `${baseUrl}${relativePath}` : relativePath;
 
   const res = await fetch(fullPath, { ...options, headers });
 
