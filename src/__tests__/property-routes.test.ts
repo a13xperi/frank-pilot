@@ -122,22 +122,33 @@ function buildApp() {
 
 const app = buildApp();
 
+// `mockResolvedValueOnce` adds to a queue that survives `jest.clearAllMocks()`
+// (which only clears `.mock.calls/.instances/.results`). The GET /properties
+// listing is public, so its tests prime the queue but the route never consumes
+// — without this top-level reset the leftovers leak into POST/PATCH tests and
+// `authenticate` reads the wrong row, flipping role checks.
+beforeEach(() => {
+  mockQuery.mockReset();
+});
+
 // ── GET /properties — list all properties ─────────────────────────────────
 
 describe("GET /properties", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("returns 401 when no Authorization header is provided", async () => {
+  it("returns 200 anonymously — listing is a public marketing surface", async () => {
+    mockListWithAvailability.mockResolvedValue([]);
     const res = await request(app).get("/properties");
-    expect(res.status).toBe(401);
-    expect(res.body.error).toMatch(/authentication required/i);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ properties: [], total: 0 });
   });
 
-  it("returns 401 when token is invalid", async () => {
+  it("returns 200 with a malformed Authorization header (anonymous treated same as authed for listing)", async () => {
+    mockListWithAvailability.mockResolvedValue([]);
     const res = await request(app)
       .get("/properties")
       .set("Authorization", "Bearer bad.token.here");
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
   });
 
   it("returns 200 for leasing_agent (property:view open to all roles)", async () => {
