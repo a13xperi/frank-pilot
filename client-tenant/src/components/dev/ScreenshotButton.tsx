@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Camera, Check, X, Loader2, Copy } from 'lucide-react';
-import { getQaBuffer, type QaEntry } from '@/lib/qaBuffer';
+import { getQaBuffer, clearQaBuffer, type QaEntry } from '@/lib/qaBuffer';
 
 const STORAGE_KEY = 'frank_qa';
 const TOKEN_KEY = 'frank_tenant_token';
@@ -144,8 +144,10 @@ export function ScreenshotButton() {
     try {
       // Snapshot the qaBuffer BEFORE toPng() runs — html-to-image inlines fonts
       // by fetching them, which would otherwise flood the 25-entry buffer and
-      // push real app traffic out.
+      // push real app traffic out. Then clear so the next camera click starts
+      // fresh and doesn't inherit this click's font-fetch + self-upload noise.
       const qaSnapshot = getQaBuffer();
+      clearQaBuffer();
 
       const { toPng } = await import('html-to-image');
       const node = document.body;
