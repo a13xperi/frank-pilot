@@ -17,10 +17,20 @@
  *   - Duplicate SSN triggers a high-severity fraud flag (create)
  */
 
+import type { QueryResult, PoolClient } from "pg";
 import { ApplicationService } from "../modules/application/service";
 import { query, transaction } from "../config/database";
 import { encrypt, hashSSN, maskSSN } from "../utils/encryption";
 import { writeAuditLog } from "../middleware/audit";
+
+/** Wrap rows in a minimal QueryResult shape without casting to `any`. */
+function qr<T extends Record<string, unknown>>(rows: T[]): QueryResult<T> {
+  return { rows } as unknown as QueryResult<T>;
+}
+/** Build a minimal PoolClient stub for transaction mocks. */
+function makeClient(queryImpl: jest.Mock): PoolClient {
+  return { query: queryImpl } as unknown as PoolClient;
+}
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -95,7 +105,7 @@ describe("ApplicationService.create()", () => {
 
   it("encrypts SSN and DOB before writing to the database (PCI-DSS)", async () => {
     mockCheckDuplicateSSN.mockResolvedValue({ isDuplicate: false, existingApplicationIds: [] });
-    mockTransaction.mockImplementation(async (fn) => fn({ query: jest.fn().mockResolvedValue({ rows: [{ id: "app-001", status: "draft", created_at: new Date() }] }) } as any));
+    mockTransaction.mockImplementation(async (fn) => fn(makeClient(jest.fn().mockResolvedValue(qr([{ id: "app-001", status: "draft", created_at: new Date() }])))));
 
     const service = makeService();
     await service.create(minimalInput(), "user-001", "leasing_agent");
@@ -112,7 +122,7 @@ describe("ApplicationService.create()", () => {
     const clientQuery = jest.fn().mockResolvedValue({
       rows: [{ id: "app-001", status: "draft", created_at: new Date() }],
     });
-    mockTransaction.mockImplementation(async (fn) => fn({ query: clientQuery } as any));
+    mockTransaction.mockImplementation(async (fn) => fn(makeClient(clientQuery)));
 
     const service = makeService();
     await service.create(minimalInput(), "user-001", "leasing_agent");
@@ -132,7 +142,7 @@ describe("ApplicationService.create()", () => {
   it("checks for duplicate SSN before insert", async () => {
     mockCheckDuplicateSSN.mockResolvedValue({ isDuplicate: false, existingApplicationIds: [] });
     mockTransaction.mockImplementation(async (fn) =>
-      fn({ query: jest.fn().mockResolvedValue({ rows: [{ id: "app-001", status: "draft", created_at: new Date() }] }) } as any)
+      fn(makeClient(jest.fn().mockResolvedValue(qr([{ id: "app-001", status: "draft", created_at: new Date() }]))))
     );
 
     const service = makeService();
@@ -147,7 +157,7 @@ describe("ApplicationService.create()", () => {
       existingApplicationIds: ["app-existing-001"],
     });
 
-    const mockClient = { query: jest.fn().mockResolvedValue({ rows: [{ id: "app-002", status: "draft", created_at: new Date() }] }) } as any;
+    const mockClient = makeClient(jest.fn().mockResolvedValue(qr([{ id: "app-002", status: "draft", created_at: new Date() }])));
     mockTransaction.mockImplementation(async (fn) => fn(mockClient));
 
     const service = makeService();
@@ -166,7 +176,7 @@ describe("ApplicationService.create()", () => {
   it("does NOT raise fraud flag when no duplicate SSN is found", async () => {
     mockCheckDuplicateSSN.mockResolvedValue({ isDuplicate: false, existingApplicationIds: [] });
     mockTransaction.mockImplementation(async (fn) =>
-      fn({ query: jest.fn().mockResolvedValue({ rows: [{ id: "app-003", status: "draft", created_at: new Date() }] }) } as any)
+      fn(makeClient(jest.fn().mockResolvedValue(qr([{ id: "app-003", status: "draft", created_at: new Date() }]))))
     );
 
     const service = makeService();
@@ -177,7 +187,7 @@ describe("ApplicationService.create()", () => {
 
   it("checks address fraud when currentAddressLine1 is provided", async () => {
     mockCheckDuplicateSSN.mockResolvedValue({ isDuplicate: false, existingApplicationIds: [] });
-    const mockClient = { query: jest.fn().mockResolvedValue({ rows: [{ id: "app-004", status: "draft", created_at: new Date() }] }) } as any;
+    const mockClient = makeClient(jest.fn().mockResolvedValue(qr([{ id: "app-004", status: "draft", created_at: new Date() }])));
     mockTransaction.mockImplementation(async (fn) => fn(mockClient));
 
     const service = makeService();
@@ -197,7 +207,7 @@ describe("ApplicationService.create()", () => {
   it("skips address fraud check when currentAddressLine1 is absent", async () => {
     mockCheckDuplicateSSN.mockResolvedValue({ isDuplicate: false, existingApplicationIds: [] });
     mockTransaction.mockImplementation(async (fn) =>
-      fn({ query: jest.fn().mockResolvedValue({ rows: [{ id: "app-005", status: "draft", created_at: new Date() }] }) } as any)
+      fn(makeClient(jest.fn().mockResolvedValue(qr([{ id: "app-005", status: "draft", created_at: new Date() }]))))
     );
 
     const service = makeService();
@@ -209,7 +219,7 @@ describe("ApplicationService.create()", () => {
   it("writes application_created audit log with masked SSN", async () => {
     mockCheckDuplicateSSN.mockResolvedValue({ isDuplicate: false, existingApplicationIds: [] });
     mockTransaction.mockImplementation(async (fn) =>
-      fn({ query: jest.fn().mockResolvedValue({ rows: [{ id: "app-006", status: "draft", created_at: new Date() }] }) } as any)
+      fn(makeClient(jest.fn().mockResolvedValue(qr([{ id: "app-006", status: "draft", created_at: new Date() }]))))
     );
 
     const service = makeService();
@@ -232,7 +242,7 @@ describe("ApplicationService.create()", () => {
     mockCheckDuplicateSSN.mockResolvedValue({ isDuplicate: false, existingApplicationIds: [] });
     const createdRow = { id: "app-007", status: "draft", created_at: new Date() };
     mockTransaction.mockImplementation(async (fn) =>
-      fn({ query: jest.fn().mockResolvedValue({ rows: [createdRow] }) } as any)
+      fn(makeClient(jest.fn().mockResolvedValue({ rows: [createdRow] })))
     );
 
     const service = makeService();
@@ -252,9 +262,7 @@ describe("ApplicationService.submit()", () => {
   });
 
   it("updates application status from draft to submitted", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [{ id: "app-001", status: "submitted", submitted_at: new Date() }],
-    } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "submitted", submitted_at: new Date() }]));
 
     const service = makeService();
     const result = await service.submit("app-001", "user-001", "leasing_agent");
@@ -267,7 +275,7 @@ describe("ApplicationService.submit()", () => {
   });
 
   it("throws when application is not found or not in draft status", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     await expect(
@@ -276,9 +284,7 @@ describe("ApplicationService.submit()", () => {
   });
 
   it("writes application_submitted audit log", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [{ id: "app-001", status: "submitted", submitted_at: new Date() }],
-    } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "submitted", submitted_at: new Date() }]));
 
     const service = makeService();
     await service.submit("app-001", "user-sub-001", "senior_manager");
@@ -296,7 +302,7 @@ describe("ApplicationService.submit()", () => {
 
   it("returns the updated row from the query", async () => {
     const submittedRow = { id: "app-001", status: "submitted", submitted_at: new Date() };
-    mockQuery.mockResolvedValue({ rows: [submittedRow] } as any);
+    mockQuery.mockResolvedValue(qr([submittedRow]));
 
     const service = makeService();
     const result = await service.submit("app-001", "user-001", "leasing_agent");
@@ -311,7 +317,7 @@ describe("ApplicationService.getById()", () => {
   beforeEach(() => mockQuery.mockReset());
 
   it("returns null when application is not found", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     const result = await service.getById("app-notexist");
@@ -320,18 +326,7 @@ describe("ApplicationService.getById()", () => {
   });
 
   it("strips ssn_encrypted and date_of_birth_encrypted from response (PCI-DSS / FCRA)", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [
-        {
-          id: "app-001",
-          first_name: "Jane",
-          ssn_encrypted: "enc:super-secret",
-          date_of_birth_encrypted: "enc:dob-secret",
-          ssn_hash: "abcd1234",
-          status: "draft",
-        },
-      ],
-    } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", first_name: "Jane", ssn_encrypted: "enc:super-secret", date_of_birth_encrypted: "enc:dob-secret", ssn_hash: "abcd1234", status: "draft" }]));
 
     const service = makeService();
     const result = await service.getById("app-001");
@@ -341,17 +336,7 @@ describe("ApplicationService.getById()", () => {
   });
 
   it("adds ssn_masked using maskSSN (only last-4 visible to staff)", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [
-        {
-          id: "app-001",
-          ssn_encrypted: "enc:secret",
-          date_of_birth_encrypted: "enc:dob",
-          ssn_hash: "abcdef12",
-          status: "draft",
-        },
-      ],
-    } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", ssn_encrypted: "enc:secret", date_of_birth_encrypted: "enc:dob", ssn_hash: "abcdef12", status: "draft" }]));
 
     const service = makeService();
     const result = await service.getById("app-001");
@@ -361,20 +346,7 @@ describe("ApplicationService.getById()", () => {
   });
 
   it("returns the application with property join fields intact", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [
-        {
-          id: "app-001",
-          first_name: "Jane",
-          ssn_encrypted: "enc:x",
-          date_of_birth_encrypted: "enc:y",
-          ssn_hash: "abcd1234",
-          property_name: "Sunset Apartments",
-          property_address: "100 Main St",
-          status: "submitted",
-        },
-      ],
-    } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", first_name: "Jane", ssn_encrypted: "enc:x", date_of_birth_encrypted: "enc:y", ssn_hash: "abcd1234", property_name: "Sunset Apartments", property_address: "100 Main St", status: "submitted" }]));
 
     const service = makeService();
     const result = await service.getById("app-001");
@@ -385,7 +357,7 @@ describe("ApplicationService.getById()", () => {
   });
 
   it("queries by applicationId", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     await service.getById("app-xyz");
@@ -402,11 +374,11 @@ describe("ApplicationService.getById()", () => {
 describe("ApplicationService.list()", () => {
   beforeEach(() => mockQuery.mockReset());
 
-  function mockListQueries(rows: any[], count: number) {
+  function mockListQueries(rows: Record<string, unknown>[], count: number) {
     // list() calls query twice in parallel (data + count)
     mockQuery
-      .mockResolvedValueOnce({ rows } as any)
-      .mockResolvedValueOnce({ rows: [{ count: String(count) }] } as any);
+      .mockResolvedValueOnce(qr(rows))
+      .mockResolvedValueOnce(qr([{ count: String(count) }]));
   }
 
   it("returns applications array and total count", async () => {
@@ -500,7 +472,7 @@ describe("ApplicationService.update()", () => {
   });
 
   it("throws when application is not found or not in draft status", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     await expect(
@@ -509,9 +481,7 @@ describe("ApplicationService.update()", () => {
   });
 
   it("returns updated row when update succeeds", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [{ id: "app-001", status: "draft" }],
-    } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "draft" }]));
 
     const service = makeService();
     const result = await service.update("app-001", { firstName: "Janet" });
@@ -520,9 +490,7 @@ describe("ApplicationService.update()", () => {
   });
 
   it("maps camelCase input fields to snake_case DB columns", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [{ id: "app-001", status: "draft" }],
-    } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "draft" }]));
 
     const service = makeService();
     await service.update("app-001", {
@@ -538,9 +506,7 @@ describe("ApplicationService.update()", () => {
   });
 
   it("only includes provided fields in the SET clause (partial update)", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [{ id: "app-001", status: "draft" }],
-    } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "draft" }]));
 
     const service = makeService();
     await service.update("app-001", { firstName: "Janet" }); // only firstName
@@ -553,7 +519,7 @@ describe("ApplicationService.update()", () => {
   });
 
   it("restricts update to applications in draft status", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     try {
@@ -578,8 +544,8 @@ describe("ApplicationService.cancel()", () => {
 
   it("sets status to cancelled and returns the updated row", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "cancelled" }] } as any) // UPDATE
-      .mockResolvedValueOnce({ rows: [] } as any); // writeAuditLog (via query mock)
+      .mockResolvedValueOnce(qr([{ id: "app-001", status: "cancelled" }])) // UPDATE
+      .mockResolvedValueOnce(qr([])); // writeAuditLog (via query mock)
 
     const service = makeService();
     const result = await service.cancel("app-001", "user-mgr-001", "senior_manager");
@@ -589,7 +555,7 @@ describe("ApplicationService.cancel()", () => {
   });
 
   it("throws when application is not found or status is not cancellable", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     await expect(
@@ -598,7 +564,7 @@ describe("ApplicationService.cancel()", () => {
   });
 
   it("uses ANY($2::application_status[]) to check cancellable statuses", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     try {
@@ -613,7 +579,7 @@ describe("ApplicationService.cancel()", () => {
   });
 
   it("writes application_cancelled audit log with actorId and actorRole", async () => {
-    mockQuery.mockResolvedValue({ rows: [{ id: "app-001", status: "cancelled" }] } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "cancelled" }]));
 
     const service = makeService();
     await service.cancel("app-001", "user-mgr-001", "senior_manager", "applicant withdrew");
@@ -629,7 +595,7 @@ describe("ApplicationService.cancel()", () => {
   });
 
   it("includes reason in audit log details when provided", async () => {
-    mockQuery.mockResolvedValue({ rows: [{ id: "app-001", status: "cancelled" }] } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "cancelled" }]));
 
     const service = makeService();
     await service.cancel("app-001", "user-001", "regional_manager", "duplicate application");
@@ -642,7 +608,7 @@ describe("ApplicationService.cancel()", () => {
   });
 
   it("stores null reason in audit log when reason is omitted", async () => {
-    mockQuery.mockResolvedValue({ rows: [{ id: "app-001", status: "cancelled" }] } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "cancelled" }]));
 
     const service = makeService();
     await service.cancel("app-001", "user-001", "senior_manager");
@@ -665,7 +631,7 @@ describe("ApplicationService.verifyIncome()", () => {
   beforeEach(() => mockQuery.mockReset());
 
   it("throws when application is not found", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // SELECT not found
+    mockQuery.mockResolvedValueOnce(qr([])); // SELECT not found
 
     const service = makeService();
     await expect(
@@ -674,9 +640,7 @@ describe("ApplicationService.verifyIncome()", () => {
   });
 
   it("throws when application status is terminal (e.g. cancelled)", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{ id: "app-001", status: "cancelled", annual_income: "40000" }],
-    } as any);
+    mockQuery.mockResolvedValueOnce(qr([{ id: "app-001", status: "cancelled", annual_income: "40000" }]));
 
     const service = makeService();
     await expect(
@@ -686,8 +650,8 @@ describe("ApplicationService.verifyIncome()", () => {
 
   it("sets income_verified=true and returns updated row", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "tier1_approved", annual_income: "40000" }] } as any)
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "tier1_approved", income_verified: true, annual_income: "40000" }] } as any);
+      .mockResolvedValueOnce(qr([{ id: "app-001", status: "tier1_approved", annual_income: "40000" }]))
+      .mockResolvedValueOnce(qr([{ id: "app-001", status: "tier1_approved", income_verified: true, annual_income: "40000" }]));
 
     const service = makeService();
     const result = await service.verifyIncome("app-001", "user-mgr-001", "senior_manager");
@@ -697,8 +661,8 @@ describe("ApplicationService.verifyIncome()", () => {
 
   it("UPDATE includes income_verified=true, income_verified_by, income_verified_at", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "screening_passed", annual_income: "35000" }] } as any)
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", income_verified: true, annual_income: "35000" }] } as any);
+      .mockResolvedValueOnce(qr([{ id: "app-001", status: "screening_passed", annual_income: "35000" }]))
+      .mockResolvedValueOnce(qr([{ id: "app-001", income_verified: true, annual_income: "35000" }]));
 
     const service = makeService();
     await service.verifyIncome("app-001", "user-mgr-001", "senior_manager");
@@ -711,8 +675,8 @@ describe("ApplicationService.verifyIncome()", () => {
 
   it("includes verified income amount in UPDATE when verifiedIncome is provided", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "tier1_approved", annual_income: "35000" }] } as any)
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", income_verified: true, annual_income: "37500" }] } as any);
+      .mockResolvedValueOnce(qr([{ id: "app-001", status: "tier1_approved", annual_income: "35000" }]))
+      .mockResolvedValueOnce(qr([{ id: "app-001", income_verified: true, annual_income: "37500" }]));
 
     const service = makeService();
     await service.verifyIncome("app-001", "user-mgr-001", "senior_manager", 37500);
@@ -725,8 +689,8 @@ describe("ApplicationService.verifyIncome()", () => {
 
   it("does NOT include annual_income in UPDATE when verifiedIncome is omitted", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "draft", annual_income: "40000" }] } as any)
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", income_verified: true, annual_income: "40000" }] } as any);
+      .mockResolvedValueOnce(qr([{ id: "app-001", status: "draft", annual_income: "40000" }]))
+      .mockResolvedValueOnce(qr([{ id: "app-001", income_verified: true, annual_income: "40000" }]));
 
     const service = makeService();
     await service.verifyIncome("app-001", "user-mgr-001", "senior_manager");
@@ -737,8 +701,8 @@ describe("ApplicationService.verifyIncome()", () => {
 
   it("writes income_verified audit log with actorId, actorRole, and previousIncome", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", status: "tier1_approved", annual_income: "42000" }] } as any)
-      .mockResolvedValueOnce({ rows: [{ id: "app-001", income_verified: true, annual_income: "44000" }] } as any);
+      .mockResolvedValueOnce(qr([{ id: "app-001", status: "tier1_approved", annual_income: "42000" }]))
+      .mockResolvedValueOnce(qr([{ id: "app-001", income_verified: true, annual_income: "44000" }]));
 
     const service = makeService();
     await service.verifyIncome("app-001", "user-mgr-001", "regional_manager", 44000);
