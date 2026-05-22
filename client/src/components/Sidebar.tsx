@@ -67,7 +67,7 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
         <Building2 className="h-6 w-6 shrink-0 text-emerald-600" />
         {!collapsed && <span className="text-lg font-semibold text-gray-900">CDPC Hub</span>}
       </div>
-      <nav className="flex-1 space-y-1 p-3">
+      <nav aria-label="Primary" className="flex-1 space-y-1 p-3">
         {visible.map((item) => (
           <NavLink
             key={item.path}

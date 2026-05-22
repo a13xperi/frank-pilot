@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -10,26 +10,48 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, wide }: ModalProps) {
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    if (open) {
-      const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-      document.addEventListener('keydown', handler);
-      return () => document.removeEventListener('keydown', handler);
-    }
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', handler);
+    // Move focus into the dialog so keyboard + screen-reader users land inside
+    // it (and Escape works without first clicking). Restore focus on close.
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    return () => {
+      document.removeEventListener('keydown', handler);
+      previouslyFocused?.focus?.();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
       <div
-        className={`relative max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl ${wide ? 'w-full max-w-2xl' : 'w-full max-w-md'}`}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={`relative max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl outline-none ${wide ? 'w-full max-w-2xl' : 'w-full max-w-md'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="rounded-lg p-1 hover:bg-gray-100">
-            <X className="h-5 w-5 text-gray-400" />
+          <h2 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          >
+            <X className="h-5 w-5" />
           </button>
         </div>
         {children}
