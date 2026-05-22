@@ -1,4 +1,5 @@
 import { api } from './client';
+import { UNIT_PLACEHOLDER } from '@/utils/unitPlaceholder';
 
 export interface PropertyDetail {
   slug: string;
@@ -43,11 +44,11 @@ export const DL2_FIXTURE: PropertyDetail = {
   description:
     'Family-oriented community in East Las Vegas, walking distance to Garcia Elementary and Sunrise Hospital. Three-story building with elevator, on-site laundry, gated parking, and a courtyard with playground equipment. Section 8 vouchers welcome.',
   photos: [
-    'https://picsum.photos/seed/dl2-1/1200/900',
-    'https://picsum.photos/seed/dl2-2/1200/900',
-    'https://picsum.photos/seed/dl2-3/1200/900',
-    'https://picsum.photos/seed/dl2-4/1200/900',
-    'https://picsum.photos/seed/dl2-5/1200/900',
+    UNIT_PLACEHOLDER,
+    UNIT_PLACEHOLDER,
+    UNIT_PLACEHOLDER,
+    UNIT_PLACEHOLDER,
+    UNIT_PLACEHOLDER,
   ],
   amenities: [
     'Pool',

@@ -3,6 +3,7 @@ import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
 import { useFlag } from '@/lib/flags';
+import { getUnitPhoto } from '@/utils/unitPlaceholder';
 
 export function StepClaim() {
   const s = useApply();
@@ -26,7 +27,7 @@ export function StepClaim() {
     <div className="space-y-4 text-center">
       <div className="overflow-hidden rounded-xl">
         <img
-          src={unit.photo_url || `https://picsum.photos/seed/${unit.id.slice(0, 8)}/800/600`}
+          src={getUnitPhoto(unit.photo_url)}
           alt=""
           className="aspect-[16/9] w-full object-cover"
         />

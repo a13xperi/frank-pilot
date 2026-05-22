@@ -2,6 +2,7 @@ import { Bed, Bath, Square } from 'lucide-react';
 import type { Unit } from '@/api/units';
 import { CTA } from '@/components/primitives';
 import { HF } from '@/styles/tokens';
+import { getUnitPhoto } from '@/utils/unitPlaceholder';
 
 interface Props {
   unit: Unit;
@@ -24,7 +25,7 @@ const chipStyle = {
 } as const;
 
 export function UnitCard({ unit, onClaim, claiming }: Props) {
-  const photo = unit.photo_url || `https://picsum.photos/seed/${unit.id.slice(0, 8)}/800/600`;
+  const photo = getUnitPhoto(unit.photo_url);
   const location = [unit.property_city, unit.property_state].filter(Boolean).join(', ');
 
   return (

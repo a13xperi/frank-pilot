@@ -6,6 +6,7 @@ import { fetchUnits, type Unit } from '@/api/units';
 import { getToken } from '@/api/client';
 import { DL2_FIXTURE } from '@/api/properties';
 import { Card, CTA } from '@/components/primitives';
+import { getUnitPhoto } from '@/utils/unitPlaceholder';
 
 interface PropertyTile {
   slug: string;
@@ -39,9 +40,7 @@ function unitsToProperties(units: Unit[]): PropertyTile[] {
       name: first.property_name,
       city: first.property_city,
       state: first.property_state,
-      photo:
-        first.photo_url ||
-        `https://picsum.photos/seed/${first.property_id.slice(0, 8)}/800/600`,
+      photo: getUnitPhoto(first.photo_url),
       rentMin: Math.min(...rents),
       rentMax: Math.max(...rents),
       hasAvailable: list.some((u) => !!u.available_from),
