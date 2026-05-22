@@ -47,6 +47,9 @@ export function makeState(overrides: Partial<ApplyState> = {}): ApplyState {
     employerName: '', setEmployerName: noop, annualIncome: '', setAnnualIncome: noop,
     householdSize: '1', setHouseholdSize: noop, moveInDate: '', setMoveInDate: noop,
     done: false, setDone: noop,
+    // Wedge #5 — waitlist outcome
+    outcome: null, setOutcome: noop,
+    propertySlug: null, setPropertySlug: noop,
     // Contract 2 — wizard slice
     adults: 1, setAdults: noop,
     paymentTotal: '$71.90',

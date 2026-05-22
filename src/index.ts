@@ -5,6 +5,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { logger } from "./utils/logger";
+import { resolveCorsOrigin } from "./utils/cors-origin";
 import { authenticate, login, AuthRequest } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
 import { queryAuditLog } from "./middleware/audit";
@@ -35,6 +36,7 @@ import tenantRoutes from "./modules/tenant/routes";
 import messagesRoutes from "./modules/messages/routes";
 import tapeRoutes from "./modules/tape/routes";
 import { createTapeViewerRoutes } from "./modules/tape/routes-viewer";
+import { qaRouter } from "./modules/qa/routes";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -58,7 +60,18 @@ const PORT = parseInt(process.env.PORT || "3000");
 
 // Security middleware
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+// HIGH-2 (SECURITY-AUDIT-2026-05-21): fail closed on CORS — production
+// refuses to boot without an explicit allow-list (mirrors the JWT_SECRET /
+// ENCRYPTION_KEY gate above). Dev/test fall back to localhost so `npm start`
+// works out of the box. See src/utils/cors-origin.ts + unit tests.
+let corsOrigins: string[];
+try {
+  corsOrigins = resolveCorsOrigin(process.env);
+} catch (err) {
+  console.error((err as Error).message);
+  process.exit(1);
+}
+app.use(cors({ origin: corsOrigins }));
 
 // BP-08 Stripe webhook — MUST be mounted before `express.json()` so the raw
 // request body survives intact for `stripe.webhooks.constructEvent`. Moving
@@ -207,6 +220,9 @@ app.use("/api/moveouts", moveoutRoutes);
 
 // Tenant portal (auth'd, scoped to user's own applications)
 app.use("/api/tenant", tenantRoutes);
+
+// QA debug bundles (audit:view) — operator viewer for screenshots / sidecars / rrweb
+app.use("/api/qa", qaRouter());
 
 // Audit log
 app.get(

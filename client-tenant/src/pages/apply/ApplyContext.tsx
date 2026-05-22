@@ -43,6 +43,9 @@ interface WizPersisted {
   // /auth/callback route hop (Apply unmounts during verify).
   intentBedrooms: number | null;
   intentHouseholdSize: number;
+  // Wedge #5 — persist waitlist outcome so StepConfirm CTA survives a reload.
+  outcome: 'claimed' | 'waitlisted' | null;
+  propertySlug: string | null;
 }
 
 const DEFAULTS: WizPersisted = {
@@ -54,6 +57,8 @@ const DEFAULTS: WizPersisted = {
   qualifyingHouseholdSize: null,
   intentBedrooms: null,
   intentHouseholdSize: 1,
+  outcome: null,
+  propertySlug: null,
 };
 
 const TIER_SET: ReadonlySet<AmiTier> = new Set(['30', '50', '60', '80']);
@@ -88,6 +93,9 @@ function readPersisted(): WizPersisted {
         typeof parsed.intentHouseholdSize === 'number' && parsed.intentHouseholdSize >= 1
           ? parsed.intentHouseholdSize
           : DEFAULTS.intentHouseholdSize,
+      outcome:
+        parsed.outcome === 'claimed' || parsed.outcome === 'waitlisted' ? parsed.outcome : null,
+      propertySlug: typeof parsed.propertySlug === 'string' ? parsed.propertySlug : null,
     };
   } catch {
     return { ...DEFAULTS };
@@ -164,6 +172,10 @@ export interface ApplyState {
 
   done: boolean; setDone: (b: boolean) => void;
 
+  // Wedge #5 — waitlist outcome, persisted so StepConfirm CTA survives a reload.
+  outcome: 'claimed' | 'waitlisted' | null; setOutcome: (v: 'claimed' | 'waitlisted' | null) => void;
+  propertySlug: string | null; setPropertySlug: (v: string | null) => void;
+
   // FROZEN CONTRACT 2 — payment wizard
   adults: number; setAdults: (n: number) => void;
   paymentTotal: string; // computed from adults; not settable directly
@@ -205,6 +217,8 @@ export function useWizState() {
   const [intentHouseholdSize, setIntentHouseholdSizeRaw] = useState<number>(
     initial.intentHouseholdSize,
   );
+  const [outcome, setOutcomeRaw] = useState<'claimed' | 'waitlisted' | null>(initial.outcome);
+  const [propertySlug, setPropertySlugRaw] = useState<string | null>(initial.propertySlug);
 
   useEffect(() => {
     writePersisted({
@@ -216,6 +230,8 @@ export function useWizState() {
       qualifyingHouseholdSize,
       intentBedrooms,
       intentHouseholdSize,
+      outcome,
+      propertySlug,
     });
   }, [
     adults,
@@ -226,6 +242,8 @@ export function useWizState() {
     qualifyingHouseholdSize,
     intentBedrooms,
     intentHouseholdSize,
+    outcome,
+    propertySlug,
   ]);
 
   return {
@@ -246,5 +264,9 @@ export function useWizState() {
     setIntentBedrooms: setIntentBedroomsRaw,
     intentHouseholdSize,
     setIntentHouseholdSize: setIntentHouseholdSizeRaw,
+    outcome,
+    setOutcome: setOutcomeRaw,
+    propertySlug,
+    setPropertySlug: setPropertySlugRaw,
   };
 }

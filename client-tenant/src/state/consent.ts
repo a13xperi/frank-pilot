@@ -107,7 +107,13 @@ function emit(): void {
   for (const l of listeners) l();
 }
 
-function subscribe(listener: () => void): () => void {
+/**
+ * Subscribe to consent state changes.  Exported so non-hook code (e.g.
+ * `lib/analytics.ts` for the wedge #15 analytics gate) can react to the
+ * user accepting/rejecting categories mid-session without subscribing via
+ * React.  Returns an unsubscribe function.
+ */
+export function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

@@ -78,6 +78,16 @@ export interface TapeService {
    * SHA-256 of the last entry so the printout is self-verifying.
    */
   exportPdf(scope: TapeScope): Promise<Buffer>;
+
+  /**
+   * Read entries in scope, oldest first.  Passthrough to repo.list — exposed
+   * on the service so callers (BP-19 viewer routes, verify-cron) don't have
+   * to hold a reference to the repository directly.
+   */
+  list(
+    scope: TapeScope,
+    opts?: { limit?: number; afterSequence?: number }
+  ): Promise<TapeEntry[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -356,5 +366,15 @@ export function createTapeService(repo: TapeRepository): TapeService {
     });
   }
 
-  return { stamp, verify, exportPdf };
+  // -------------------------------------------------------------------------
+  // list
+  // -------------------------------------------------------------------------
+  async function list(
+    scope: TapeScope,
+    opts?: { limit?: number; afterSequence?: number }
+  ): Promise<TapeEntry[]> {
+    return repo.list(scope, opts);
+  }
+
+  return { stamp, verify, exportPdf, list };
 }

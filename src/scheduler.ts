@@ -2,11 +2,14 @@ import cron from "node-cron";
 import { RecertificationService } from "./modules/recertification/service";
 import { LedgerService } from "./modules/ledger/service";
 import { LeaseRenewalService } from "./modules/renewal/service";
+import { createTapeService } from "./modules/tape/service";
+import { PgTapeRepository } from "./modules/tape/repository";
 import { logger } from "./utils/logger";
 
 const recertService = new RecertificationService();
 const ledgerService = new LedgerService();
 const renewalService = new LeaseRenewalService();
+const tapeService = createTapeService(new PgTapeRepository());
 
 /**
  * Start daily scheduled jobs.
@@ -100,5 +103,45 @@ export function startScheduler() {
     }
   });
 
-  logger.info("Scheduler started: rent postings (1st @ 6AM) + late fees (7AM) + renewals (7:30AM) + recert reminders (8AM) + TRACS checks (9AM)");
+  // Every 5 minutes — BP-02 compliance-tape chain-integrity sweep.
+  // Samples up to 20 applicants that received a tape stamp in the last hour
+  // and runs verify() on each. WARN per broken chain is the in-app alert
+  // signal; the prod-smoke compliance-tape-verify job is the external one.
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      const { query } = await import("./config/database");
+      const { rows } = await query(
+        `SELECT DISTINCT applicant_id
+           FROM compliance_tape
+          WHERE created_at > NOW() - INTERVAL '1 hour'
+            AND applicant_id IS NOT NULL
+          LIMIT 20`
+      );
+      let warnings = 0;
+      for (const r of rows) {
+        const result = await tapeService.verify({
+          type: "applicant",
+          applicantId: r.applicant_id as string,
+        });
+        if (!result.ok) {
+          warnings++;
+          logger.warn("BP-02 chain break detected", {
+            applicantId: r.applicant_id,
+            brokeAt: result.brokeAt,
+            reason: result.reason,
+          });
+        }
+      }
+      logger.info("BP-02 verify-cron tick", {
+        sampledApplicants: rows.length,
+        warnings,
+      });
+    } catch (err) {
+      logger.error("BP-02 verify-cron failed", {
+        error: (err as Error).message,
+      });
+    }
+  });
+
+  logger.info("Scheduler started: rent postings (1st @ 6AM) + late fees (7AM) + renewals (7:30AM) + recert reminders (8AM) + TRACS checks (9AM) + BP-02 verify-cron (every 5min)");
 }

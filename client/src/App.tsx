@@ -11,6 +11,8 @@ import { Properties } from '@/pages/Properties';
 import { UsersPage } from '@/pages/Users';
 import { Compliance } from '@/pages/Compliance';
 import { AuditLog } from '@/pages/AuditLog';
+import { QaBundles } from '@/pages/QaBundles';
+import { QaBundleDetail } from '@/pages/QaBundleDetail';
 import { Recertifications } from '@/pages/Recertifications';
 import { LedgerOverview, LedgerDetail } from '@/pages/Ledger';
 import { Evictions } from '@/pages/Evictions';
@@ -47,6 +49,8 @@ export default function App() {
               <Route path="recertifications" element={<Recertifications />} />
               <Route path="compliance" element={<Compliance />} />
               <Route path="audit-log" element={<AuditLog />} />
+              <Route path="qa-bundles" element={<QaBundles />} />
+              <Route path="qa-bundles/:stem" element={<QaBundleDetail />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Route>

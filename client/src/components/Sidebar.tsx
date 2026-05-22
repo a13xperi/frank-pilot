@@ -15,6 +15,7 @@ import {
   LogOut,
   Shield,
   ScrollText,
+  Camera,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -43,6 +44,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Recertifications', path: '/recertifications', icon: CalendarClock, minRole: 'senior_manager' },
   { label: 'Compliance', path: '/compliance', icon: Shield, minRole: 'regional_manager' },
   { label: 'Audit Log', path: '/audit-log', icon: ScrollText, minRole: 'regional_manager' },
+  { label: 'QA Bundles', path: '/qa-bundles', icon: Camera, minRole: 'regional_manager' },
 ];
 
 export function Sidebar() {

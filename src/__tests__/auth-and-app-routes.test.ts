@@ -312,6 +312,71 @@ describe("login()", () => {
     expect(result).toBeNull();
   });
 
+  // CRIT-1: applicants who registered but never clicked the magic link have
+  // password_hash = NULL. Pre-fix this threw inside bcrypt.compare and the
+  // route handler turned it into a 500 — distinguishable from the 401 a real
+  // wrong-password attempt would produce.
+  it("returns null when applicant has a NULL password_hash (no crash)", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "u-applicant",
+          email: "applicant@example.com",
+          password_hash: null,
+          role: "applicant",
+          first_name: "Pat",
+          last_name: "Applicant",
+          property_ids: [],
+          is_active: true,
+        },
+      ],
+    } as any);
+
+    const result = await login("applicant@example.com", "anything");
+    expect(result).toBeNull();
+  });
+
+  // CRIT-1: timing-equalizer. Every failure path must call bcrypt.compare so
+  // the "fast-fail" oracle (≤5ms unknown vs ~80ms wrong-pw) disappears.
+  it("invokes bcrypt.compare on the unknown-user path (timing equalizer)", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    bcrypt.compare.mockResolvedValueOnce(false);
+
+    const result = await login("nobody@example.com", "pass123");
+
+    expect(result).toBeNull();
+    expect(bcrypt.compare).toHaveBeenCalledTimes(1);
+    expect(bcrypt.compare).toHaveBeenCalledWith("pass123", expect.stringMatching(/^\$2[abxy]\$/));
+  });
+
+  // CRIT-1: bcrypt.compare can throw on a malformed hash. Pre-fix that bubbled
+  // up to the express error handler and surfaced as 500. The try/catch in
+  // login() folds it back into a quiet 401 by running the dummy compare and
+  // returning null.
+  it("returns null (not throws) when bcrypt.compare throws on a real user", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "u1",
+          email: "agent@example.com",
+          password_hash: "garbage-not-a-real-hash",
+          role: "leasing_agent",
+          first_name: "Alice",
+          last_name: "Agent",
+          property_ids: [],
+          is_active: true,
+        },
+      ],
+    } as any);
+    bcrypt.compare
+      .mockRejectedValueOnce(new Error("Invalid salt version"))
+      .mockResolvedValueOnce(false);
+
+    const result = await login("agent@example.com", "pass123");
+    expect(result).toBeNull();
+    expect(bcrypt.compare).toHaveBeenCalledTimes(2);
+  });
+
   it("returns token and user object on successful login", async () => {
     mockQuery
       .mockResolvedValueOnce({

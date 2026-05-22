@@ -1,0 +1,25 @@
+{
+  "page": {
+    "title": "Settings",
+    "subtitle": "Manage how you sign in to Frank Pilot."
+  },
+  "account": {
+    "heading": "Account",
+    "emailLabel": "Email address",
+    "emailHint": "Your sign-in link is sent to this address."
+  },
+  "passwordReset": {
+    "heading": "Reset sign-in link",
+    "body": "Tenant accounts sign in with a one-time magic link. If you've lost access on this device, send yourself a fresh link to your email and use it to sign in again.",
+    "cta": "Email me a fresh sign-in link",
+    "sending": "Sending…",
+    "sent": "Check your email. A fresh sign-in link is on its way to {{email}}.",
+    "errors": {
+      "rateLimited": "You've requested too many links. Try again in a minute.",
+      "generic": "Couldn't send the link. Try again in a moment."
+    }
+  },
+  "nav": {
+    "label": "Settings"
+  }
+}
