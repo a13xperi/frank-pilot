@@ -81,10 +81,19 @@
     "subtitle": "Reservar una unidad la aparta para ti por 48 horas mientras completas tu solicitud.",
     "loading": "Cargando unidades…",
     "noMatch": "Ninguna unidad coincide con tus preferencias ahora mismo.",
+    "noUnitsAvailable": "No hay unidades disponibles en este momento. Vuelve a consultar pronto.",
+    "fallbackBanner": "Sin coincidencias exactas. Estas son las opciones más cercanas — tus preferencias aparecen en cada tarjeta.",
     "adjust": "Ajustar tu búsqueda",
     "editPrefs": "← Editar preferencias",
     "claimError": "No se pudo reservar esta unidad",
-    "loadError": "No se pudieron cargar las unidades"
+    "loadError": "No se pudieron cargar las unidades",
+    "mismatch": {
+      "overBudget": "${{amount}}/mes por encima de tu presupuesto",
+      "bedroomsMore": "{{actual}} hab. — pediste {{wanted}}",
+      "bedroomsFewer": "{{actual}} hab. — pediste {{wanted}}+",
+      "studioInstead": "Estudio — pediste {{wanted}} hab.",
+      "availableLater": "Disponible el {{date}}"
+    }
   },
   "claim": {
     "yours": "La unidad {unitNumber} es tuya",

@@ -54,12 +54,12 @@ describe('StepPayment — beacons fire on submit', () => {
     expect(successCall[0]).toMatch(/\/api\/tape\/payment-success$/);
 
     const initBody = JSON.parse(String(initCall[1].body));
-    expect(initBody).toMatchObject({ adults: 1, total: '71.90' });
+    expect(initBody).toMatchObject({ adults: 1, total: '35.95' });
     expect(typeof initBody.session_id).toBe('string');
 
     const successBody = JSON.parse(String(successCall[1].body));
     expect(successBody.adults).toBe(1);
-    expect(successBody.total).toBe('71.90');
+    expect(successBody.total).toBe('35.95');
     expect(typeof successBody.paymentRef).toBe('string');
     expect(successBody.paymentRef).toMatch(/^pay_/);
 

@@ -24,7 +24,7 @@ const SESSION_KEY = 'frank_apply_state';
 export const APPLICATION_FEE = 35.95;
 
 export function formatPaymentTotal(adults: number): string {
-  return (APPLICATION_FEE * (adults + 1)).toLocaleString('en-US', {
+  return (APPLICATION_FEE * adults).toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
   });

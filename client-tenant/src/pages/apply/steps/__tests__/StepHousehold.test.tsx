@@ -50,10 +50,10 @@ function renderApp(initialStep = 'review') {
 }
 
 describe('StepHousehold', () => {
-  it('defaults to 1 adult → total $71.90 (1 applicant + 1 self = (1+1) × 35.95)', () => {
+  it('defaults to 1 adult → total $35.95 (1 × 35.95)', () => {
     renderApp('household');
     expect(screen.getByTestId('adults-count').textContent).toBe('1');
-    expect(screen.getByTestId('payment-total').textContent).toBe('$71.90');
+    expect(screen.getByTestId('payment-total').textContent).toBe('$35.95');
   });
 
   it('+ increments adults, fee total updates from context', () => {
@@ -62,7 +62,7 @@ describe('StepHousehold', () => {
     fireEvent.click(inc);
     fireEvent.click(inc);
     expect(screen.getByTestId('adults-count').textContent).toBe('3');
-    expect(screen.getByTestId('payment-total').textContent).toBe('$143.80');
+    expect(screen.getByTestId('payment-total').textContent).toBe('$107.85');
   });
 
   it('− decrements but floors at 1', () => {
@@ -81,7 +81,7 @@ describe('StepHousehold', () => {
 });
 
 describe('Integration: review → household → payment', () => {
-  it('walks the flow, sets adults=3, asserts paymentTotal=$143.80', () => {
+  it('walks the flow, sets adults=3, asserts paymentTotal=$107.85', () => {
     renderApp('review');
 
     // Step 1: Review → Continue → household
@@ -94,7 +94,7 @@ describe('Integration: review → household → payment', () => {
     fireEvent.click(inc);
 
     expect(screen.getByTestId('state-adults').textContent).toBe('3');
-    expect(screen.getByTestId('state-total').textContent).toBe('$143.80');
+    expect(screen.getByTestId('state-total').textContent).toBe('$107.85');
 
     // Step 3: continue → payment
     fireEvent.click(screen.getByRole('button', { name: /continue to payment/i }));

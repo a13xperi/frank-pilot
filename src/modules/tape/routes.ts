@@ -92,8 +92,11 @@ router.post("/welcome-accept", beaconLimiter, async (req: Request, res: Response
 // BP-08 owns real Stripe wiring; this is scaffold-only.
 const paymentBeaconSchema = z.object({
   session_id: z.string().min(1).max(128),
-  adults: z.number().int().nonnegative().optional(),
-  total: z.number().nonnegative().optional(),
+  // Coerce so the client can send numeric strings ("71.90") or numbers.
+  // StepPayment passes state.paymentTotal which is a formatted decimal string;
+  // future Stripe wiring may pass a number. Both must pass schema.
+  adults: z.coerce.number().int().nonnegative().optional(),
+  total: z.coerce.number().nonnegative().optional(),
 });
 
 function makePaymentBeacon(kindKey: "BP03B_PAYMENT_INITIATED" | "BP03B_PAYMENT_SUCCEEDED", label: string) {

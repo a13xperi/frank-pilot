@@ -10,7 +10,7 @@ function renderConfirm(opts?: { withRef?: boolean; position?: number | null }) {
   if (opts?.withRef) {
     sessionStorage.setItem(
       'frank_apply_state',
-      JSON.stringify({ adults: 1, paymentTotal: '71.90', paymentRef: 'pay_test_abc123' }),
+      JSON.stringify({ adults: 1, paymentTotal: '35.95', paymentRef: 'pay_test_abc123' }),
     );
   }
   return render(

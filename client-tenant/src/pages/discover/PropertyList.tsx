@@ -1,179 +1,284 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bed, MapPin } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { fetchUnits, type Unit } from '@/api/units';
+import { fetchUnits } from '@/api/units';
 import { getToken } from '@/api/client';
-import { DL2_FIXTURE } from '@/api/properties';
-import { Card, CTA } from '@/components/primitives';
-import { getUnitPhoto } from '@/utils/unitPlaceholder';
+import {
+  GPMG_FIXTURES,
+  slugify,
+  rentEstimate,
+  type GPMGProperty,
+  type GPMGType,
+} from '@/api/gpmg-fixtures';
+import { Card } from '@/components/primitives';
+import { UNIT_PLACEHOLDER } from '@/utils/unitPlaceholder';
+import { HF } from '@/styles/tokens';
 
-interface PropertyTile {
-  slug: string;
-  name: string;
-  city: string | null;
-  state: string | null;
-  photo: string;
-  rentMin: number;
-  rentMax: number;
-  hasAvailable: boolean;
-}
+type TypeFilter = 'all' | GPMGType;
+type CityFilter = 'all' | 'Las Vegas' | 'North Las Vegas' | 'Henderson';
 
-function unitsToProperties(units: Unit[]): PropertyTile[] {
-  if (units.length === 0) return [];
-  // Group by property_id, derive rent range. Slug is hand-mapped for DL2;
-  // multi-property registry expansion lives in canonical BP-03.
-  const byProp = new Map<string, Unit[]>();
-  for (const u of units) {
-    const k = u.property_id;
-    if (!byProp.has(k)) byProp.set(k, []);
-    byProp.get(k)!.push(u);
-  }
-  const tiles: PropertyTile[] = [];
-  for (const [, list] of byProp) {
-    const first = list[0];
-    const rents = list.map((u) =>
-      typeof u.monthly_rent === 'string' ? Number(u.monthly_rent) : u.monthly_rent
-    );
-    tiles.push({
-      slug: 'donna-louise-2', // MVP: only DL2 routes; multi-prop = BP-03 canonical
-      name: first.property_name,
-      city: first.property_city,
-      state: first.property_state,
-      photo: getUnitPhoto(first.photo_url),
-      rentMin: Math.min(...rents),
-      rentMax: Math.max(...rents),
-      hasAvailable: list.some((u) => !!u.available_from),
-    });
-  }
-  return tiles;
-}
-
-const STATIC_DL2: PropertyTile = {
-  slug: DL2_FIXTURE.slug,
-  name: DL2_FIXTURE.name,
-  city: DL2_FIXTURE.city,
-  state: DL2_FIXTURE.state,
-  photo: DL2_FIXTURE.photos[0],
-  rentMin: DL2_FIXTURE.rentMin,
-  rentMax: DL2_FIXTURE.rentMax,
-  hasAvailable: DL2_FIXTURE.unitTypes.some((u) => u.available),
+const TYPE_LABELS: Record<TypeFilter, string> = {
+  all: 'All',
+  senior: 'Senior',
+  family: 'Family',
 };
 
-function formatRent(n: number): string {
-  return `$${Math.round(n).toLocaleString()}`;
+const CITY_LABELS: Record<CityFilter, string> = {
+  all: 'All',
+  'Las Vegas': 'Las Vegas',
+  'North Las Vegas': 'N. Las Vegas',
+  Henderson: 'Henderson',
+};
+
+function ChipButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-active={active}
+      style={{
+        background: active ? HF.accent : HF.paper,
+        color: active ? HF.paper : HF.ink2,
+        border: `1px solid ${active ? HF.accent : HF.border}`,
+        borderRadius: HF.r.pill,
+        padding: '6px 14px',
+        fontSize: 13,
+        fontWeight: 600,
+        fontFamily: HF.body,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function PropertyList() {
-  const { t } = useTranslation('discover');
-  const [tiles, setTiles] = useState<PropertyTile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [cityFilter, setCityFilter] = useState<CityFilter>('all');
 
   useEffect(() => {
-    let alive = true;
-    setLoading(true);
+    // Authed users still get the live catalog warm-fetched so cached
+    // responses are ready for downstream pages (intent/pick).
+    // The public discover view always renders from GPMG_FIXTURES below.
     const authed = !!getToken();
-    const load = async () => {
-      if (!authed) {
-        // /discover is public — fall back to static fixture instead of forcing login.
-        if (alive) {
-          setTiles([STATIC_DL2]);
-          setLoading(false);
-        }
-        return;
-      }
-      try {
-        const { units } = await fetchUnits({});
+    if (!authed) return;
+    let alive = true;
+    fetchUnits({})
+      .catch(() => {
+        /* tolerate — discover doesn't depend on this */
+      })
+      .finally(() => {
         if (!alive) return;
-        const grouped = unitsToProperties(units);
-        setTiles(grouped.length > 0 ? grouped : [STATIC_DL2]);
-      } catch (e) {
-        if (!alive) return;
-        // Public route — degrade to fixture rather than blocking.
-        setTiles([STATIC_DL2]);
-        setError(e instanceof Error ? e.message : 'unknown');
-      } finally {
-        if (alive) setLoading(false);
-      }
-    };
-    load();
+      });
     return () => {
       alive = false;
     };
   }, []);
 
+  const filtered = useMemo(() => {
+    return GPMG_FIXTURES.filter((p) => {
+      if (typeFilter !== 'all' && p.type !== typeFilter) return false;
+      if (cityFilter !== 'all' && p.city !== cityFilter) return false;
+      return true;
+    });
+  }, [typeFilter, cityFilter]);
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-          {t('list.title')}
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">{t('list.subtitle')}</p>
-      </header>
+    <div
+      style={{ background: HF.cream, minHeight: '100vh', fontFamily: HF.body, color: HF.ink }}
+    >
+      <div className="mx-auto max-w-5xl p-4 sm:p-6">
+        <header className="mb-4">
+          <h1
+            style={{
+              fontFamily: HF.display,
+              fontWeight: 800,
+              fontSize: 22,
+              color: HF.ink,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Find your home
+          </h1>
+          <p style={{ marginTop: 4, fontSize: 14, color: HF.ink3 }}>
+            17 affordable communities across the Las Vegas valley
+          </p>
+        </header>
 
-      {loading && (
-        <p className="text-sm text-gray-500" role="status">
-          {t('list.loading')}
-        </p>
-      )}
-
-      {error && !loading && (
-        <p className="mb-4 text-xs text-gray-400">
-          {t('list.error', { message: error })}
-        </p>
-      )}
-
-      {!loading && tiles.length === 0 && (
-        <p className="text-sm text-gray-500">{t('list.empty')}</p>
-      )}
-
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {tiles.map((p) => {
-          const location = [p.city, p.state].filter(Boolean).join(', ');
-          return (
-            <li key={p.slug}>
-              <Card variant="mobile" className="h-full">
-                <Link
-                  to={`/property/${p.slug}`}
-                  className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+        <div
+          className="sticky top-12 z-10 -mx-4 px-4 py-3 sm:-mx-6 sm:px-6"
+          style={{ background: HF.cream, borderBottom: `1px solid ${HF.border}` }}
+        >
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <span
+                style={{
+                  fontSize: 12,
+                  color: HF.ink3,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontWeight: 700,
+                  minWidth: 36,
+                }}
+              >
+                Type
+              </span>
+              {(Object.keys(TYPE_LABELS) as TypeFilter[]).map((k) => (
+                <ChipButton
+                  key={k}
+                  active={typeFilter === k}
+                  onClick={() => setTypeFilter(k)}
                 >
-                  <div className="aspect-[16/9] w-full overflow-hidden bg-gray-100">
-                    <img
-                      src={p.photo}
-                      alt={p.name}
-                      loading="lazy"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="space-y-3 p-4">
-                    <div>
-                      <h2 className="text-base font-semibold text-gray-900">
-                        {p.name}
-                      </h2>
-                      {location && (
-                        <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
-                          <MapPin className="h-3 w-3" />
-                          {location}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-lg font-bold text-emerald-700">
-                      {formatRent(p.rentMin)}–{formatRent(p.rentMax)}/mo
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
-                        <Bed className="h-3 w-3" /> 1–3 bd
-                      </span>
-                      <CTA tone="primary">{t('list.viewDetails')}</CTA>
-                    </div>
-                  </div>
-                </Link>
-              </Card>
-            </li>
-          );
-        })}
-      </ul>
+                  {TYPE_LABELS[k]}
+                </ChipButton>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <span
+                style={{
+                  fontSize: 12,
+                  color: HF.ink3,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontWeight: 700,
+                  minWidth: 36,
+                }}
+              >
+                City
+              </span>
+              {(Object.keys(CITY_LABELS) as CityFilter[]).map((k) => (
+                <ChipButton
+                  key={k}
+                  active={cityFilter === k}
+                  onClick={() => setCityFilter(k)}
+                >
+                  {CITY_LABELS[k]}
+                </ChipButton>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <p style={{ margin: '16px 0 8px', fontSize: 13, color: HF.ink3 }} data-testid="result-count">
+          {filtered.length} {filtered.length === 1 ? 'community' : 'communities'}
+        </p>
+
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="property-grid">
+          {filtered.map((p) => (
+            <PropertyTile key={p.name} prop={p} />
+          ))}
+        </ul>
+      </div>
     </div>
+  );
+}
+
+function PropertyTile({ prop }: { prop: GPMGProperty }) {
+  const slug = slugify(prop.name);
+  const est = rentEstimate(prop);
+  const unitsLine =
+    prop.units !== null ? `${prop.units} units` : 'Contact for availability';
+
+  return (
+    <li>
+      <Link
+        to={`/property/${slug}`}
+        aria-label={prop.name}
+        style={{
+          display: 'block',
+          textDecoration: 'none',
+          color: 'inherit',
+          borderRadius: HF.r.md,
+        }}
+      >
+        <Card variant="mobile" padding={0} elevation="sm" style={{ overflow: 'hidden' }}>
+          <div
+            className="aspect-[16/9] w-full"
+            style={{
+              background: `${HF.sageLo}`,
+              backgroundImage: `url(${UNIT_PLACEHOLDER})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+            aria-hidden="true"
+          />
+          <div style={{ padding: 16 }}>
+            <h2
+              style={{
+                fontFamily: HF.display,
+                fontWeight: 700,
+                fontSize: 16,
+                color: HF.ink,
+                margin: 0,
+                lineHeight: 1.25,
+              }}
+            >
+              {prop.name}
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: HF.ink3 }}>
+              {prop.addr} · {prop.city}, NV {prop.zip}
+            </p>
+            <div
+              className="flex items-center justify-between"
+              style={{ marginTop: 10, gap: 8 }}
+            >
+              <span style={{ fontSize: 12, color: HF.ink3 }}>{unitsLine}</span>
+              <span
+                style={{
+                  background: HF.accentLo,
+                  color: HF.accentInk,
+                  border: '1px solid #F3D7CB',
+                  borderRadius: HF.r.pill,
+                  padding: '2px 10px',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: 'capitalize',
+                  fontFamily: HF.body,
+                }}
+              >
+                {prop.type}
+              </span>
+            </div>
+            <div
+              className="flex items-center justify-between"
+              style={{
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: `1px solid ${HF.border}`,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: HF.display,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: HF.ink,
+                }}
+              >
+                From ${est}/mo
+              </span>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: HF.accent,
+                  fontWeight: 600,
+                }}
+              >
+                View →
+              </span>
+            </div>
+          </div>
+        </Card>
+      </Link>
+    </li>
   );
 }

@@ -121,6 +121,14 @@ export function Apply() {
     );
   }
 
+  // Sync step state when the URL changes externally — child steps (Household,
+  // Review, Payment) call setSearch directly and browser back/forward also
+  // mutate `search` without going through setStep.
+  useEffect(() => {
+    const next = parseStep(search.get('step'));
+    setStepState((prev) => (prev === next ? prev : next));
+  }, [search]);
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
