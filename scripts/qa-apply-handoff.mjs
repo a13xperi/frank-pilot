@@ -2,6 +2,13 @@
 //   - unauth deep-link to /apply?step=intent renders Step 1 (gate works)
 //   - handoff URL params (unitType / hh / income / amiTier) survive the redirect
 //   - register → magic-link verify → Step 3 (Intent) prefilled from URL
+//   - Step 3 → Step 4 (Checklist) → Step 5 (Pick) → Step 6 (Claim)
+//     covers the wedge point where the wizard branches (PR #40 / FROZEN CONTRACT 5).
+//
+//     Step 6 (Claim) requires a unit in the dev DB matching the user's intent.
+//     If none exist, that assertion is reported as SKIP, not FAIL — the Vitest
+//     integration test (Apply.integration.test.tsx) covers Step 6 with mocked
+//     data and is the canonical regression net for the wedge.
 //
 // Requires the dev banner that surfaces the magic link, so this only runs
 // against a dev backend. For prod use scripts/qa-apply-handoff-prod.mjs.
@@ -29,8 +36,34 @@ async function shot(page, name) {
 function check(label, cond) {
   console.log((cond ? 'PASS' : 'FAIL') + '  ' + label);
 }
+function skip(label, reason) {
+  console.log('SKIP  ' + label + (reason ? ` — ${reason}` : ''));
+}
 
 const ctx = await browser.newContext({ viewport: VP });
+
+// gpmglv wedge #15 — the cookie banner shows on first visit. Pre-seed
+// localStorage with a "decided" consent record so the banner doesn't
+// cover the bottom-fixed CTAs the smoke test interacts with. Chosen:
+// option 1 (inject localStorage before navigation) — keeps the
+// e2e path identical to today and avoids an extra click.
+await ctx.addInitScript(() => {
+  try {
+    window.localStorage.setItem(
+      'fp.consent.v1',
+      JSON.stringify({
+        essential: true,
+        functional: true,
+        analytics: false,
+        marketing: false,
+        recordedAt: new Date().toISOString(),
+      }),
+    );
+  } catch {
+    /* best-effort */
+  }
+});
+
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('PAGE ERROR', e.message.slice(0, 200)));
 page.on('console', (m) => {
@@ -104,6 +137,79 @@ try {
     // HF.accent terracotta is rgb(201, 73, 42) / #C9492A
     check('2 BR tile is selected (terracotta border)',
       /rgb\(201,\s*73,\s*42\)|#C9492A/i.test(twoBRStyle || ''));
+
+    // Step 3 → 4: fill required move-in date, then submit intent → checklist
+    const moveIn = page.getByLabel(/target move-in/i).first();
+    if (await moveIn.count()) {
+      await moveIn.fill('2026-09-01').catch(() => {});
+    }
+    const showUnits = page.getByRole('button', { name: /show me units/i }).first();
+    await showUnits.click({ timeout: 4000 }).catch(() => {});
+
+    await page
+      .getByRole('heading', { name: /before you apply/i })
+      .first()
+      .waitFor({ timeout: 8000 })
+      .catch(() => {});
+    await shot(page, '04-checklist');
+
+    // URL flips to ?step=checklist when the intent POST resolves — use the URL
+    // as the source of truth. The step-indicator sidebar prints every step
+    // label, so body innerText alone is unreliable for "are we on this step?".
+    check('URL advanced to step=checklist',
+      /step=checklist/.test(page.url()));
+    const bodyText4 = await page.locator('body').innerText();
+    check('Checklist mentions $35.95 fee', /\$35\.95/.test(bodyText4));
+    check('Checklist mentions 120 days rule', /120[-\s]?days?/i.test(bodyText4));
+    check('Checklist "Application fee" callout', /application fee/i.test(bodyText4));
+
+    // Step 4 → 5: "I have these — continue" CTA
+    const checklistContinue = page
+      .locator('button:visible')
+      .filter({ hasText: /i have these.*continue|^continue$/i })
+      .first();
+    await checklistContinue.click({ timeout: 4000 }).catch(() => {});
+
+    await page
+      .getByRole('heading', { name: /pick your unit/i })
+      .first()
+      .waitFor({ timeout: 8000 })
+      .catch(() => {});
+    await shot(page, '05-pick');
+
+    check('URL advanced to step=pick', /step=pick/.test(page.url()));
+
+    const claimBtns = page.locator('button:visible:has-text("Claim this unit")');
+    const claimCount = await claimBtns.count();
+    console.log('claim button count:', claimCount);
+
+    if (claimCount > 0) {
+      check('At least one available unit to claim', true);
+      // Step 5 → 6: claim → confirmation
+      await claimBtns.first().click({ timeout: 4000 }).catch(() => {});
+      await page
+        .getByRole('heading', { name: /is yours$/i })
+        .first()
+        .waitFor({ timeout: 8000 })
+        .catch(() => {});
+      await shot(page, '06-claim');
+
+      check('URL advanced to step=claim', /step=claim/.test(page.url()));
+      const bodyText6 = await page.locator('body').innerText();
+      check('Step 6 (Claim) shows "Unit … is yours" heading',
+        /unit\s+\S+\s+is yours/i.test(bodyText6));
+      check('"Continue your application" CTA visible on claim step',
+        /continue your application/i.test(bodyText6));
+    } else {
+      // Empty state — dev DB has no units matching the prefilled intent.
+      // The "No units match…" empty-state is itself a valid UX state to
+      // assert; the canonical claim-flow regression net is the Vitest
+      // integration test (Apply.integration.test.tsx).
+      const bodyText5 = await page.locator('body').innerText();
+      check('Step 5 empty-state messaging visible',
+        /no units match|adjust your search/i.test(bodyText5));
+      skip('Step 6 (Claim) reachable', 'no units match dev DB — covered by Vitest integration test');
+    }
   } else {
     console.log('No dev magic link found — verify-step banner not surfaced (prod build?).');
   }

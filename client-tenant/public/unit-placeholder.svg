@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" fill="none">
+  <!-- Warm terracotta background -->
+  <rect width="800" height="600" fill="#F5EDE6"/>
+  <!-- Subtle grain overlay circles (decorative texture) -->
+  <circle cx="120" cy="80" r="60" fill="#EDD9CB" opacity="0.5"/>
+  <circle cx="680" cy="520" r="80" fill="#EDD9CB" opacity="0.5"/>
+  <!-- House body -->
+  <rect x="270" y="290" width="260" height="190" rx="6" fill="#C8785A"/>
+  <!-- Roof -->
+  <polygon points="240,295 400,165 560,295" fill="#A85A40"/>
+  <!-- Door -->
+  <rect x="358" y="380" width="84" height="100" rx="4" fill="#8C3D25"/>
+  <!-- Door knob -->
+  <circle cx="428" cy="434" r="6" fill="#F5EDE6"/>
+  <!-- Left window -->
+  <rect x="290" y="320" width="64" height="48" rx="3" fill="#F5EDE6" opacity="0.85"/>
+  <line x1="322" y1="320" x2="322" y2="368" stroke="#C8785A" stroke-width="2"/>
+  <line x1="290" y1="344" x2="354" y2="344" stroke="#C8785A" stroke-width="2"/>
+  <!-- Right window -->
+  <rect x="446" y="320" width="64" height="48" rx="3" fill="#F5EDE6" opacity="0.85"/>
+  <line x1="478" y1="320" x2="478" y2="368" stroke="#C8785A" stroke-width="2"/>
+  <line x1="446" y1="344" x2="510" y2="344" stroke="#C8785A" stroke-width="2"/>
+  <!-- Chimney -->
+  <rect x="470" y="190" width="30" height="70" rx="3" fill="#A85A40"/>
+  <!-- Ground line -->
+  <rect x="200" y="478" width="400" height="6" rx="3" fill="#C8785A" opacity="0.4"/>
+</svg>

@@ -16,7 +16,8 @@
  */
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Card, CTA, Pill } from '@/components/primitives';
+import { Card, Pill } from '@/components/primitives';
+import { StepCTA } from '../StepCTA';
 import { HF } from '@/styles/tokens';
 import { formatAmiTier } from '@/lib/ami';
 import { useApply } from '../ApplyContext';
@@ -66,7 +67,7 @@ export function StepReview() {
                 <div style={{ fontFamily: HF.display, fontSize: 18, fontWeight: 700, color: HF.ink, marginTop: 2 }}>{propName}</div>
                 <div style={{ fontSize: 12, color: HF.ink3 }}>{propAddress}</div>
               </div>
-              <button onClick={() => setSearch({ step: 'intent' }, { replace: true })}
+              <button onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'intent'); return next; }, { replace: true })}
                       style={{ background: 'transparent', border: 'none', color: HF.accent, fontSize: 11, textDecoration: 'underline', cursor: 'pointer' }}>
                 {t('review.edit')}
               </button>
@@ -83,11 +84,24 @@ export function StepReview() {
               <div style={{ fontSize: 9, color: HF.ink3, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>
                 {t('review.lockedCriteria')}
               </div>
+              {state.qualifyingAmiTier && (
+                <div
+                  data-testid="review-ami-tier-line"
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 6 }}
+                >
+                  <span style={{ fontSize: 11, color: HF.ink3, fontFamily: HF.body }}>
+                    {t('review.qualifyingTierLabel')}
+                  </span>
+                  <span style={{ fontFamily: HF.display, fontSize: 13, fontWeight: 700, color: HF.ink }}>
+                    {t('review.qualifyingTierValue', { tier: formatAmiTier(state.qualifyingAmiTier) })}
+                  </span>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                 {incomeBand && <Pill>{incomeBand}</Pill>}
                 <Pill>{t('review.household', { count: householdSize })}</Pill>
                 <Pill>{moveIn}</Pill>
-                <button onClick={() => setSearch({ step: 'intent' }, { replace: true })}
+                <button onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'intent'); return next; }, { replace: true })}
                         style={{ background: 'transparent', border: 'none', color: HF.accent, fontSize: 11, textDecoration: 'underline', cursor: 'pointer', marginLeft: 'auto' }}>
                   {t('review.edit')}
                 </button>
@@ -103,9 +117,9 @@ export function StepReview() {
           <div style={{ fontSize: 11, color: HF.ink3, marginTop: 2 }}>{t('review.confirmBody')}</div>
         </Card>
 
-        <CTA variant="mobile" onClick={() => setSearch({ step: 'household' }, { replace: true })}>
+        <StepCTA variant="mobile" onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'household'); return next; }, { replace: true })}>
           {t('review.cta')}
-        </CTA>
+        </StepCTA>
       </div>
     </div>
   );

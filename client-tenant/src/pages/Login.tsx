@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, ArrowRight } from 'lucide-react';
 import { requestMagicLink } from '@/api/auth';
+import { HF } from '@/styles/tokens';
+import { CTA, Card } from '@/components/primitives';
+import { TurnstileWidget } from '@/components/TurnstileWidget';
 
 export function Login() {
   const navigate = useNavigate();
@@ -10,13 +13,18 @@ export function Login() {
   const [sent, setSent] = useState(false);
   const [devLink, setDevLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // wedge #13: bot-gate the magic-link request. In dev / smoke the widget
+  // bypasses to `test-token-dev`; in prod a real Cloudflare challenge fires.
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const res = await requestMagicLink(email) as any;
+      const res = (await requestMagicLink(email, turnstileToken || undefined)) as {
+        devLink?: string;
+      };
       setSent(true);
       if (res.devLink) {
         setDevLink(res.devLink);
@@ -39,68 +47,125 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-sm space-y-6">
+    <div
+      className="flex min-h-screen items-center justify-center p-4"
+      style={{ background: HF.cream, fontFamily: HF.body, color: HF.ink }}
+    >
+      <Card variant="mobile" padding={24} style={{ width: '100%', maxWidth: 380 }}>
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600">
-            <Mail className="h-6 w-6 text-white" />
+          <div
+            style={{
+              margin: '0 auto 16px',
+              width: 56,
+              height: 56,
+              borderRadius: HF.r.lg,
+              background: HF.accent,
+              display: 'grid',
+              placeItems: 'center',
+            }}
+          >
+            <Mail className="h-6 w-6" style={{ color: HF.paper }} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Tenant Portal</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in with a magic link</p>
+          <h1 style={{ fontFamily: HF.display, fontSize: 24, fontWeight: 800 }}>
+            Tenant Portal
+          </h1>
+          <p style={{ fontSize: 13, color: HF.ink3, marginTop: 4 }}>
+            Sign in with a magic link
+          </p>
         </div>
 
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          <div
+            style={{
+              marginTop: 20,
+              background: HF.errLo,
+              border: `1px solid ${HF.err}`,
+              color: HF.err,
+              borderRadius: HF.r.sm,
+              padding: '10px 12px',
+              fontSize: 13,
+            }}
+          >
+            {error}
+          </div>
         )}
 
         {!sent ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="label" htmlFor="email">Email address</label>
+          <form onSubmit={handleSubmit} className="space-y-4" style={{ marginTop: 20 }}>
+            <label className="flex flex-col gap-1" htmlFor="email">
+              <span
+                style={{
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                  fontWeight: 700,
+                  color: HF.ink3,
+                }}
+              >
+                Email address
+              </span>
               <input
                 id="email"
                 type="email"
                 required
-                className="input"
                 placeholder="you@example.com"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{
+                  background: HF.paper,
+                  border: `1px solid ${HF.border}`,
+                  borderRadius: HF.r.sm,
+                  padding: '10px 12px',
+                  fontSize: 14,
+                  color: HF.ink,
+                  fontFamily: HF.body,
+                }}
               />
-            </div>
-            <button
-              type="submit"
-              disabled={loading || !email}
-              className="btn-primary w-full"
-            >
+            </label>
+            <TurnstileWidget onVerify={setTurnstileToken} />
+            <CTA type="submit" tone="primary" size="lg" disabled={loading || !email} block>
               {loading ? 'Sending…' : 'Send magic link'}
-            </button>
+            </CTA>
           </form>
         ) : (
-          <div className="space-y-4 text-center">
-            <div className="rounded-lg bg-emerald-50 p-4">
-              <p className="font-medium text-emerald-800">Check your email!</p>
-              <p className="mt-1 text-sm text-emerald-700">
+          <div className="space-y-4 text-center" style={{ marginTop: 20 }}>
+            <div
+              style={{
+                background: HF.sageLo,
+                border: `1px solid ${HF.sage}33`,
+                borderRadius: HF.r.md,
+                padding: 14,
+              }}
+            >
+              <p style={{ fontFamily: HF.display, fontWeight: 700, fontSize: 14, color: HF.ink }}>
+                Check your email
+              </p>
+              <p style={{ fontSize: 13, color: HF.ink2, marginTop: 4 }}>
                 We sent a link to <strong>{email}</strong>. Click it to sign in.
               </p>
             </div>
             {devLink && (
-              <button
-                onClick={handleDevLink}
-                className="btn-primary inline-flex items-center gap-2"
-              >
+              <CTA onClick={handleDevLink} tone="sage">
                 Continue (dev) <ArrowRight className="h-4 w-4" />
-              </button>
+              </CTA>
             )}
           </div>
         )}
 
-        <p className="text-center text-sm text-gray-500">
+        <p
+          style={{
+            textAlign: 'center',
+            marginTop: 24,
+            fontSize: 13,
+            color: HF.ink3,
+          }}
+        >
           First time?{' '}
-          <Link to="/apply" className="font-medium text-emerald-600 hover:underline">
+          <Link to="/apply" style={{ color: HF.accent, fontWeight: 700, textDecoration: 'none' }}>
             Create an applicant account
           </Link>
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

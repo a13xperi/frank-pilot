@@ -5,10 +5,10 @@
  * available, else "position confirmed"), what-happens-next bullets,
  * link to /dashboard.
  */
-import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { HF } from '@/styles/tokens';
-import { CTA, Card } from '@/components/primitives';
+import { Card } from '@/components/primitives';
+import { StepCTA } from '@/pages/apply/StepCTA';
 import { useApply } from '@/pages/apply/context/ApplyContext';
 import { PayHeader } from '@/pages/apply/PayHeader';
 
@@ -102,9 +102,9 @@ export function StepConfirm({ waitlist = null }: StepConfirmProps) {
           </ol>
         </Card>
 
-        <Link to="/dashboard" style={{ textDecoration: 'none' }}>
-          <CTA tone="primary" size="lg" block>{t('confirm.toDashboard')}</CTA>
-        </Link>
+        <StepCTA tone="primary" size="lg" block to="/dashboard">
+          {t('confirm.toDashboard')}
+        </StepCTA>
       </main>
     </div>
   );

@@ -1,9 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Apply } from '../../Apply';
 import { setToken } from '@/api/client';
+
+// This integration test walks the legacy `?step=2` (Step2Details) flow.
+// `.env.local` ships PAYMENT_WIZARD_ENABLED=true for dev, which would route
+// past Step2Details into the Lane-W wizard (Review/Household/Payment/Confirm)
+// — those steps have their own per-step tests. Pin the flag off here so this
+// suite stays the legacy-path canary. flags.ts caches `import.meta.env` at
+// module load, so stubEnv is too late; mock the module instead.
+vi.mock('@/lib/flags', () => ({
+  useFlag: (name: string) => name !== 'PAYMENT_WIZARD_ENABLED',
+}));
 
 // One mock fetch covering every endpoint the flow touches.
 function installFetch() {
@@ -139,4 +149,137 @@ describe('Apply — full happy path through 7 steps', () => {
       expect(screen.getByText(/application submitted/i)).toBeInTheDocument();
     });
   }, 30000);
+});
+
+// Issue #8 regression — deep-linking to ?step=intent must not paint the empty
+// quiz before the hydration fetch resolves. We assert the skeleton renders
+// first (heading absent), then the quiz heading appears.
+describe('Apply — issue #8 deep-link hydration', () => {
+  it('renders skeleton on ?step=intent until hydration completes', async () => {
+    let resolveMe!: (v: unknown) => void;
+    const mePromise = new Promise((res) => {
+      resolveMe = res;
+    });
+    const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+      const body = (data: unknown, status = 200) =>
+        new Response(JSON.stringify(data), {
+          status,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      if (url.includes('/auth/me')) {
+        await mePromise;
+        return body({
+          user: {
+            email: 'm@example.com',
+            firstName: 'M',
+            lastName: 'R',
+            emailVerified: true,
+          },
+        });
+      }
+      if (url.includes('/applicants/me/applications')) {
+        return body({ applications: [] });
+      }
+      if (url.includes('/applicants/intent') && method === 'POST') {
+        return body({ ok: true });
+      }
+      return body({ error: `unmocked ${url}` }, 404);
+    });
+    vi.stubGlobal('fetch', fn);
+    setToken('test-token');
+
+    render(
+      <MemoryRouter initialEntries={['/apply?step=intent']}>
+        <Routes>
+          <Route path="/apply" element={<Apply />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Skeleton first; quiz heading must NOT be present while hydration pends.
+    expect(await screen.findByTestId('intent-skeleton')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /what are you looking for/i })).toBeNull();
+
+    // Resolve hydration → real form swaps in.
+    resolveMe(undefined);
+    expect(
+      await screen.findByRole('heading', { name: /what are you looking for/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('intent-skeleton')).toBeNull();
+  }, 15000);
+});
+
+// Issue #9 regression — advancing steps must merge with existing query params
+// rather than overwriting them. We seed utm_source/unitType, advance the
+// wizard, and assert both survive alongside the new step param.
+describe('Apply — issue #9 query param merge', () => {
+  function LocationProbe() {
+    const loc = useLocation();
+    return <div data-testid="loc-search">{loc.search}</div>;
+  }
+
+  it('preserves utm_* and inbound handoff params across setStep transitions', async () => {
+    const fn = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const body = (data: unknown, status = 200) =>
+        new Response(JSON.stringify(data), {
+          status,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      if (url.includes('/auth/me')) {
+        return body({
+          user: {
+            email: 'm@example.com',
+            firstName: 'M',
+            lastName: 'R',
+            emailVerified: true,
+          },
+        });
+      }
+      if (url.includes('/applicants/me/applications')) return body({ applications: [] });
+      if (url.includes('/applicants/intent')) return body({ ok: true, application_id: 'a' });
+      return body({ error: `unmocked ${url}` }, 404);
+    });
+    vi.stubGlobal('fetch', fn);
+    setToken('test-token');
+
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[
+          '/apply?step=intent&utm_source=newsletter&utm_campaign=launch&unitType=2BR',
+        ]}
+      >
+        <Routes>
+          <Route
+            path="/apply"
+            element={
+              <>
+                <Apply />
+                <LocationProbe />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Wait for hydration → real form.
+    await screen.findByRole('heading', { name: /what are you looking for/i });
+    await user.click(screen.getByRole('button', { name: /^2 BR$/i }));
+    await user.type(screen.getByLabelText(/target move-in/i), '2026-09-01');
+    await user.click(screen.getByRole('button', { name: /show me units/i }));
+
+    // Advanced to checklist — utm_* + unitType must survive alongside the new step.
+    const probe = await screen.findByTestId('loc-search');
+    await waitFor(() => {
+      expect(probe.textContent ?? '').toMatch(/step=checklist/);
+    });
+    const search = probe.textContent ?? '';
+    expect(search).toMatch(/utm_source=newsletter/);
+    expect(search).toMatch(/utm_campaign=launch/);
+    expect(search).toMatch(/unitType=2BR/);
+  }, 15000);
 });

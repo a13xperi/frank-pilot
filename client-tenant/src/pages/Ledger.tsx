@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/api/client';
 import { Loader2, AlertCircle, FileText } from 'lucide-react';
+import { HF } from '@/styles/tokens';
+import { Card, CTA, Pill, type PillTone } from '@/components/primitives';
 
 interface LedgerEntry {
   id: string;
@@ -31,12 +33,12 @@ const TYPE_LABELS: Record<string, string> = {
   deposit: 'Deposit',
 };
 
-const TYPE_COLORS: Record<string, string> = {
-  payment: 'bg-emerald-100 text-emerald-700',
-  credit: 'bg-blue-100 text-blue-700',
-  rent_charge: 'bg-gray-100 text-gray-600',
-  late_fee: 'bg-red-100 text-red-700',
-  deposit: 'bg-purple-100 text-purple-700',
+const TYPE_TONES: Record<string, PillTone> = {
+  payment: 'sage',
+  credit: 'sage',
+  rent_charge: 'neutral',
+  late_fee: 'err',
+  deposit: 'accent',
 };
 
 function fmt(amount: number) {
@@ -102,84 +104,150 @@ export function Ledger() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+      <div
+        className="flex min-h-[60vh] items-center justify-center"
+        style={{ background: HF.cream }}
+      >
+        <Loader2 className="h-7 w-7 animate-spin" style={{ color: HF.accent }} />
       </div>
     );
   }
 
   if (!appId) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-center">
-        <FileText className="h-10 w-10 text-gray-300" />
-        <p className="text-gray-500">No active application.</p>
-        <Link to="/apply" className="btn-primary">Start an application</Link>
+      <div
+        className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-center"
+        style={{ background: HF.cream, color: HF.ink, fontFamily: HF.body }}
+      >
+        <FileText className="h-10 w-10" style={{ color: HF.ink4 }} />
+        <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}>
+          No active application.
+        </p>
+        <Link to="/apply" style={{ textDecoration: 'none' }}>
+          <CTA tone="primary">Start an application</CTA>
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="p-4 pb-24 sm:p-6">
-      <h1 className="mb-5 text-xl font-bold text-gray-900">Account Ledger</h1>
+    <div
+      className="p-4 pb-24 sm:p-6"
+      style={{ background: HF.cream, minHeight: '100vh', color: HF.ink, fontFamily: HF.body }}
+    >
+      <h1
+        className="mb-5"
+        style={{ fontFamily: HF.display, fontSize: 22, fontWeight: 800, color: HF.ink }}
+      >
+        Account Ledger
+      </h1>
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          {error}
-        </div>
+        <Card
+          variant="mobile"
+          padding={12}
+          elevation="none"
+          className="mb-4"
+          style={{ background: HF.errLo, border: `1px solid ${HF.err}` }}
+        >
+          <div className="flex items-center gap-2" style={{ color: HF.err }}>
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span style={{ fontFamily: HF.body, fontSize: 13 }}>{error}</span>
+          </div>
+        </Card>
       )}
 
       {/* Balance summary */}
       {balance && (
-        <div className="mb-5 grid grid-cols-3 gap-3 rounded-xl bg-white p-4 shadow-sm">
-          <div>
-            <p className="text-xs text-gray-400">Balance</p>
-            <p className={`text-base font-bold ${balance.balance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-              {fmt(balance.balance)}
-            </p>
+        <Card variant="mobile" padding={16} className="mb-5">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <p style={{ fontFamily: HF.body, fontSize: 11, color: HF.ink4 }}>
+                Balance
+              </p>
+              <p
+                style={{
+                  fontFamily: HF.display,
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: balance.balance > 0 ? HF.err : HF.sage,
+                }}
+              >
+                {fmt(balance.balance)}
+              </p>
+            </div>
+            <div>
+              <p style={{ fontFamily: HF.body, fontSize: 11, color: HF.ink4 }}>
+                Next due
+              </p>
+              <p style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 500, color: HF.ink }}>
+                {fmtDate(balance.nextDueDate)}
+              </p>
+            </div>
+            <div>
+              <p style={{ fontFamily: HF.body, fontSize: 11, color: HF.ink4 }}>
+                Last payment
+              </p>
+              <p style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 500, color: HF.ink }}>
+                {fmtDate(balance.lastPaymentDate)}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-gray-400">Next due</p>
-            <p className="text-sm font-medium text-gray-900">{fmtDate(balance.nextDueDate)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">Last payment</p>
-            <p className="text-sm font-medium text-gray-900">{fmtDate(balance.lastPaymentDate)}</p>
-          </div>
-        </div>
+        </Card>
       )}
 
       {entries.length === 0 ? (
-        <div className="rounded-xl bg-white p-8 text-center shadow-sm">
-          <p className="text-sm text-gray-400">No transactions yet.</p>
-        </div>
+        <Card variant="mobile" padding={32} style={{ textAlign: 'center' }}>
+          <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink4 }}>
+            No transactions yet.
+          </p>
+        </Card>
       ) : (
         <div className="space-y-2">
           {entries.map(entry => (
-            <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-white p-4 shadow-sm">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{entry.description}</p>
-                <p className="text-xs text-gray-400">{fmtDate(entry.createdAt)}</p>
+            <Card key={entry.id} variant="mobile" padding={16}>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="truncate"
+                    style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 500, color: HF.ink }}
+                  >
+                    {entry.description}
+                  </p>
+                  <p style={{ fontFamily: HF.body, fontSize: 11, color: HF.ink4 }}>
+                    {fmtDate(entry.createdAt)}
+                  </p>
+                </div>
+                <span className="shrink-0">
+                  <Pill tone={TYPE_TONES[entry.entryType] ?? 'neutral'}>
+                    {TYPE_LABELS[entry.entryType] ?? entry.entryType}
+                  </Pill>
+                </span>
+                <span
+                  className="shrink-0"
+                  style={{
+                    fontFamily: HF.body,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: entry.amount < 0 ? HF.sage : HF.err,
+                  }}
+                >
+                  {entry.amount < 0 ? '-' : '+'}{fmt(entry.amount)}
+                </span>
               </div>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_COLORS[entry.entryType] ?? 'bg-gray-100 text-gray-600'}`}>
-                {TYPE_LABELS[entry.entryType] ?? entry.entryType}
-              </span>
-              <span className={`shrink-0 text-sm font-semibold ${entry.amount < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {entry.amount < 0 ? '-' : '+'}{fmt(entry.amount)}
-              </span>
-            </div>
+            </Card>
           ))}
 
           {entries.length < total && (
             <div className="pt-2 text-center">
-              <button
+              <CTA
+                tone="primary"
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="btn-primary inline-flex items-center gap-2"
               >
                 {loadingMore && <Loader2 className="h-4 w-4 animate-spin" />}
                 Load more
-              </button>
+              </CTA>
             </div>
           )}
         </div>

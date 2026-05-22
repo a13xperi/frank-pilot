@@ -1,0 +1,253 @@
+import { logger } from "../../utils/logger";
+
+/**
+ * Resend Email Service.
+ *
+ * Primary channel for applicant-facing notifications:
+ *   - Magic-link verification (sendMagicLink)
+ *   - Application status updates (submitted / approved / denied)
+ *
+ * Design notes:
+ *   - If RESEND_API_KEY is unset, every send is a no-op that logs a WARN.
+ *     This lets the rest of the deploy work before Resend is provisioned.
+ *   - RESEND_FROM defaults to Resend's verified sandbox sender so the first
+ *     demo doesn't require domain verification. Set a verified domain sender
+ *     before sending to real applicants in production.
+ *   - Templates are inline (no external files) and intentionally small —
+ *     one CTA per message, plain-text fallback, terracotta brand color.
+ *   - Raw secrets, tokens, or full magic-link URLs are never logged. Only
+ *     the Resend message id (returned by their API) is captured.
+ */
+
+const BRAND_COLOR = "#C9492A";
+const FONT_STACK = "Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+const COMPANY_NAME = "Community Development Programs Center of Nevada";
+const DEFAULT_FROM = "CDPC Nevada <onboarding@resend.dev>";
+
+type ResendLike = {
+  emails: {
+    send: (args: {
+      from: string;
+      to: string | string[];
+      subject: string;
+      html: string;
+      text: string;
+    }) => Promise<{ data?: { id?: string } | null; error?: unknown }>;
+  };
+};
+
+export interface EmailSendResult {
+  sent: boolean;
+  messageId?: string;
+}
+
+export class EmailService {
+  private client: ResendLike | null;
+  private fromAddress: string;
+
+  constructor() {
+    this.fromAddress = process.env.RESEND_FROM || DEFAULT_FROM;
+    const apiKey = process.env.RESEND_API_KEY;
+
+    if (apiKey && apiKey !== "changeme") {
+      // Lazy-require so test environments without the dep installed still load.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { Resend } = require("resend") as { Resend: new (k: string) => ResendLike };
+      this.client = new Resend(apiKey);
+    } else {
+      this.client = null;
+    }
+  }
+
+  /**
+   * Internal send wrapper — never throws. Returns { sent:false } on any
+   * configuration or API failure so callers can fire-and-forget without
+   * leaking a branch-specific failure mode.
+   */
+  private async send(args: {
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+  }): Promise<EmailSendResult> {
+    if (!this.client) {
+      logger.warn("Resend not configured — email not sent", {
+        subject: args.subject,
+        // `to` is PII — do not log the address.
+        to: "[REDACTED]",
+      });
+      return { sent: false };
+    }
+
+    try {
+      const result = await this.client.emails.send({
+        from: this.fromAddress,
+        to: args.to,
+        subject: args.subject,
+        html: args.html,
+        text: args.text,
+      });
+
+      if (result.error) {
+        logger.error("Resend API error", {
+          subject: args.subject,
+          error: String((result.error as { message?: string })?.message ?? result.error),
+        });
+        return { sent: false };
+      }
+
+      const messageId = result.data?.id;
+      logger.info("Email sent", { subject: args.subject, messageId });
+      return { sent: true, messageId };
+    } catch (err) {
+      logger.error("Failed to send email", {
+        subject: args.subject,
+        error: (err as Error).message,
+      });
+      return { sent: false };
+    }
+  }
+
+  /**
+   * Magic-link verification email. The raw token is included once, inside
+   * the CTA href, and nowhere else — no token in alt text, no token in
+   * preview text, no token in plain-text body besides the URL line itself.
+   */
+  async sendMagicLink(
+    to: string,
+    link: string,
+    options?: { firstName?: string }
+  ): Promise<EmailSendResult> {
+    const greeting = options?.firstName ? `Hi ${options.firstName},` : "Hi,";
+    const subject = "Your sign-in link for CDPC Nevada";
+
+    const html = `<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#FAF8F5;font-family:${FONT_STACK};color:#222;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" style="max-width:520px;background:#fff;border-radius:12px;padding:32px;">
+          <tr><td style="font-size:18px;font-weight:600;color:${BRAND_COLOR};">CDPC Nevada</td></tr>
+          <tr><td style="padding-top:24px;font-size:16px;line-height:1.5;">
+            <p style="margin:0 0 16px;">${greeting}</p>
+            <p style="margin:0 0 16px;">Click the button below to sign in and continue your application. This link expires in 15 minutes.</p>
+          </td></tr>
+          <tr><td align="center" style="padding:8px 0 24px;">
+            <a href="${link}" style="display:inline-block;background:${BRAND_COLOR};color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;">Sign in</a>
+          </td></tr>
+          <tr><td style="font-size:13px;color:#666;line-height:1.5;">
+            <p style="margin:0;">Didn't request this? You can safely ignore this email.</p>
+          </td></tr>
+        </table>
+        <p style="margin:16px 0 0;font-size:12px;color:#999;">${COMPANY_NAME}</p>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+
+    const text = [
+      greeting,
+      "",
+      "Click the link below to sign in and continue your application.",
+      "This link expires in 15 minutes.",
+      "",
+      link,
+      "",
+      "Didn't request this? You can safely ignore this email.",
+      "",
+      COMPANY_NAME,
+    ].join("\n");
+
+    return this.send({ to, subject, html, text });
+  }
+
+  async sendApplicationSubmitted(to: string, applicantName: string): Promise<EmailSendResult> {
+    const subject = "We received your application";
+    const html = templateNotice({
+      heading: "Application received",
+      body: `Thanks ${escapeHtml(applicantName)}. Your rental application is in our queue and a team member will follow up with any next steps.`,
+    });
+    const text = [
+      `Hello ${applicantName},`,
+      "",
+      "Thanks for your rental application. We have it in our queue and a team member will follow up with any next steps.",
+      "",
+      COMPANY_NAME,
+    ].join("\n");
+    return this.send({ to, subject, html, text });
+  }
+
+  async sendApproved(to: string, applicantName: string): Promise<EmailSendResult> {
+    const subject = "Your application was approved";
+    const html = templateNotice({
+      heading: "Application approved",
+      body: `Congratulations ${escapeHtml(applicantName)} — your application has been approved. We'll send lease-signing instructions in a separate email.`,
+    });
+    const text = [
+      `Hello ${applicantName},`,
+      "",
+      "Congratulations — your application has been approved. We'll send lease-signing instructions in a separate email.",
+      "",
+      COMPANY_NAME,
+    ].join("\n");
+    return this.send({ to, subject, html, text });
+  }
+
+  async sendDenied(to: string, applicantName: string): Promise<EmailSendResult> {
+    const subject = "Update on your application";
+    const html = templateNotice({
+      heading: "Application update",
+      body: `Hello ${escapeHtml(applicantName)}. We were unable to approve your application at this time. You'll receive a detailed adverse-action notice by mail with the specific reasons and your rights under the FCRA.`,
+    });
+    const text = [
+      `Hello ${applicantName},`,
+      "",
+      "We were unable to approve your application at this time. You'll receive a detailed adverse-action notice by mail with the specific reasons and your rights under the FCRA.",
+      "",
+      COMPANY_NAME,
+    ].join("\n");
+    return this.send({ to, subject, html, text });
+  }
+}
+
+/** Minimal HTML escaping for user-supplied names rendered in templates. */
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function templateNotice(opts: { heading: string; body: string }): string {
+  return `<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#FAF8F5;font-family:${FONT_STACK};color:#222;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" style="max-width:520px;background:#fff;border-radius:12px;padding:32px;">
+          <tr><td style="font-size:18px;font-weight:600;color:${BRAND_COLOR};">CDPC Nevada</td></tr>
+          <tr><td style="padding-top:16px;font-size:20px;font-weight:600;">${opts.heading}</td></tr>
+          <tr><td style="padding-top:16px;font-size:16px;line-height:1.5;">${opts.body}</td></tr>
+        </table>
+        <p style="margin:16px 0 0;font-size:12px;color:#999;">${COMPANY_NAME}</p>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+}
+
+/** Lazily-constructed default instance — avoids touching env at import time. */
+let defaultInstance: EmailService | null = null;
+export function getEmailService(): EmailService {
+  if (!defaultInstance) {
+    defaultInstance = new EmailService();
+  }
+  return defaultInstance;
+}
+
+/** Test-only: reset the singleton so env-variable changes take effect. */
+export function __resetEmailServiceForTests(): void {
+  defaultInstance = null;
+}

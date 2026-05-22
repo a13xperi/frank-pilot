@@ -8,6 +8,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { clearToken } from '@/api/client';
+import { HF } from '@/styles/tokens';
 
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
@@ -34,34 +35,51 @@ export function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className="min-h-screen"
+      style={{ background: HF.cream, color: HF.ink, fontFamily: HF.body }}
+    >
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-gray-200 bg-white md:flex">
-        <div className="flex h-16 items-center border-b border-gray-200 px-6">
-          <span className="text-lg font-semibold text-emerald-700">Frank Pilot</span>
+      <aside
+        className="fixed inset-y-0 left-0 hidden w-64 flex-col md:flex"
+        style={{
+          background: HF.paper,
+          borderRight: `1px solid ${HF.border}`,
+        }}
+      >
+        <div
+          className="flex h-16 items-center px-6"
+          style={{ borderBottom: `1px solid ${HF.border}` }}
+        >
+          <span
+            className="text-lg font-semibold"
+            style={{ color: HF.accent, fontFamily: HF.display }}
+          >
+            Frank Pilot
+          </span>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`
-              }
+              className="flex items-center gap-3 px-3 py-2 text-sm font-medium transition"
+              style={({ isActive }) => ({
+                background: isActive ? HF.accentLo : 'transparent',
+                color: isActive ? HF.accentInk : HF.ink2,
+                borderRadius: HF.r.md,
+              })}
             >
               <Icon className="h-5 w-5" />
               {label}
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-gray-200 p-3">
+        <div className="p-3" style={{ borderTop: `1px solid ${HF.border}` }}>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            className="flex w-full items-center gap-3 px-3 py-2 text-sm"
+            style={{ color: HF.ink3, borderRadius: HF.r.md }}
           >
             <LogOut className="h-5 w-5" />
             Log out
@@ -72,11 +90,23 @@ export function Layout() {
       {/* Main content */}
       <div className="flex min-h-screen flex-col md:pl-64">
         {/* Mobile top bar with logout */}
-        <header className="sticky top-0 z-10 flex h-12 items-center justify-between border-b border-gray-200 bg-white px-4 md:hidden">
-          <span className="text-base font-semibold text-emerald-700">Frank Pilot</span>
+        <header
+          className="sticky top-0 z-10 flex h-12 items-center justify-between px-4 md:hidden"
+          style={{
+            background: HF.paper,
+            borderBottom: `1px solid ${HF.border}`,
+          }}
+        >
+          <span
+            className="text-base font-semibold"
+            style={{ color: HF.accent, fontFamily: HF.display }}
+          >
+            Frank Pilot
+          </span>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700"
+            className="flex items-center gap-1 text-xs font-medium"
+            style={{ color: HF.ink3 }}
           >
             <LogOut className="h-4 w-4" />
             Sign out
@@ -88,17 +118,22 @@ export function Layout() {
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-gray-200 bg-white md:hidden">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-10 md:hidden"
+        style={{
+          background: HF.paper,
+          borderTop: `1px solid ${HF.border}`,
+        }}
+      >
         <div className="grid grid-cols-5">
           {mobileNavItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
-              className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-1 py-2.5 text-xs font-medium ${
-                  isActive ? 'text-emerald-700' : 'text-gray-500'
-                }`
-              }
+              className="flex flex-col items-center justify-center gap-1 py-2.5 text-xs font-medium"
+              style={({ isActive }) => ({
+                color: isActive ? HF.accent : HF.ink3,
+              })}
             >
               <Icon className="h-5 w-5" />
               {label}

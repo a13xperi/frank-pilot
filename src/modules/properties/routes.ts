@@ -2,7 +2,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requirePermission } from "../../middleware/rbac";
-import { PropertyService } from "./service";
+import {
+  PropertyService,
+  AMI_TIER_ORDER,
+  BEDROOM_FILTERS,
+  AVAILABILITY_FILTERS,
+} from "./service";
 import { logger } from "../../utils/logger";
 
 const router = Router();
@@ -52,20 +57,138 @@ const UpdatePropertySchema = z.object({
 
 /**
  * GET /api/properties
- * List all properties.
+ *
+ * List properties. Always returns a per-property `availability` rollup so
+ * browse surfaces ("3 available", "Fully leased") don't need a second
+ * round-trip per tile.
+ *
+ * Optional query params (mirror `applicants/units?amiTier=` semantics so the
+ * browse surface and the apply funnel agree on what an applicant qualifies
+ * for):
+ *   ?amiTier=30|50|60|80         — narrow to set-asides ≥ applicant's tier
+ *   ?bedroom=studio|1|2|3        — at least one available unit at that size
+ *                                  ("3" is inclusive of 3BR+)
+ *   ?availability=available_now  — drop fully leased / fully held properties
+ *
+ * Invalid values return 400 with `{ error, allowed }` so a typo (e.g.
+ * `?amiTier=70`) is a loud failure rather than a silent "full list" surprise.
+ *
  * Permission: property:view (all roles including leasing_agent)
  */
 router.get(
   "/",
   authenticate,
   requirePermission("property:view"),
-  async (_req: AuthRequest, res) => {
+  async (req: AuthRequest, res) => {
     try {
-      const properties = await service.list();
+      // Zod-validate query params with a 400 contract that matches PR #69's
+      // applicants/units?amiTier=: error + allowed[] so the client can show a
+      // useful message and CI can assert against a stable shape.
+      if (req.query.amiTier !== undefined) {
+        const parsed = z.enum(AMI_TIER_ORDER).safeParse(req.query.amiTier);
+        if (!parsed.success) {
+          res.status(400).json({
+            error: "Invalid amiTier",
+            allowed: AMI_TIER_ORDER,
+          });
+          return;
+        }
+      }
+      if (req.query.bedroom !== undefined) {
+        const parsed = z.enum(BEDROOM_FILTERS).safeParse(req.query.bedroom);
+        if (!parsed.success) {
+          res.status(400).json({
+            error: "Invalid bedroom",
+            allowed: BEDROOM_FILTERS,
+          });
+          return;
+        }
+      }
+      if (req.query.availability !== undefined) {
+        const parsed = z.enum(AVAILABILITY_FILTERS).safeParse(req.query.availability);
+        if (!parsed.success) {
+          res.status(400).json({
+            error: "Invalid availability",
+            allowed: AVAILABILITY_FILTERS,
+          });
+          return;
+        }
+      }
+
+      const properties = await service.listWithAvailability({
+        amiTier: req.query.amiTier as (typeof AMI_TIER_ORDER)[number] | undefined,
+        bedroom: req.query.bedroom as (typeof BEDROOM_FILTERS)[number] | undefined,
+        availability: req.query.availability as
+          | (typeof AVAILABILITY_FILTERS)[number]
+          | undefined,
+      });
       res.json({ properties, total: properties.length });
     } catch (err) {
       logger.error("Failed to list properties", { error: (err as Error).message });
       res.status(500).json({ error: "Failed to list properties" });
+    }
+  }
+);
+
+/**
+ * GET /api/properties/:propertyId/availability
+ *
+ * Bedroom-grouped available units for a single property. Drives the
+ * "Live availability" section on /property/:slug.
+ *
+ * Stale-held units (status='held' AND claim_expires_at < NOW()) are treated
+ * as available so cron isn't required — matches the applicants/units route.
+ *
+ * Permission: property:view (all roles).
+ */
+router.get(
+  "/:propertyId/availability",
+  authenticate,
+  requirePermission("property:view"),
+  async (req: AuthRequest, res) => {
+    try {
+      const result = await service.getAvailability(req.params.propertyId as string);
+      if (!result) {
+        res.status(404).json({ error: "Property not found" });
+        return;
+      }
+      res.json(result);
+    } catch (err) {
+      logger.error("Failed to get property availability", {
+        error: (err as Error).message,
+      });
+      res.status(500).json({ error: "Failed to get property availability" });
+    }
+  }
+);
+
+/**
+ * GET /api/properties/:propertyId/rent-range
+ *
+ * Wedge #9 — honest pricing + AMI tier disclosure. Returns the per-bedroom
+ * rent range (min/max from the units table) along with the property's
+ * canonical AMI set-aside (e.g. "60% AMI"). Buckets without units in that
+ * bedroom are returned as null so the client can omit them cleanly.
+ *
+ * Permission: property:view (all roles).
+ */
+router.get(
+  "/:propertyId/rent-range",
+  authenticate,
+  requirePermission("property:view"),
+  async (req: AuthRequest, res) => {
+    try {
+      const result = await service.getRentRange(req.params.propertyId as string);
+      if (!result) {
+        res.status(404).json({ error: "Property not found" });
+        return;
+      }
+      res.json(result);
+    } catch (err) {
+      logger.error("Failed to get property rent range", {
+        error: (err as Error).message,
+      });
+      res.status(500).json({ error: "Failed to get property rent range" });
     }
   }
 );

@@ -58,6 +58,21 @@ jobs:
       - name: Run tests (vitest)
         run: npm test -- --run
 
+  check-i18n:
+    name: check-i18n (EN-ES parity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check EN-ES i18n parity
+        working-directory: client-tenant
+        run: node scripts/check-i18n-parity.mjs
+
   smoke-apply:
     name: smoke-apply (Welcome → Claim e2e)
     runs-on: ubuntu-latest

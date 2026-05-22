@@ -4,6 +4,19 @@ dotenv.config();
 import { pool, query } from "../config/database";
 import bcrypt from "bcrypt";
 
+// ── Unit status distribution ─────────────────────────────────────────────────
+// Target: 70% available / 20% leased / 10% held
+// Uses (i % 10) for a fully deterministic, Math.random-free pattern that repeats
+// uniformly across every property + bedroom-type loop. Indices 0-6 → available,
+// 7-8 → leased, 9 → held. A post-seed assertion (below) verifies actual
+// percentages stay within ±5 pp of these targets and will throw if they drift.
+function unitStatus(i: number): "available" | "leased" | "held" {
+  const bucket = i % 10;
+  if (bucket < 7) return "available"; // 0-6 → 70%
+  if (bucket < 9) return "leased";    // 7-8 → 20%
+  return "held";                      // 9   → 10%
+}
+
 async function seed() {
   console.log("Seeding database...");
 
@@ -29,123 +42,134 @@ async function seed() {
       console.log(`  User: ${user.email} (${user.role})`);
     }
 
-    // ── All 16 GPMGLV Properties ────────────────────────────────────
+    // ── Real GPMG (Greater Las Vegas) catalog — 17 properties ───────
+    // Source: operator-supplied list (2026-05-22), real names/addresses/phones/emails.
+    // Unit mixes are reasonable allocations (Studio+1BR for senior, 1BR–4BR for family)
+    // that sum to unit_count; refine when GPMG provides their actual unit breakdowns.
     const AMI = "Las Vegas-Henderson-Paradise, NV MSA";
+    const MGR = "GPMG Property Management"; // org-level (individual managers TBD)
     const properties = [
-      // Senior properties (5)
       {
-        name: "Louise Shell Senior Apartments", addressLine1: "2875 E Sahara Ave", city: "Las Vegas", zip: "89104",
-        unitCount: 120, phone: "702-555-0101", email: "louiseshell@gpmglv.org", propertyManager: "Patricia Morales",
-        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 3, waitingListEnabled: true,
-        unitMix: { "1BR": 80, "2BR": 40 },
-        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194 },
-      },
-      {
-        name: "Frank Hawkins Senior Apartments", addressLine1: "3100 W Washington Ave", city: "Las Vegas", zip: "89107",
-        unitCount: 100, phone: "702-555-0102", email: "frankhawkins@gpmglv.org", propertyManager: "Latonya Williams",
-        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 0, waitingListEnabled: true,
-        unitMix: { "1BR": 60, "2BR": 40 },
-        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194 },
-      },
-      {
-        name: "Heritage Park Senior", addressLine1: "1500 N Martin Luther King Blvd", city: "Las Vegas", zip: "89106",
-        unitCount: 80, phone: "702-555-0103", email: "heritagepark@gpmglv.org", propertyManager: "David Tran",
-        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 2, waitingListEnabled: false,
-        unitMix: { "1BR": 50, "2BR": 30 },
-        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194 },
-      },
-      {
-        name: "Carey Avenue Senior Living", addressLine1: "4200 E Carey Ave", city: "Las Vegas", zip: "89115",
-        unitCount: 60, phone: "702-555-0104", email: "careyave@gpmglv.org", propertyManager: "Maria Gonzalez",
+        name: "Aldene Kline Barlow Senior Apartments", addressLine1: "1327 H St", city: "Las Vegas", zip: "89106",
+        unitCount: 39, phone: "702-920-6550", email: "barlow@gpmglv.org", propertyManager: MGR,
         propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 1, waitingListEnabled: true,
-        unitMix: { "1BR": 40, "2BR": 20 },
-        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194 },
+        unitMix: { "Studio": 10, "1BR": 29 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995 },
       },
       {
-        name: "Desert Pines Senior", addressLine1: "3601 E Bonanza Rd", city: "Las Vegas", zip: "89110",
-        unitCount: 48, phone: "702-555-0105", email: "desertpines@gpmglv.org", propertyManager: "James Patterson",
-        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 0, waitingListEnabled: true,
-        unitMix: { "1BR": 32, "2BR": 16 },
-        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194 },
-      },
-      // Family properties (10)
-      {
-        name: "Cambridge Apartments", addressLine1: "4500 Cambridge St", city: "Las Vegas", zip: "89119",
-        unitCount: 200, phone: "702-555-0106", email: "cambridge@gpmglv.org", propertyManager: "Robert Jackson",
-        propertyType: "family", jurisdiction: "Las Vegas", totalVacancy: 8, waitingListEnabled: false,
-        unitMix: { "1BR": 40, "2BR": 80, "3BR": 60, "4BR": 20 },
-        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380, "4BR_60AMI": 1539 },
-      },
-      {
-        name: "Desert Oasis Apartments", addressLine1: "1234 Las Vegas Blvd S", city: "Las Vegas", zip: "89109",
-        unitCount: 120, phone: "702-555-0107", email: "desertoasis@gpmglv.org", propertyManager: "Angela Foster",
-        propertyType: "family", jurisdiction: "Las Vegas", totalVacancy: 5, waitingListEnabled: false,
-        unitMix: { "1BR": 30, "2BR": 50, "3BR": 40 },
-        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380 },
-      },
-      {
-        name: "Sunrise Gardens", addressLine1: "5678 E Sahara Ave", city: "Las Vegas", zip: "89142",
-        unitCount: 80, phone: "702-555-0108", email: "sunrisegardens@gpmglv.org", propertyManager: "Kevin Wright",
-        propertyType: "family", jurisdiction: "Las Vegas", totalVacancy: 2, waitingListEnabled: false,
-        unitMix: { "2BR": 40, "3BR": 40 },
-        rentSchedule: { "2BR_60AMI": 1194, "3BR_60AMI": 1380 },
-      },
-      {
-        name: "Crestview Family Homes", addressLine1: "900 N Nellis Blvd", city: "Las Vegas", zip: "89110",
-        unitCount: 150, phone: "702-555-0109", email: "crestview@gpmglv.org", propertyManager: "Sandra Mitchell",
+        name: "David J. Hoggard Family Community", addressLine1: "1100 W Monroe Ave", city: "Las Vegas", zip: "89106",
+        unitCount: 100, phone: "702-631-2281", email: "hoggard@gpmglv.org", propertyManager: MGR,
         propertyType: "family", jurisdiction: "Las Vegas", totalVacancy: 6, waitingListEnabled: false,
-        unitMix: { "2BR": 50, "3BR": 60, "4BR": 40 },
-        rentSchedule: { "2BR_60AMI": 1194, "3BR_60AMI": 1380, "4BR_60AMI": 1539 },
-      },
-      {
-        name: "Valley View Terrace", addressLine1: "2200 Valley View Blvd", city: "Henderson", zip: "89014",
-        unitCount: 96, phone: "702-555-0110", email: "valleyview@gpmglv.org", propertyManager: "Charles Adams",
-        propertyType: "family", jurisdiction: "Henderson", totalVacancy: 4, waitingListEnabled: false,
-        unitMix: { "1BR": 24, "2BR": 48, "3BR": 24 },
-        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380 },
-      },
-      {
-        name: "Boulder Highway Family", addressLine1: "4800 Boulder Hwy", city: "Henderson", zip: "89121",
-        unitCount: 110, phone: "702-555-0111", email: "boulderhwy@gpmglv.org", propertyManager: "Diana Ruiz",
-        propertyType: "family", jurisdiction: "Henderson", totalVacancy: 3, waitingListEnabled: true,
-        unitMix: { "2BR": 50, "3BR": 40, "4BR": 20 },
-        rentSchedule: { "2BR_60AMI": 1194, "3BR_60AMI": 1380, "4BR_60AMI": 1539 },
-      },
-      {
-        name: "Cheyenne Pointe", addressLine1: "3900 W Cheyenne Ave", city: "North Las Vegas", zip: "89032",
-        unitCount: 180, phone: "702-555-0112", email: "cheyenne@gpmglv.org", propertyManager: "Brian Thompson",
-        propertyType: "family", jurisdiction: "North Las Vegas", totalVacancy: 7, waitingListEnabled: false,
-        unitMix: { "1BR": 30, "2BR": 60, "3BR": 60, "4BR": 30 },
+        unitMix: { "1BR": 20, "2BR": 40, "3BR": 30, "4BR": 10 },
         rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380, "4BR_60AMI": 1539 },
       },
       {
-        name: "Civic Center Family", addressLine1: "2100 Civic Center Dr", city: "North Las Vegas", zip: "89030",
-        unitCount: 72, phone: "702-555-0113", email: "civiccenter@gpmglv.org", propertyManager: "Lisa Nguyen",
-        propertyType: "family", jurisdiction: "North Las Vegas", totalVacancy: 1, waitingListEnabled: true,
-        unitMix: { "2BR": 36, "3BR": 36 },
-        rentSchedule: { "2BR_60AMI": 1194, "3BR_60AMI": 1380 },
-      },
-      {
-        name: "Tropicana Gardens", addressLine1: "5500 E Tropicana Ave", city: "Las Vegas", zip: "89122",
-        unitCount: 144, phone: "702-555-0114", email: "tropicana@gpmglv.org", propertyManager: "Mark Hernandez",
-        propertyType: "family", jurisdiction: "Las Vegas", totalVacancy: 4, waitingListEnabled: false,
-        unitMix: { "1BR": 24, "2BR": 60, "3BR": 48, "4BR": 12 },
-        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380, "4BR_60AMI": 1539 },
-      },
-      {
-        name: "Spring Mountain Place", addressLine1: "3200 Spring Mountain Rd", city: "Las Vegas", zip: "89102",
-        unitCount: 88, phone: "702-555-0115", email: "springmtn@gpmglv.org", propertyManager: "Jennifer Clarke",
-        propertyType: "family", jurisdiction: "Las Vegas", totalVacancy: 2, waitingListEnabled: false,
-        unitMix: { "1BR": 20, "2BR": 44, "3BR": 24 },
+        name: "Donna Louise Apartments", addressLine1: "6225 Donna St", city: "North Las Vegas", zip: "89081",
+        unitCount: 48, phone: "702-920-6548", email: "donnalouise@gpmglv.org", propertyManager: MGR,
+        propertyType: "family", jurisdiction: "North Las Vegas", totalVacancy: 2, waitingListEnabled: false,
+        unitMix: { "1BR": 12, "2BR": 24, "3BR": 12 },
         rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380 },
       },
-      // Mixed-use (1)
       {
-        name: "Charleston Gateway", addressLine1: "1800 E Charleston Blvd", city: "Las Vegas", zip: "89104",
-        unitCount: 160, phone: "702-555-0116", email: "charleston@gpmglv.org", propertyManager: "Anthony Brooks",
-        propertyType: "mixed_use", jurisdiction: "Las Vegas", totalVacancy: 5, waitingListEnabled: false,
-        unitMix: { "Studio": 20, "1BR": 40, "2BR": 60, "3BR": 40 },
-        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380 },
+        // Donna Louise 2 unit count not in source → assumed 48 (twin building, same address).
+        name: "Donna Louise Apartments 2", addressLine1: "6225 Donna St", city: "North Las Vegas", zip: "89081",
+        unitCount: 48, phone: "702-920-6548", email: "donnalouise@gpmglv.org", propertyManager: MGR,
+        propertyType: "family", jurisdiction: "North Las Vegas", totalVacancy: 2, waitingListEnabled: false,
+        unitMix: { "1BR": 12, "2BR": 24, "3BR": 12 },
+        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380 },
+      },
+      {
+        name: "Luther Mack, Jr. Senior Apartments", addressLine1: "8158 Giles St", city: "Las Vegas", zip: "89123",
+        unitCount: 48, phone: "702-920-6569", email: "drluthermack@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 1, waitingListEnabled: true,
+        unitMix: { "Studio": 12, "1BR": 36 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995 },
+      },
+      {
+        name: "Dr. Paul Meacham Senior Community", addressLine1: "65 E Windmill Ln", city: "Las Vegas", zip: "89123",
+        unitCount: 57, phone: "877-895-8207", email: "paulmeacham@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 1, waitingListEnabled: true,
+        unitMix: { "Studio": 15, "1BR": 42 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995 },
+      },
+      {
+        name: "Ethel Mae Fletcher Apartments", addressLine1: "1503 Laurelhurst Dr", city: "Las Vegas", zip: "89108",
+        unitCount: 42, phone: "702-920-6572", email: "ethelmaefletcher@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 1, waitingListEnabled: true,
+        unitMix: { "Studio": 10, "1BR": 32 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995 },
+      },
+      {
+        name: "Ethel Mae Robinson Senior Apartments", addressLine1: "1327 H Street", city: "Las Vegas", zip: "89106",
+        unitCount: 20, phone: "702-648-6800", email: "ethelmaerobinson@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 0, waitingListEnabled: true,
+        unitMix: { "Studio": 5, "1BR": 15 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995 },
+      },
+      {
+        name: "Mike O'Callaghan Legacy Apartments", addressLine1: "1502 Laurelhurst Dr", city: "Las Vegas", zip: "89108",
+        unitCount: 40, phone: "725-735-7779", email: "mikeocallaghan@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 1, waitingListEnabled: true,
+        unitMix: { "Studio": 10, "1BR": 30 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995 },
+      },
+      {
+        name: "Juan Garcia Garden Apartments", addressLine1: "2851 Sunrise Ave", city: "Las Vegas", zip: "89101",
+        unitCount: 52, phone: "725-735-7779", email: "juangarcia@gpmglv.org", propertyManager: MGR,
+        propertyType: "family", jurisdiction: "Las Vegas", totalVacancy: 3, waitingListEnabled: false,
+        unitMix: { "1BR": 12, "2BR": 26, "3BR": 14 },
+        rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380 },
+      },
+      {
+        name: "Louise Shell Senior Apartments", addressLine1: "2101 N Martin Luther King Blvd", city: "Las Vegas", zip: "89106",
+        unitCount: 100, phone: "702-648-6800", email: "louiseshell@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 2, waitingListEnabled: true,
+        unitMix: { "Studio": 20, "1BR": 70, "2BR": 10 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995, "2BR_60AMI": 1194 },
+      },
+      {
+        name: "Owens Senior Housing", addressLine1: "1626 Davis Pl", city: "North Las Vegas", zip: "89030",
+        unitCount: 72, phone: "702-642-0896", email: "owens@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "North Las Vegas", totalVacancy: 1, waitingListEnabled: true,
+        unitMix: { "Studio": 18, "1BR": 54 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995 },
+      },
+      {
+        name: "Sarann Knight Apartments", addressLine1: "1327 H Street", city: "Las Vegas", zip: "89106",
+        unitCount: 82, phone: "702-538-9031", email: "sarannknight@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 2, waitingListEnabled: true,
+        unitMix: { "Studio": 20, "1BR": 62 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995 },
+      },
+      {
+        name: "Senator Harry Reid Senior Apartments", addressLine1: "328 N 11th St", city: "Las Vegas", zip: "89101",
+        unitCount: 100, phone: "702-383-1091", email: "harryreid@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 2, waitingListEnabled: true,
+        unitMix: { "Studio": 20, "1BR": 70, "2BR": 10 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995, "2BR_60AMI": 1194 },
+      },
+      {
+        name: "Senator Richard Bryan Senior Apartments", addressLine1: "2651 Searles Ave", city: "Las Vegas", zip: "89101",
+        unitCount: 120, phone: "702-649-3508", email: "senatorrichardbryan@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "Las Vegas", totalVacancy: 3, waitingListEnabled: true,
+        unitMix: { "Studio": 30, "1BR": 80, "2BR": 10 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995, "2BR_60AMI": 1194 },
+      },
+      {
+        // Email not in source → derived from name slug to keep `@gpmglv.org` convention.
+        name: "Smith Williams Senior Apartments", addressLine1: "575 E Lake Mead Pkwy", city: "Henderson", zip: "89015",
+        unitCount: 80, phone: "702-382-3726", email: "smithwilliams@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "Henderson", totalVacancy: 2, waitingListEnabled: true,
+        unitMix: { "Studio": 20, "1BR": 60 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995 },
+      },
+      {
+        // Email not in source → derived from name slug to keep `@gpmglv.org` convention.
+        name: "Yale Keyes Senior Apartments", addressLine1: "1705 Yale Str", city: "North Las Vegas", zip: "89030",
+        unitCount: 70, phone: "702-642-7758", email: "yalekeyes@gpmglv.org", propertyManager: MGR,
+        propertyType: "senior", jurisdiction: "North Las Vegas", totalVacancy: 1, waitingListEnabled: true,
+        unitMix: { "Studio": 18, "1BR": 52 },
+        rentSchedule: { "Studio_60AMI": 747, "1BR_60AMI": 995 },
       },
     ];
 
@@ -228,9 +252,8 @@ async function seed() {
             ? `S-${String(i + 1).padStart(3, "0")}`
             : `${meta.letter}-${meta.floor}${seq}`;
 
-          // Deterministic status distribution: 70% available, 30% leased.
-          // Skip 'held' — that gets created live when applicants claim.
-          const status = i % 10 < 7 ? "available" : "leased";
+          // Target: 70% available / 20% leased / 10% held (see unitStatus above).
+          const status = unitStatus(i);
           const photoUrl = `https://picsum.photos/seed/${propSlug}-${unitNumber}/800/600`;
 
           await query(
@@ -244,8 +267,37 @@ async function seed() {
         }
       }
     }
-    const availCount = await query("SELECT count(*)::int AS n FROM units WHERE status='available'");
-    console.log(`  Units: ${unitsCreated} generated across ${properties.length} properties (${availCount.rows[0].n} available)`);
+    // ── Post-seed distribution assertion ────────────────────────────────────
+    // Targets: 70% available / 20% leased / 10% held (±5 pp each).
+    // Throws loudly if actual percentages drift so CI catches future regressions.
+    const distRows = await query(
+      `SELECT status, count(*)::int AS n FROM units GROUP BY status ORDER BY status`
+    );
+    const distMap: Record<string, number> = {};
+    let totalUnits = 0;
+    for (const row of distRows.rows) {
+      distMap[row.status] = row.n;
+      totalUnits += row.n;
+    }
+    const targets: Record<string, number> = { available: 70, leased: 20, held: 10 };
+    const TOLERANCE = 5; // ±5 percentage points
+    const distReport = Object.entries(targets).map(([s, target]) => {
+      const actual = totalUnits > 0 ? ((distMap[s] ?? 0) / totalUnits) * 100 : 0;
+      const drift = Math.abs(actual - target);
+      return { status: s, count: distMap[s] ?? 0, actual: actual.toFixed(1), target, drift };
+    });
+    const failures = distReport.filter((r) => r.drift > TOLERANCE);
+    console.log(
+      `  Units: ${unitsCreated} generated across ${properties.length} properties` +
+      ` (${distMap.available ?? 0} available / ${distMap.leased ?? 0} leased / ${distMap.held ?? 0} held)`
+    );
+    if (failures.length > 0) {
+      const msg = failures.map((f) =>
+        `${f.status}: actual ${f.actual}% vs target ${f.target}% (drift ${f.drift.toFixed(1)} pp)`
+      ).join("; ");
+      throw new Error(`Seed distribution assertion failed — ${msg}. Fix unitStatus() or the seed data.`);
+    }
+    console.log(`  Distribution check passed: ${distReport.map((r) => `${r.status}=${r.actual}%`).join(" / ")}`);
 
     // Seed known problem addresses
     const problemAddresses = [
@@ -262,6 +314,54 @@ async function seed() {
       );
     }
     console.log("  Known problem addresses seeded");
+
+    // ── Waitlist entries (wedge #5) ───────────────────────────────────
+    // Seed a realistic queue for the two senior properties that have
+    // waitingListEnabled=true and the demo-favorite Donna Louise 2 family
+    // property. Uses the existing 5 staff users as stand-in applicants
+    // (the seed doesn't create dedicated applicant users), each enrolled in
+    // a few (property, bedroom_count) lanes so a freshly-seeded dev DB
+    // shows "#3 of 5" rather than "#1 of 1". One synthetic notification
+    // snapshot per (property, bedroom) drives the "moved up N spots"
+    // chip on the position screen.
+    const waitlistProps = [
+      "Louise Shell Senior Apartments",
+      "Frank Hawkins Senior Apartments",
+      "Cambridge Apartments",
+    ];
+    const userIdsRes = await query(
+      `SELECT id FROM users WHERE email = ANY($1) ORDER BY email ASC`,
+      [users.map((u) => u.email)]
+    );
+    const userIds: string[] = userIdsRes.rows.map((r: { id: string }) => r.id);
+
+    let waitlistInserted = 0;
+    for (const propName of waitlistProps) {
+      const propRow = await query("SELECT id FROM properties WHERE name = $1", [propName]);
+      if (propRow.rows.length === 0) continue;
+      const propertyId = propRow.rows[0].id;
+
+      for (const bedrooms of [1, 2]) {
+        // Insert each user with a staggered created_at so positions are
+        // stable and visibly different across the queue. -i hours so the
+        // earliest user is "first in line".
+        for (let i = 0; i < userIds.length; i++) {
+          const userId = userIds[i];
+          const hoursAgo = (userIds.length - i) * 24;
+          const ins = await query(
+            `INSERT INTO waitlist_entries
+               (property_id, bedroom_count, applicant_user_id, created_at,
+                notified_position_at, last_notified_position)
+             VALUES ($1, $2, $3, NOW() - ($4 || ' hours')::interval, NOW() - INTERVAL '30 days', $5)
+             ON CONFLICT (property_id, bedroom_count, applicant_user_id) DO NOTHING
+             RETURNING id`,
+            [propertyId, bedrooms, userId, String(hoursAgo), i + 3]
+          );
+          if (ins.rows.length > 0) waitlistInserted++;
+        }
+      }
+    }
+    console.log(`  Waitlist entries: ${waitlistInserted} seeded across ${waitlistProps.length} properties`);
 
     console.log(`\nSeed complete! ${properties.length} properties seeded.`);
     console.log("\nTest credentials (all passwords: password123):");

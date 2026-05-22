@@ -19,8 +19,8 @@ const inputStyle = {
   width: '100%',
   borderRadius: HF.r.sm,
   border: `1px solid ${HF.border}`,
-  padding: '8px 12px',
-  fontSize: 14,
+  padding: '10px 12px',
+  fontSize: 16,
   background: HF.paper,
   color: HF.ink,
   fontFamily: HF.body,
@@ -49,8 +49,10 @@ export function PropertySelector() {
       }
     })();
     return () => { cancelled = true; };
+    // propertiesLoading intentionally excluded: the effect sets it, so including
+    // it would cancel the in-flight fetch when its own state update fires.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.claimedUnit, s.properties.length, s.propertiesLoading]);
+  }, [s.claimedUnit, s.properties.length]);
 
   return (
     <>

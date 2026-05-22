@@ -4,10 +4,16 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { query, transaction } from "../../config/database";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requireEmailVerified } from "../../middleware/scope";
-import { createMagicLink, logMagicLink } from "../auth/magic-link-service";
+import { verifyTurnstile } from "../../middleware/verify-turnstile";
+import { createMagicLink, logMagicLink, sendMagicLink } from "../auth/magic-link-service";
 import { ApplicationService } from "../application/service";
 import { createApplicationSchema } from "../application/validation";
 import { stampTape, TAPE_STAMP_KINDS } from "../tape";
+import {
+  stampV2WaitingListAppCaptured,
+  stampV2Hud92006SupplementCaptured,
+  stampV2PositionLetterSent,
+} from "../tape/v2-stamp";
 import { logger } from "../../utils/logger";
 
 const router: Router = Router();
@@ -18,12 +24,30 @@ const registerSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   phone: z.string().max(20).optional(),
+  // wedge #13: Cloudflare Turnstile widget response. Optional in the schema
+  // because dev/test bypass the middleware entirely (smoke + unit tests run
+  // without TURNSTILE_SECRET_KEY); production fails at verify-turnstile with
+  // 403 turnstile_verification_failed if missing or invalid.
+  turnstileToken: z.string().optional(),
 });
 
 const registerLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
   keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? "")}:${(req.body?.email ?? "").toLowerCase()}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, try again in a minute" },
+});
+
+// wedge #13: per-IP ceiling on register attempts. The (ip,email) limiter
+// above resets every time a bot cycles the email field — a single IP could
+// otherwise burn through arbitrarily many fresh accounts. 30/min/IP gives
+// real users on shared NATs plenty of room while neutering bulk-signup bots.
+const registerIpLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, try again in a minute" },
@@ -87,7 +111,12 @@ const unitWriteLimiter = rateLimit({
 
 // Public: register as an applicant. Idempotent — if the email already exists as
 // an applicant, we reissue a magic link instead of erroring (no email enumeration).
-router.post("/register", registerLimiter, async (req: Request, res: Response): Promise<void> => {
+router.post(
+  "/register",
+  registerIpLimiter,
+  registerLimiter,
+  verifyTurnstile(),
+  async (req: Request, res: Response): Promise<void> => {
   const t0 = Date.now();
   try {
     const parsed = registerSchema.safeParse(req.body);
@@ -132,7 +161,15 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     // This narrows the timing gap between branches; respondAtFloor() below
     // closes the residual delta (INFO-1).
     const link = await createMagicLink(email);
-    if (link) logMagicLink(email, link.link);
+    if (link) {
+      logMagicLink(email, link.link);
+      // Fire-and-forget Resend delivery. sendMagicLink() returns synchronously
+      // after scheduling the send so per-branch latency stays constant. The
+      // staff branch (link === null) skips this call but already pays the
+      // createMagicLink SELECT cost, and respondAtFloor() below absorbs the
+      // residual gap.
+      sendMagicLink(email, link.link, { firstName });
+    }
 
     // INFO-level payload is deliberately minimal: log-aggregation viewers
     // (Railway, Datadog, etc.) cannot pivot on userId/isNew/isStaffEmail to
@@ -144,11 +181,23 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     // W6: uniform response for all paths — no token or user ever returned from
     // /register. The client must wait for the magic-link click; token+user are
     // issued only by POST /auth/magic-link/verify.
+    // DEMO_LINK_IN_RESPONSE: when RESEND_API_KEY is set in production, this
+    // dev-only `devLink` echo should be removed — see `email.ts`. The client
+    // should drive off the verification email exclusively in prod.
     const payload: Record<string, unknown> = {
       ok: true,
       message: "If this email is registered, a verification link has been sent.",
     };
-    if (link && process.env.NODE_ENV === "development") {
+    // In dev we always return the magic link so the post-register "check your
+    // email" banner can surface it. In prod we keep that gate closed (INFO-3:
+    // prevent devLink from leaking in production) UNLESS the operator has
+    // explicitly opted-in via DEMO_LINK_IN_RESPONSE=true. The demo-mode flag
+    // exists to let us walk a stakeholder through the funnel before real
+    // email/SMS delivery is wired; never set it on a tenant-facing deploy.
+    const includeDevLink =
+      process.env.NODE_ENV === "development" ||
+      process.env.DEMO_LINK_IN_RESPONSE === "true";
+    if (link && includeDevLink) {
       payload.devLink = link.link;
     }
     await respondAtFloor(res, t0, 202, payload);
@@ -159,7 +208,8 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     // branch the email landed in.
     await respondAtFloor(res, t0, 500, { error: "Registration failed" });
   }
-});
+  }
+);
 
 // Authenticated as applicant with a verified email: submit the application
 // form. requireEmailVerified gates this — see WARN #2.
@@ -211,6 +261,12 @@ router.post("/apply", authenticate, requireEmailVerified, async (req: AuthReques
       actor: req.user.id,
       payload: { application_id: created.id, email: req.user.email },
     });
+    // BP-02 Lane G dual-write — gated on COMPLIANCE_TAPE_V2_ENABLED.
+    void stampV2Hud92006SupplementCaptured({
+      applicantId: req.user.id,
+      capturedAt: new Date().toISOString(),
+      supplementOptedIn: true,
+    });
 
     res.status(201).json(created);
   } catch (err: any) {
@@ -223,27 +279,343 @@ router.post("/apply", authenticate, requireEmailVerified, async (req: AuthReques
   }
 });
 
-// Public-ish: BP-03b waitlist position summary for a property slug.
-// DL2 MVP: hardcoded placeholder shape until the waitlist service lands.
-// `:slug` is currently ignored beyond echoing it back; the picker UI just
-// needs *some* shape to render the "#12 of 38" screen.
+// Applicant self-submit: flip the user's draft application to `submitted`
+// after the apply-wizard payment step completes. The staff endpoint at
+// `/applications/:id/submit` is gated by RBAC (`application:submit`); this
+// route is the applicant-scoped counterpart, gated by user_applications
+// ownership rather than RBAC.
+router.post(
+  "/me/applications/submit-draft",
+  authenticate,
+  requireEmailVerified,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+
+      const draft = await query(
+        `SELECT a.id FROM user_applications ua
+           JOIN applications a ON a.id = ua.application_id
+          WHERE ua.user_id = $1 AND a.status = 'draft'
+          ORDER BY a.created_at DESC
+          LIMIT 1`,
+        [req.user.id]
+      );
+
+      if (draft.rows.length === 0) {
+        res.status(404).json({ error: "No draft application to submit" });
+        return;
+      }
+
+      const result = await applicationService.submit(
+        draft.rows[0].id,
+        req.user.id,
+        req.user.role
+      );
+
+      res.json(result);
+    } catch (err: any) {
+      logger.error("Applicant submit-draft failed", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to submit application" });
+    }
+  }
+);
+
+// ────────────────────────────────────────────────────────────────────────────
+// Wedge #5 — position-aware waitlist.
+// gpmglv's /join-waitlist is submit-and-disappear. We expose real position
+// math per (property, bedroom tier) so the applicant always knows where they
+// stand: "#7 of 23, moved up 3 spots, est. 3–6 months". The position screen
+// (client-tenant/src/pages/waitlist/Position.tsx) reads the GET summary; the
+// banner and Apply funnel POST/DELETE to manage membership.
+
+// Slug ↔ property lookup. The properties table has no slug column; seed
+// derives the slug from `name` via lowercase + non-alnum-to-dash + trim. We
+// reverse the mapping by normalizing both sides in SQL. Cheap on a 16-row
+// table; if the catalog ever grows we can add a stored slug column.
+async function resolvePropertyIdBySlug(slug: string): Promise<string | null> {
+  // regex_replace mirrors the seed slugify: collapse runs of non-alnum to "-"
+  // and strip leading/trailing dashes, all lowercase. The trim_both replaces
+  // ltrim+rtrim to keep the SQL portable.
+  const result = await query(
+    `SELECT id
+       FROM properties
+      WHERE regexp_replace(
+              trim(BOTH '-' FROM regexp_replace(LOWER(name), '[^a-z0-9]+', '-', 'g')),
+              '^$', NULL
+            ) = $1
+      LIMIT 1`,
+    [slug]
+  );
+  return result.rows[0]?.id ?? null;
+}
+
+// estimatedWindow heuristic: assumes ~12 moves/year (one open unit per
+// bedroom-tier per month, very rough). Replace with property-level historical
+// throughput when that signal is available.
+function estimateWindow(totalQueue: number, positionAhead: number): string {
+  // For unauth/non-enrolled callers we estimate by total queue depth; for
+  // enrolled callers we estimate by spots ahead (positionAhead = position - 1).
+  const ahead = positionAhead > 0 ? positionAhead : totalQueue;
+  if (ahead < 3) return "1–3 months";
+  if (ahead < 6) return "3–6 months";
+  return "6+ months";
+}
+
+interface WaitlistSummaryPayload {
+  slug: string;
+  position?: number;
+  totalQueue: number;
+  movement: { spotsThisMonth: number; direction: "up" | "down" | "flat" } | null;
+  estimatedWindow: string;
+  enrolled: boolean;
+}
+
+async function buildWaitlistSummary(
+  slug: string,
+  propertyId: string,
+  bedrooms: number,
+  userId: string | null
+): Promise<WaitlistSummaryPayload> {
+  const totalRes = await query(
+    `SELECT COUNT(*)::int AS n
+       FROM waitlist_entries
+      WHERE property_id = $1 AND bedroom_count = $2`,
+    [propertyId, bedrooms]
+  );
+  const totalQueue: number = totalRes.rows[0]?.n ?? 0;
+
+  if (!userId) {
+    return {
+      slug,
+      totalQueue,
+      movement: null,
+      estimatedWindow: estimateWindow(totalQueue, 0),
+      enrolled: false,
+    };
+  }
+
+  // Position is 1 + the count of entries created strictly before this user's
+  // entry in the same lane. Ties on created_at are vanishingly rare (uuid PK
+  // insert is sub-millisecond) and harmless — they'd just share rank.
+  const mineRes = await query(
+    `SELECT created_at, notified_position_at, last_notified_position
+       FROM waitlist_entries
+      WHERE property_id = $1 AND bedroom_count = $2 AND applicant_user_id = $3
+      LIMIT 1`,
+    [propertyId, bedrooms, userId]
+  );
+  if (mineRes.rows.length === 0) {
+    return {
+      slug,
+      totalQueue,
+      movement: null,
+      estimatedWindow: estimateWindow(totalQueue, 0),
+      enrolled: false,
+    };
+  }
+  const mine = mineRes.rows[0];
+
+  const aheadRes = await query(
+    `SELECT COUNT(*)::int AS n
+       FROM waitlist_entries
+      WHERE property_id = $1
+        AND bedroom_count = $2
+        AND created_at < $3`,
+    [propertyId, bedrooms, mine.created_at]
+  );
+  const position: number = (aheadRes.rows[0]?.n ?? 0) + 1;
+
+  // Movement requires a prior snapshot. If we haven't notified the applicant
+  // about their position yet, return null (the UI hides the chip cleanly).
+  let movement: WaitlistSummaryPayload["movement"] = null;
+  if (mine.last_notified_position != null && mine.notified_position_at != null) {
+    const delta = mine.last_notified_position - position;
+    const direction: "up" | "down" | "flat" =
+      delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+    movement = { spotsThisMonth: Math.abs(delta), direction };
+  }
+
+  return {
+    slug,
+    position,
+    totalQueue,
+    movement,
+    estimatedWindow: estimateWindow(totalQueue, position - 1),
+    enrolled: true,
+  };
+}
+
+// GET /properties/:slug/waitlist-summary?bedrooms=N
+// - Requires ?bedrooms (the queue is per bedroom-tier per property).
+// - Unauthenticated callers get the public shape (totalQueue + window, no
+//   position). Authenticated but not-enrolled callers get the same shape with
+//   `enrolled: false`. Enrolled callers get position + movement.
+const waitlistBedroomsSchema = z.object({
+  bedrooms: z.coerce.number().int().min(0).max(6),
+});
+
 router.get(
   "/properties/:slug/waitlist-summary",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const slug = String(req.params.slug ?? "");
-      // Placeholder values — real math arrives with BP-04 waitlist scoring.
-      res.json({
-        slug,
-        position: 12,
-        totalQueue: 38,
-        movement: { spotsThisMonth: 3, direction: "up" as const },
-        estimatedWindow: "3–6 months",
-        placeholder: true,
-      });
+      const slug = String(req.params.slug ?? "").trim();
+      if (!slug) {
+        res.status(400).json({ error: "Property slug required" });
+        return;
+      }
+
+      const parsed = waitlistBedroomsSchema.safeParse(req.query);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: "bedrooms query param is required (0–6)",
+          details: parsed.error.errors,
+        });
+        return;
+      }
+      const bedrooms = parsed.data.bedrooms;
+
+      const propertyId = await resolvePropertyIdBySlug(slug);
+      if (!propertyId) {
+        res.status(404).json({ error: "Property not found" });
+        return;
+      }
+
+      // Resolve the caller — optional. If a Bearer token is present and valid,
+      // attribute the position to that user; otherwise fall back to the
+      // public shape (no position, just queue depth + window).
+      let userId: string | null = null;
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith("Bearer ")) {
+        try {
+          const jwt = await import("jsonwebtoken");
+          const decoded = jwt.verify(
+            authHeader.substring(7),
+            // Must match middleware/auth.ts default — mismatch would silently
+            // make every token "invalid" in dev/test and break enrolled GETs.
+            process.env.JWT_SECRET || "dev-secret-change-me"
+          ) as { id?: string };
+          if (decoded?.id) {
+            // Quick role + active check; not paying the full authenticate()
+            // tax (which 401s on miss — we want graceful unauth fallback).
+            const u = await query(
+              "SELECT id FROM users WHERE id = $1 AND is_active = TRUE",
+              [decoded.id]
+            );
+            if (u.rows.length > 0) userId = u.rows[0].id;
+          }
+        } catch {
+          // Invalid/expired token → treat as anonymous. No 401: the summary
+          // is informational and the unauth shape is intentional.
+        }
+      }
+
+      const summary = await buildWaitlistSummary(slug, propertyId, bedrooms, userId);
+      res.json(summary);
     } catch (err) {
       logger.error("Failed to fetch waitlist summary", { error: (err as Error).message });
       res.status(500).json({ error: "Failed to fetch waitlist summary" });
+    }
+  }
+);
+
+const waitlistJoinSchema = z.object({
+  bedrooms: z.number().int().min(0).max(6),
+});
+
+// POST /properties/:slug/waitlist-join — body { bedrooms }
+// Idempotent: re-joining the same (property, bedroom_count) is a no-op and
+// returns the existing position (does NOT shuffle the applicant to the back).
+router.post(
+  "/properties/:slug/waitlist-join",
+  authenticate,
+  requireEmailVerified,
+  unitWriteLimiter,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+      const slug = String(req.params.slug ?? "").trim();
+      if (!slug) {
+        res.status(400).json({ error: "Property slug required" });
+        return;
+      }
+      const parsed = waitlistJoinSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+        return;
+      }
+      const propertyId = await resolvePropertyIdBySlug(slug);
+      if (!propertyId) {
+        res.status(404).json({ error: "Property not found" });
+        return;
+      }
+      // ON CONFLICT DO NOTHING: re-clicking "Join" preserves the original
+      // created_at (and thus the original position).
+      await query(
+        `INSERT INTO waitlist_entries (property_id, bedroom_count, applicant_user_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (property_id, bedroom_count, applicant_user_id) DO NOTHING`,
+        [propertyId, parsed.data.bedrooms, req.user.id]
+      );
+
+      const summary = await buildWaitlistSummary(
+        slug,
+        propertyId,
+        parsed.data.bedrooms,
+        req.user.id
+      );
+      res.status(201).json(summary);
+    } catch (err) {
+      logger.error("Failed to join waitlist", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to join waitlist" });
+    }
+  }
+);
+
+// DELETE /properties/:slug/waitlist-leave?bedrooms=N — idempotent
+router.delete(
+  "/properties/:slug/waitlist-leave",
+  authenticate,
+  requireEmailVerified,
+  unitWriteLimiter,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+      const slug = String(req.params.slug ?? "").trim();
+      if (!slug) {
+        res.status(400).json({ error: "Property slug required" });
+        return;
+      }
+      const parsed = waitlistBedroomsSchema.safeParse(req.query);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: "bedrooms query param is required (0–6)",
+          details: parsed.error.errors,
+        });
+        return;
+      }
+      const propertyId = await resolvePropertyIdBySlug(slug);
+      if (!propertyId) {
+        res.status(404).json({ error: "Property not found" });
+        return;
+      }
+      await query(
+        `DELETE FROM waitlist_entries
+          WHERE property_id = $1 AND bedroom_count = $2 AND applicant_user_id = $3`,
+        [propertyId, parsed.data.bedrooms, req.user.id]
+      );
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error("Failed to leave waitlist", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to leave waitlist" });
     }
   }
 );
@@ -413,6 +785,12 @@ router.post(
         actor: req.user!.id,
         payload: { application_id: result, intent },
       });
+      // BP-02 Lane G dual-write — gated on COMPLIANCE_TAPE_V2_ENABLED.
+      void stampV2WaitingListAppCaptured({
+        applicantId: req.user!.id,
+        capturedAt: new Date().toISOString(),
+        bedroomCount: intent.bedrooms,
+      });
 
       res.json({ ok: true, application_id: result });
     } catch (err) {
@@ -449,15 +827,27 @@ router.get(
       const propertyId = typeof req.query.propertyId === "string" ? req.query.propertyId : undefined;
 
       // W0 AMI filter — narrow to set-asides the applicant qualifies for.
-      // Tier '50' qualifies for ['50','60','80']% units (and market-rate);
-      // missing/invalid param → no filter (permissive default).
+      // Tier '50' qualifies for ['50','60','80']% units (and market-rate).
+      // The legal set is the union from `client-tenant/src/lib/ami.ts:AmiTier`
+      // (HUD LIHTC tier table). Validate strictly so that a typo in the
+      // query string (`?amiTier=70`) becomes a loud 400 instead of a silent
+      // "full list" surprise — this matches the W0 contract that any tier
+      // shown to the user must be one the calculator actually emits.
       const AMI_TIER_ORDER = ["30", "50", "60", "80"] as const;
-      const amiTierRaw =
-        typeof req.query.amiTier === "string" ? req.query.amiTier : undefined;
-      const amiTier =
-        amiTierRaw && (AMI_TIER_ORDER as readonly string[]).includes(amiTierRaw)
-          ? (amiTierRaw as (typeof AMI_TIER_ORDER)[number])
-          : undefined;
+      const amiTierSchema = z.enum(AMI_TIER_ORDER);
+      let amiTier: (typeof AMI_TIER_ORDER)[number] | undefined;
+      if (req.query.amiTier !== undefined) {
+        const parsed = amiTierSchema.safeParse(req.query.amiTier);
+        if (!parsed.success) {
+          res.status(400).json({
+            error: "Invalid amiTier",
+            details: parsed.error.errors,
+            allowed: AMI_TIER_ORDER,
+          });
+          return;
+        }
+        amiTier = parsed.data;
+      }
 
       const conditions: string[] = [
         "(u.status = 'available' OR (u.status = 'held' AND u.claim_expires_at < NOW()))",
@@ -567,21 +957,30 @@ router.post(
           return { error: "UNIT_UNAVAILABLE" as const };
         }
 
+        // Issue #15 Bug 2 (concurrent same-user leak): the per-user advisory
+        // lock above serializes claims from the same user, but we still need
+        // FOR UPDATE on the draft row itself so the prior-unit pointer we
+        // read is the one we'll mutate at the end of the txn. Without it, a
+        // sibling txn that already advanced past the lock could have rewritten
+        // claimed_unit_id between our read and our write.
         const draft = await client.query(
-          `SELECT a.id, a.claimed_unit_id
+          `SELECT a.id, a.claimed_unit_id, a.claim_expires_at
              FROM user_applications ua
              JOIN applications a ON a.id = ua.application_id
             WHERE ua.user_id = $1 AND a.status = 'draft'
             ORDER BY a.created_at DESC
-            LIMIT 1`,
+            LIMIT 1
+            FOR UPDATE OF a`,
           [req.user!.id]
         );
 
         let applicationId: string;
         let priorUnitId: string | null = null;
+        let priorExpiresAt: Date | string | null = null;
         if (draft.rows.length > 0) {
           applicationId = draft.rows[0].id;
           priorUnitId = draft.rows[0].claimed_unit_id;
+          priorExpiresAt = draft.rows[0].claim_expires_at;
         } else {
           const created = await client.query(
             `INSERT INTO applications (property_id, first_name, last_name, email, status)
@@ -604,13 +1003,22 @@ router.post(
         }
 
         if (priorUnitId && priorUnitId !== unitId) {
+          // Issue #15 Bug 1 (cross-user clobber): the prior-unit release used
+          // to be an unconditional UPDATE on the unit row, so if the user's
+          // own hold had already expired and a different applicant had since
+          // re-claimed that unit, this UPDATE would silently destroy the new
+          // holder's claim. Gate the UPDATE on the expected (holder, expiry)
+          // predicate — if the row no longer matches what we held, the UPDATE
+          // is a no-op and the new holder is safe.
           await client.query(
             `UPDATE units
                 SET status = 'available',
                     claim_expires_at = NULL,
                     updated_at = NOW()
-              WHERE id = $1`,
-            [priorUnitId]
+              WHERE id = $1
+                AND status = 'held'
+                AND claim_expires_at IS NOT DISTINCT FROM $2`,
+            [priorUnitId, priorExpiresAt]
           );
         }
 
@@ -670,6 +1078,15 @@ router.post(
             expires_at: result.expires_at,
           },
         });
+        // BP-02 Lane G dual-write — gated on COMPLIANCE_TAPE_V2_ENABLED.
+        // position=1 reflects "claimant holds the unit" at claim time.
+        void stampV2PositionLetterSent({
+          applicantId: req.user!.id,
+          propertyId: result.unit.property_id,
+          bedroomCount: result.unit.bedrooms,
+          position: 1,
+          sentAt: new Date().toISOString(),
+        });
       }
 
       res.json(result);
@@ -701,25 +1118,36 @@ router.delete(
           `claim-unit:${req.user!.id}`,
         ]);
 
+        // Issue #15: lock the draft row so we read the (claimed_unit_id,
+        // claim_expires_at) pair that we'll guard the release UPDATE with.
         const draft = await client.query(
-          `SELECT a.id, a.claimed_unit_id
+          `SELECT a.id, a.claimed_unit_id, a.claim_expires_at
              FROM user_applications ua
              JOIN applications a ON a.id = ua.application_id
             WHERE ua.user_id = $1 AND a.status = 'draft' AND a.claimed_unit_id IS NOT NULL
             ORDER BY a.created_at DESC
-            LIMIT 1`,
+            LIMIT 1
+            FOR UPDATE OF a`,
           [req.user!.id]
         );
         if (draft.rows.length === 0) return;
-        const { id: applicationId, claimed_unit_id: unitId } = draft.rows[0];
+        const {
+          id: applicationId,
+          claimed_unit_id: unitId,
+          claim_expires_at: priorExpiresAt,
+        } = draft.rows[0];
 
+        // Issue #15 Bug 1: guard the release with holder+expiry so we can't
+        // clobber a unit that has lazy-expired into a different user's hold.
         await client.query(
           `UPDATE units
               SET status = 'available',
                   claim_expires_at = NULL,
                   updated_at = NOW()
-            WHERE id = $1`,
-          [unitId]
+            WHERE id = $1
+              AND status = 'held'
+              AND claim_expires_at IS NOT DISTINCT FROM $2`,
+          [unitId, priorExpiresAt]
         );
         await client.query(
           `UPDATE applications

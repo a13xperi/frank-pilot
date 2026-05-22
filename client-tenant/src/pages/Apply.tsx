@@ -6,6 +6,8 @@ import { ClaimedUnitHeader } from '@/components/ClaimedUnitHeader';
 import { Card } from '@/components/primitives';
 import { HF } from '@/styles/tokens';
 import { useTranslation } from 'react-i18next';
+import { useFlag } from '@/lib/flags';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import {
   ApplyProvider,
   useWizState,
@@ -13,6 +15,7 @@ import {
   type Step,
 } from './apply/ApplyContext';
 import { StepIndicator } from './apply/StepIndicator';
+import { MobileApplyShell } from './apply/MobileApplyShell';
 import { Step1Register } from './apply/steps/Step1Register';
 import { StepVerify } from './apply/steps/StepVerify';
 import { StepIntent } from './apply/steps/StepIntent';
@@ -28,6 +31,57 @@ const StepReview = lazy(() => import('./apply/steps/StepReview'));
 const StepHousehold = lazy(() => import('./apply/steps/StepHousehold'));
 const StepPayment = lazy(() => import('./apply/steps/StepPayment'));
 const StepConfirm = lazy(() => import('./apply/steps/StepConfirm'));
+
+// Issue #8 — placeholder painted while the intent-step hydration fetch is in
+// flight on a fresh deep link (`?step=intent`). Mirrors the StepIntent layout
+// (title, bedroom row, slider, date, household, income, CTA) so swapping in
+// the real form doesn't shift layout. Reads as "loading" via aria-busy.
+function IntentSkeleton() {
+  const bar = (h: number, w: string) => (
+    <div
+      style={{
+        height: h,
+        width: w,
+        background: HF.border,
+        borderRadius: HF.r.sm,
+        opacity: 0.5,
+      }}
+    />
+  );
+  return (
+    <div aria-busy="true" aria-live="polite" data-testid="intent-skeleton" className="space-y-5">
+      <div className="space-y-2">
+        {bar(20, '60%')}
+        {bar(14, '80%')}
+      </div>
+      <div className="space-y-2">
+        {bar(12, '30%')}
+        <div className="grid grid-cols-5 gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i}>{bar(40, '100%')}</div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        {bar(12, '40%')}
+        {bar(16, '100%')}
+      </div>
+      <div className="space-y-2">
+        {bar(12, '35%')}
+        {bar(36, '100%')}
+      </div>
+      <div className="space-y-2">
+        {bar(12, '35%')}
+        {bar(36, '100%')}
+      </div>
+      <div className="space-y-2">
+        {bar(12, '55%')}
+        {bar(36, '100%')}
+      </div>
+      {bar(44, '100%')}
+    </div>
+  );
+}
 
 function parseStep(raw: string | null): Step {
   if (raw === '2') return 2;
@@ -55,12 +109,28 @@ export function Apply() {
   function setStep(next: Step) {
     setStepState(next);
     const value = next === 1 ? null : String(next);
-    // Preserve handoff params (unitType/propertyId/state) on step transitions.
-    const nextParams = new URLSearchParams(search);
-    if (value) nextParams.set('step', value);
-    else nextParams.delete('step');
-    setSearch(nextParams, { replace: true });
+    // Issue #9 — merge with the LATEST URLSearchParams snapshot rather than
+    // the closure-captured `search`. The functional form guarantees we don't
+    // clobber utm_* / unitType / propertyId / state / any inbound params that
+    // were added between renders or in a sibling effect.
+    setSearch(
+      (prev) => {
+        const nextParams = new URLSearchParams(prev);
+        if (value) nextParams.set('step', value);
+        else nextParams.delete('step');
+        return nextParams;
+      },
+      { replace: true },
+    );
   }
+
+  // Sync step state when the URL changes externally — child steps (Household,
+  // Review, Payment) call setSearch directly and browser back/forward also
+  // mutate `search` without going through setStep.
+  useEffect(() => {
+    const next = parseStep(search.get('step'));
+    setStepState((prev) => (prev === next ? prev : next));
+  }, [search]);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -107,18 +177,37 @@ export function Apply() {
   // persisted to sessionStorage under key `frank_apply_state`.
   const wiz = useWizState();
 
+  // Issue #8 — gate render on intent-step deep links until hydration completes.
+  // Without this, landing on `?step=intent` paints the empty quiz form for a
+  // tick before /auth/me + /applicants/me/applications resolve and backfill
+  // bedrooms / budget / move-in / household size. We flip `hydrated` true in
+  // the same effect that does the fetch — including the early-out paths — so
+  // any code path that "doesn't need hydration" still unlocks render.
+  const [hydrated, setHydrated] = useState(false);
+
   // Hydrate identity + intent prefill on entering intent/checklist/pick/2 (deep links).
   useEffect(() => {
-    if (step !== 'intent' && step !== 'checklist' && step !== 'pick' && step !== 2) return;
-    if (email && firstName && lastName) return;
+    if (step !== 'intent' && step !== 'checklist' && step !== 'pick' && step !== 2) {
+      // Non-hydrating step (1 / verify / claim / review / household / payment /
+      // confirm): nothing to wait on, render immediately.
+      setHydrated(true);
+      return;
+    }
+    if (email && firstName && lastName) {
+      // Identity already in memory — no fetch needed, unblock render.
+      setHydrated(true);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
         const me = await api.get<{ user?: { email: string; firstName: string; lastName: string } }>('/auth/me');
-        if (cancelled || !me.user) return;
-        if (!email) setEmail(me.user.email);
-        if (!firstName) setFirstName(me.user.firstName);
-        if (!lastName) setLastName(me.user.lastName);
+        if (cancelled) return;
+        if (me.user) {
+          if (!email) setEmail(me.user.email);
+          if (!firstName) setFirstName(me.user.firstName);
+          if (!lastName) setLastName(me.user.lastName);
+        }
 
         const apps = await api.get<{ applications?: Array<{
           id: string; property_id?: string; unit_number?: string;
@@ -127,23 +216,36 @@ export function Apply() {
           intent_move_in_date?: string | null;
           intent_household_size?: number | null;
         }> }>('/applicants/me/applications');
+        if (cancelled) return;
         const latest = apps.applications?.[0];
-        if (cancelled || !latest) return;
-        if (latest.property_id && !propertyId) setPropertyId(latest.property_id);
-        if (latest.unit_number && !unitNumber) setUnitNumber(latest.unit_number);
-        if (latest.intent_bedrooms != null && wiz.intentBedrooms === null) wiz.setIntentBedrooms(latest.intent_bedrooms);
-        if (latest.intent_budget_max != null) setIntentBudgetMax(Number(latest.intent_budget_max));
-        if (latest.intent_move_in_date) setIntentMoveInDate(latest.intent_move_in_date.slice(0, 10));
-        if (latest.intent_household_size != null) {
-          wiz.setIntentHouseholdSize(latest.intent_household_size);
-          setHouseholdSize(String(latest.intent_household_size));
+        if (latest) {
+          if (latest.property_id && !propertyId) setPropertyId(latest.property_id);
+          if (latest.unit_number && !unitNumber) setUnitNumber(latest.unit_number);
+          if (latest.intent_bedrooms != null && wiz.intentBedrooms === null) wiz.setIntentBedrooms(latest.intent_bedrooms);
+          if (latest.intent_budget_max != null) setIntentBudgetMax(Number(latest.intent_budget_max));
+          if (latest.intent_move_in_date) setIntentMoveInDate(latest.intent_move_in_date.slice(0, 10));
+          if (latest.intent_household_size != null) {
+            wiz.setIntentHouseholdSize(latest.intent_household_size);
+            setHouseholdSize(String(latest.intent_household_size));
+          }
         }
       } catch {
-        /* ignored */
+        /* ignored — hydration is best-effort, unblock render on failure too */
+      } finally {
+        if (!cancelled) setHydrated(true);
       }
     })();
     return () => { cancelled = true; };
   }, [step, email, firstName, lastName, propertyId, unitNumber, wiz]);
+
+  // Wedge #7 — mobile-first shell behind MOBILE_APPLY_ENABLED. Active only
+  // when (a) flag on AND (b) viewport < md. Desktop and flag-off paths
+  // continue to render the legacy layout pixel-stable. These hooks MUST run
+  // before any early-return below to keep the hook count stable across
+  // renders (otherwise `if (done) return ...` short-circuits these).
+  const mobileFlag = useFlag('MOBILE_APPLY_ENABLED');
+  const isMobile = useIsMobile();
+  const useMobileShell = mobileFlag && isMobile;
 
   const value: ApplyState = {
     step, setStep, error, setError, loading, setLoading,
@@ -191,6 +293,75 @@ export function Apply() {
 
   const containerWidth = step === 'pick' ? 'max-w-3xl' : 'max-w-md';
 
+  const stepBody = (
+    <>
+      {step === 1 && <Step1Register />}
+      {step === 'verify' && <StepVerify />}
+      {step === 'intent' && (hydrated ? <StepIntent /> : <IntentSkeleton />)}
+      {step === 'checklist' && <StepChecklist />}
+      {step === 'pick' && <StepPick />}
+      {step === 'claim' && <StepClaim />}
+      {step === 'review' && (
+        <Suspense fallback={null}><StepReview /></Suspense>
+      )}
+      {step === 'household' && (
+        <Suspense fallback={null}><StepHousehold /></Suspense>
+      )}
+      {step === 'payment' && (
+        <Suspense fallback={null}><StepPayment /></Suspense>
+      )}
+      {step === 2 && <Step2Details />}
+      {step === 'confirm' && (
+        <Suspense fallback={null}><StepConfirm /></Suspense>
+      )}
+    </>
+  );
+
+  const errorBanner = error && (
+    <div
+      className="mb-4 p-3 text-sm"
+      role="alert"
+      style={{
+        background: HF.errLo,
+        color: HF.err,
+        border: `1px solid ${HF.err}33`,
+        borderRadius: HF.r.sm,
+      }}
+    >
+      {error}
+    </div>
+  );
+
+  if (useMobileShell) {
+    // Mobile shell — own progress strip (top) and sticky CTA bar
+    // (bottom, portaled into by StepCTA). Steps render edge-to-edge
+    // inside the scrollable middle region; no outer Card chrome.
+    return (
+      <ApplyProvider value={value}>
+        <MobileApplyShell>
+          {step === 2 && claimedUnit && claimExpiresAt && (
+            <ClaimedUnitHeader unit={claimedUnit} expiresAt={claimExpiresAt} />
+          )}
+          {errorBanner}
+          {stepBody}
+          <p
+            className="text-center text-sm"
+            style={{ color: HF.ink3, marginTop: 24 }}
+          >
+            {t('common.alreadyHaveAccount')}{' '}
+            <Link
+              to="/login"
+              className="font-medium hover:underline"
+              style={{ color: HF.accent }}
+            >
+              {t('common.signIn')}
+            </Link>
+          </p>
+        </MobileApplyShell>
+      </ApplyProvider>
+    );
+  }
+
   return (
     <ApplyProvider value={value}>
       <div
@@ -207,39 +378,8 @@ export function Apply() {
             )}
             <div className="lg:hidden"><StepIndicator /></div>
             <Card>
-              {error && (
-                <div
-                  className="mb-4 p-3 text-sm"
-                  role="alert"
-                  style={{
-                    background: HF.errLo,
-                    color: HF.err,
-                    border: `1px solid ${HF.err}33`,
-                    borderRadius: HF.r.sm,
-                  }}
-                >
-                  {error}
-                </div>
-              )}
-              {step === 1 && <Step1Register />}
-              {step === 'verify' && <StepVerify />}
-              {step === 'intent' && <StepIntent />}
-              {step === 'checklist' && <StepChecklist />}
-              {step === 'pick' && <StepPick />}
-              {step === 'claim' && <StepClaim />}
-              {step === 'review' && (
-                <Suspense fallback={null}><StepReview /></Suspense>
-              )}
-              {step === 'household' && (
-                <Suspense fallback={null}><StepHousehold /></Suspense>
-              )}
-              {step === 'payment' && (
-                <Suspense fallback={null}><StepPayment /></Suspense>
-              )}
-              {step === 2 && <Step2Details />}
-              {step === 'confirm' && (
-                <Suspense fallback={null}><StepConfirm /></Suspense>
-              )}
+              {errorBanner}
+              {stepBody}
             </Card>
             <p className="text-center text-sm" style={{ color: HF.ink3 }}>
               {t('common.alreadyHaveAccount')}{' '}

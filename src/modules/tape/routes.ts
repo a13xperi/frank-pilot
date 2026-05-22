@@ -10,6 +10,7 @@ import { Router, Request, Response } from "express";
 import { z } from "zod";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { stampTape, TAPE_STAMP_KINDS } from "./index";
+import { stampV2Hud9281FairHousingPosted } from "./v2-stamp";
 import { logger } from "../../utils/logger";
 
 const router: Router = Router();
@@ -47,6 +48,13 @@ router.post("/welcome-view", beaconLimiter, async (req: Request, res: Response):
       },
       sessionId: parsed.data.session_id,
     });
+    // BP-02 Lane G dual-write — gated on COMPLIANCE_TAPE_V2_ENABLED.
+    // medium="web" since this beacon fires from the in-browser Welcome page.
+    void stampV2Hud9281FairHousingPosted({
+      sessionId: parsed.data.session_id,
+      medium: "web",
+      postedAt: new Date().toISOString(),
+    });
     res.status(204).end();
   } catch (err) {
     logger.error("welcome-view beacon failed", { error: (err as Error).message });
@@ -77,6 +85,10 @@ router.post("/welcome-accept", beaconLimiter, async (req: Request, res: Response
       },
       sessionId: parsed.data.session_id,
     });
+    // BP-02 v2 dual-write deliberately skipped: this beacon fires pre-auth
+    // and the only identity available is `email`, which can't be coerced
+    // into the UUID applicant_id column. Phase 3 ports this once the
+    // verified users.id is known after magic-link callback.
     res.status(204).end();
   } catch (err) {
     logger.error("welcome-accept beacon failed", { error: (err as Error).message });
@@ -92,8 +104,11 @@ router.post("/welcome-accept", beaconLimiter, async (req: Request, res: Response
 // BP-08 owns real Stripe wiring; this is scaffold-only.
 const paymentBeaconSchema = z.object({
   session_id: z.string().min(1).max(128),
-  adults: z.number().int().nonnegative().optional(),
-  total: z.number().nonnegative().optional(),
+  // Coerce so the client can send numeric strings ("71.90") or numbers.
+  // StepPayment passes state.paymentTotal which is a formatted decimal string;
+  // future Stripe wiring may pass a number. Both must pass schema.
+  adults: z.coerce.number().int().nonnegative().optional(),
+  total: z.coerce.number().nonnegative().optional(),
 });
 
 function makePaymentBeacon(kindKey: "BP03B_PAYMENT_INITIATED" | "BP03B_PAYMENT_SUCCEEDED", label: string) {

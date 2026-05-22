@@ -21,6 +21,7 @@ jest.mock("../utils/logger", () => ({
 jest.mock("../modules/auth/magic-link-service", () => ({
   createMagicLink: jest.fn(),
   logMagicLink: jest.fn(),
+  sendMagicLink: jest.fn(),
 }));
 jest.mock("../modules/application/service", () => ({
   ApplicationService: jest.fn().mockImplementation(() => ({ create: jest.fn() })),
@@ -243,6 +244,96 @@ describe("GET /applicants/units", () => {
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(403);
   });
+
+  // W0 — AMI tier filter coverage. The filter is the backend half of the
+  // landing → apply → discover cold-open: visitor types income on the
+  // welcome calculator, the tier flows into `qualifyingAmiTier`, and the
+  // unit list shows only set-asides at-or-above that tier.
+  describe("?amiTier= filter (W0)", () => {
+    it("with amiTier=50 — restricts set-aside whitelist to ['50','60','80']% AMI", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=50")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      const sql = mockQuery.mock.calls[1][0] as string;
+      const params = mockQuery.mock.calls[1][1] as unknown[];
+      // Filter is appended as an ANY($n) clause on p.ami_set_aside, with the
+      // market-rate (null/empty) fallback preserved so unaffordable applicants
+      // still see market-rate inventory when no tier matches.
+      expect(sql).toContain("p.ami_set_aside = ANY($1)");
+      expect(sql).toContain("p.ami_set_aside IS NULL OR p.ami_set_aside = ''");
+      expect(params).toEqual([["50% AMI", "60% AMI", "80% AMI"]]);
+    });
+
+    it("with amiTier=30 — includes every higher tier in the whitelist", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=30")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      const params = mockQuery.mock.calls[1][1] as unknown[];
+      expect(params).toEqual([["30% AMI", "50% AMI", "60% AMI", "80% AMI"]]);
+    });
+
+    it("with amiTier=80 — whitelist contains only the top tier", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=80")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      const params = mockQuery.mock.calls[1][1] as unknown[];
+      expect(params).toEqual([["80% AMI"]]);
+    });
+
+    it("rejects an invalid amiTier value with 400 (loud, not silent drop)", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=70")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/invalid amiTier/i);
+      expect(res.body.allowed).toEqual(["30", "50", "60", "80"]);
+      // No DB query should have been issued for the units fetch (auth row is
+      // already shifted off the queue at this point).
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects garbage strings with 400 (no SQL injection vector)", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=' OR '1'='1")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(400);
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it("without amiTier — returns the full list (no AMI condition appended)", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          { id: "u1", monthly_rent: 1500 },
+          { id: "u2", monthly_rent: 1600 },
+        ],
+      } as any);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.units).toHaveLength(2);
+      const sql = mockQuery.mock.calls[1][0] as string;
+      expect(sql).not.toMatch(/p\.ami_set_aside = ANY/);
+    });
+  });
 });
 
 describe("POST /applicants/claim-unit/:id", () => {
@@ -409,6 +500,105 @@ describe("POST /applicants/claim-unit/:id", () => {
     expect(forUpdateIdx).toBeGreaterThan(advisoryIdx);
   });
 
+  // Regression for issue #15 Bug 1 (cross-user clobber). Setup: User A's
+  // draft still points at PRIOR_UNIT with the original 48h expiry, but that
+  // hold has lapsed and User B has since re-claimed PRIOR_UNIT with a NEW
+  // expiry. When A now claims VALID_UNIT, the prior-unit release UPDATE must
+  // be gated on the (status='held', claim_expires_at = $priorExpiresAt)
+  // predicate so it cannot touch B's active hold. We assert the actual SQL
+  // shape since this is the only deterministic way to verify the gate
+  // without spinning up Postgres.
+  it("guards prior-unit release with holder+expiry predicate (issue #15 Bug 1)", async () => {
+    mockUsersRow(applicant, VERIFIED_AT);
+    const PRIOR_UNIT = "550e8400-e29b-41d4-a716-446655440099";
+    const ORIGINAL_EXPIRY = new Date("2026-05-19T00:00:00Z").toISOString();
+    const calls: Array<[string, any[] | undefined]> = [];
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const queue: Array<{ rows: any[] }> = [
+        { rows: [] },                                                                          // advisory lock
+        { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "available", claim_expires_at: null }] },
+        { rows: [{ id: "app-001", claimed_unit_id: PRIOR_UNIT, claim_expires_at: ORIGINAL_EXPIRY }] },
+        { rows: [] }, // guarded UPDATE on PRIOR_UNIT — assumed no-op in real DB if B now holds it
+        { rows: [] }, // UPDATE units (new claim → held)
+        { rows: [] }, // UPDATE applications
+        { rows: [{ id: VALID_UNIT, unit_number: "A-101" }] },
+      ];
+      const client = {
+        query: jest.fn().mockImplementation((sql: string, params?: any[]) => {
+          calls.push([sql, params]);
+          return Promise.resolve(queue.shift()!);
+        }),
+      };
+      return fn(client);
+    });
+    const token = generateToken(applicant);
+    const res = await request(app)
+      .post(`/applicants/claim-unit/${VALID_UNIT}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+
+    // The prior-unit release UPDATE must include status + expiry predicates,
+    // and must pass the expected priorExpiresAt as $2. An unguarded UPDATE
+    // (the pre-fix code) would have neither.
+    const releaseCall = calls.find(([sql]) =>
+      /UPDATE units\s+SET status = 'available'/.test(sql) &&
+      /WHERE id = \$1/.test(sql)
+    );
+    expect(releaseCall).toBeDefined();
+    const [releaseSql, releaseParams] = releaseCall!;
+    expect(releaseSql).toMatch(/AND\s+status\s*=\s*'held'/);
+    expect(releaseSql).toMatch(/AND\s+claim_expires_at\s+IS\s+NOT\s+DISTINCT\s+FROM\s+\$2/i);
+    expect(releaseParams).toEqual([PRIOR_UNIT, ORIGINAL_EXPIRY]);
+
+    // And the draft SELECT must surface claim_expires_at (so the route has
+    // the value to bind) and lock the row with FOR UPDATE.
+    const draftSelect = calls.find(([sql]) =>
+      /FROM user_applications/.test(sql) && /JOIN applications/.test(sql)
+    );
+    expect(draftSelect![0]).toMatch(/a\.claim_expires_at/);
+    expect(draftSelect![0]).toMatch(/FOR UPDATE OF a/);
+  });
+
+  // Issue #15 Bug 2 (concurrent same-user leak): even with the per-user
+  // advisory lock, the draft SELECT must also FOR UPDATE the application
+  // row so the prior-unit pointer we read at the top of the txn is the same
+  // row we write at the bottom. (Tested via SQL shape — true parallel-tab
+  // races would need two pool connections.) See the test "acquires per-user
+  // advisory lock before locking the unit row" above for the lock-ordering
+  // half of Bug 2's defense.
+  it("locks the draft application row with FOR UPDATE (issue #15 Bug 2)", async () => {
+    mockUsersRow(applicant, VERIFIED_AT);
+    const calls: Array<[string, any[] | undefined]> = [];
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const queue: Array<{ rows: any[] }> = [
+        { rows: [] }, // advisory lock
+        { rows: [{ id: VALID_UNIT, property_id: PROPERTY_ID, status: "available", claim_expires_at: null }] },
+        { rows: [{ id: "app-001", claimed_unit_id: null, claim_expires_at: null }] },
+        { rows: [] },
+        { rows: [] },
+        { rows: [{ id: VALID_UNIT, unit_number: "A-101" }] },
+      ];
+      const client = {
+        query: jest.fn().mockImplementation((sql: string, params?: any[]) => {
+          calls.push([sql, params]);
+          return Promise.resolve(queue.shift()!);
+        }),
+      };
+      return fn(client);
+    });
+    const token = generateToken(applicant);
+    const res = await request(app)
+      .post(`/applicants/claim-unit/${VALID_UNIT}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+
+    const draftSelect = calls.find(([sql]) =>
+      /FROM user_applications/.test(sql) && /JOIN applications/.test(sql)
+    );
+    expect(draftSelect).toBeDefined();
+    expect(draftSelect![0]).toMatch(/FOR UPDATE OF a/);
+  });
+
   it("creates a draft when claiming with none yet", async () => {
     mockUsersRow(applicant, VERIFIED_AT);
     mockTxnWithQueue([
@@ -489,6 +679,49 @@ describe("DELETE /applicants/claim-unit", () => {
     expect(res.status).toBe(200);
     expect(calls[0][0]).toMatch(/pg_advisory_xact_lock\(hashtext\(\$1\)\)/);
     expect(calls[0][1]).toEqual([`claim-unit:${applicant.id}`]);
+  });
+
+  // Issue #15 Bug 1 companion: DELETE must use the same holder+expiry guard
+  // so an explicit release can't clobber a different user's hold that took
+  // over after the original lazy-expired.
+  it("guards release with holder+expiry predicate (issue #15 Bug 1)", async () => {
+    mockUsersRow(applicant, VERIFIED_AT);
+    const ORIGINAL_EXPIRY = new Date("2026-05-19T00:00:00Z").toISOString();
+    const calls: Array<[string, any[] | undefined]> = [];
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const queue: Array<{ rows: any[] }> = [
+        { rows: [] }, // advisory lock
+        { rows: [{ id: "app-001", claimed_unit_id: "unit-XYZ", claim_expires_at: ORIGINAL_EXPIRY }] },
+        { rows: [] }, // UPDATE units
+        { rows: [] }, // UPDATE applications
+      ];
+      const client = {
+        query: jest.fn().mockImplementation((sql: string, params?: any[]) => {
+          calls.push([sql, params]);
+          return Promise.resolve(queue.shift()!);
+        }),
+      };
+      return fn(client);
+    });
+    const token = generateToken(applicant);
+    const res = await request(app)
+      .delete("/applicants/claim-unit")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+
+    const releaseCall = calls.find(([sql]) =>
+      /UPDATE units\s+SET status = 'available'/.test(sql)
+    );
+    const [releaseSql, releaseParams] = releaseCall!;
+    expect(releaseSql).toMatch(/AND\s+status\s*=\s*'held'/);
+    expect(releaseSql).toMatch(/AND\s+claim_expires_at\s+IS\s+NOT\s+DISTINCT\s+FROM\s+\$2/i);
+    expect(releaseParams).toEqual(["unit-XYZ", ORIGINAL_EXPIRY]);
+
+    const draftSelect = calls.find(([sql]) =>
+      /FROM user_applications/.test(sql) && /JOIN applications/.test(sql)
+    );
+    expect(draftSelect![0]).toMatch(/a\.claim_expires_at/);
+    expect(draftSelect![0]).toMatch(/FOR UPDATE OF a/);
   });
 
   it("ok=true even when user has no active claim (idempotent)", async () => {

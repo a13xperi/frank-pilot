@@ -1,180 +1,556 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Bed, MapPin } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { fetchUnits, type Unit } from '@/api/units';
+import { fetchUnits } from '@/api/units';
 import { getToken } from '@/api/client';
-import { DL2_FIXTURE } from '@/api/properties';
-import { Card, CTA } from '@/components/primitives';
+import {
+  GPMG_FIXTURES,
+  slugify,
+  rentEstimate,
+  type GPMGProperty,
+  type GPMGType,
+} from '@/api/gpmg-fixtures';
+import { Card } from '@/components/primitives';
+import { UNIT_PLACEHOLDER } from '@/utils/unitPlaceholder';
+import { HF } from '@/styles/tokens';
+import {
+  getPropertyAvailability,
+  propertyMatchesAmiTier,
+  type BedroomBucket,
+} from '@/utils/availability';
+import {
+  propertyRentRange,
+  propertyAmiTier,
+  formatRentBucket,
+  populatedBuckets,
+} from '@/utils/pricing';
 
-interface PropertyTile {
-  slug: string;
-  name: string;
-  city: string | null;
-  state: string | null;
-  photo: string;
-  rentMin: number;
-  rentMax: number;
-  hasAvailable: boolean;
-}
+type TypeFilter = 'all' | GPMGType;
+type CityFilter = 'all' | 'Las Vegas' | 'North Las Vegas' | 'Henderson';
+type BedroomFilter = 'all' | 'studio' | '1' | '2' | '3';
 
-function unitsToProperties(units: Unit[]): PropertyTile[] {
-  if (units.length === 0) return [];
-  // Group by property_id, derive rent range. Slug is hand-mapped for DL2;
-  // multi-property registry expansion lives in canonical BP-03.
-  const byProp = new Map<string, Unit[]>();
-  for (const u of units) {
-    const k = u.property_id;
-    if (!byProp.has(k)) byProp.set(k, []);
-    byProp.get(k)!.push(u);
-  }
-  const tiles: PropertyTile[] = [];
-  for (const [, list] of byProp) {
-    const first = list[0];
-    const rents = list.map((u) =>
-      typeof u.monthly_rent === 'string' ? Number(u.monthly_rent) : u.monthly_rent
-    );
-    tiles.push({
-      slug: 'donna-louise-2', // MVP: only DL2 routes; multi-prop = BP-03 canonical
-      name: first.property_name,
-      city: first.property_city,
-      state: first.property_state,
-      photo:
-        first.photo_url ||
-        `https://picsum.photos/seed/${first.property_id.slice(0, 8)}/800/600`,
-      rentMin: Math.min(...rents),
-      rentMax: Math.max(...rents),
-      hasAvailable: list.some((u) => !!u.available_from),
-    });
-  }
-  return tiles;
-}
-
-const STATIC_DL2: PropertyTile = {
-  slug: DL2_FIXTURE.slug,
-  name: DL2_FIXTURE.name,
-  city: DL2_FIXTURE.city,
-  state: DL2_FIXTURE.state,
-  photo: DL2_FIXTURE.photos[0],
-  rentMin: DL2_FIXTURE.rentMin,
-  rentMax: DL2_FIXTURE.rentMax,
-  hasAvailable: DL2_FIXTURE.unitTypes.some((u) => u.available),
+const TYPE_LABELS: Record<TypeFilter, string> = {
+  all: 'All',
+  senior: 'Senior',
+  family: 'Family',
 };
 
-function formatRent(n: number): string {
-  return `$${Math.round(n).toLocaleString()}`;
+const CITY_LABELS: Record<CityFilter, string> = {
+  all: 'All',
+  'Las Vegas': 'Las Vegas',
+  'North Las Vegas': 'N. Las Vegas',
+  Henderson: 'Henderson',
+};
+
+const VALID_AMI_TIERS = new Set(['30', '50', '60', '80'] as const);
+type AmiTier = '30' | '50' | '60' | '80';
+
+function ChipButton({
+  active,
+  onClick,
+  children,
+  testId,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-active={active}
+      data-testid={testId}
+      style={{
+        background: active ? HF.accent : HF.paper,
+        color: active ? HF.paper : HF.ink2,
+        border: `1px solid ${active ? HF.accent : HF.border}`,
+        borderRadius: HF.r.pill,
+        padding: '6px 14px',
+        fontSize: 13,
+        fontWeight: 600,
+        fontFamily: HF.body,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function bedroomBucketFromFilter(filter: BedroomFilter): BedroomBucket | null {
+  switch (filter) {
+    case 'studio':
+      return 'studio';
+    case '1':
+      return 'br1';
+    case '2':
+      return 'br2';
+    case '3':
+      return 'br3';
+    default:
+      return null;
+  }
 }
 
 export function PropertyList() {
   const { t } = useTranslation('discover');
-  const [tiles, setTiles] = useState<PropertyTile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+
+  // Single source of truth for filters: URL params. This is what lets the
+  // chips deep-link cleanly and what the AMI-banner X-button needs to
+  // dismiss (just drop the param). It also means a reload preserves filter
+  // state, which matches the rest of the wizard.
+  const typeFilter = (params.get('type') as TypeFilter | null) ?? 'all';
+  const cityFilter = (params.get('city') as CityFilter | null) ?? 'all';
+  const bedroomFilter = (params.get('bedroom') as BedroomFilter | null) ?? 'all';
+  const availableNow = params.get('availability') === 'available_now';
+
+  const amiTierRaw = params.get('amiTier');
+  const amiTier: AmiTier | null =
+    amiTierRaw && VALID_AMI_TIERS.has(amiTierRaw as AmiTier)
+      ? (amiTierRaw as AmiTier)
+      : null;
+
+  const updateParam = (key: string, value: string | null) => {
+    const next = new URLSearchParams(params);
+    if (value === null || value === '') {
+      next.delete(key);
+    } else {
+      next.set(key, value);
+    }
+    setParams(next, { replace: true });
+  };
 
   useEffect(() => {
-    let alive = true;
-    setLoading(true);
+    // Authed users still get the live catalog warm-fetched so cached
+    // responses are ready for downstream pages (intent/pick).
+    // The public discover view always renders from GPMG_FIXTURES below.
     const authed = !!getToken();
-    const load = async () => {
-      if (!authed) {
-        // /discover is public — fall back to static fixture instead of forcing login.
-        if (alive) {
-          setTiles([STATIC_DL2]);
-          setLoading(false);
-        }
-        return;
-      }
-      try {
-        const { units } = await fetchUnits({});
+    if (!authed) return;
+    let alive = true;
+    fetchUnits({})
+      .catch(() => {
+        /* tolerate — discover doesn't depend on this */
+      })
+      .finally(() => {
         if (!alive) return;
-        const grouped = unitsToProperties(units);
-        setTiles(grouped.length > 0 ? grouped : [STATIC_DL2]);
-      } catch (e) {
-        if (!alive) return;
-        // Public route — degrade to fixture rather than blocking.
-        setTiles([STATIC_DL2]);
-        setError(e instanceof Error ? e.message : 'unknown');
-      } finally {
-        if (alive) setLoading(false);
-      }
-    };
-    load();
+      });
     return () => {
       alive = false;
     };
   }, []);
 
+  const filtered = useMemo(() => {
+    const bucket = bedroomBucketFromFilter(bedroomFilter);
+    return GPMG_FIXTURES.filter((p) => {
+      if (typeFilter !== 'all' && p.type !== typeFilter) return false;
+      if (cityFilter !== 'all' && p.city !== cityFilter) return false;
+      if (amiTier && !propertyMatchesAmiTier(p, amiTier)) return false;
+
+      // Bedroom / availability filters compare against the deterministic
+      // availability rollup (mirrors the seed). Studio/1BR/2BR/3BR show only
+      // properties with at least one available unit of that size.
+      if (bucket || availableNow) {
+        const avail = getPropertyAvailability(p.name);
+        if (availableNow && avail.availableCount === 0) return false;
+        if (bucket && avail.bedroomBreakdown[bucket] === 0) return false;
+      }
+      return true;
+    });
+  }, [typeFilter, cityFilter, bedroomFilter, availableNow, amiTier]);
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-          {t('list.title')}
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">{t('list.subtitle')}</p>
-      </header>
+    <div
+      style={{ background: HF.cream, minHeight: '100vh', fontFamily: HF.body, color: HF.ink }}
+    >
+      <div className="mx-auto max-w-5xl p-4 sm:p-6">
+        <header className="mb-4">
+          <h1
+            style={{
+              fontFamily: HF.display,
+              fontWeight: 800,
+              fontSize: 22,
+              color: HF.ink,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Find your home
+          </h1>
+          <p style={{ marginTop: 4, fontSize: 14, color: HF.ink3 }}>
+            17 affordable communities across the Las Vegas valley
+          </p>
+        </header>
 
-      {loading && (
-        <p className="text-sm text-gray-500" role="status">
-          {t('list.loading')}
-        </p>
-      )}
+        {amiTier && (
+          <div
+            data-testid="ami-banner"
+            role="status"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              background: HF.accentLo,
+              color: HF.accentInk,
+              border: '1px solid #F3D7CB',
+              borderRadius: HF.r.md,
+              padding: '10px 14px',
+              fontSize: 13,
+              fontWeight: 600,
+              marginBottom: 12,
+            }}
+          >
+            <span style={{ flex: 1 }}>
+              {t('amiBanner.text', { tier: amiTier })}
+            </span>
+            <button
+              type="button"
+              aria-label={t('amiBanner.dismiss')}
+              data-testid="ami-banner-dismiss"
+              onClick={() => updateParam('amiTier', null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: HF.accentInk,
+                cursor: 'pointer',
+                fontSize: 18,
+                lineHeight: 1,
+                padding: 4,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
 
-      {error && !loading && (
-        <p className="mb-4 text-xs text-gray-400">
-          {t('list.error', { message: error })}
-        </p>
-      )}
-
-      {!loading && tiles.length === 0 && (
-        <p className="text-sm text-gray-500">{t('list.empty')}</p>
-      )}
-
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {tiles.map((p) => {
-          const location = [p.city, p.state].filter(Boolean).join(', ');
-          return (
-            <li key={p.slug}>
-              <Card variant="mobile" className="h-full">
-                <Link
-                  to={`/property/${p.slug}`}
-                  className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+        <div
+          className="sticky top-12 z-10 -mx-4 px-4 py-3 sm:-mx-6 sm:px-6"
+          style={{ background: HF.cream, borderBottom: `1px solid ${HF.border}` }}
+        >
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <span
+                style={{
+                  fontSize: 12,
+                  color: HF.ink3,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontWeight: 700,
+                  minWidth: 36,
+                }}
+              >
+                {t('filter.type')}
+              </span>
+              {(Object.keys(TYPE_LABELS) as TypeFilter[]).map((k) => (
+                <ChipButton
+                  key={k}
+                  active={typeFilter === k}
+                  onClick={() => updateParam('type', k === 'all' ? null : k)}
                 >
-                  <div className="aspect-[16/9] w-full overflow-hidden bg-gray-100">
-                    <img
-                      src={p.photo}
-                      alt={p.name}
-                      loading="lazy"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="space-y-3 p-4">
-                    <div>
-                      <h2 className="text-base font-semibold text-gray-900">
-                        {p.name}
-                      </h2>
-                      {location && (
-                        <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
-                          <MapPin className="h-3 w-3" />
-                          {location}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-lg font-bold text-emerald-700">
-                      {formatRent(p.rentMin)}–{formatRent(p.rentMax)}/mo
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
-                        <Bed className="h-3 w-3" /> 1–3 bd
-                      </span>
-                      <CTA tone="primary">{t('list.viewDetails')}</CTA>
-                    </div>
-                  </div>
-                </Link>
-              </Card>
-            </li>
-          );
-        })}
-      </ul>
+                  {TYPE_LABELS[k]}
+                </ChipButton>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <span
+                style={{
+                  fontSize: 12,
+                  color: HF.ink3,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontWeight: 700,
+                  minWidth: 36,
+                }}
+              >
+                {t('filter.city')}
+              </span>
+              {(Object.keys(CITY_LABELS) as CityFilter[]).map((k) => (
+                <ChipButton
+                  key={k}
+                  active={cityFilter === k}
+                  onClick={() => updateParam('city', k === 'all' ? null : k)}
+                >
+                  {CITY_LABELS[k]}
+                </ChipButton>
+              ))}
+            </div>
+            <div
+              className="flex items-center gap-2 overflow-x-auto"
+              data-testid="bedroom-filter-row"
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  color: HF.ink3,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontWeight: 700,
+                  minWidth: 36,
+                }}
+              >
+                {t('filter.bedroom')}
+              </span>
+              {(['all', 'studio', '1', '2', '3'] as BedroomFilter[]).map((k) => (
+                <ChipButton
+                  key={k}
+                  active={bedroomFilter === k}
+                  testId={`chip-bedroom-${k}`}
+                  onClick={() => updateParam('bedroom', k === 'all' ? null : k)}
+                >
+                  {k === 'all' ? TYPE_LABELS.all : t(`filter.bedroom.${k}`)}
+                </ChipButton>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <span
+                style={{
+                  fontSize: 12,
+                  color: HF.ink3,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontWeight: 700,
+                  minWidth: 36,
+                }}
+              >
+                {t('filter.availability')}
+              </span>
+              <ChipButton
+                active={availableNow}
+                testId="chip-available-now"
+                onClick={() =>
+                  updateParam('availability', availableNow ? null : 'available_now')
+                }
+              >
+                {t('filter.availableNow')}
+              </ChipButton>
+            </div>
+          </div>
+        </div>
+
+        <p style={{ margin: '16px 0 8px', fontSize: 13, color: HF.ink3 }} data-testid="result-count">
+          {filtered.length} {filtered.length === 1 ? 'community' : 'communities'}
+        </p>
+
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="property-grid">
+          {filtered.map((p) => (
+            <PropertyTile key={p.name} prop={p} />
+          ))}
+        </ul>
+      </div>
     </div>
+  );
+}
+
+function AvailabilityBadge({ availableCount }: { availableCount: number }) {
+  const { t } = useTranslation('discover');
+  if (availableCount === 0) {
+    return (
+      <span
+        data-testid="availability-badge"
+        data-state="fully-leased"
+        style={{
+          background: HF.paper,
+          color: HF.ink3,
+          border: `1px solid ${HF.border}`,
+          borderRadius: HF.r.pill,
+          padding: '2px 10px',
+          fontSize: 11,
+          fontWeight: 700,
+          fontFamily: HF.body,
+        }}
+      >
+        {t('badge.fullyLeased')}
+      </span>
+    );
+  }
+  return (
+    <span
+      data-testid="availability-badge"
+      data-state="available"
+      style={{
+        background: HF.sageLo,
+        color: HF.ink2,
+        border: `1px solid ${HF.border}`,
+        borderRadius: HF.r.pill,
+        padding: '2px 10px',
+        fontSize: 11,
+        fontWeight: 700,
+        fontFamily: HF.body,
+      }}
+    >
+      {t('badge.available', { count: availableCount })}
+    </span>
+  );
+}
+
+function PropertyTile({ prop }: { prop: GPMGProperty }) {
+  const { t } = useTranslation('discover');
+  const slug = slugify(prop.name);
+  const est = rentEstimate(prop);
+  const availability = getPropertyAvailability(prop.name);
+  // For DL2 (units=null in fixture, but seed.ts seeds 48), we still want a
+  // count. We trust the rollup even when fixture `units` is null — the
+  // sentinel test asserts the rollup totals reflect the seed truth.
+  const showCount = availability.totalUnits > 0;
+
+  // Wedge #9 — per-bedroom rent ranges + AMI tier. Only populated buckets
+  // render (no "Studio $0" placeholders) and the chip only appears for
+  // properties with a real set-aside (all 17 GPMG fixtures qualify today).
+  const rentRange = propertyRentRange(prop.name);
+  const buckets = populatedBuckets(rentRange);
+  const amiTier = propertyAmiTier(prop.name);
+
+  return (
+    <li>
+      <Link
+        to={`/property/${slug}`}
+        aria-label={prop.name}
+        data-testid={`property-tile-${slug}`}
+        style={{
+          display: 'block',
+          textDecoration: 'none',
+          color: 'inherit',
+          borderRadius: HF.r.md,
+        }}
+      >
+        <Card variant="mobile" padding={0} elevation="sm" style={{ overflow: 'hidden' }}>
+          <div
+            className="aspect-[16/9] w-full"
+            style={{
+              background: `${HF.sageLo}`,
+              backgroundImage: `url(${UNIT_PLACEHOLDER})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+            aria-hidden="true"
+          />
+          <div style={{ padding: 16 }}>
+            <h2
+              style={{
+                fontFamily: HF.display,
+                fontWeight: 700,
+                fontSize: 16,
+                color: HF.ink,
+                margin: 0,
+                lineHeight: 1.25,
+              }}
+            >
+              {prop.name}
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: HF.ink3 }}>
+              {prop.addr} · {prop.city}, NV {prop.zip}
+            </p>
+            <div
+              className="flex items-center justify-between"
+              style={{ marginTop: 10, gap: 8 }}
+            >
+              <span style={{ fontSize: 12, color: HF.ink3 }}>
+                {showCount
+                  ? `${availability.totalUnits} units`
+                  : prop.units !== null
+                  ? `${prop.units} units`
+                  : ''}
+              </span>
+              <div className="flex items-center" style={{ gap: 6 }}>
+                {amiTier && (
+                  <span
+                    data-testid={`ami-tier-chip-${slug}`}
+                    aria-label={t('amiDisclosure.tooltip', { tier: amiTier })}
+                    title={t('amiDisclosure.tooltip', { tier: amiTier })}
+                    style={{
+                      background: HF.sageLo,
+                      color: HF.sage,
+                      border: `1px solid ${HF.border}`,
+                      borderRadius: HF.r.pill,
+                      padding: '2px 10px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      fontFamily: HF.body,
+                    }}
+                  >
+                    {t('amiDisclosure.chipLabel', { tier: amiTier })}
+                  </span>
+                )}
+                <span
+                  style={{
+                    background: HF.accentLo,
+                    color: HF.accentInk,
+                    border: '1px solid #F3D7CB',
+                    borderRadius: HF.r.pill,
+                    padding: '2px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: 'capitalize',
+                    fontFamily: HF.body,
+                  }}
+                >
+                  {prop.type}
+                </span>
+              </div>
+            </div>
+            <div
+              className="flex items-center justify-between"
+              style={{
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: `1px solid ${HF.border}`,
+                gap: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: HF.display,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: HF.ink,
+                }}
+              >
+                From ${est}/mo
+              </span>
+              <div className="flex items-center" style={{ gap: 8 }}>
+                <AvailabilityBadge availableCount={availability.availableCount} />
+                <span
+                  style={{
+                    fontSize: 13,
+                    color: HF.accent,
+                    fontWeight: 600,
+                  }}
+                >
+                  View →
+                </span>
+              </div>
+            </div>
+            {buckets.length > 0 && (
+              <div
+                data-testid={`rent-row-${slug}`}
+                style={{
+                  marginTop: 10,
+                  fontSize: 12,
+                  color: HF.ink2,
+                  fontFamily: HF.body,
+                  lineHeight: 1.5,
+                }}
+              >
+                {buckets.map(({ key, bucket }, idx) => (
+                  <span key={key}>
+                    {idx > 0 && (
+                      <span aria-hidden="true" style={{ color: HF.ink4, margin: '0 6px' }}>
+                        ·
+                      </span>
+                    )}
+                    <span style={{ fontWeight: 600, color: HF.ink }}>
+                      {t(`pricing.label.${key}`)}
+                    </span>{' '}
+                    <span>{formatRentBucket(bucket)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
+      </Link>
+    </li>
   );
 }

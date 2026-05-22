@@ -32,7 +32,21 @@ import applicantRoutes from "./modules/applicants/routes";
 import tenantRoutes from "./modules/tenant/routes";
 import messagesRoutes from "./modules/messages/routes";
 import tapeRoutes from "./modules/tape/routes";
+import { createTapeViewerRoutes } from "./modules/tape/routes-viewer";
 import { startScheduler } from "./scheduler";
+
+// Boot-time guardrails: in production, refuse to start without the secrets that
+// gate auth + at-rest crypto. Crashing here is preferable to silently booting
+// with a misconfigured server that issues unverifiable JWTs or leaves PII
+// unencryptable.
+if (process.env.NODE_ENV === "production") {
+  const required = ["JWT_SECRET", "ENCRYPTION_KEY"] as const;
+  const missing = required.filter((k) => !process.env[k]);
+  if (missing.length > 0) {
+    console.error(`Missing required env vars in production: ${missing.join(", ")}`);
+    process.exit(1);
+  }
+}
 
 const app = express();
 app.set("trust proxy", 1);
@@ -57,9 +71,30 @@ app.use((req, _res, next) => {
 // Public routes
 // ============================================================
 
-// Health check
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "frank-pilot", timestamp: new Date().toISOString() });
+// Health check — pings the DB so silent outages don't look healthy.
+app.get("/health", async (_req, res) => {
+  let dbStatus = "unknown";
+  try {
+    const { query } = await import("./config/database");
+    const r = await query("SELECT 1 AS ok");
+    dbStatus = r.rows[0]?.ok === 1 ? "ok" : "unexpected";
+  } catch (err) {
+    dbStatus = "error";
+    logger.error("/health DB ping failed", { error: (err as Error).message });
+    res.status(503).json({
+      status: "degraded",
+      service: "frank-pilot",
+      db: dbStatus,
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+  res.json({
+    status: "ok",
+    service: "frank-pilot",
+    db: dbStatus,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Magic-link auth (tenants + applicants)
@@ -72,6 +107,25 @@ app.use("/api/applicants", applicantRoutes);
 // Stub module — see src/modules/tape/index.ts. Replace with canonical BP-02
 // helper when it lands.
 app.use("/api/tape", tapeRoutes);
+
+// BP-02 compliance tape viewer (operator-only: list, verify, export.pdf).
+// TODO(BP-02-Phase-2): Replace the stub service below with the real TapeService
+// from Lane B once it is wired. The stub returns 503 for all calls so the
+// routes exist in production but remain inert until Phase 2 completes.
+app.use(
+  "/api/compliance-tape",
+  createTapeViewerRoutes({
+    async list() {
+      throw Object.assign(new Error("service not wired"), { stub: true });
+    },
+    async verify() {
+      throw Object.assign(new Error("service not wired"), { stub: true });
+    },
+    async exportPdf() {
+      throw Object.assign(new Error("service not wired"), { stub: true });
+    },
+  })
+);
 
 // Password login (staff)
 app.post("/api/auth/login", async (req, res) => {

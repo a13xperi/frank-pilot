@@ -1,7 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Camera, Check, X, Loader2, Copy } from 'lucide-react';
+import { getQaBuffer, clearQaBuffer, type QaEntry } from '@/lib/qaBuffer';
+import {
+  installQaReplay,
+  getQaReplayEvents,
+  clearQaReplay,
+  stopQaReplay,
+} from '@/lib/qaSessionReplay';
+
+function replayEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_QA_SESSION_REPLAY_ENABLED === 'true';
+}
 
 const STORAGE_KEY = 'frank_qa';
+const TOKEN_KEY = 'frank_tenant_token';
 
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPA_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
@@ -38,89 +50,243 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   return (await fetch(dataUrl)).blob();
 }
 
-async function uploadToSupabase(blob: Blob, filename: string): Promise<string> {
+async function uploadToSupabase(body: BodyInit, filename: string, contentType: string): Promise<string> {
   if (!SUPA_URL || !SUPA_KEY) throw new Error('Supabase storage env vars missing');
-  const path = `${filename}`;
-  const res = await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}/${path}`, {
+  const res = await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}/${filename}`, {
     method: 'POST',
     headers: {
       apikey: SUPA_KEY,
       Authorization: `Bearer ${SUPA_KEY}`,
-      'Content-Type': 'image/png',
+      'Content-Type': contentType,
       'x-upsert': 'true',
     },
-    body: blob,
+    body,
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(`upload ${res.status}: ${detail.slice(0, 120)}`);
   }
-  return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+  return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${filename}`;
+}
+
+function decodeJwtClaims(token: string): Record<string, unknown> | null {
+  try {
+    const mid = token.split('.')[1];
+    if (!mid) return null;
+    const padded = mid.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((mid.length + 3) % 4);
+    return JSON.parse(atob(padded));
+  } catch { return null; }
+}
+
+// Allowlist of storage keys we know are safe to dump. Unknown keys are
+// dropped silently rather than emitted, to avoid leaking PII or 3rd-party
+// data (e.g. analytics blobs) into the debug bundle. Update when the app
+// starts using a new key worth seeing.
+const STORAGE_ALLOWLIST: ReadonlyArray<string | RegExp> = [
+  TOKEN_KEY,
+  STORAGE_KEY,
+  'i18nextLng',
+  'fp.consent.v1',
+  'pendingEmail',
+  /^frank_/,
+];
+
+function isAllowedStorageKey(key: string): boolean {
+  return STORAGE_ALLOWLIST.some((m) => (typeof m === 'string' ? m === key : m.test(key)));
+}
+
+function dumpStorage(store: Storage | undefined): Record<string, string> {
+  if (!store) return {};
+  const out: Record<string, string> = {};
+  for (let i = 0; i < store.length; i++) {
+    const k = store.key(i);
+    if (!k || !isAllowedStorageKey(k)) continue;
+    const v = store.getItem(k);
+    if (v == null) continue;
+    out[k] = k === TOKEN_KEY ? '<redacted; see auth.claims>' : v;
+  }
+  return out;
+}
+
+function buildDebugPayload(
+  pngUrl: string | null,
+  replayUrl: string | null,
+  qaBufferSnapshot: QaEntry[],
+): Record<string, unknown> {
+  const token = (() => { try { return window.localStorage.getItem(TOKEN_KEY); } catch { return null; } })();
+  const claims = token ? decodeJwtClaims(token) : null;
+  return {
+    capturedAt: new Date().toISOString(),
+    screenshotUrl: pngUrl,
+    replayUrl,
+    url: {
+      href: window.location.href,
+      pathname: window.location.pathname,
+      search: window.location.search,
+      hash: window.location.hash,
+      referrer: document.referrer || null,
+    },
+    viewport: {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      devicePixelRatio: window.devicePixelRatio,
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+    },
+    auth: {
+      hasToken: Boolean(token),
+      claims,
+    },
+    flags: {
+      VITE_PAYMENT_WIZARD_ENABLED: import.meta.env.VITE_PAYMENT_WIZARD_ENABLED ?? null,
+      VITE_PROPERTY_DL2_ENABLED: import.meta.env.VITE_PROPERTY_DL2_ENABLED ?? null,
+      VITE_MOBILE_APPLY_ENABLED: import.meta.env.VITE_MOBILE_APPLY_ENABLED ?? null,
+      MODE: import.meta.env.MODE,
+      DEV: import.meta.env.DEV,
+    },
+    storage: {
+      localStorage: dumpStorage(typeof window !== 'undefined' ? window.localStorage : undefined),
+      sessionStorage: dumpStorage(typeof window !== 'undefined' ? window.sessionStorage : undefined),
+    },
+    qaBuffer: qaBufferSnapshot,
+  };
 }
 
 type Status = 'idle' | 'capturing' | 'uploading' | 'done' | 'error';
+
+type Bundle = { png: string; json: string; replay: string | null };
+
+function clipboardBlock(b: Bundle): string {
+  const lines = [`Screenshot: ${b.png}`, `Debug: ${b.json}`];
+  if (b.replay) lines.push(`Replay: ${b.replay}`);
+  return lines.join('\n');
+}
 
 export function ScreenshotButton() {
   const [visible, setVisible] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [msg, setMsg] = useState<string>('');
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [bundle, setBundle] = useState<Bundle | null>(null);
 
   useEffect(() => { setVisible(shouldShow()); }, []);
+
+  useEffect(() => {
+    if (!visible || !replayEnabled()) return;
+    void installQaReplay();
+  }, [visible]);
 
   async function capture() {
     if (status === 'capturing' || status === 'uploading') return;
     setStatus('capturing');
     setMsg('');
-    setShareUrl(null);
+    setBundle(null);
     try {
+      // Snapshot the qaBuffer BEFORE toPng() runs — html-to-image inlines fonts
+      // by fetching them, which would otherwise flood the 25-entry buffer and
+      // push real app traffic out. Then clear so the next camera click starts
+      // fresh and doesn't inherit this click's font-fetch + self-upload noise.
+      const qaSnapshot = getQaBuffer();
+      clearQaBuffer();
+
+      // Same idea for the rrweb buffer — stop the recorder BEFORE toPng() so
+      // its DOM-clone mutations aren't logged as events. Snapshot + clear,
+      // then re-install after toPng() returns so the next click captures
+      // fresh activity.
+      stopQaReplay();
+      const replaySnapshot = getQaReplayEvents();
+      clearQaReplay();
+
       const { toPng } = await import('html-to-image');
       const node = document.body;
+      // skipFonts: cross-origin Google Fonts stylesheets block cssRules access
+      // and spam two SecurityError lines per capture; we render with system
+      // fonts instead. pixelRatio: 1 keeps QA PNGs ~75KB on retina (vs ~280KB
+      // at the device 2x) — plenty for visual review.
       const dataUrl = await toPng(node, {
         cacheBust: true,
-        pixelRatio: window.devicePixelRatio || 2,
+        pixelRatio: 1,
+        skipFonts: true,
         filter: (el) => {
           if (!(el instanceof HTMLElement)) return true;
           return el.dataset?.screenshotExclude !== '1';
         },
       });
 
-      const name = `frank-${slugFromPath()}-${timestamp()}.png`;
+      // Re-install the recorder now that toPng() has finished walking the DOM.
+      // Fire-and-forget — best-effort; we don't want to delay the upload.
+      if (replayEnabled()) void installQaReplay();
+
+      const stem = `frank-${slugFromPath()}-${timestamp()}`;
+      const pngName = `${stem}.png`;
+      const jsonName = `${stem}.json`;
+      const replayName = `${stem}.replay.json`;
+
       const a = document.createElement('a');
       a.href = dataUrl;
-      a.download = name;
+      a.download = pngName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
 
-      const blob = await dataUrlToBlob(dataUrl);
+      const pngBlob = await dataUrlToBlob(dataUrl);
 
-      let url: string | null = null;
-      if (SUPA_URL && SUPA_KEY) {
-        setStatus('uploading');
-        setMsg('Uploading…');
+      if (!SUPA_URL || !SUPA_KEY) {
+        setStatus('done');
+        setMsg('Saved (no Supabase env)');
+        window.setTimeout(() => { setStatus('idle'); setMsg(''); }, 2200);
+        return;
+      }
+
+      setStatus('uploading');
+      setMsg('Uploading…');
+
+      let pngUrl: string;
+      try {
+        pngUrl = await uploadToSupabase(pngBlob, pngName, 'image/png');
+      } catch (err) {
+        setStatus('error');
+        setMsg(err instanceof Error ? err.message : 'PNG upload failed');
+        window.setTimeout(() => { setStatus('idle'); setMsg(''); }, 4500);
+        return;
+      }
+
+      // Replay is best-effort: skip when empty, swallow upload failures so a
+      // broken rrweb upload never blocks the JSON sidecar (which is the most
+      // valuable file for Claude).
+      let replayUrl: string | null = null;
+      if (replaySnapshot.length > 0) {
         try {
-          url = await uploadToSupabase(blob, name);
-        } catch (err) {
-          setStatus('error');
-          setMsg(err instanceof Error ? err.message : 'Upload failed');
-          window.setTimeout(() => { setStatus('idle'); setMsg(''); }, 4500);
-          return;
+          replayUrl = await uploadToSupabase(
+            JSON.stringify(replaySnapshot),
+            replayName,
+            'application/json',
+          );
+        } catch {
+          replayUrl = null;
         }
       }
 
-      let clipboardText = false;
-      if (url && navigator.clipboard?.writeText) {
-        try { await navigator.clipboard.writeText(url); clipboardText = true; } catch { /* ignore */ }
+      const debugPayload = buildDebugPayload(pngUrl, replayUrl, qaSnapshot);
+      let jsonUrl: string;
+      try {
+        jsonUrl = await uploadToSupabase(JSON.stringify(debugPayload, null, 2), jsonName, 'application/json');
+      } catch (err) {
+        setStatus('error');
+        setMsg(err instanceof Error ? `Debug upload failed: ${err.message}` : 'Debug upload failed');
+        window.setTimeout(() => { setStatus('idle'); setMsg(''); }, 4500);
+        return;
+      }
+
+      const next: Bundle = { png: pngUrl, json: jsonUrl, replay: replayUrl };
+      let copied = false;
+      if (navigator.clipboard?.writeText) {
+        try { await navigator.clipboard.writeText(clipboardBlock(next)); copied = true; } catch { /* ignore */ }
       }
 
       setStatus('done');
-      setShareUrl(url);
-      setMsg(url ? (clipboardText ? 'URL copied' : 'Uploaded') : 'Saved');
-      window.setTimeout(() => {
-        setStatus('idle');
-        setMsg('');
-      }, url ? 15000 : 2200);
+      setBundle(next);
+      setMsg(copied ? 'URLs copied' : 'Uploaded');
+      window.setTimeout(() => { setStatus('idle'); setMsg(''); }, 15000);
     } catch (err) {
       setStatus('error');
       setMsg(err instanceof Error ? err.message : 'Capture failed');
@@ -128,11 +294,11 @@ export function ScreenshotButton() {
     }
   }
 
-  async function copyUrl() {
-    if (!shareUrl) return;
+  async function copyBoth() {
+    if (!bundle) return;
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setMsg('URL copied');
+      await navigator.clipboard.writeText(clipboardBlock(bundle));
+      setMsg('URLs copied');
     } catch {
       setMsg('Copy failed');
     }
@@ -156,7 +322,7 @@ export function ScreenshotButton() {
         maxWidth: 380,
       }}
     >
-      {shareUrl && (
+      {bundle && (
         <div
           style={{
             background: 'white',
@@ -168,17 +334,21 @@ export function ScreenshotButton() {
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 4,
+            gap: 6,
             wordBreak: 'break-all',
           }}
         >
           <div style={{ fontSize: 10, color: '#6b7280', fontFamily: 'system-ui, sans-serif', fontWeight: 600 }}>
-            Paste this URL to Claude:
+            Paste both URLs to Claude:
           </div>
-          <div>{shareUrl}</div>
+          <div><span style={{ color: '#6b7280' }}>PNG:</span> {bundle.png}</div>
+          <div><span style={{ color: '#6b7280' }}>JSON:</span> {bundle.json}</div>
+          {bundle.replay && (
+            <div><span style={{ color: '#6b7280' }}>Replay:</span> {bundle.replay}</div>
+          )}
           <button
             type="button"
-            onClick={copyUrl}
+            onClick={copyBoth}
             style={{
               alignSelf: 'flex-start',
               marginTop: 2,
@@ -193,11 +363,11 @@ export function ScreenshotButton() {
               gap: 4,
             }}
           >
-            <Copy size={11} /> Copy
+            <Copy size={11} /> Copy both
           </button>
         </div>
       )}
-      {msg && !shareUrl && (
+      {msg && !bundle && (
         <div
           style={{
             background: status === 'error' ? '#7f1d1d' : '#064e3b',

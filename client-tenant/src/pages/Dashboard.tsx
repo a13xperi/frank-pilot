@@ -4,6 +4,8 @@ import { api } from '@/api/client';
 import {
   DollarSign, Wrench, Home, Clock, RefreshCw, FileText, AlertCircle
 } from 'lucide-react';
+import { HF } from '@/styles/tokens';
+import { Card, CTA, Pill } from '@/components/primitives';
 
 interface DashboardData {
   user: { firstName: string; lastName: string; email: string };
@@ -29,9 +31,12 @@ function fmtDate(d: string | null) {
 
 function SkeletonCard() {
   return (
-    <div className="animate-pulse rounded-xl bg-white p-5 shadow-sm">
-      <div className="mb-3 h-4 w-1/3 rounded bg-gray-200" />
-      <div className="h-7 w-1/2 rounded bg-gray-200" />
+    <div
+      className="animate-pulse rounded-xl p-5"
+      style={{ background: HF.paper, border: `1px solid ${HF.border}`, boxShadow: HF.shadow.xs }}
+    >
+      <div className="mb-3 h-4 w-1/3 rounded" style={{ background: HF.border }} />
+      <div className="h-7 w-1/2 rounded" style={{ background: HF.border }} />
     </div>
   );
 }
@@ -50,8 +55,14 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="p-4 space-y-4">
-        <div className="mb-2 h-6 w-40 animate-pulse rounded bg-gray-200" />
+      <div
+        className="p-4 space-y-4"
+        style={{ background: HF.cream, minHeight: '100vh', color: HF.ink, fontFamily: HF.body }}
+      >
+        <div
+          className="mb-2 h-6 w-40 animate-pulse rounded"
+          style={{ background: HF.border }}
+        />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
@@ -61,11 +72,17 @@ export function Dashboard() {
 
   if (error) {
     return (
-      <div className="p-4">
-        <div className="flex items-center gap-2 rounded-lg bg-red-50 p-4 text-red-700">
-          <AlertCircle className="h-5 w-5 shrink-0" />
-          <p className="text-sm">{error}</p>
-        </div>
+      <div className="p-4" style={{ background: HF.cream, minHeight: '60vh' }}>
+        <Card
+          variant="mobile"
+          padding={14}
+          style={{ background: HF.errLo, border: `1px solid ${HF.err}` }}
+        >
+          <div className="flex items-center gap-2" style={{ color: HF.err }}>
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <p style={{ fontFamily: HF.body, fontSize: 13 }}>{error}</p>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -76,134 +93,255 @@ export function Dashboard() {
 
   if (!activeApplication) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-center">
-        <FileText className="h-12 w-12 text-gray-300" />
-        <h2 className="text-lg font-semibold text-gray-900">No active application</h2>
-        <p className="text-sm text-gray-500">Submit an application to access your dashboard.</p>
-        <Link to="/apply" className="btn-primary">Start an application</Link>
+      <div
+        className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-center"
+        style={{ background: HF.cream, color: HF.ink, fontFamily: HF.body }}
+      >
+        <FileText className="h-12 w-12" style={{ color: HF.ink4 }} />
+        <h2 style={{ fontFamily: HF.display, fontSize: 18, fontWeight: 800, color: HF.ink }}>
+          No active application
+        </h2>
+        <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}>
+          Submit an application to access your dashboard.
+        </p>
+        <Link to="/apply" style={{ textDecoration: 'none' }}>
+          <CTA tone="primary">Start an application</CTA>
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="p-4 pb-24 sm:p-6">
-      <h1 className="mb-5 text-xl font-bold text-gray-900">
+    <div
+      className="p-4 pb-24 sm:p-6"
+      style={{ background: HF.cream, minHeight: '100vh', color: HF.ink, fontFamily: HF.body }}
+    >
+      <h1
+        className="mb-5"
+        style={{ fontFamily: HF.display, fontSize: 22, fontWeight: 800, color: HF.ink }}
+      >
         Welcome back, {user.firstName}
       </h1>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Balance card */}
-        <div className="rounded-xl bg-emerald-600 p-5 text-white shadow-sm">
-          <div className="flex items-center gap-2 text-emerald-100">
+        <Card
+          variant="mobile"
+          padding={20}
+          style={{ background: HF.accent, border: `1px solid ${HF.accent}`, color: HF.paper }}
+        >
+          <div className="flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.85)' }}>
             <DollarSign className="h-4 w-4" />
-            <span className="text-sm font-medium">Current balance</span>
+            <span style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 600 }}>
+              Current balance
+            </span>
           </div>
-          <p className="mt-2 text-3xl font-bold">
+          <p
+            className="mt-2"
+            style={{ fontFamily: HF.display, fontSize: 30, fontWeight: 800, color: HF.paper }}
+          >
             {balance ? fmt(balance.balance) : '—'}
           </p>
           {balance?.nextDueDate && (
-            <p className="mt-1 text-xs text-emerald-200">
+            <p
+              className="mt-1"
+              style={{ fontFamily: HF.body, fontSize: 12, color: 'rgba(255,255,255,0.85)' }}
+            >
               Next due {fmtDate(balance.nextDueDate)}
             </p>
           )}
           <Link
             to="/pay"
-            className="mt-4 inline-block rounded-lg bg-white px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+            className="mt-4 inline-block rounded-lg px-4 py-2"
+            style={{
+              background: HF.paper,
+              color: HF.accentInk,
+              fontFamily: HF.body,
+              fontSize: 13,
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
           >
             Pay rent
           </Link>
-        </div>
+        </Card>
 
         {/* Work orders */}
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-gray-500">
+        <Card variant="mobile" padding={20}>
+          <div className="flex items-center gap-2" style={{ color: HF.ink3 }}>
             <Wrench className="h-4 w-4" />
-            <span className="text-sm font-medium">Open work orders</span>
+            <span style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 600 }}>
+              Open work orders
+            </span>
           </div>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{openWorkOrders}</p>
-          <Link to="/maintenance" className="mt-4 inline-block text-sm font-medium text-emerald-600 hover:underline">
+          <p
+            className="mt-2"
+            style={{ fontFamily: HF.display, fontSize: 30, fontWeight: 800, color: HF.ink }}
+          >
+            {openWorkOrders}
+          </p>
+          <Link
+            to="/maintenance"
+            className="mt-4 inline-block"
+            style={{
+              fontFamily: HF.body,
+              fontSize: 13,
+              fontWeight: 600,
+              color: HF.accent,
+              textDecoration: 'none',
+            }}
+          >
             View all →
           </Link>
-        </div>
+        </Card>
 
         {/* Lease */}
         {lease && (
-          <div className="rounded-xl bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2 text-gray-500">
+          <Card variant="mobile" padding={20}>
+            <div className="flex items-center gap-2" style={{ color: HF.ink3 }}>
               <Home className="h-4 w-4" />
-              <span className="text-sm font-medium">Lease</span>
+              <span style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 600 }}>
+                Lease
+              </span>
             </div>
-            <p className="mt-2 text-base font-semibold text-gray-900">{lease.propertyName}</p>
+            <p
+              className="mt-2"
+              style={{ fontFamily: HF.display, fontSize: 16, fontWeight: 700, color: HF.ink }}
+            >
+              {lease.propertyName}
+            </p>
             {lease.unitNumber && (
-              <p className="text-sm text-gray-500">Unit {lease.unitNumber}</p>
+              <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}>
+                Unit {lease.unitNumber}
+              </p>
             )}
-            <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium
-              ${lease.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-              {lease.status}
-            </span>
-          </div>
+            <div className="mt-2">
+              <Pill tone={lease.status === 'active' ? 'sage' : 'neutral'}>
+                {lease.status}
+              </Pill>
+            </div>
+          </Card>
         )}
 
         {/* Recertification */}
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-gray-500">
+        <Card variant="mobile" padding={20}>
+          <div className="flex items-center gap-2" style={{ color: HF.ink3 }}>
             <RefreshCw className="h-4 w-4" />
-            <span className="text-sm font-medium">Recertification</span>
+            <span style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 600 }}>
+              Recertification
+            </span>
           </div>
           {recertification ? (
             <>
-              <p className="mt-2 text-sm font-semibold text-amber-700">
+              <p
+                className="mt-2"
+                style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 700, color: HF.warn }}
+              >
                 Due {fmtDate(recertification.cutoff_date)}
               </p>
-              <p className="text-xs text-gray-500 capitalize">{recertification.status}</p>
+              <p
+                className="capitalize"
+                style={{ fontFamily: HF.body, fontSize: 12, color: HF.ink3 }}
+              >
+                {recertification.status}
+              </p>
             </>
           ) : (
-            <p className="mt-2 text-sm text-gray-400">No recertification due</p>
+            <p
+              className="mt-2"
+              style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink4 }}
+            >
+              No recertification due
+            </p>
           )}
-        </div>
+        </Card>
 
         {/* Renewal */}
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-gray-500">
+        <Card variant="mobile" padding={20}>
+          <div className="flex items-center gap-2" style={{ color: HF.ink3 }}>
             <Clock className="h-4 w-4" />
-            <span className="text-sm font-medium">Lease renewal</span>
+            <span style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 600 }}>
+              Lease renewal
+            </span>
           </div>
           {renewal ? (
             <>
-              <p className="mt-2 text-sm font-semibold text-gray-900 capitalize">{renewal.status}</p>
+              <p
+                className="mt-2 capitalize"
+                style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 700, color: HF.ink }}
+              >
+                {renewal.status}
+              </p>
               {renewal.proposed_rent !== null && (
-                <p className="text-xs text-gray-500">Proposed rent: {fmt(renewal.proposed_rent)}/mo</p>
+                <p style={{ fontFamily: HF.body, fontSize: 12, color: HF.ink3 }}>
+                  Proposed rent: {fmt(renewal.proposed_rent)}/mo
+                </p>
               )}
             </>
           ) : (
-            <p className="mt-2 text-sm text-gray-400">Not yet eligible</p>
+            <p
+              className="mt-2"
+              style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink4 }}
+            >
+              Not yet eligible
+            </p>
           )}
-        </div>
+        </Card>
 
         {/* Recent activity */}
-        <div className="rounded-xl bg-white p-5 shadow-sm sm:col-span-2 lg:col-span-1">
+        <Card variant="mobile" padding={20} className="sm:col-span-2 lg:col-span-1">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-500">Recent activity</span>
-            <Link to="/ledger" className="text-xs font-medium text-emerald-600 hover:underline">See all</Link>
+            <span style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 600, color: HF.ink3 }}>
+              Recent activity
+            </span>
+            <Link
+              to="/ledger"
+              style={{
+                fontFamily: HF.body,
+                fontSize: 12,
+                fontWeight: 600,
+                color: HF.accent,
+                textDecoration: 'none',
+              }}
+            >
+              See all
+            </Link>
           </div>
           {recentLedger.length === 0 ? (
-            <p className="text-sm text-gray-400">No recent transactions</p>
+            <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink4 }}>
+              No recent transactions
+            </p>
           ) : (
             <ul className="space-y-2">
               {recentLedger.slice(0, 5).map(entry => (
-                <li key={entry.id} className="flex items-center justify-between text-sm">
+                <li key={entry.id} className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-gray-800 line-clamp-1">{entry.description}</p>
-                    <p className="text-xs text-gray-400">{fmtDate(entry.createdAt)}</p>
+                    <p
+                      className="line-clamp-1"
+                      style={{ fontFamily: HF.body, fontSize: 13, fontWeight: 500, color: HF.ink2 }}
+                    >
+                      {entry.description}
+                    </p>
+                    <p style={{ fontFamily: HF.body, fontSize: 11, color: HF.ink4 }}>
+                      {fmtDate(entry.createdAt)}
+                    </p>
                   </div>
-                  <span className={`ml-3 font-medium ${entry.amount < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  <span
+                    className="ml-3"
+                    style={{
+                      fontFamily: HF.body,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: entry.amount < 0 ? HF.sage : HF.err,
+                    }}
+                  >
                     {entry.amount < 0 ? '-' : '+'}{fmt(entry.amount)}
                   </span>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

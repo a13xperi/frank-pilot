@@ -1,0 +1,128 @@
+{
+  "banner": {
+    "title": "Tu privacidad, tu decisión",
+    "body": "Usamos cookies esenciales para mantenerte conectado y proteger tu solicitud. Con tu permiso, también usaríamos cookies funcionales y de análisis para mejorar la experiencia. Las cookies de marketing están desactivadas por defecto.",
+    "acceptAll": "Aceptar todo",
+    "rejectAll": "Rechazar no esenciales",
+    "customize": "Personalizar",
+    "privacyLink": "Política de privacidad",
+    "cookiesLink": "Cookies",
+    "ariaLabel": "Consentimiento de cookies"
+  },
+  "modal": {
+    "title": "Preferencias de cookies",
+    "intro": "Elige qué activar. Las cookies esenciales son necesarias para iniciar sesión y para la seguridad — esas no se pueden desactivar. Guarda tu decisión y podrás volver a ella en cualquier momento desde el pie de página.",
+    "save": "Guardar preferencias",
+    "cancel": "Cancelar",
+    "categories": {
+      "essential": {
+        "label": "Esenciales",
+        "description": "Sesión de inicio y seguridad. Obligatorias — no se pueden desactivar."
+      },
+      "functional": {
+        "label": "Funcionales",
+        "description": "Recuerdan tu idioma preferido y elecciones similares que personalizan la experiencia."
+      },
+      "analytics": {
+        "label": "Análisis",
+        "description": "Nos ayudan a ver qué pantallas confunden para poder arreglarlas. Hoy no usamos ningún sistema de análisis — esto es preparación para el futuro."
+      },
+      "marketing": {
+        "label": "Marketing",
+        "description": "Seguimiento publicitario y de conversión. Desactivado por defecto. Hoy no usamos píxeles de marketing."
+      }
+    }
+  },
+  "footer": {
+    "privacy": "Privacidad",
+    "cookies": "Cookies",
+    "preferences": "Preferencias de cookies",
+    "tagline": "Frank Pilot — vivienda asequible, tratada con el respeto que merece."
+  },
+  "privacy": {
+    "title": "Política de privacidad",
+    "lastUpdated": "Última actualización: 22 de mayo de 2026",
+    "intro": "Frank Pilot es el portal para inquilinos operado por Community Development Programs Center of Nevada (CDPC). Recopilamos y procesamos datos de los solicitantes porque los programas federales de vivienda asequible lo exigen — certificación de ingresos de HUD, informes de vivienda justa y verificación regida por la FCRA. Esta política explica exactamente qué recopilamos, por qué y quién lo ve.",
+    "sections": {
+      "whatWeCollect": {
+        "title": "Qué recopilamos",
+        "body": "Información de la cuenta — tu nombre, correo electrónico y contraseña en formato hash. Composición del hogar — número de personas en tu hogar, su relación contigo y las edades de los menores (requerido para la elegibilidad del tamaño de la unidad bajo 24 CFR §5.403). Ingresos y nivel AMI — ingresos brutos anuales del hogar, estado laboral y tu nivel calculado del Ingreso Medio del Área (AMI). Datos de la solicitud — tipo de unidad preferido, fecha de mudanza, solicitudes de adaptación razonable y propiedad seleccionada. Verificación de identidad — identificación oficial cuando llegues a esa etapa. Comunicaciones — mensajes que envías por el portal y nuestras respuestas."
+      },
+      "whyWeCollect": {
+        "title": "Por qué lo recopilamos",
+        "body": "Determinación de elegibilidad bajo los límites de ingresos de HUD y del programa LIHTC. Informes de vivienda justa requeridos por la Ley de Vivienda Justa y la regla de HUD de fomentar afirmativamente la vivienda justa. Verificación de inquilinos bajo la Ley de Informes de Crédito Justos (FCRA) — recibirás avisos de acción adversa por separado si tu solicitud es denegada según un informe del consumidor. Ejecución del contrato de arrendamiento y gestión de la tenencia. Antifraude — guardamos un registro de solicitudes para prevenir envíos duplicados o fraudulentos."
+      },
+      "whoWeShareWith": {
+        "title": "Con quién compartimos",
+        "body": "Por defecto: con nadie fuera de CDPC. Cuando realizas acciones específicas, datos limitados van a proveedores específicos: Resend (envío de correo) recibe tu dirección de correo cuando te enviamos un enlace mágico o notificación de estado — no ve los datos de tu solicitud. Stripe (procesamiento de pagos) recibe los detalles del método de pago si pagas el alquiler por el portal — Stripe cumple con PCI-DSS Nivel 1. Nuestra base de datos está alojada en infraestructura Postgres (actualmente Railway durante el piloto) dentro de Estados Unidos. No vendemos tus datos. No los compartimos con anunciantes. Hoy no usamos análisis ni píxeles publicitarios."
+      },
+      "retention": {
+        "title": "Cuánto tiempo los conservamos",
+        "body": "Solicitudes activas e inquilinatos — conservados durante la duración de tu relación con CDPC. Solicitudes denegadas o retiradas — conservadas durante 36 meses para cumplir con el mantenimiento de registros de vivienda justa bajo 24 CFR §107.30, luego se eliminan. Registros de auditoría — conservados durante 7 años para cumplir con la auditoría de cumplimiento del LIHTC. Comunicaciones — conservadas durante 3 años."
+      },
+      "yourRights": {
+        "title": "Tus derechos",
+        "body": "Puedes pedir una copia de todos los datos que tenemos sobre ti, pedir que corrijamos cualquier cosa incorrecta, retirar tu solicitud en cualquier momento (y eliminaremos los documentos de respaldo dentro de los 36 meses según el calendario de retención anterior), y pedir que eliminemos tu cuenta cuando ya no tengas un inquilinato activo. Si crees que fuiste discriminado/a, puedes presentar una queja ante HUD al 1-800-669-9777 o directamente con nosotros — estamos obligados a investigar y documentar la respuesta."
+      },
+      "contact": {
+        "title": "Cómo contactarnos",
+        "body": "Envía preguntas de privacidad a privacy@cdpcnv.org. Para preguntas sobre tu tenencia, usa el panel de mensajería en tu portal."
+      }
+    }
+  },
+  "cookies": {
+    "title": "Política de cookies",
+    "lastUpdated": "Última actualización: 22 de mayo de 2026",
+    "intro": "Frank Pilot usa almacenamiento del navegador (cookies y localStorage) para iniciar sesión y para un pequeño número de funciones de personalización. No usamos cookies de seguimiento de terceros. Hoy no usamos análisis ni píxeles publicitarios.",
+    "tableHeaders": {
+      "name": "Nombre",
+      "purpose": "Propósito",
+      "type": "Almacenamiento"
+    },
+    "categories": {
+      "essential": {
+        "title": "Esenciales",
+        "description": "Necesarias para iniciar sesión y para la seguridad. No se pueden desactivar — la aplicación no funciona sin ellas.",
+        "items": [
+          {
+            "name": "frank_tenant_token",
+            "purpose": "Tu sesión iniciada (JWT). Se envía en cada solicitud API para verificar que eres tú.",
+            "type": "localStorage"
+          },
+          {
+            "name": "cf_clearance / __cf_bm",
+            "purpose": "Tokens de protección anti-bots de Cloudflare (establecidos por Cloudflare frente a nuestro portal). Transitorios.",
+            "type": "Cookie (de terceros, solo en redes que pasan por Cloudflare)"
+          }
+        ]
+      },
+      "functional": {
+        "title": "Funcionales",
+        "description": "Personalización. Desactivadas hasta que aceptes las cookies funcionales.",
+        "items": [
+          {
+            "name": "i18nextLng",
+            "purpose": "Tu idioma seleccionado (inglés o español), para que no tengas que elegirlo cada vez.",
+            "type": "localStorage"
+          },
+          {
+            "name": "fp.consent.v1",
+            "purpose": "Registra la elección del banner de cookies en este dispositivo para que no sigamos preguntando. Esta es técnicamente esencial — es como respetamos tu decisión de no consentir — pero no almacena nada sobre ti.",
+            "type": "localStorage"
+          }
+        ]
+      },
+      "analytics": {
+        "title": "Análisis",
+        "description": "Hoy no usamos ningún sistema de análisis. Si alguna vez añadimos instrumentación de uso, aparecerá aquí y estará sujeta a esta categoría.",
+        "items": []
+      },
+      "marketing": {
+        "title": "Marketing",
+        "description": "Hoy no usamos píxeles de marketing y no hay planes de hacerlo. Esta categoría está incluida para que la decisión sea tuya si algo cambia.",
+        "items": []
+      }
+    },
+    "managePreferences": "Puedes cambiar tu elección en cualquier momento usando el enlace \"Preferencias de cookies\" en el pie de página."
+  }
+}

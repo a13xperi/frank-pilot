@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/api/client';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { HF } from '@/styles/tokens';
+import { Card, CTA } from '@/components/primitives';
 
 interface DashboardData {
   activeApplication: { id: string } | null;
@@ -53,83 +55,150 @@ export function Pay() {
 
   if (loadingDash) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+      <div
+        className="flex min-h-[60vh] items-center justify-center"
+        style={{ background: HF.cream }}
+      >
+        <Loader2 className="h-7 w-7 animate-spin" style={{ color: HF.accent }} />
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-center">
-        <CheckCircle className="h-12 w-12 text-emerald-600" />
-        <h2 className="text-xl font-bold text-gray-900">Payment posted</h2>
-        <p className="text-sm text-gray-500">
-          New balance: <span className="font-semibold">{fmt(success.newBalance)}</span>
+      <div
+        className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-6 text-center"
+        style={{ background: HF.cream, color: HF.ink, fontFamily: HF.body }}
+      >
+        <CheckCircle className="h-12 w-12" style={{ color: HF.sage }} />
+        <h2 style={{ fontFamily: HF.display, fontSize: 22, fontWeight: 800, color: HF.ink }}>
+          Payment posted
+        </h2>
+        <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}>
+          New balance:{' '}
+          <span style={{ color: HF.ink, fontWeight: 700 }}>{fmt(success.newBalance)}</span>
         </p>
-        <Link to="/dashboard" className="btn-primary">Back to dashboard</Link>
+        <Link to="/dashboard" style={{ textDecoration: 'none' }}>
+          <CTA tone="primary">Back to dashboard</CTA>
+        </Link>
       </div>
     );
   }
 
   if (!dashboard?.activeApplication) {
     return (
-      <div className="p-6 text-center">
-        <p className="text-gray-500">No active application found.</p>
-        <Link to="/dashboard" className="mt-4 inline-block text-sm text-emerald-600 hover:underline">Back to dashboard</Link>
+      <div
+        className="p-6 text-center"
+        style={{ background: HF.cream, minHeight: '60vh', color: HF.ink, fontFamily: HF.body }}
+      >
+        <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}>
+          No active application found.
+        </p>
+        <Link
+          to="/dashboard"
+          className="mt-4 inline-block"
+          style={{
+            fontFamily: HF.body,
+            fontSize: 13,
+            fontWeight: 600,
+            color: HF.accent,
+            textDecoration: 'none',
+          }}
+        >
+          Back to dashboard
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="p-4 pb-24 sm:p-6">
-      <h1 className="mb-5 text-xl font-bold text-gray-900">Pay Rent</h1>
+    <div
+      className="p-4 pb-24 sm:p-6"
+      style={{ background: HF.cream, minHeight: '100vh', color: HF.ink, fontFamily: HF.body }}
+    >
+      <h1
+        className="mb-5"
+        style={{ fontFamily: HF.display, fontSize: 22, fontWeight: 800, color: HF.ink }}
+      >
+        Pay Rent
+      </h1>
 
       <div className="mx-auto max-w-sm space-y-5">
         {dashboard.balance && (
-          <div className="rounded-xl bg-gray-50 p-4">
-            <p className="text-sm text-gray-500">Current balance</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{fmt(dashboard.balance.balance)}</p>
+          <Card
+            variant="mobile"
+            padding={16}
+            elevation="none"
+            style={{ background: HF.accentLo, border: `1px solid ${HF.border}` }}
+          >
+            <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}>
+              Current balance
+            </p>
+            <p
+              className="mt-1"
+              style={{ fontFamily: HF.display, fontSize: 26, fontWeight: 800, color: HF.ink }}
+            >
+              {fmt(dashboard.balance.balance)}
+            </p>
             {dashboard.balance.nextDueDate && (
-              <p className="text-xs text-gray-400">
-                Due {new Date(dashboard.balance.nextDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              <p style={{ fontFamily: HF.body, fontSize: 12, color: HF.ink3 }}>
+                Due{' '}
+                {new Date(dashboard.balance.nextDueDate).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
               </p>
             )}
-          </div>
+          </Card>
         )}
 
         {error && (
-          <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {error}
-          </div>
+          <Card
+            variant="mobile"
+            padding={12}
+            elevation="none"
+            style={{ background: HF.errLo, border: `1px solid ${HF.err}` }}
+          >
+            <div className="flex items-center gap-2" style={{ color: HF.err }}>
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span style={{ fontFamily: HF.body, fontSize: 13 }}>{error}</span>
+            </div>
+          </Card>
         )}
 
-        <form onSubmit={handlePay} className="space-y-4 rounded-xl bg-white p-5 shadow-sm">
-          <div>
-            <label className="label" htmlFor="amount">Payment amount ($)</label>
-            <input
-              id="amount"
-              type="number"
-              min={0.01}
-              step={0.01}
-              required
-              className="input text-lg font-semibold"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="0.00"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={paying || !amount || Number(amount) <= 0}
-            className="btn-primary w-full py-3 text-base"
-          >
-            {paying ? 'Processing…' : `Pay ${amount ? fmt(Number(amount)) : '$0.00'}`}
-          </button>
-        </form>
+        <Card variant="mobile" padding={20}>
+          <form onSubmit={handlePay} className="space-y-4">
+            <div>
+              <label className="label" htmlFor="amount">Payment amount ($)</label>
+              <input
+                id="amount"
+                type="number"
+                min={0.01}
+                step={0.01}
+                required
+                className="input text-lg font-semibold"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <CTA
+              type="submit"
+              tone="primary"
+              size="lg"
+              block
+              disabled={paying || !amount || Number(amount) <= 0}
+            >
+              {paying ? 'Processing…' : `Pay ${amount ? fmt(Number(amount)) : '$0.00'}`}
+            </CTA>
+          </form>
+        </Card>
 
-        <p className="text-center text-xs text-gray-400">
+        <p
+          className="text-center"
+          style={{ fontFamily: HF.body, fontSize: 11, color: HF.ink4 }}
+        >
           Demo mode — no real charge will be made to any account.
         </p>
       </div>

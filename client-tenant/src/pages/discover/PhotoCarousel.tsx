@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { HF } from '@/styles/tokens';
 
 interface Props {
   photos: string[];
@@ -71,7 +72,8 @@ export function PhotoCarousel({ photos, alt = 'Property photo', initialIndex = 0
   if (count === 0) {
     return (
       <div
-        className="flex aspect-[4/3] w-full items-center justify-center bg-gray-100 text-sm text-gray-500"
+        className="flex aspect-[4/3] w-full items-center justify-center text-sm"
+        style={{ background: HF.cream, color: HF.ink3 }}
         role="img"
         aria-label={alt}
       >
@@ -91,7 +93,8 @@ export function PhotoCarousel({ photos, alt = 'Property photo', initialIndex = 0
       data-testid="photo-carousel"
     >
       <div
-        className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100"
+        className="relative aspect-[4/3] w-full overflow-hidden"
+        style={{ background: HF.cream }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -110,7 +113,14 @@ export function PhotoCarousel({ photos, alt = 'Property photo', initialIndex = 0
         ))}
 
         {/* Counter */}
-        <div className="absolute bottom-3 right-3 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white">
+        <div
+          className="absolute bottom-3 right-3 px-2.5 py-1 text-xs font-semibold"
+          style={{
+            background: 'rgba(31, 26, 18, 0.65)',
+            color: HF.paper,
+            borderRadius: HF.r.pill,
+          }}
+        >
           {t('carousel.counter', { current: index + 1, total: count })}
         </div>
 
@@ -121,7 +131,14 @@ export function PhotoCarousel({ photos, alt = 'Property photo', initialIndex = 0
               type="button"
               aria-label={t('carousel.prev')}
               onClick={prev}
-              className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-900 shadow ring-1 ring-gray-200 hover:bg-white sm:flex"
+              className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center sm:flex"
+              style={{
+                background: HF.paper,
+                color: HF.ink,
+                borderRadius: HF.r.pill,
+                boxShadow: HF.shadow.sm,
+                border: `1px solid ${HF.border}`,
+              }}
               data-testid="carousel-prev"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -130,7 +147,14 @@ export function PhotoCarousel({ photos, alt = 'Property photo', initialIndex = 0
               type="button"
               aria-label={t('carousel.next')}
               onClick={next}
-              className="absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-900 shadow ring-1 ring-gray-200 hover:bg-white sm:flex"
+              className="absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center sm:flex"
+              style={{
+                background: HF.paper,
+                color: HF.ink,
+                borderRadius: HF.r.pill,
+                boxShadow: HF.shadow.sm,
+                border: `1px solid ${HF.border}`,
+              }}
               data-testid="carousel-next"
             >
               <ChevronRight className="h-5 w-5" />
@@ -152,9 +176,11 @@ export function PhotoCarousel({ photos, alt = 'Property photo', initialIndex = 0
                 aria-selected={i === index}
                 aria-label={t('carousel.go', { n: i + 1 })}
                 onClick={() => go(i)}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === index ? 'w-5 bg-white' : 'w-1.5 bg-white/55'
-                }`}
+                className={`h-1.5 transition-all ${i === index ? 'w-5' : 'w-1.5'}`}
+                style={{
+                  background: i === index ? HF.accent : 'rgba(255, 255, 255, 0.7)',
+                  borderRadius: HF.r.pill,
+                }}
                 data-testid={`carousel-dot-${i}`}
               />
             ))}

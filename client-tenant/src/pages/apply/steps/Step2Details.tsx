@@ -3,6 +3,7 @@ import { api } from '@/api/client';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA, FormGrid } from '@/components/primitives';
+import { StepCTA } from '../StepCTA';
 import { HF } from '@/styles/tokens';
 import { PropertySelector } from './PropertySelector';
 
@@ -19,8 +20,8 @@ const inputStyle = {
   width: '100%',
   borderRadius: HF.r.sm,
   border: `1px solid ${HF.border}`,
-  padding: '8px 12px',
-  fontSize: 14,
+  padding: '10px 12px',
+  fontSize: 16,
   background: HF.paper,
   color: HF.ink,
   fontFamily: HF.body,
@@ -82,45 +83,106 @@ export function Step2Details() {
       >
         {t('details.title')}
       </h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="apply-details-form" onSubmit={handleSubmit} className="space-y-4">
         {!s.claimedUnit && <PropertySelector />}
         <FormGrid columns={2}>
           <div>
             <label style={labelStyle} htmlFor="ssn">{t('details.ssn')}</label>
-            <input id="ssn" style={inputStyle} required placeholder={t('details.ssnPlaceholder')} value={s.ssn} onChange={(e) => s.setSsn(e.target.value)} onBlur={() => validateSsn(s.ssn)} />
+            <input
+              id="ssn"
+              style={inputStyle}
+              required
+              placeholder={t('details.ssnPlaceholder')}
+              inputMode="numeric"
+              autoComplete="off"
+              value={s.ssn}
+              onChange={(e) => s.setSsn(e.target.value)}
+              onBlur={() => validateSsn(s.ssn)}
+            />
             {s.ssnError && <p className="mt-1 text-xs" style={{ color: HF.err }}>{s.ssnError}</p>}
           </div>
           <div>
             <label style={labelStyle} htmlFor="dob">{t('details.dob')}</label>
-            <input id="dob" type="date" style={inputStyle} required value={s.dateOfBirth} onChange={(e) => s.setDateOfBirth(e.target.value)} />
+            <input
+              id="dob"
+              type="date"
+              style={inputStyle}
+              required
+              autoComplete="bday"
+              value={s.dateOfBirth}
+              onChange={(e) => s.setDateOfBirth(e.target.value)}
+            />
           </div>
         </FormGrid>
         <div>
           <label style={labelStyle} htmlFor="address">{t('details.address')}</label>
-          <input id="address" style={inputStyle} value={s.addressLine1} onChange={(e) => s.setAddressLine1(e.target.value)} />
+          <input
+            id="address"
+            style={inputStyle}
+            autoComplete="street-address"
+            value={s.addressLine1}
+            onChange={(e) => s.setAddressLine1(e.target.value)}
+          />
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <div>
             <label style={labelStyle} htmlFor="city">{t('details.city')}</label>
-            <input id="city" style={inputStyle} value={s.city} onChange={(e) => s.setCity(e.target.value)} />
+            <input
+              id="city"
+              style={inputStyle}
+              autoComplete="address-level2"
+              value={s.city}
+              onChange={(e) => s.setCity(e.target.value)}
+            />
           </div>
           <div>
             <label style={labelStyle} htmlFor="state">{t('details.state')}</label>
-            <input id="state" style={inputStyle} maxLength={2} placeholder="NV" value={s.state} onChange={(e) => s.setState(e.target.value.toUpperCase())} />
+            <input
+              id="state"
+              style={inputStyle}
+              maxLength={2}
+              placeholder="NV"
+              autoComplete="address-level1"
+              value={s.state}
+              onChange={(e) => s.setState(e.target.value.toUpperCase())}
+            />
           </div>
           <div>
             <label style={labelStyle} htmlFor="zip">{t('details.zip')}</label>
-            <input id="zip" style={inputStyle} maxLength={10} value={s.zip} onChange={(e) => s.setZip(e.target.value)} />
+            <input
+              id="zip"
+              style={inputStyle}
+              maxLength={10}
+              inputMode="numeric"
+              autoComplete="postal-code"
+              value={s.zip}
+              onChange={(e) => s.setZip(e.target.value)}
+            />
           </div>
         </div>
         <div>
           <label style={labelStyle} htmlFor="employer">{t('details.employer')}</label>
-          <input id="employer" style={inputStyle} value={s.employerName} onChange={(e) => s.setEmployerName(e.target.value)} />
+          <input
+            id="employer"
+            style={inputStyle}
+            autoComplete="organization"
+            value={s.employerName}
+            onChange={(e) => s.setEmployerName(e.target.value)}
+          />
         </div>
         <FormGrid columns={2}>
           <div>
             <label style={labelStyle} htmlFor="income">{t('details.income')}</label>
-            <input id="income" type="number" min={0} style={inputStyle} value={s.annualIncome} onChange={(e) => s.setAnnualIncome(e.target.value)} />
+            <input
+              id="income"
+              type="number"
+              min={0}
+              style={inputStyle}
+              inputMode="numeric"
+              autoComplete="off"
+              value={s.annualIncome}
+              onChange={(e) => s.setAnnualIncome(e.target.value)}
+            />
           </div>
           <div>
             <label style={labelStyle} htmlFor="household">{t('details.household')}</label>
@@ -133,15 +195,27 @@ export function Step2Details() {
         </FormGrid>
         <div>
           <label style={labelStyle} htmlFor="moveIn">{t('details.moveIn')}</label>
-          <input id="moveIn" type="date" style={inputStyle} value={s.moveInDate} onChange={(e) => s.setMoveInDate(e.target.value)} />
+          <input
+            id="moveIn"
+            type="date"
+            style={inputStyle}
+            value={s.moveInDate}
+            onChange={(e) => s.setMoveInDate(e.target.value)}
+          />
         </div>
         <div className="flex gap-3">
           <CTA type="button" tone="secondary" block={false} className="flex-1" onClick={() => s.setStep(s.claimedUnit ? 'claim' : 1)}>
             {t('common.back')}
           </CTA>
-          <CTA type="submit" block={false} className="flex-1" disabled={submitDisabled}>
+          <StepCTA
+            type="submit"
+            form="apply-details-form"
+            block={false}
+            className="flex-1"
+            disabled={submitDisabled}
+          >
             {s.loading ? t('common.submitting') : t('details.submit')}
-          </CTA>
+          </StepCTA>
         </div>
       </form>
     </>

@@ -103,7 +103,7 @@ export function MagicLinkSent() {
             </p>
           )}
           {resendError && (
-            <p role="alert" className="text-sm mt-3 text-red-600">
+            <p role="alert" className="text-sm mt-3" style={{ color: HF.err }}>
               {resendError}
             </p>
           )}

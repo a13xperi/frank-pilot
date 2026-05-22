@@ -1,240 +1,670 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Bed, Bath, Square } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import {
-  fetchProperty,
-  DL2_FIXTURE,
-  type PropertyDetail as PropertyDetailT,
-} from '@/api/properties';
-import { Pill, CTA, BottomBar } from '@/components/primitives';
-import { PhotoCarousel } from './PhotoCarousel';
-import { WaitlistBanner } from './WaitlistBanner';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { useTranslation, Trans } from 'react-i18next';
+import { findGPMGBySlug, rentEstimate } from '@/api/gpmg-fixtures';
+import { CTA } from '@/components/primitives';
 import { getToken } from '@/api/client';
+import { UNIT_PLACEHOLDER } from '@/utils/unitPlaceholder';
+import { HF } from '@/styles/tokens';
+import {
+  getPropertyAvailability,
+  type BedroomBucket,
+} from '@/utils/availability';
+import {
+  propertyRentRange,
+  propertyAmiTier,
+  formatRentBucket,
+  populatedBuckets,
+  type BedroomBucket as PricingBedroomBucket,
+} from '@/utils/pricing';
+import { AMI_TABLES } from '@/lib/ami';
+import { PropertyJsonLd } from '@/components/PropertyJsonLd';
 
-function formatRent(n: number): string {
-  return `$${Math.round(n).toLocaleString()}`;
+// Household sizes 1–8 for the HUD income-limits disclosure (per spec).
+const HOUSEHOLD_SIZES: ReadonlyArray<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8> = [
+  1, 2, 3, 4, 5, 6, 7, 8,
+];
+
+const RENT_TABLE_BEDROOM_I18N: Record<PricingBedroomBucket, string> = {
+  studio: 'availability.studio',
+  br1: 'availability.1',
+  br2: 'availability.2',
+  br3: 'availability.3',
+};
+
+function formatUSD(n: number): string {
+  return `$${n.toLocaleString('en-US')}`;
 }
+
+const AMENITIES = [
+  'Affordable rents',
+  'On-site laundry',
+  'Manager on-site',
+  'Senior-friendly',
+  'Near transit',
+  'Smoke-free',
+];
+
+const VALID_AMI_TIERS = new Set(['30', '50', '60', '80'] as const);
+type AmiTier = '30' | '50' | '60' | '80';
+
+const BEDROOM_BUCKETS: ReadonlyArray<{ key: BedroomBucket; i18nKey: string }> = [
+  { key: 'studio', i18nKey: 'availability.studio' },
+  { key: 'br1', i18nKey: 'availability.1' },
+  { key: 'br2', i18nKey: 'availability.2' },
+  { key: 'br3', i18nKey: 'availability.3' },
+];
 
 export function PropertyDetail() {
   const { slug = '' } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { t } = useTranslation('discover');
-  const [prop, setProp] = useState<PropertyDetailT | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const prop = findGPMGBySlug(slug);
 
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    setNotFound(false);
-    fetchProperty(slug)
-      .then((p) => {
-        if (alive) setProp(p);
-      })
-      .catch(() => {
-        if (alive) {
-          // Last-resort fallback: only DL2 has a fixture; other slugs => 404.
-          if (slug === 'donna-louise-2') setProp(DL2_FIXTURE);
-          else setNotFound(true);
-        }
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [slug]);
+  // Preserve a deep-linked amiTier when bouncing to /apply so the W0 funnel
+  // continues to know the applicant's tier. Validated against the same set
+  // as the AMI calculator emits.
+  const amiTierRaw = params.get('amiTier');
+  const amiTier: AmiTier | null =
+    amiTierRaw && VALID_AMI_TIERS.has(amiTierRaw as AmiTier)
+      ? (amiTierRaw as AmiTier)
+      : null;
 
-  if (loading) {
+  if (!prop) {
     return (
-      <div className="mx-auto max-w-3xl p-6 text-sm text-gray-500" role="status">
-        {t('detail.loading')}
+      <div
+        style={{ background: HF.cream, minHeight: '100vh', fontFamily: HF.body }}
+      >
+        <div className="mx-auto max-w-3xl p-6">
+          <Link
+            to="/discover"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 14,
+              color: HF.accent,
+              textDecoration: 'none',
+              fontWeight: 600,
+            }}
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Link>
+          <p style={{ marginTop: 16, fontSize: 14, color: HF.ink3 }}>
+            Property not found.
+          </p>
+        </div>
       </div>
     );
   }
 
-  if (notFound || !prop) {
-    return (
-      <div className="mx-auto max-w-3xl p-6">
-        <Link
-          to="/discover"
-          className="inline-flex items-center gap-1 text-sm text-emerald-700"
-        >
-          <ArrowLeft className="h-4 w-4" /> {t('detail.back')}
-        </Link>
-        <p className="mt-4 text-sm text-gray-600">{t('detail.notFound')}</p>
-      </div>
-    );
-  }
+  const est = rentEstimate(prop);
+  const availability = getPropertyAvailability(prop.name);
+  const hasAvailability = availability.availableCount > 0;
 
-  const location = [prop.city, prop.state].filter(Boolean).join(', ');
+  // Wedge #9 — rent range + AMI disclosure. `rentBuckets` drives the per-
+  // bedroom table; `propertySetAside` is "60% AMI" for every GPMG fixture
+  // today (the mirror in utils/pricing.ts returns null for non-fixture
+  // properties so the section is suppressed for any future off-catalog case).
+  // Distinct from the URL `amiTier` deep-link (applicant's tier from W0).
+  const rentRange = propertyRentRange(prop.name);
+  const rentBuckets = populatedBuckets(rentRange);
+  const propertySetAside = propertyAmiTier(prop.name);
+  const amiTable = AMI_TABLES.LAS_VEGAS_HENDERSON;
+  const showAmiDisclosure = !!propertySetAside && rentBuckets.length > 0;
+
   const onApply = () => {
-    // /apply is auth-gated for the canonical flow; /welcome is the public landing
-    // that funnels in. Route based on auth state so unauthed users don't bounce.
-    navigate(
-      getToken()
-        ? `/apply?step=intent&unitType=2BR&propertyId=${prop.slug}`
-        : `/login?return=${encodeURIComponent(`/apply?step=intent&unitType=2BR&propertyId=${prop.slug}`)}`
-    );
+    // Apply requires auth; bounce unauthed users through /login with a return.
+    // Preserve the AMI deep-link signal so W0 prefill still works when the
+    // user reaches /apply via /discover.
+    const qs = new URLSearchParams({
+      step: 'intent',
+      unitType: '2BR',
+      propertyId: slug,
+    });
+    if (amiTier) qs.set('amiTier', amiTier);
+    const target = `/apply?${qs.toString()}`;
+    navigate(getToken() ? target : `/login?return=${encodeURIComponent(target)}`);
+  };
+
+  const onApplyForProperty = () => {
+    // CTA shown only when the property has at least one available unit.
+    // Forwards amiTier when deep-linked so the funnel continues to know the
+    // applicant's tier.
+    const qs = new URLSearchParams({
+      propertyId: slug,
+    });
+    if (amiTier) qs.set('amiTier', amiTier);
+    const target = `/apply?${qs.toString()}`;
+    navigate(getToken() ? target : `/login?return=${encodeURIComponent(target)}`);
   };
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col">
-      {/* Hero gallery */}
-      <div className="relative">
-        <PhotoCarousel photos={prop.photos} alt={prop.name} />
-        <Link
-          to="/discover"
-          aria-label={t('detail.back')}
-          className="absolute left-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-gray-900 shadow ring-1 ring-gray-200"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-      </div>
-
-      <div className="space-y-6 px-4 pb-32 pt-5 sm:px-6">
-        {/* Headline + rent + waitlist banner */}
-        <div>
-          <div className="flex items-baseline justify-between gap-3">
-            <div>
-              <span className="text-2xl font-extrabold tracking-tight text-gray-900">
-                {formatRent(prop.rentMin)}
-              </span>
-              <span className="text-sm text-gray-500">
-                –{formatRent(prop.rentMax)}/mo
-              </span>
-            </div>
-            {prop.community && <Pill tone="neutral">{prop.community}</Pill>}
-          </div>
-          <h1 className="mt-2 text-xl font-bold text-gray-900 sm:text-2xl">
-            {prop.name}
-          </h1>
-          {(prop.address || location || prop.neighborhood) && (
-            <p className="mt-1 text-sm text-gray-500">
-              {[prop.address, location, prop.neighborhood]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-          )}
+    <div
+      style={{ background: HF.cream, minHeight: '100vh', fontFamily: HF.body, color: HF.ink }}
+    >
+      {/* wedge #14 — RealEstateListing JSON-LD. Renders null; injects a single
+          <script type="application/ld+json"> into <head> for the lifetime of
+          the page. No visual impact. */}
+      <PropertyJsonLd property={prop} />
+      <div className="mx-auto max-w-3xl">
+        <div className="relative">
+          <div
+            className="aspect-[16/9] w-full"
+            style={{
+              background: HF.sageLo,
+              backgroundImage: `url(${UNIT_PLACEHOLDER})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+            aria-hidden="true"
+          />
+          <Link
+            to="/discover"
+            aria-label="Back"
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: 12,
+              display: 'inline-flex',
+              height: 40,
+              width: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: HF.r.pill,
+              background: HF.paper,
+              color: HF.ink,
+              boxShadow: HF.shadow.sm,
+              textDecoration: 'none',
+            }}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
         </div>
 
-        <WaitlistBanner slug={prop.slug} />
-
-        {/* Key facts band */}
-        <div className="grid grid-cols-3 divide-x divide-gray-200 rounded-xl border border-gray-200 bg-white py-3 text-center">
-          <div>
-            <div className="flex items-center justify-center gap-1 text-base font-bold text-gray-900">
-              <Bed className="h-4 w-4 text-gray-500" /> 1–3
-            </div>
-            <div className="mt-0.5 text-xs text-gray-500">{t('detail.beds')}</div>
-          </div>
-          <div>
-            <div className="flex items-center justify-center gap-1 text-base font-bold text-gray-900">
-              <Bath className="h-4 w-4 text-gray-500" /> 1–2
-            </div>
-            <div className="mt-0.5 text-xs text-gray-500">{t('detail.baths')}</div>
-          </div>
-          <div>
-            <div className="flex items-center justify-center gap-1 text-base font-bold text-gray-900">
-              <Square className="h-4 w-4 text-gray-500" /> 680–1,150
-            </div>
-            <div className="mt-0.5 text-xs text-gray-500">{t('detail.sqft')}</div>
-          </div>
-        </div>
-
-        {/* About */}
-        {prop.description && (
-          <section>
-            <h2 className="text-base font-semibold text-gray-900">
-              {t('detail.aboutTitle')}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-gray-700">
-              {prop.description}
+        <div className="px-4 pb-32 pt-5 sm:px-6">
+          <header>
+            <h1
+              style={{
+                fontFamily: HF.display,
+                fontWeight: 800,
+                fontSize: 24,
+                color: HF.ink,
+                margin: 0,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {prop.name}
+            </h1>
+            <p style={{ margin: '6px 0 0', fontSize: 14, color: HF.ink3 }}>
+              {prop.addr} · {prop.city}, NV {prop.zip}
             </p>
-          </section>
-        )}
+            <div className="flex items-center gap-3" style={{ marginTop: 10 }}>
+              <span
+                style={{
+                  background: HF.accentLo,
+                  color: HF.accentInk,
+                  border: '1px solid #F3D7CB',
+                  borderRadius: HF.r.pill,
+                  padding: '2px 12px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textTransform: 'capitalize',
+                }}
+              >
+                {prop.type}
+              </span>
+              <span
+                style={{
+                  fontFamily: HF.display,
+                  fontWeight: 700,
+                  fontSize: 16,
+                  color: HF.ink,
+                }}
+              >
+                From ${est}/mo
+              </span>
+            </div>
+          </header>
 
-        {/* Unit types */}
-        {prop.unitTypes.length > 0 && (
-          <section>
-            <h2 className="text-base font-semibold text-gray-900">
-              {t('detail.unitTypes')}
-            </h2>
-            <ul className="mt-3 space-y-2">
-              {prop.unitTypes.map((u) => (
-                <li
-                  key={u.bed}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3"
+          {/* Wedge #9 — Rent & AMI disclosure (the gpmglv differentiator).
+              Honest, public, per-bedroom rent figures + the 60% AMI set-
+              aside callout. Sits above Live availability so a user can see
+              "yes, I can afford this and I qualify" before counting units. */}
+          {showAmiDisclosure && (
+            <section
+              data-testid="rent-ami-disclosure"
+              style={{
+                marginTop: 24,
+                background: HF.paper,
+                border: `1px solid ${HF.border}`,
+                borderRadius: HF.r.md,
+                padding: 16,
+                boxShadow: HF.shadow.xs,
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: HF.display,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: HF.ink2,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  margin: 0,
+                }}
+              >
+                {t('amiDisclosure.sectionTitle')}
+              </h2>
+
+              <table
+                data-testid="rent-table"
+                style={{
+                  width: '100%',
+                  marginTop: 12,
+                  borderCollapse: 'collapse',
+                  fontSize: 13,
+                  color: HF.ink2,
+                }}
+              >
+                <thead>
+                  <tr style={{ textAlign: 'left', color: HF.ink3 }}>
+                    <th
+                      scope="col"
+                      style={{
+                        padding: '6px 8px',
+                        borderBottom: `1px solid ${HF.border}`,
+                        fontWeight: 700,
+                        fontSize: 12,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {t('amiDisclosure.tableHeader.bedroom')}
+                    </th>
+                    <th
+                      scope="col"
+                      style={{
+                        padding: '6px 8px',
+                        borderBottom: `1px solid ${HF.border}`,
+                        fontWeight: 700,
+                        fontSize: 12,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        textAlign: 'right',
+                      }}
+                    >
+                      {t('amiDisclosure.tableHeader.rent')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rentBuckets.map(({ key, bucket }) => (
+                    <tr key={key} data-testid={`rent-row-${key}`}>
+                      <td
+                        style={{
+                          padding: '8px',
+                          borderBottom: `1px solid ${HF.border}`,
+                          color: HF.ink,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {t(RENT_TABLE_BEDROOM_I18N[key])}
+                      </td>
+                      <td
+                        style={{
+                          padding: '8px',
+                          borderBottom: `1px solid ${HF.border}`,
+                          color: HF.ink,
+                          textAlign: 'right',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {formatRentBucket(bucket)}
+                        <span style={{ color: HF.ink3 }}>{t('pricing.suffix')}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div
+                data-testid="set-aside-explainer"
+                style={{
+                  marginTop: 14,
+                  background: HF.sageLo,
+                  border: `1px solid ${HF.border}`,
+                  borderRadius: HF.r.sm,
+                  padding: 12,
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: HF.display,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    color: HF.sage,
+                  }}
                 >
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">
-                      {u.bed}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {u.sqftRange} sq ft
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {u.available ? (
-                      <Pill tone="ok">Available</Pill>
-                    ) : (
-                      <Pill tone="warn">~{u.waitMonths}mo wait</Pill>
-                    )}
-                    <span className="text-sm font-bold text-emerald-700">
-                      {formatRent(u.rent)}/mo
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+                  {t('amiDisclosure.setAsideHeading', { tier: propertySetAside })}
+                </p>
+                <p
+                  style={{
+                    margin: '6px 0 0',
+                    fontSize: 13,
+                    color: HF.ink2,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <Trans
+                    i18nKey="amiDisclosure.explainer"
+                    t={t}
+                    values={{ tier: propertySetAside }}
+                    components={{
+                      1: (
+                        <Link
+                          to="/"
+                          data-testid="income-calculator-link"
+                          style={{
+                            color: HF.accent,
+                            textDecoration: 'underline',
+                            fontWeight: 600,
+                          }}
+                        />
+                      ),
+                    }}
+                  />
+                </p>
+              </div>
 
-        {/* Eligibility */}
-        {prop.eligibility && prop.eligibility.length > 0 && (
-          <section>
-            <h2 className="text-base font-semibold text-gray-900">
-              {t('detail.whoCanApplyTitle')}
-            </h2>
-            <ul className="mt-2 space-y-1.5">
-              {prop.eligibility.map((line, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                  <span className="mt-1 text-emerald-600">✓</span>
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+              <details
+                data-testid="income-limits-disclosure"
+                style={{ marginTop: 12 }}
+              >
+                <summary
+                  style={{
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    color: HF.accent,
+                    fontWeight: 600,
+                    fontFamily: HF.body,
+                  }}
+                >
+                  {t('amiDisclosure.incomeLimitsToggle')}
+                </summary>
+                <p
+                  style={{
+                    margin: '10px 0 0',
+                    fontSize: 12,
+                    color: HF.ink3,
+                  }}
+                >
+                  {t('amiDisclosure.incomeLimitsTitle', { tier: propertySetAside })}
+                </p>
+                <table
+                  data-testid="income-limits-table"
+                  style={{
+                    width: '100%',
+                    marginTop: 8,
+                    borderCollapse: 'collapse',
+                    fontSize: 13,
+                    color: HF.ink2,
+                  }}
+                >
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: HF.ink3 }}>
+                      <th
+                        scope="col"
+                        style={{
+                          padding: '6px 8px',
+                          borderBottom: `1px solid ${HF.border}`,
+                          fontWeight: 700,
+                          fontSize: 12,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {t('amiDisclosure.incomeLimitsHeader.size')}
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          padding: '6px 8px',
+                          borderBottom: `1px solid ${HF.border}`,
+                          fontWeight: 700,
+                          fontSize: 12,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          textAlign: 'right',
+                        }}
+                      >
+                        {t('amiDisclosure.incomeLimitsHeader.max')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {HOUSEHOLD_SIZES.map((size) => (
+                      <tr key={size} data-testid={`income-limits-row-${size}`}>
+                        <td
+                          style={{
+                            padding: '6px 8px',
+                            borderBottom: `1px solid ${HF.border}`,
+                            color: HF.ink,
+                          }}
+                        >
+                          {t('amiDisclosure.incomeLimitsRow', { count: size })}
+                        </td>
+                        <td
+                          style={{
+                            padding: '6px 8px',
+                            borderBottom: `1px solid ${HF.border}`,
+                            color: HF.ink,
+                            textAlign: 'right',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {formatUSD(amiTable.limits[size]['60'])}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            </section>
+          )}
 
-        {/* Amenities */}
-        {prop.amenities.length > 0 && (
-          <section>
-            <h2 className="text-base font-semibold text-gray-900">
-              {t('detail.amenitiesTitle')}
+          {/* Live availability section — bedroom-grouped counts derived from
+              the deterministic seed rollup. Hidden when totalUnits=0 (e.g.
+              an off-catalog or unfixtured property). */}
+          {availability.totalUnits > 0 && (
+            <section
+              data-testid="live-availability"
+              style={{
+                marginTop: 24,
+                background: HF.paper,
+                border: `1px solid ${HF.border}`,
+                borderRadius: HF.r.md,
+                padding: 16,
+                boxShadow: HF.shadow.xs,
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: HF.display,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: HF.ink2,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  margin: 0,
+                }}
+              >
+                {t('availability.title')}
+              </h2>
+              {hasAvailability ? (
+                <ul
+                  className="grid grid-cols-2 gap-2"
+                  style={{ margin: '12px 0 0', padding: 0, listStyle: 'none' }}
+                  data-testid="availability-grid"
+                >
+                  {BEDROOM_BUCKETS.map(({ key, i18nKey }) => {
+                    const count = availability.bedroomBreakdown[key];
+                    if (count === 0) return null;
+                    return (
+                      <li
+                        key={key}
+                        data-testid={`availability-${key}`}
+                        style={{
+                          background: HF.cream,
+                          border: `1px solid ${HF.border}`,
+                          borderRadius: HF.r.sm,
+                          padding: '10px 12px',
+                          fontSize: 13,
+                          color: HF.ink2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span style={{ fontWeight: 700, color: HF.ink }}>
+                          {t(i18nKey)}
+                        </span>
+                        <span style={{ color: HF.accentInk }}>
+                          {t('availability.unit', { count })}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p
+                  style={{ margin: '12px 0 0', fontSize: 13, color: HF.ink3 }}
+                  data-testid="availability-empty"
+                >
+                  {t('availability.empty')}
+                </p>
+              )}
+              {hasAvailability && (
+                <div style={{ marginTop: 16 }}>
+                  <CTA
+                    tone="primary"
+                    block
+                    onClick={onApplyForProperty}
+                    data-testid="apply-for-property-cta"
+                  >
+                    {t('applyForProperty')} →
+                  </CTA>
+                </div>
+              )}
+            </section>
+          )}
+
+          <section
+            style={{
+              marginTop: 24,
+              background: HF.paper,
+              border: `1px solid ${HF.border}`,
+              borderRadius: HF.r.md,
+              padding: 16,
+              boxShadow: HF.shadow.xs,
+            }}
+          >
+            <h2
+              style={{
+                fontFamily: HF.display,
+                fontWeight: 700,
+                fontSize: 14,
+                color: HF.ink2,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                margin: 0,
+              }}
+            >
+              Contact
             </h2>
-            <ul className="mt-3 flex flex-wrap gap-2">
-              {prop.amenities.map((a) => (
+            <dl style={{ margin: '12px 0 0', display: 'grid', gap: 8, fontSize: 14 }}>
+              <div className="flex items-center gap-2">
+                <dt style={{ color: HF.ink3, minWidth: 60 }}>Phone</dt>
+                <dd style={{ margin: 0, color: HF.ink }}>{prop.phone}</dd>
+              </div>
+              {prop.email && (
+                <div className="flex items-center gap-2">
+                  <dt style={{ color: HF.ink3, minWidth: 60 }}>Email</dt>
+                  <dd style={{ margin: 0, color: HF.ink }}>
+                    <a
+                      href={`mailto:${prop.email}`}
+                      style={{ color: HF.accent, textDecoration: 'none' }}
+                    >
+                      {prop.email}
+                    </a>
+                  </dd>
+                </div>
+              )}
+              {prop.units !== null && (
+                <div className="flex items-center gap-2">
+                  <dt style={{ color: HF.ink3, minWidth: 60 }}>Units</dt>
+                  <dd style={{ margin: 0, color: HF.ink }}>{prop.units}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
+
+          <section style={{ marginTop: 24 }}>
+            <h2
+              style={{
+                fontFamily: HF.display,
+                fontWeight: 700,
+                fontSize: 16,
+                color: HF.ink,
+                margin: 0,
+              }}
+            >
+              Amenities
+            </h2>
+            <ul
+              className="grid grid-cols-2 gap-2"
+              style={{ margin: '12px 0 0', padding: 0, listStyle: 'none' }}
+            >
+              {AMENITIES.map((a) => (
                 <li
                   key={a}
-                  className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700"
+                  style={{
+                    background: HF.paper,
+                    border: `1px solid ${HF.border}`,
+                    borderRadius: HF.r.sm,
+                    padding: '10px 12px',
+                    fontSize: 13,
+                    color: HF.ink2,
+                  }}
                 >
                   {a}
                 </li>
               ))}
             </ul>
           </section>
-        )}
-      </div>
+        </div>
 
-      {/* Sticky CTA */}
-      <BottomBar variant="mobile">
-        <CTA tone="primary" block onClick={onApply} data-testid="apply-cta">
-          {t('detail.apply')} →
-        </CTA>
-      </BottomBar>
+        <div
+          style={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: HF.paper,
+            borderTop: `1px solid ${HF.border}`,
+            padding: 16,
+            boxShadow: HF.shadow.md,
+          }}
+        >
+          <div className="mx-auto max-w-3xl">
+            <CTA tone="primary" block onClick={onApply} data-testid="apply-cta">
+              Apply now →
+            </CTA>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

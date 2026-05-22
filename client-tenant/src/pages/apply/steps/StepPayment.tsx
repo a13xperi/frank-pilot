@@ -15,9 +15,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { HF } from '@/styles/tokens';
-import { CTA } from '@/components/primitives';
+import { StepCTA } from '@/pages/apply/StepCTA';
 import { useApply } from '@/pages/apply/context/ApplyContext';
 import { PayHeader } from '@/pages/apply/PayHeader';
+import { api, getToken } from '@/api/client';
 
 function sessionId(): string {
   try {
@@ -34,7 +35,8 @@ function sessionId(): string {
 }
 
 async function fireBeacon(path: string, body: object): Promise<Response> {
-  return fetch(path, {
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  return fetch(`${baseUrl}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -71,6 +73,17 @@ export function StepPayment() {
         const r2 = await fireBeacon('/api/tape/payment-success', { ...payload, paymentRef: ref });
         if (!r2.ok) throw new Error(`success ${r2.status}`);
         setPaymentRef(ref);
+        // Flip the user's draft application to `submitted` so /status shows
+        // "Submitted" instead of "Draft" after the wizard completes. Only
+        // attempt when authed; non-fatal if it fails — the receipt still
+        // renders and staff can advance the application manually.
+        if (getToken()) {
+          try {
+            await api.post('/applicants/me/applications/submit-draft', {});
+          } catch {
+            /* non-fatal */
+          }
+        }
         navigate('?step=2');
       } catch {
         setErr(t('payment.error') as string);
@@ -84,7 +97,7 @@ export function StepPayment() {
   return (
     <div style={{ background: HF.cream, minHeight: '100vh', color: HF.ink, fontFamily: HF.body }}>
       <PayHeader step={3} total={5} lang={lang} onBack={() => navigate(-1)} />
-      <form onSubmit={submit} className="mx-auto max-w-md p-4 flex flex-col gap-3" aria-label={t('payment.title') as string}>
+      <form id="apply-payment-form" onSubmit={submit} className="mx-auto max-w-md p-4 flex flex-col gap-3" aria-label={t('payment.title') as string}>
         <h1 style={{ fontFamily: HF.display, fontSize: 22, fontWeight: 700 }}>{t('payment.title')}</h1>
         <p style={{ color: HF.ink3, fontSize: 13 }}>{t('payment.subtitle')}</p>
 
@@ -110,9 +123,17 @@ export function StepPayment() {
           </div>
         )}
 
-        <CTA type="submit" tone="primary" size="lg" disabled={busy} block aria-busy={busy}>
+        <StepCTA
+          type="submit"
+          form="apply-payment-form"
+          tone="primary"
+          size="lg"
+          disabled={busy}
+          block
+          aria-busy={busy}
+        >
           {busy ? (t('payment.processing') as string) : `${t('payment.payCta')} $${total}`}
-        </CTA>
+        </StepCTA>
         <p style={{ textAlign: 'center', color: HF.ink3, fontSize: 11 }}>{t('payment.encrypted')}</p>
       </form>
     </div>
@@ -137,7 +158,7 @@ function Field({
         inputMode={inputMode}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        style={{ background: HF.paper, border: `1px solid ${HF.border}`, borderRadius: HF.r.sm, padding: '10px 12px', fontSize: 14, color: HF.ink, fontFamily: HF.body }}
+        style={{ background: HF.paper, border: `1px solid ${HF.border}`, borderRadius: HF.r.sm, padding: '10px 12px', fontSize: 16, color: HF.ink, fontFamily: HF.body }}
       />
     </label>
   );

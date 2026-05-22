@@ -1,0 +1,620 @@
+{
+  "extracted_at": "2026-05-22T05:38:22.563Z",
+  "source_snapshot": "2026-05-22",
+  "homepage": {
+    "title": "GPMGLV | Global Property Management — Las Vegas Affordable Housing | GPMGLV",
+    "headline": "A Place to Call Home",
+    "subhead": "Vegas' #1 Affordable Housing Provider. Global Property Management manages 17 senior and family communities across Las Vegas, North Las Vegas, and Henderson.",
+    "og_image": null,
+    "cta_text": "View Our Homes / Apply for Housing / Call us directly",
+    "featured_property_links": [
+      "aldene-kline-barlow-senior-community",
+      "david-j-hoggard-family-community",
+      "donna-louise-apartments",
+      "donna-louise-2-apartments",
+      "dr-luther-mack-jr-senior-community",
+      "dr-paul-meacham-senior-community"
+    ]
+  },
+  "about": {
+    "title": "About Us | GPMGLV",
+    "mission_text": "To manage properties for corporations that invest in real estate. To monitor property goals on a regular basis to ensure ongoing compliance for the owner, to provide counseling, training, and education for low income renters and homebuyers. To create public/private partnerships to manage, develop and build new affordable housing.",
+    "description_paragraphs": [
+      "Since 2002, Global Property Management has been providing quality affordable housing and building communities where residents feel at home.",
+      "To manage properties for corporations that invest in real estate. To monitor property goals on a regular basis to ensure ongoing compliance for the owner, to provide counseling, training, and education for low income renters and homebuyers. To create public/private partnerships to manage, develop and build new affordable housing.",
+      "CDPCN founded Global Property Management Group, Inc. (GPMGLV) in 2002, recognizing the critical need for dedicated property management to protect operational interests and ensure compliance with income and rent-targeting goals of the low-income housing tax credit programs.",
+      "GPMGLV has been in operation for more than 20 years and has leased more than 1,000 apartment units, continuing to manage communities across the Las Vegas Valley. Our state-of-the-art systems handle tracking, record keeping, bookkeeping, and reporting with precision and care.",
+      "We have a clear set of principles for the management of this organization. We have spent considerable time and energy ensuring that these standards are met, maintaining the highest levels of compliance for our residents, investors, and community partners.",
+      "We ensure ongoing compliance with LIHTC, NSP, IRS, and equity investor requirements through meticulous tracking and regular audits.",
+      "Counseling, training, education workshops, and one-on-one support for low-income renters and homebuyers.",
+      "Our staff brings people skills, multilingual capabilities, maintenance expertise, and deep fair housing knowledge.",
+      "We create public/private partnerships to manage, develop, and build new affordable housing throughout the Las Vegas Valley.",
+      "From annual tax filings to quarterly compliance with North Las Vegas and periodic audits, we handle every requirement.",
+      "We work alongside equity investors, government agencies, and community organizations to serve those who need it most.",
+      "Providing affordable, quality housing for low-income individuals and senior citizens across the Las Vegas Valley since 2002.",
+      "We manage 16 communities across Las Vegas, North Las Vegas, and Henderson."
+    ],
+    "six_principles": [
+      "Compliance Excellence",
+      "Resident-Centered",
+      "Diverse Expertise",
+      "Development Partners",
+      "Regulatory Mastery",
+      "Community Partnerships"
+    ],
+    "founded": 2002,
+    "units_managed_claim": null,
+    "leadership_named": null
+  },
+  "contact": {
+    "title": "Contact Us | GPMGLV",
+    "form_fields": [
+      {
+        "tag": "input",
+        "name": "__anon_0",
+        "type": "text",
+        "placeholder": "Your full name",
+        "value": null,
+        "required": true,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_1",
+        "type": "tel",
+        "placeholder": "(702) 555-0000",
+        "value": null,
+        "required": true,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_2",
+        "type": "email",
+        "placeholder": "you@email.com",
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "select",
+        "name": "__anon_3",
+        "type": "select",
+        "placeholder": null,
+        "value": null,
+        "required": true,
+        "anonymous": true
+      },
+      {
+        "tag": "textarea",
+        "name": "__anon_4",
+        "type": "textarea",
+        "placeholder": "Tell us how we can help...",
+        "value": null,
+        "required": false,
+        "anonymous": true
+      }
+    ],
+    "office_address": {
+      "line1": "2009 Alta Drive",
+      "city": "Las Vegas",
+      "state": "NV",
+      "zip": "89106"
+    },
+    "office_phone": "(702) 873-8882",
+    "office_hours": "Mon – Fri, 9:00 AM – 5:00 PM",
+    "has_google_maps_embed": true
+  },
+  "waitlist": {
+    "title": "Join Our Waitlist | GPMGLV",
+    "headline": "Join Our Waitlist",
+    "form_fields": [
+      {
+        "tag": "input",
+        "name": "applicantName",
+        "type": "text",
+        "placeholder": null,
+        "value": null,
+        "required": true,
+        "anonymous": false
+      },
+      {
+        "tag": "input",
+        "name": "phone",
+        "type": "tel",
+        "placeholder": "(555) 123-4567",
+        "value": null,
+        "required": true,
+        "anonymous": false
+      },
+      {
+        "tag": "input",
+        "name": "applicantAddress",
+        "type": "text",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": false
+      },
+      {
+        "tag": "input",
+        "name": "website",
+        "type": "text",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": false
+      },
+      {
+        "tag": "input",
+        "name": "dateNeeded",
+        "type": "date",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": false
+      },
+      {
+        "tag": "input",
+        "name": "aptTypes",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": "studio",
+        "required": false,
+        "anonymous": false
+      },
+      {
+        "tag": "input",
+        "name": "aptTypes",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": "1br",
+        "required": false,
+        "anonymous": false
+      },
+      {
+        "tag": "input",
+        "name": "aptTypes",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": "2br",
+        "required": false,
+        "anonymous": false
+      },
+      {
+        "tag": "input",
+        "name": "aptTypes",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": "3br",
+        "required": false,
+        "anonymous": false
+      },
+      {
+        "tag": "input",
+        "name": "pets",
+        "type": "text",
+        "placeholder": "None, Dog, Cat, etc.",
+        "value": null,
+        "required": false,
+        "anonymous": false
+      },
+      {
+        "tag": "input",
+        "name": "__anon_0",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_1",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_2",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_3",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_4",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_5",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_6",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_7",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_8",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_9",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_10",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_11",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_12",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_13",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_14",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_15",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      },
+      {
+        "tag": "input",
+        "name": "__anon_16",
+        "type": "checkbox",
+        "placeholder": null,
+        "value": null,
+        "required": false,
+        "anonymous": true
+      }
+    ],
+    "property_checkboxes": [
+      "studio",
+      "1br",
+      "2br",
+      "3br"
+    ],
+    "property_checkbox_labels": [],
+    "anonymous_checkbox_count": 17,
+    "total_checkbox_count": 21,
+    "instructions_text": "Choose from one or more of our communites to join the waitlist.",
+    "notes": [
+      "\"website\" field is unlabeled — likely a honeypot for bot detection",
+      "applicantName and phone ARE marked required (audit said \"no required attributes\" — partly inaccurate)",
+      "21 checkboxes total: 4 named (aptTypes: studio/1br/2br/3br) + 17 anonymous (presumed property-selection)",
+      "Multi-property submission supported via \"Join selected waitlists\" button"
+    ]
+  },
+  "portal_marketing": {
+    "portal": {
+      "title": "Resident portal | GPMGLV",
+      "headline": "Resident portal",
+      "form_fields": []
+    },
+    "portal/lookup": {
+      "title": "Resident portal | GPMGLV",
+      "headline": "Look up a request",
+      "form_fields": [
+        {
+          "tag": "input",
+          "name": "__anon_0",
+          "type": "text",
+          "placeholder": "REF-...",
+          "value": null,
+          "required": false,
+          "anonymous": true
+        }
+      ]
+    },
+    "portal/maintenance": {
+      "title": "Resident portal | GPMGLV",
+      "headline": "Maintenance request",
+      "form_fields": [
+        {
+          "tag": "input",
+          "name": "company",
+          "type": "text",
+          "placeholder": null,
+          "value": null,
+          "required": false,
+          "anonymous": false
+        },
+        {
+          "tag": "select",
+          "name": "propertySlug",
+          "type": "select",
+          "placeholder": null,
+          "value": null,
+          "required": true,
+          "anonymous": false
+        },
+        {
+          "tag": "input",
+          "name": "unitText",
+          "type": "text",
+          "placeholder": "e.g. 204",
+          "value": null,
+          "required": true,
+          "anonymous": false
+        },
+        {
+          "tag": "select",
+          "name": "issueType",
+          "type": "select",
+          "placeholder": null,
+          "value": null,
+          "required": true,
+          "anonymous": false
+        },
+        {
+          "tag": "select",
+          "name": "urgency",
+          "type": "select",
+          "placeholder": null,
+          "value": null,
+          "required": true,
+          "anonymous": false
+        },
+        {
+          "tag": "textarea",
+          "name": "description",
+          "type": "textarea",
+          "placeholder": null,
+          "value": null,
+          "required": true,
+          "anonymous": false
+        },
+        {
+          "tag": "input",
+          "name": "residentName",
+          "type": "text",
+          "placeholder": null,
+          "value": null,
+          "required": true,
+          "anonymous": false
+        },
+        {
+          "tag": "input",
+          "name": "residentPhone",
+          "type": "text",
+          "placeholder": null,
+          "value": null,
+          "required": false,
+          "anonymous": false
+        },
+        {
+          "tag": "input",
+          "name": "residentEmail",
+          "type": "email",
+          "placeholder": null,
+          "value": null,
+          "required": false,
+          "anonymous": false
+        }
+      ]
+    },
+    "portal/contact-management": {
+      "title": "Resident portal | GPMGLV",
+      "headline": "Contact management",
+      "form_fields": [
+        {
+          "tag": "input",
+          "name": "company",
+          "type": "text",
+          "placeholder": null,
+          "value": null,
+          "required": false,
+          "anonymous": false
+        },
+        {
+          "tag": "input",
+          "name": "title",
+          "type": "text",
+          "placeholder": null,
+          "value": null,
+          "required": true,
+          "anonymous": false
+        },
+        {
+          "tag": "textarea",
+          "name": "description",
+          "type": "textarea",
+          "placeholder": null,
+          "value": null,
+          "required": true,
+          "anonymous": false
+        },
+        {
+          "tag": "input",
+          "name": "residentName",
+          "type": "text",
+          "placeholder": null,
+          "value": null,
+          "required": true,
+          "anonymous": false
+        },
+        {
+          "tag": "input",
+          "name": "residentPhone",
+          "type": "text",
+          "placeholder": null,
+          "value": null,
+          "required": false,
+          "anonymous": false
+        },
+        {
+          "tag": "input",
+          "name": "residentEmail",
+          "type": "email",
+          "placeholder": null,
+          "value": null,
+          "required": false,
+          "anonymous": false
+        }
+      ]
+    }
+  },
+  "footer": {
+    "copyright": "© 2026 Global Property Management",
+    "links": [
+      {
+        "href": "/about-us",
+        "text": "About Us"
+      },
+      {
+        "href": "/properties",
+        "text": "Our Homes"
+      },
+      {
+        "href": "/resources",
+        "text": "Resources"
+      },
+      {
+        "href": "/contact-us",
+        "text": "Contact Us"
+      },
+      {
+        "href": "/portal",
+        "text": "Resident Portal"
+      },
+      {
+        "href": "tel:7028738882",
+        "text": "(702) 873-8882"
+      },
+      {
+        "href": "/properties",
+        "text": "View Our Homes"
+      },
+      {
+        "href": "/privacy-policy",
+        "text": "Privacy Policy"
+      },
+      {
+        "href": "/terms-and-conditions",
+        "text": "Terms & Conditions"
+      }
+    ],
+    "social": []
+  },
+  "navigation": {
+    "main_links": [
+      {
+        "href": "/",
+        "text": "Home"
+      },
+      {
+        "href": "/about-us",
+        "text": "About Us"
+      },
+      {
+        "href": "/properties",
+        "text": "Our Homes"
+      },
+      {
+        "href": "/resources",
+        "text": "Resources"
+      },
+      {
+        "href": "/contact-us",
+        "text": "Contact Us"
+      },
+      {
+        "href": "/join-waitlist",
+        "text": "Join Waitlist"
+      },
+      {
+        "href": "/portal",
+        "text": "Resident Portal"
+      },
+      {
+        "href": "tel:7028738882",
+        "text": "Call Us"
+      }
+    ]
+  }
+}

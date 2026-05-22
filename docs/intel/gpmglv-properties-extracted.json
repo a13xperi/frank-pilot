@@ -1,0 +1,1013 @@
+{
+  "extracted_at": "2026-05-22T05:38:22.563Z",
+  "source_snapshot": "2026-05-22",
+  "property_count": 17,
+  "properties": [
+    {
+      "slug": "aldene-kline-barlow-senior-community",
+      "name": "Aldene Kline Senior Community",
+      "url": "https://gpmglv.com/homes/aldene-kline-barlow-senior-community",
+      "address": {
+        "line1": "1327 H Street",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89106"
+      },
+      "phone": "(702) 920-6550",
+      "phone_alt": "(702) 873-8882",
+      "fax": null,
+      "email": "barlow@gpmglv.org",
+      "property_type": "senior",
+      "description": "A welcoming senior living community in the heart of Las Vegas, offering comfortable apartments with modern amenities and a strong sense of neighborhood.",
+      "tagline": null,
+      "amenities": [
+        "One & two-bedroom senior apartments",
+        "Elevator access & ADA accommodations",
+        "Community room with activities & programs",
+        "Laundry facilities on site",
+        "Secure entry & on-site management",
+        "Walking distance to Lorenzi Park & shopping",
+        "Near Valley Hospital & UMC",
+        "RTC bus lines serving the neighborhood"
+      ],
+      "accessibility": [
+        "ADA accommodations available",
+        "Elevator access",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Mon–Sat 9a–6p • Sun by appt.",
+      "manager_name": null,
+      "manager_email": "barlow@gpmglv.org",
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=aldene-kline-barlow-senior-community",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/IMG_6791.jpg",
+        "https://gpmglv.com/uploads/2025/09/20250808_111826-scaled.jpg",
+        "https://gpmglv.com/uploads/2025/09/20250808_111947-scaled.jpg",
+        "https://gpmglv.com/uploads/2025/09/20250808_111954-scaled.jpg",
+        "https://gpmglv.com/uploads/2025/09/20250808_112052-scaled.jpg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/IMG_6791.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/aldene-kline-barlow-senior-community.html",
+      "extracted_at": "2026-05-22T05:38:22.545Z"
+    },
+    {
+      "slug": "david-j-hoggard-family-community",
+      "name": "David J. Hoggard Family Community",
+      "url": "https://gpmglv.com/homes/david-j-hoggard-family-community",
+      "address": {
+        "line1": "1120 H Street",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89106"
+      },
+      "phone": "(702) 648-6946",
+      "phone_alt": "(702) 873-8882",
+      "fax": null,
+      "email": "hoggard@gpmglv.org",
+      "property_type": "family",
+      "description": "Located in Historic West Las Vegas, offering spacious one, two, and three bedroom apartments with a state-of-the-art fitness center, community library, computer lab, and on-site laundry.",
+      "tagline": "Near the Division of Supportive Services, the U.S. Veterans Administration, the Las Vegas-Clark County Urban League, the NAACP Branch #1111, Buy Low Supermarket, Wells Fargo Bank, Family Dollar, and other nearby retail and convenience services.",
+      "amenities": [
+        "A children’s water park",
+        "Community library",
+        "Computer lab with internet access",
+        "Fitness center",
+        "Laundry facility (coin operated)",
+        "Spacious one, two, and three bedroom apartments",
+        "Convenient access to neighborhood services"
+      ],
+      "accessibility": [
+        "ADA accommodations available",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Open 7 days a week",
+      "manager_name": null,
+      "manager_email": "hoggard@gpmglv.org",
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "3BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=david-j-hoggard-family-community",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/IMG_6778-1.jpg",
+        "https://gpmglv.com/uploads/2026/03/hoggard1.jpg",
+        "https://gpmglv.com/uploads/2026/03/hoggard2.jpg",
+        "https://gpmglv.com/uploads/2026/03/hoggard3.jpg",
+        "https://gpmglv.com/uploads/2026/03/hoggard4.jpg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/IMG_6778-1.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/david-j-hoggard-family-community.html",
+      "extracted_at": "2026-05-22T05:38:22.547Z"
+    },
+    {
+      "slug": "donna-louise-2-apartments",
+      "name": "Donna Louise 2 Apartments",
+      "url": "https://gpmglv.com/homes/donna-louise-2-apartments",
+      "address": {
+        "line1": "6225 Donna St.",
+        "city": "North Las Vegas",
+        "state": "NV",
+        "zip": "89081"
+      },
+      "phone": "(702) 920-6548",
+      "phone_alt": "(702) 873-8882",
+      "fax": null,
+      "email": null,
+      "property_type": "family",
+      "description": "Family-friendly apartments in North Las Vegas providing affordable, comfortable living spaces with easy access to local services and amenities.",
+      "tagline": null,
+      "amenities": [
+        "Spacious apartment layouts",
+        "Community spaces for residents",
+        "On-site laundry facilities",
+        "Professional on-site management",
+        "Landscaped grounds and well-maintained buildings",
+        "Convenient access to shopping and services"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=donna-louise-2-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/coming-soon.svg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/coming-soon.svg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/donna-louise-2-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.547Z"
+    },
+    {
+      "slug": "donna-louise-apartments",
+      "name": "Donna Louise Apartments",
+      "url": "https://gpmglv.com/homes/donna-louise-apartments",
+      "address": {
+        "line1": "6225 Donna St.",
+        "city": "North Las Vegas",
+        "state": "NV",
+        "zip": "89081"
+      },
+      "phone": "(702) 920-6548",
+      "phone_alt": "(702) 873-8882",
+      "fax": null,
+      "email": null,
+      "property_type": "family",
+      "description": "Family-friendly apartments in North Las Vegas providing affordable, comfortable living spaces with easy access to local services and amenities.",
+      "tagline": "Donna Louise Apartments is located at 6225 Donna St. in ZIP code 89081, close to neighborhood schools, shopping, and everyday services.",
+      "amenities": [
+        "One, two, and three bedroom apartment homes",
+        "Family community in North Las Vegas",
+        "Nearby schools and neighborhood services",
+        "Convenient access to shopping and daily essentials",
+        "Close to local parks and open space",
+        "Near public transit connections",
+        "Modern community built in 2017",
+        "Professional on-site management"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "3BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=donna-louise-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/DL.png",
+        "https://gpmglv.com/uploads/2026/03/IMG_6422-scaled.jpg",
+        "https://gpmglv.com/uploads/2026/03/IMG_6424-scaled.jpg",
+        "https://gpmglv.com/uploads/2026/03/IMG_6425-scaled.jpg",
+        "https://gpmglv.com/uploads/2026/03/IMG_6426-scaled.jpg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/DL.png",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/donna-louise-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.548Z"
+    },
+    {
+      "slug": "dr-luther-mack-jr-senior-community",
+      "name": "Dr. Luther Mack, Jr. Senior Community",
+      "url": "https://gpmglv.com/homes/dr-luther-mack-jr-senior-community",
+      "address": {
+        "line1": "8158 Giles St.",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89123"
+      },
+      "phone": "(702) 920-6569",
+      "phone_alt": "(702) 873-8882",
+      "fax": null,
+      "email": null,
+      "property_type": "senior",
+      "description": "A premier senior community in the southern Las Vegas valley, designed with comfort, safety, and independence in mind.",
+      "tagline": null,
+      "amenities": [
+        "Senior-focused apartment homes",
+        "Community room and resident activities",
+        "On-site laundry facilities",
+        "Professional on-site management",
+        "Secure entry and well-lit common areas",
+        "Accessible routes and accommodations available",
+        "Convenient access to transit and neighborhood services"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=dr-luther-mack-jr-senior-community",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/20190214_123845.jpg",
+        "https://gpmglv.com/images/dr-luther-mack/dr-luther-mack-01.webp",
+        "https://gpmglv.com/images/dr-luther-mack/dr-luther-mack-02.webp",
+        "https://gpmglv.com/images/dr-luther-mack/dr-luther-mack-03.webp",
+        "https://gpmglv.com/images/dr-luther-mack/dr-luther-mack-04.webp"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/20190214_123845.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/dr-luther-mack-jr-senior-community.html",
+      "extracted_at": "2026-05-22T05:38:22.549Z"
+    },
+    {
+      "slug": "dr-paul-meacham-senior-community",
+      "name": "Dr. Paul Meacham Senior Community",
+      "url": "https://gpmglv.com/homes/dr-paul-meacham-senior-community",
+      "address": {
+        "line1": "65 E Windmill Ln",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89123"
+      },
+      "phone": "(877) 895-8207",
+      "phone_alt": "(702) 873-8882",
+      "fax": null,
+      "email": null,
+      "property_type": "senior",
+      "description": "Modern senior apartments near Windmill Lane, offering residents a peaceful retreat with thoughtfully designed living spaces.",
+      "tagline": "Easy access to shopping, dining, and everyday services near Windmill Lane and Las Vegas Boulevard South.",
+      "amenities": [
+        "One & two-bedroom senior apartments",
+        "Elevator access & ADA accommodations",
+        "Community room with activities & programs",
+        "Laundry facilities on site",
+        "Secure entry & on-site management",
+        "Close to shopping, dining & daily essentials",
+        "Convenient access to nearby medical offices & services",
+        "Transit access along Windmill and nearby major corridors"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "ADA accommodations available",
+        "Elevator access",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=dr-paul-meacham-senior-community",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/1.jpg",
+        "https://gpmglv.com/uploads/2026/03/20250807_122540-scaled.jpg",
+        "https://gpmglv.com/uploads/2026/03/pm.jpg",
+        "https://gpmglv.com/uploads/2026/03/20250807_122242-scaled.jpg",
+        "https://gpmglv.com/uploads/2026/03/20250807_123622-scaled.jpg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/1.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/dr-paul-meacham-senior-community.html",
+      "extracted_at": "2026-05-22T05:38:22.550Z"
+    },
+    {
+      "slug": "ethel-mae-fletcher-apartments",
+      "name": "Ethel Mae Fletcher Apartments",
+      "url": "https://gpmglv.com/homes/ethel-mae-fletcher-apartments",
+      "address": {
+        "line1": "1503 Laurelhurst Dr.",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89108"
+      },
+      "phone": "(702) 920-6572",
+      "phone_alt": "(702) 873-8882",
+      "fax": "(702) 954-4661",
+      "email": null,
+      "property_type": "family",
+      "description": "Comfortable apartments on Laurelhurst Drive, offering a quiet, well-maintained living environment for residents.",
+      "tagline": "Easy access to shopping, schools, parks, and neighborhood services.",
+      "amenities": [
+        "One & two-bedroom senior apartments",
+        "Elevator access & ADA accommodations",
+        "Community room with activities & programs",
+        "Laundry facilities on site",
+        "Secure entry & on-site management",
+        "Close to groceries & daily essentials",
+        "Convenient access to local services & healthcare",
+        "RTC bus routes nearby"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "ADA accommodations available",
+        "Elevator access",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=ethel-mae-fletcher-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/20240815_115316-1.jpg",
+        "https://gpmglv.com/uploads/2026/03/20240815_115316-1-768x433-1.jpg",
+        "https://gpmglv.com/uploads/2026/03/Picture6.jpg",
+        "https://gpmglv.com/uploads/2026/03/Picture7.jpg",
+        "https://gpmglv.com/uploads/2019/02/image001.jpg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/20240815_115316-1.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/ethel-mae-fletcher-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.551Z"
+    },
+    {
+      "slug": "ethel-mae-robinson-senior-apartments",
+      "name": "Ethel Mae Robinson Senior Apartments",
+      "url": "https://gpmglv.com/homes/ethel-mae-robinson-senior-apartments",
+      "address": {
+        "line1": "1327 H Street",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89106"
+      },
+      "phone": "(702) 834-6565",
+      "phone_alt": "(702) 873-8882",
+      "fax": "(702) 463-5824",
+      "email": null,
+      "property_type": "senior",
+      "description": "Dedicated senior living on H Street, providing a close-knit community atmosphere with accessible, well-maintained apartments.",
+      "tagline": "Close to community services, shopping, and neighborhood amenities.",
+      "amenities": [
+        "One & two-bedroom senior apartments",
+        "Elevator access & ADA accommodations",
+        "Community room with activities & programs",
+        "Laundry facilities on site",
+        "Secure entry & on-site management",
+        "Close to groceries & neighborhood services",
+        "Convenient access to nearby medical services",
+        "RTC bus routes nearby"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "ADA accommodations available",
+        "Elevator access",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=ethel-mae-robinson-senior-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2026/03/Picture8.jpg",
+        "https://gpmglv.com/uploads/2026/03/Picture9.jpg",
+        "https://gpmglv.com/uploads/2026/03/Picture10.jpg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2026/03/Picture8.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/ethel-mae-robinson-senior-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.552Z"
+    },
+    {
+      "slug": "juan-garcia-garden-apartments",
+      "name": "Juan Garcia Garden Apartments",
+      "url": "https://gpmglv.com/homes/juan-garcia-garden-apartments",
+      "address": {
+        "line1": "2851 Sunrise Ave.",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89101"
+      },
+      "phone": "(702) 383-6180",
+      "phone_alt": "(702) 873-8882",
+      "fax": "(702) 383-6641",
+      "email": null,
+      "property_type": "family",
+      "description": "Garden-style apartments on Sunrise Avenue, designed for comfortable family living with landscaped outdoor spaces.",
+      "tagline": "Close to schools, neighborhood services, and daily essentials in the 89101 area.",
+      "amenities": [
+        "Comfortable apartment homes in the 89101 area",
+        "Convenient access to neighborhood schools and services",
+        "Community-focused residential setting",
+        "Close to daily shopping and essentials",
+        "Near central and east Las Vegas destinations",
+        "Easy access to nearby parks and recreation",
+        "Well-positioned for family daily routines",
+        "Transit access in the surrounding corridor"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=juan-garcia-garden-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/jg1-1.jpg",
+        "https://gpmglv.com/uploads/2019/03/jg1.jpg",
+        "https://gpmglv.com/uploads/2019/03/jg2.jpg",
+        "https://gpmglv.com/uploads/2019/03/jg3.jpg",
+        "https://gpmglv.com/uploads/2019/03/jg4.jpg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/jg1-1.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/juan-garcia-garden-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.553Z"
+    },
+    {
+      "slug": "louise-shell-senior-apartments",
+      "name": "Louise Shell Senior Apartments",
+      "url": "https://gpmglv.com/homes/louise-shell-senior-apartments",
+      "address": {
+        "line1": "2101 N. Martin Luther King Blvd.",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89106"
+      },
+      "phone": "(702) 646-4802",
+      "phone_alt": "(702) 873-8882",
+      "fax": "(702) 646-0964",
+      "email": null,
+      "property_type": "senior",
+      "description": "Senior apartments on MLK Boulevard, offering accessible living in a community-focused environment.",
+      "tagline": "Close to neighborhood services, shopping, and everyday essentials along the MLK corridor.",
+      "amenities": [
+        "One & two-bedroom senior apartments",
+        "Elevator access & ADA accommodations",
+        "Community room with activities & programs",
+        "Laundry facilities on site",
+        "Secure entry & on-site management",
+        "Close to groceries & neighborhood services",
+        "Convenient access to nearby medical services",
+        "RTC bus routes along MLK Blvd and nearby corridors"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "ADA accommodations available",
+        "Elevator access",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=louise-shell-senior-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/LS.png",
+        "https://gpmglv.com/uploads/2026/03/ls1.jpg",
+        "https://gpmglv.com/uploads/2026/03/ls2.jpg",
+        "https://gpmglv.com/uploads/2026/03/ls3.jpg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/LS.png",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/louise-shell-senior-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.554Z"
+    },
+    {
+      "slug": "mike-ocallaghan-apartments",
+      "name": "Governor Mike O'Callaghan Apartments",
+      "url": "https://gpmglv.com/homes/mike-ocallaghan-apartments",
+      "address": {
+        "line1": "1502 Laurelhurst Dr.",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89108"
+      },
+      "phone": "(702) 873-8882",
+      "phone_alt": null,
+      "fax": null,
+      "email": null,
+      "property_type": "family",
+      "description": "Named in honor of Governor Mike O'Callaghan, these apartments continue a legacy of service to the Las Vegas community.",
+      "tagline": "Easy access to shopping corridors, parks, and services.",
+      "amenities": [
+        "One & two-bedroom senior apartments",
+        "Elevator access & ADA accommodations",
+        "Community room with activities & programs",
+        "Laundry facilities on site",
+        "Secure entry & on-site management",
+        "Walking distance to groceries & daily essentials",
+        "Near Valley Hospital/UMC & clinics",
+        "RTC bus lines within a few blocks"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "ADA accommodations available",
+        "Elevator access",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=mike-ocallaghan-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2025/08/493894156_1234166405379104_6562005611954542946_n.jpg",
+        "https://gpmglv.com/uploads/2025/11/20251106_130627-scaled.jpg",
+        "https://gpmglv.com/uploads/2025/11/20251106_130652-scaled.jpg",
+        "https://gpmglv.com/uploads/2025/11/20251106_130752-scaled.jpg",
+        "https://gpmglv.com/uploads/2025/11/20251106_130957-scaled.jpg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2025/08/493894156_1234166405379104_6562005611954542946_n.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/mike-ocallaghan-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.554Z"
+    },
+    {
+      "slug": "owens-senior-housing",
+      "name": "Owens Senior Housing",
+      "url": "https://gpmglv.com/homes/owens-senior-housing",
+      "address": {
+        "line1": "1626 Davis Pl.",
+        "city": "North Las Vegas",
+        "state": "NV",
+        "zip": "89030"
+      },
+      "phone": "(702) 642-0896",
+      "phone_alt": "(702) 873-8882",
+      "fax": "(702) 642-4609",
+      "email": null,
+      "property_type": "senior",
+      "description": "Thoughtfully designed senior housing in North Las Vegas, providing a safe and comfortable home for residents.",
+      "tagline": "Close to neighborhood shopping, services, and community destinations.",
+      "amenities": [
+        "One & two-bedroom senior apartments",
+        "Elevator access & ADA accommodations",
+        "Community room with activities & programs",
+        "Laundry facilities on site",
+        "Secure entry & on-site management",
+        "Close to groceries & neighborhood services",
+        "Convenient access to nearby medical services",
+        "Public transit access in Downtown North Las Vegas"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "ADA accommodations available",
+        "Elevator access",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=owens-senior-housing",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/owens.png"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/owens.png",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/owens-senior-housing.html",
+      "extracted_at": "2026-05-22T05:38:22.555Z"
+    },
+    {
+      "slug": "sarann-knight-apartments",
+      "name": "Sarann Knight Apartments",
+      "url": "https://gpmglv.com/homes/sarann-knight-apartments",
+      "address": {
+        "line1": "1327 H Street",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89106"
+      },
+      "phone": "(702) 538-9031",
+      "phone_alt": "(702) 873-8882",
+      "fax": "(702) 538-9341",
+      "email": null,
+      "property_type": "family",
+      "description": "Community-oriented apartments named after civil rights pioneer Sarann Knight, located in the vibrant H Street corridor.",
+      "tagline": "Close to neighborhood services, shopping, parks, and everyday essentials.",
+      "amenities": [
+        "Comfortable apartment homes in Historic West Las Vegas",
+        "Convenient access to neighborhood shopping and services",
+        "Community-focused residential setting",
+        "Close to daily essentials and local retail",
+        "Near parks, schools, and community resources",
+        "Well-located for family daily routines",
+        "Convenient access to nearby medical and support services",
+        "Transit access along nearby west-side corridors"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=sarann-knight-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/Sarann-1.jpg",
+        "https://gpmglv.com/uploads/2026/03/sarann1.jpg",
+        "https://gpmglv.com/uploads/2026/03/sarann2.jpg",
+        "https://gpmglv.com/uploads/2026/03/sarann3.jpg",
+        "https://gpmglv.com/uploads/2026/03/sarann4.jpg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/Sarann-1.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/sarann-knight-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.555Z"
+    },
+    {
+      "slug": "senator-harry-reid-senior-apartments",
+      "name": "Senator Harry Reid Senior Apartments",
+      "url": "https://gpmglv.com/homes/senator-harry-reid-senior-apartments",
+      "address": {
+        "line1": "328 N. 11th Str.",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89101"
+      },
+      "phone": "(702) 383-1091",
+      "phone_alt": "(702) 873-8882",
+      "fax": "(702) 383-1194",
+      "email": null,
+      "property_type": "senior",
+      "description": "Downtown senior apartments honoring Senator Harry Reid, providing quality living with convenient urban access.",
+      "tagline": "Quick access to downtown Las Vegas, the Arts District, and medical facilities.",
+      "amenities": [
+        "One & two-bedroom senior apartments",
+        "Elevator access & ADA accommodations",
+        "Community room with activities & programs",
+        "Laundry facilities on site",
+        "Secure entry & on-site management",
+        "Walking distance to groceries, parks & Fremont",
+        "Near hospitals & healthcare providers",
+        "RTC bus lines within 2 blocks"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "ADA accommodations available",
+        "Elevator access",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=senator-harry-reid-senior-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/SHR.jpg",
+        "https://gpmglv.com/uploads/2025/09/IMG_3631-scaled.jpeg",
+        "https://gpmglv.com/uploads/2025/09/IMG_3632-scaled.jpeg",
+        "https://gpmglv.com/uploads/2025/09/IMG_3633-scaled.jpeg",
+        "https://gpmglv.com/uploads/2025/09/IMG_3635-scaled.jpeg"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/SHR.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/senator-harry-reid-senior-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.556Z"
+    },
+    {
+      "slug": "senator-richard-bryan-senior-apartments",
+      "name": "Senator Richard Bryan Senior Apartments",
+      "url": "https://gpmglv.com/homes/senator-richard-bryan-senior-apartments",
+      "address": {
+        "line1": "2651 Searles Ave.",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89101"
+      },
+      "phone": "(702) 649-3508",
+      "phone_alt": "(702) 873-8882",
+      "fax": "(702) 649-5316",
+      "email": null,
+      "property_type": "senior",
+      "description": "Named for Senator Richard Bryan, these senior apartments offer a welcoming community atmosphere near downtown Las Vegas.",
+      "tagline": "Close to neighborhood shopping, services, and community destinations.",
+      "amenities": [
+        "One & two-bedroom senior apartments",
+        "Elevator access & ADA accommodations",
+        "Community room with activities & programs",
+        "Laundry facilities on site",
+        "Secure entry & on-site management",
+        "Close to groceries & neighborhood services",
+        "Convenient access to nearby medical services",
+        "Transit access in the surrounding downtown-east corridor"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "ADA accommodations available",
+        "Elevator access",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=senator-richard-bryan-senior-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/SRB.png",
+        "https://gpmglv.com/images/senator-richard-bryan/senator-richard-bryan-01.webp",
+        "https://gpmglv.com/images/senator-richard-bryan/senator-richard-bryan-02.webp",
+        "https://gpmglv.com/images/senator-richard-bryan/senator-richard-bryan-03.webp",
+        "https://gpmglv.com/images/senator-richard-bryan/senator-richard-bryan-04.webp"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/SRB.png",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/senator-richard-bryan-senior-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.556Z"
+    },
+    {
+      "slug": "smith-williams-senior-apartments",
+      "name": "Smith Williams Senior Apartments",
+      "url": "https://gpmglv.com/homes/smith-williams-senior-apartments",
+      "address": {
+        "line1": "575 E. Lake Mead Pkwy.",
+        "city": "Henderson",
+        "state": "NV",
+        "zip": "89015"
+      },
+      "phone": "(702) 382-3726",
+      "phone_alt": "(702) 873-8882",
+      "fax": "(702) 382-3727",
+      "email": null,
+      "property_type": "senior",
+      "description": "Henderson's premier senior living option, offering comfortable apartments on Lake Mead Parkway with community amenities.",
+      "tagline": "Located on Lake Mead Parkway with quick access to grocery stores, neighborhood services, and daily essentials in 89015.",
+      "amenities": [
+        "Senior-focused apartment homes",
+        "Community room and resident activities",
+        "On-site laundry facilities",
+        "Professional on-site management",
+        "Secure entry and well-lit common areas",
+        "Accessible routes and accommodations available",
+        "Convenient access to transit and neighborhood services"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=smith-williams-senior-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/2.jpeg",
+        "https://gpmglv.com/images/smith-williams/smith-williams-01.webp",
+        "https://gpmglv.com/images/smith-williams/smith-williams-02.webp",
+        "https://gpmglv.com/images/smith-williams/smith-williams-03.webp",
+        "https://gpmglv.com/images/smith-williams/smith-williams-04.webp"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/2.jpeg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/smith-williams-senior-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.557Z"
+    },
+    {
+      "slug": "yale-keyes-senior-apartments",
+      "name": "Yale Keyes Senior Apartments",
+      "url": "https://gpmglv.com/homes/yale-keyes-senior-apartments",
+      "address": {
+        "line1": "1705 Yale Str.",
+        "city": "North Las Vegas",
+        "state": "NV",
+        "zip": "89030"
+      },
+      "phone": "(702) 642-7758",
+      "phone_alt": "(702) 873-8882",
+      "fax": "(702) 642-3293",
+      "email": null,
+      "property_type": "senior",
+      "description": "Well-maintained senior apartments in North Las Vegas, providing a supportive living environment with modern conveniences.",
+      "tagline": "Situated near the Yale Street corridor with convenient access to neighborhood shopping, services, and civic destinations.",
+      "amenities": [
+        "Senior-focused apartment homes",
+        "Community room and resident activities",
+        "On-site laundry facilities",
+        "Professional on-site management",
+        "Secure entry and well-lit common areas",
+        "Accessible routes and accommodations available",
+        "Convenient access to transit and neighborhood services"
+      ],
+      "accessibility": [
+        "Reasonable accommodations available upon request",
+        "Equal Housing Opportunity"
+      ],
+      "pet_policy": null,
+      "office_hours": "Please call for current office hours and tour availability.",
+      "manager_name": null,
+      "manager_email": null,
+      "unit_types": [
+        "1BR",
+        "2BR",
+        "Studio"
+      ],
+      "rent_disclosed": false,
+      "rent_text": null,
+      "ami_disclosed": false,
+      "ami_text": null,
+      "available_units_count": null,
+      "waitlist_url": "https://gpmglv.com/join-waitlist?property=yale-keyes-senior-apartments",
+      "application_url": null,
+      "photo_urls": [
+        "https://gpmglv.com/uploads/2024/11/YK-1.jpg",
+        "https://gpmglv.com/images/yale-keyes/yale-keyes-01.webp",
+        "https://gpmglv.com/images/yale-keyes/yale-keyes-02.webp",
+        "https://gpmglv.com/images/yale-keyes/yale-keyes-03.webp",
+        "https://gpmglv.com/images/yale-keyes/yale-keyes-04.webp"
+      ],
+      "primary_photo_url": "https://gpmglv.com/uploads/2024/11/YK-1.jpg",
+      "json_ld": null,
+      "raw_html_path": "docs/intel/raw/gpmglv/2026-05-22/pages/homes/yale-keyes-senior-apartments.html",
+      "extracted_at": "2026-05-22T05:38:22.557Z"
+    }
+  ],
+  "extraction_notes": []
+}

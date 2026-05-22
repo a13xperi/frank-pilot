@@ -1,8 +1,8 @@
 /**
  * StepHousehold — Lane W2. Adults stepper drives fee math.
  *
- * Fee: $35.95 × (adults + 1) — applicant + each additional adult. Computed in
- * ApplyContext as `state.paymentTotal`. Adults range 1–12.
+ * Fee: $35.95 × adults — one fee per adult living in the unit (applicant
+ * counted). Computed in ApplyContext as `state.paymentTotal`. Adults range 1–12.
  *
  * WF → HF TOKEN MAP:
  *   WF.ink    (#1a1814) → HF.ink
@@ -18,7 +18,8 @@
  */
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Card, CTA } from '@/components/primitives';
+import { Card } from '@/components/primitives';
+import { StepCTA } from '../StepCTA';
 import { HF } from '@/styles/tokens';
 import { APPLICATION_FEE, useApply } from '../ApplyContext';
 
@@ -29,7 +30,7 @@ export function StepHousehold() {
   const { t } = useTranslation('apply');
   const [, setSearch] = useSearchParams();
   const { adults, setAdults, paymentTotal } = useApply();
-  const billable = adults + 1; // applicant + each additional adult
+  const billable = adults;
   const total = paymentTotal;
 
   return (
@@ -96,9 +97,9 @@ export function StepHousehold() {
           <div style={{ fontSize: 10, color: HF.ink3, marginTop: 4 }}>{t('household.disclaimer')}</div>
         </Card>
 
-        <CTA variant="mobile" onClick={() => setSearch({ step: 'payment' }, { replace: true })}>
+        <StepCTA variant="mobile" onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'payment'); return next; }, { replace: true })}>
           {t('household.cta', { total })}
-        </CTA>
+        </StepCTA>
       </div>
     </div>
   );

@@ -1,0 +1,11 @@
+.claude/
+client-tenant/node_modules/
+client-tenant/dist/
+node_modules/
+dist/
+logs/
+*.log
+.DS_Store
+.git/
+docs/intel/raw/
+server/tape/*.ndjson

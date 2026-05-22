@@ -35,7 +35,7 @@ describe('StepReview', () => {
     renderAt();
     expect(screen.getByText(/Confirm what you're applying for/i)).toBeInTheDocument();
     expect(screen.getByText(/Donna Louise 2/i)).toBeInTheDocument();
-    expect(screen.getByText(/50% AMI/)).toBeInTheDocument();
+    expect(screen.getByTestId('review-ami-tier-line')).toHaveTextContent(/50% AMI/);
   });
 
   it('Continue advances to household via ?step=household', () => {

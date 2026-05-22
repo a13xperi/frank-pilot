@@ -28,9 +28,11 @@ jest.mock("../modules/application/service", () => ({
 
 const mockCreateMagicLink = jest.fn();
 const mockLogMagicLink = jest.fn();
+const mockSendMagicLink = jest.fn();
 jest.mock("../modules/auth/magic-link-service", () => ({
   createMagicLink: mockCreateMagicLink,
   logMagicLink: mockLogMagicLink,
+  sendMagicLink: mockSendMagicLink,
 }));
 
 import { query } from "../config/database";

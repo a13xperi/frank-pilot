@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { api } from '@/api/client';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
-import { CTA } from '@/components/primitives';
+import { TurnstileWidget } from '@/components/TurnstileWidget';
+import { StepCTA } from '../StepCTA';
 import { HF } from '@/styles/tokens';
 
 const labelStyle = {
@@ -17,8 +19,8 @@ const inputStyle = {
   width: '100%',
   borderRadius: HF.r.sm,
   border: `1px solid ${HF.border}`,
-  padding: '8px 12px',
-  fontSize: 14,
+  padding: '10px 12px',
+  fontSize: 16,
   background: HF.paper,
   color: HF.ink,
   fontFamily: HF.body,
@@ -28,6 +30,11 @@ const inputStyle = {
 export function Step1Register() {
   const s = useApply();
   const { t } = useTranslation('apply');
+  // wedge #13: Turnstile token issued by the widget on successful challenge.
+  // In dev / smoke (VITE_TURNSTILE_SITE_KEY unset or dev key) the widget
+  // auto-fires `onVerify('test-token-dev')` synchronously so the smoke
+  // (Welcome → Claim e2e) keeps passing without a real key configured.
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,6 +46,7 @@ export function Step1Register() {
         firstName: s.firstName,
         lastName: s.lastName,
         phone: s.phone || undefined,
+        turnstileToken: turnstileToken || undefined,
       });
       if (res.devLink) s.setDevLink(res.devLink);
       s.setStep('verify');
@@ -57,7 +65,7 @@ export function Step1Register() {
       >
         {t('register.title')}
       </h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="step1-register-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label style={labelStyle} htmlFor="firstName">{t('register.firstName')}</label>
@@ -102,13 +110,15 @@ export function Step1Register() {
             placeholder={t('register.phonePlaceholder')}
           />
         </div>
-        <CTA
-          type="submit"
-          disabled={s.loading || !s.email || !s.firstName || !s.lastName}
-        >
-          {s.loading ? t('register.submitting') : t('register.submit')}
-        </CTA>
+        <TurnstileWidget onVerify={setTurnstileToken} />
       </form>
+      <StepCTA
+        type="submit"
+        form="step1-register-form"
+        disabled={s.loading || !s.email || !s.firstName || !s.lastName}
+      >
+        {s.loading ? t('register.submitting') : t('register.submit')}
+      </StepCTA>
     </>
   );
 }

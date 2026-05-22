@@ -4,6 +4,9 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import './i18n';
+import { installQaBuffer } from './lib/qaBuffer';
+
+installQaBuffer();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

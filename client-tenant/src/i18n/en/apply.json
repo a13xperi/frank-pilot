@@ -54,6 +54,17 @@
       "2": "2 BR",
       "3": "3 BR",
       "4plus": "4+ BR"
+    },
+    "ami": {
+      "sectionTitle": "Income — for affordable pre-qualification",
+      "sectionHint": "Optional. We use this to show you only the units you qualify for.",
+      "incomeLabel": "Gross annual income (USD)",
+      "incomePlaceholder": "e.g. 42000",
+      "qualifies": "You qualify for {{tier}} units.",
+      "overIncome": "Over income for affordable tiers. Market-rate units may still fit.",
+      "prefilledSummary": "Qualifying at {{tier}}",
+      "prefilledHint": "We carried this over from the welcome calculator. You can recalculate if your income changed.",
+      "recalculate": "Recalculate"
     }
   },
   "checklist": {
@@ -81,10 +92,19 @@
     "subtitle": "Claiming a unit holds it for you for 48 hours while you finish your application.",
     "loading": "Loading units…",
     "noMatch": "No units match your preferences right now.",
+    "noUnitsAvailable": "We don't have any units available at the moment. Check back soon.",
+    "fallbackBanner": "No exact matches. Here are the closest options — your preferences are noted on each card.",
     "adjust": "Adjust your search",
     "editPrefs": "← Edit preferences",
     "claimError": "Could not claim this unit",
-    "loadError": "Could not load units"
+    "loadError": "Could not load units",
+    "mismatch": {
+      "overBudget": "${{amount}}/mo over your budget",
+      "bedroomsMore": "{{actual}} BR — you wanted {{wanted}}",
+      "bedroomsFewer": "{{actual}} BR — you wanted {{wanted}}+",
+      "studioInstead": "Studio — you wanted {{wanted}} BR",
+      "availableLater": "Available {{date}}"
+    }
   },
   "claim": {
     "yours": "Unit {unitNumber} is yours",
@@ -133,6 +153,8 @@
     "position": "Position",
     "openVacancy": "Vacancy",
     "lockedCriteria": "Your locked criteria",
+    "qualifyingTierLabel": "Qualifying AMI tier",
+    "qualifyingTierValue": "{{tier}}",
     "household": "Household of {{count}}",
     "bed": "BR",
     "confirmHeader": "Is this what you wanted?",

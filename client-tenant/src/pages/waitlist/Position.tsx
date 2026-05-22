@@ -1,21 +1,23 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { api } from "@/api/client";
 import { useTranslation } from "react-i18next";
 import { HF } from "@/styles/tokens";
 
 /**
- * BP-03b — Waitlist position screen ("#12 of 38").
+ * Wedge #5 — Waitlist position screen ("#12 of 38").
  *
- * Reads GET /api/applicants/properties/:slug/waitlist-summary. Falls back to
- * a placeholder shape if the endpoint is unreachable (which keeps the demo
- * working in offline mode).
+ * Reads GET /api/applicants/properties/:slug/waitlist-summary?bedrooms=N.
+ * The server now requires ?bedrooms since position is per-tier-per-property.
+ * Falls back to a placeholder shape if the endpoint is unreachable (keeps
+ * the offline demo working).
  */
 interface WaitlistSummary {
-  position: number;
+  position?: number;
   totalQueue: number;
-  movement?: { spotsThisMonth: number; direction: "up" | "down" | "flat" };
+  movement?: { spotsThisMonth: number; direction: "up" | "down" | "flat" } | null;
   estimatedWindow: string;
+  enrolled?: boolean;
   placeholder?: boolean;
 }
 
@@ -28,8 +30,18 @@ const FALLBACK: WaitlistSummary = {
 
 export function WaitlistPosition() {
   const params = useParams<{ slug?: string }>();
+  const [searchParams] = useSearchParams();
   const slug = params.slug ?? "donna-louise-2";
   const { t } = useTranslation("waitlist");
+
+  // Bedrooms tier comes from the URL (?bedrooms=N), set by WaitlistBanner or
+  // the apply funnel. Default to 2BR as the most common tier when missing —
+  // the server still returns a meaningful answer either way.
+  const bedrooms = useMemo(() => {
+    const raw = searchParams.get("bedrooms");
+    const n = raw ? Number.parseInt(raw, 10) : NaN;
+    return Number.isFinite(n) && n >= 0 && n <= 6 ? n : 2;
+  }, [searchParams]);
 
   const [summary, setSummary] = useState<WaitlistSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +49,9 @@ export function WaitlistPosition() {
   useEffect(() => {
     let cancelled = false;
     api
-      .get<WaitlistSummary>(`/applicants/properties/${slug}/waitlist-summary`)
+      .get<WaitlistSummary>(
+        `/applicants/properties/${slug}/waitlist-summary?bedrooms=${bedrooms}`
+      )
       .then((data) => {
         if (!cancelled) setSummary(data);
       })
@@ -50,7 +64,7 @@ export function WaitlistPosition() {
     return () => {
       cancelled = true;
     };
-  }, [slug, t]);
+  }, [slug, bedrooms, t]);
 
   if (!summary) {
     return (
@@ -90,12 +104,36 @@ export function WaitlistPosition() {
         </h1>
 
         <div className="my-8">
-          <p className="text-5xl font-bold" style={{ color: HF.accent, fontFamily: HF.display }}>
-            #{summary.position}
-          </p>
-          <p className="mt-2 text-sm" style={{ color: HF.ink2 }}>
-            {t("position.rank", { position: summary.position, total: summary.totalQueue })}
-          </p>
+          {summary.position != null ? (
+            <>
+              <p
+                className="text-5xl font-bold"
+                style={{ color: HF.accent, fontFamily: HF.display }}
+              >
+                #{summary.position}
+              </p>
+              <p className="mt-2 text-sm" style={{ color: HF.ink2 }}>
+                {t("position.rank", {
+                  position: summary.position,
+                  total: summary.totalQueue,
+                })}
+              </p>
+            </>
+          ) : (
+            // Not-yet-enrolled callers still get a useful number — the queue
+            // depth — so the screen never renders "#undefined".
+            <>
+              <p
+                className="text-5xl font-bold"
+                style={{ color: HF.accent, fontFamily: HF.display }}
+              >
+                {summary.totalQueue}
+              </p>
+              <p className="mt-2 text-sm" style={{ color: HF.ink2 }}>
+                {t("position.queue_depth", { total: summary.totalQueue, defaultValue: "{{total}} on the waitlist" })}
+              </p>
+            </>
+          )}
         </div>
 
         {summary.movement && (
