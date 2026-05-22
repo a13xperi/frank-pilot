@@ -243,6 +243,50 @@ router.post("/apply", authenticate, requireEmailVerified, async (req: AuthReques
   }
 });
 
+// Applicant self-submit: flip the user's draft application to `submitted`
+// after the apply-wizard payment step completes. The staff endpoint at
+// `/applications/:id/submit` is gated by RBAC (`application:submit`); this
+// route is the applicant-scoped counterpart, gated by user_applications
+// ownership rather than RBAC.
+router.post(
+  "/me/applications/submit-draft",
+  authenticate,
+  requireEmailVerified,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+
+      const draft = await query(
+        `SELECT a.id FROM user_applications ua
+           JOIN applications a ON a.id = ua.application_id
+          WHERE ua.user_id = $1 AND a.status = 'draft'
+          ORDER BY a.created_at DESC
+          LIMIT 1`,
+        [req.user.id]
+      );
+
+      if (draft.rows.length === 0) {
+        res.status(404).json({ error: "No draft application to submit" });
+        return;
+      }
+
+      const result = await applicationService.submit(
+        draft.rows[0].id,
+        req.user.id,
+        req.user.role
+      );
+
+      res.json(result);
+    } catch (err: any) {
+      logger.error("Applicant submit-draft failed", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to submit application" });
+    }
+  }
+);
+
 // ────────────────────────────────────────────────────────────────────────────
 // Wedge #5 — position-aware waitlist.
 // gpmglv's /join-waitlist is submit-and-disappear. We expose real position

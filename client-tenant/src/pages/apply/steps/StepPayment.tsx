@@ -18,6 +18,7 @@ import { HF } from '@/styles/tokens';
 import { CTA } from '@/components/primitives';
 import { useApply } from '@/pages/apply/context/ApplyContext';
 import { PayHeader } from '@/pages/apply/PayHeader';
+import { api, getToken } from '@/api/client';
 
 function sessionId(): string {
   try {
@@ -72,6 +73,17 @@ export function StepPayment() {
         const r2 = await fireBeacon('/api/tape/payment-success', { ...payload, paymentRef: ref });
         if (!r2.ok) throw new Error(`success ${r2.status}`);
         setPaymentRef(ref);
+        // Flip the user's draft application to `submitted` so /status shows
+        // "Submitted" instead of "Draft" after the wizard completes. Only
+        // attempt when authed; non-fatal if it fails — the receipt still
+        // renders and staff can advance the application manually.
+        if (getToken()) {
+          try {
+            await api.post('/applicants/me/applications/submit-draft', {});
+          } catch {
+            /* non-fatal */
+          }
+        }
         navigate('?step=2');
       } catch {
         setErr(t('payment.error') as string);
