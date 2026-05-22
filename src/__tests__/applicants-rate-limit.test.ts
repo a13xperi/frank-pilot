@@ -23,6 +23,7 @@ jest.mock("../utils/logger", () => ({
 jest.mock("../modules/auth/magic-link-service", () => ({
   createMagicLink: jest.fn(),
   logMagicLink: jest.fn(),
+  sendMagicLink: jest.fn(),
 }));
 jest.mock("../modules/application/service", () => ({
   ApplicationService: jest.fn().mockImplementation(() => ({ create: jest.fn() })),

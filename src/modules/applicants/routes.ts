@@ -4,7 +4,7 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { query, transaction } from "../../config/database";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requireEmailVerified } from "../../middleware/scope";
-import { createMagicLink, logMagicLink } from "../auth/magic-link-service";
+import { createMagicLink, logMagicLink, sendMagicLink } from "../auth/magic-link-service";
 import { ApplicationService } from "../application/service";
 import { createApplicationSchema } from "../application/validation";
 import { stampTape, TAPE_STAMP_KINDS } from "../tape";
@@ -132,7 +132,15 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     // This narrows the timing gap between branches; respondAtFloor() below
     // closes the residual delta (INFO-1).
     const link = await createMagicLink(email);
-    if (link) logMagicLink(email, link.link);
+    if (link) {
+      logMagicLink(email, link.link);
+      // Fire-and-forget Resend delivery. sendMagicLink() returns synchronously
+      // after scheduling the send so per-branch latency stays constant. The
+      // staff branch (link === null) skips this call but already pays the
+      // createMagicLink SELECT cost, and respondAtFloor() below absorbs the
+      // residual gap.
+      sendMagicLink(email, link.link, { firstName });
+    }
 
     // INFO-level payload is deliberately minimal: log-aggregation viewers
     // (Railway, Datadog, etc.) cannot pivot on userId/isNew/isStaffEmail to
@@ -144,6 +152,9 @@ router.post("/register", registerLimiter, async (req: Request, res: Response): P
     // W6: uniform response for all paths — no token or user ever returned from
     // /register. The client must wait for the magic-link click; token+user are
     // issued only by POST /auth/magic-link/verify.
+    // DEMO_LINK_IN_RESPONSE: when RESEND_API_KEY is set in production, this
+    // dev-only `devLink` echo should be removed — see `email.ts`. The client
+    // should drive off the verification email exclusively in prod.
     const payload: Record<string, unknown> = {
       ok: true,
       message: "If this email is registered, a verification link has been sent.",

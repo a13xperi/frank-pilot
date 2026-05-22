@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { query } from "../../config/database";
 import { generateToken, AuthUser } from "../../middleware/auth";
 import { logger } from "../../utils/logger";
+import { getEmailService } from "../integrations/email";
 
 const TOKEN_TTL_MINUTES = 15;
 
@@ -83,4 +84,28 @@ export function logMagicLink(email: string, link: string): void {
   // Truncate the token portion of the link so the raw token is never in logs.
   const safeLink = link.replace(/([?&]token=)[^&]+/, (_m, prefix) => `${prefix}[REDACTED]`);
   logger.info("Magic link issued", { email, link: safeLink });
+}
+
+/**
+ * Fire-and-forget magic-link email delivery via Resend.
+ *
+ * Returns synchronously after scheduling the send so the /register handler
+ * stays constant-time across {staff, existing, new} branches (INFO-1 floor
+ * still applies as the residual guard).
+ *
+ * Errors are swallowed and logged — a Resend outage must not crash the
+ * server or surface a branch-specific failure mode to the caller.
+ */
+export function sendMagicLink(
+  email: string,
+  link: string,
+  options?: { firstName?: string }
+): void {
+  void getEmailService()
+    .sendMagicLink(email, link, options)
+    .catch((err: unknown) => {
+      logger.error("magic-link send failed", {
+        error: (err as Error)?.message ?? String(err),
+      });
+    });
 }
