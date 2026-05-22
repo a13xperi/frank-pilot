@@ -73,12 +73,13 @@ const UpdatePropertySchema = z.object({
  * Invalid values return 400 with `{ error, allowed }` so a typo (e.g.
  * `?amiTier=70`) is a loud failure rather than a silent "full list" surprise.
  *
- * Permission: property:view (all roles including leasing_agent)
+ * Public read: property listings are marketing surfaces (the gpmglv tier of
+ * affordable-housing operator publishes the same data on its homepage) and
+ * /discover renders this anonymously. Create / update / delete on this
+ * router remain gated by `authenticate` + role-scoped permissions.
  */
 router.get(
   "/",
-  authenticate,
-  requirePermission("property:view"),
   async (req: AuthRequest, res) => {
     try {
       // Zod-validate query params with a 400 contract that matches PR #69's

@@ -127,17 +127,19 @@ const app = buildApp();
 describe("GET /properties", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("returns 401 when no Authorization header is provided", async () => {
+  it("returns 200 anonymously — listing is a public marketing surface", async () => {
+    mockListWithAvailability.mockResolvedValue([]);
     const res = await request(app).get("/properties");
-    expect(res.status).toBe(401);
-    expect(res.body.error).toMatch(/authentication required/i);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ properties: [], total: 0 });
   });
 
-  it("returns 401 when token is invalid", async () => {
+  it("returns 200 with a malformed Authorization header (anonymous treated same as authed for listing)", async () => {
+    mockListWithAvailability.mockResolvedValue([]);
     const res = await request(app)
       .get("/properties")
       .set("Authorization", "Bearer bad.token.here");
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
   });
 
   it("returns 200 for leasing_agent (property:view open to all roles)", async () => {
