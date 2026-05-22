@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/api/client';
 import { releaseClaim } from '@/api/units';
+import { getUnitPhoto } from '@/utils/unitPlaceholder';
 import {
   FileText,
   AlertCircle,
@@ -286,7 +287,7 @@ function ClaimedUnitCard({
 
   const remaining = new Date(expiresAt).getTime() - now;
   const photo =
-    unit.photo_url || `https://picsum.photos/seed/${unit.id.slice(0, 8)}/800/600`;
+    getUnitPhoto(unit.photo_url);
 
   async function handleRelease() {
     const ok = window.confirm(

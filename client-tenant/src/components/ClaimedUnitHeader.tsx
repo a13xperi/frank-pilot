@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Clock } from 'lucide-react';
 import type { Unit } from '@/api/units';
+import { getUnitPhoto } from '@/utils/unitPlaceholder';
 
 interface Props {
   unit: Unit;
@@ -30,7 +31,7 @@ export function ClaimedUnitHeader({ unit, expiresAt }: Props) {
   }, []);
 
   const remaining = new Date(expiresAt).getTime() - now;
-  const photo = unit.photo_url || `https://picsum.photos/seed/${unit.id.slice(0, 8)}/200/200`;
+  const photo = getUnitPhoto(unit.photo_url);
 
   return (
     <div className="sticky top-0 z-20 -mx-4 mb-4 border-b border-emerald-200 bg-emerald-50/95 px-4 py-3 backdrop-blur">
