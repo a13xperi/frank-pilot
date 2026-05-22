@@ -16,7 +16,7 @@ Every row is a wedge — a feature Frank-Pilot can ship where the evidence-based
 | #14 | Sitemap + robots served as static assets | PR #95 | `vercel.json` negative-lookahead rewrite |
 | #8 | Live unit availability + filter | PR #105 + PR #119 | `PropertyList.tsx` → live `GET /api/properties` with `amiTier` / `bedroom` / `availability` params; GET listing is **public** so anonymous gpmglv-demo visitors see live data (create/update/delete remain auth-gated); deterministic GPMG fallback on error |
 | #9 | Honest pricing / AMI disclosure on listings | inline (no separate PR) | `PropertyList.tsx` tile rent buckets (`formatRentBucket()`) + AMI tier chip (`t('amiTier.label')`) + `UnitCard.tsx` unit detail |
-| #15 | Cookie banner / GDPR posture | inline (no separate PR) | `state/consent.ts` (localStorage `fp.consent.v1`, useConsent hook) + `components/CookieBanner.tsx` (bottom-fixed, Esc→rejectAll, i18n `legal.*`) |
+| #15 | Cookie banner / GDPR posture + analytics gate | inline (no separate PR) + feat/wedge-15-analytics-consent | `state/consent.ts` (localStorage `fp.consent.v1`, useConsent hook) + `components/CookieBanner.tsx` (bottom-fixed, Esc→rejectAll, i18n `legal.*`) + `lib/analytics.ts` (consent-gated vendor init, `VITE_ANALYTICS_VENDOR` flag) |
 
 The ranked table below reflects these shipped statuses inline.
 
@@ -45,7 +45,7 @@ The ranked table below reflects these shipped statuses inline.
 | 12 | **Resident portal: rent pay / docs / lease** | gpmglv `/portal` = maintenance + message + lookup only (audit §Tenant Login) | NEW | none (stage 2, post-move-in) | L | 2 | ★ |
 | 13 | **Anti-spam (Turnstile / rate-limit)** | Waitlist + contact forms have no visible captcha (audit §Per-Page Dumps) | server-side rate limit + Turnstile/hCaptcha | none | S–M | 1 | ★ |
 | 14 | **SEO / sitemap / JSON-LD** | `robots.txt` 404, `sitemap.xml` 404 (audit §Robots/Sitemap) | infra | partial — sitemap+robots static-serve fixed 2026-05-22 (PR #95) | S | 1 | ★ |
-| 15 | **Cookie banner / GDPR posture** | No `Set-Cookie` observed, thin privacy policy (audit §Cookies) | NEW | shipped 2026-05-22 | S | 1 | ★ |
+| 15 | **Cookie banner / GDPR posture** | No `Set-Cookie` observed, thin privacy policy (audit §Cookies) | NEW | shipped 2026-05-22; analytics gate shipped feat/wedge-15-analytics-consent | S | 1 | ★ |
 
 ## Top-5 detail
 
