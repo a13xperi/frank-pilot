@@ -91,8 +91,13 @@ router.post(
       return;
     }
 
+    // 404, not 403: the ownership check fails identically whether the
+    // application doesn't exist or exists but belongs to someone else.
+    // Returning 403 only in the latter case would leak application-id
+    // existence to an enumerating attacker. We collapse both into a single
+    // "not found" response so the caller can't distinguish the two.
     if (!(await callerOwnsApplication(req.user.id, applicationId))) {
-      res.status(403).json({ error: "Application not accessible" });
+      res.status(404).json({ error: "application_not_found" });
       return;
     }
 

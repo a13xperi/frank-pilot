@@ -1,9 +1,30 @@
 import winston from "winston";
-import { filterPII } from "./pii-filter";
+import { filterPII, sanitizeObject } from "./pii-filter";
 
-const piiFilterFormat = winston.format((info) => {
+/**
+ * Winston format that redacts PII from both the message string and the
+ * metadata object. Closes LOW-1 (SECURITY-AUDIT-2026-05-21): metadata
+ * containing `email`, `phone`, etc. was previously JSON-serialized into
+ * combined.log unredacted (e.g. `logger.info("Magic link issued", { email })`).
+ *
+ * Implementation note: sanitizeObject returns a fresh object built from
+ * Object.entries, which only walks string keys. Winston internally relies
+ * on Symbol-keyed properties (LEVEL, MESSAGE, SPLAT from triple-beam) to
+ * route the log line through transports. We therefore mutate `info` in place
+ * — overwriting only the string-keyed properties — so the symbol-keyed ones
+ * survive the format chain. Without this, transports never receive the line.
+ */
+export const piiFilterFormat = winston.format((info) => {
   if (typeof info.message === "string") {
     info.message = filterPII(info.message);
+  }
+  // sanitizeObject walks PII_KEYS (email/phone/ssn/dob/token/etc.) and
+  // recursively redacts nested objects. Winston's own string keys (level,
+  // message, timestamp, service) are not in PII_KEYS so they pass through
+  // unchanged.
+  const sanitized = sanitizeObject(info as unknown as Record<string, unknown>);
+  for (const key of Object.keys(sanitized)) {
+    (info as Record<string, unknown>)[key] = sanitized[key];
   }
   return info;
 });

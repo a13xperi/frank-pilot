@@ -74,12 +74,51 @@ async function markProcessed(
   );
 }
 
+// Soft cap on the number of still-actionable DLQ rows. Stripe will never make
+// us 5xx, so a buggy handler under sustained traffic could otherwise grow this
+// table without bound. Once the un-exhausted backlog (attempt_count < 5) hits
+// the cap we stop inserting NEW rows — existing rows still get their
+// attempt_count bumped on retry (ON CONFLICT path), so we never lose track of
+// an event we've already parked. This is a pressure-relief valve, not a hard
+// limit: it favours keeping Stripe happy (200) over perfectly capturing every
+// failure once we're already drowning in them.
+const DLQ_ACTIVE_ROW_CAP = 10_000;
+
+async function activeDlqRowCount(): Promise<number> {
+  const result = await query(
+    `SELECT COUNT(*)::int AS count FROM stripe_webhook_dlq WHERE attempt_count < 5`,
+    []
+  );
+  return Number(result.rows[0]?.count ?? 0);
+}
+
 async function recordDlq(
   event: Stripe.Event,
   rawPayload: unknown,
   err: Error
 ): Promise<void> {
   try {
+    // A new row only adds to the backlog when this event_id isn't already
+    // parked. Bumping an existing row's attempt_count is always allowed (it
+    // doesn't grow the table), so we only gate the cap on first-time inserts.
+    const alreadyParked = await query(
+      `SELECT 1 FROM stripe_webhook_dlq WHERE event_id = $1 LIMIT 1`,
+      [event.id]
+    );
+
+    if (alreadyParked.rows.length === 0) {
+      const activeCount = await activeDlqRowCount();
+      if (activeCount >= DLQ_ACTIVE_ROW_CAP) {
+        logger.warn("Stripe webhook DLQ at capacity — skipping new row", {
+          eventId: event.id,
+          type: event.type,
+          activeCount,
+          cap: DLQ_ACTIVE_ROW_CAP,
+        });
+        return;
+      }
+    }
+
     await query(
       `INSERT INTO stripe_webhook_dlq
          (event_id, event_type, raw_payload, error_message)
@@ -230,6 +269,24 @@ router.post(
         error: (err as Error).message,
       });
       res.status(400).json({ error: "Invalid signature" });
+      return;
+    }
+
+    // Livemode guard: even with a valid signature, a live-mode event arriving
+    // at a test-mode deployment (or vice-versa) means the wrong webhook secret
+    // / wrong endpoint is wired up. Processing it would post the wrong-mode
+    // money to the ledger. Reject with 400 so the misconfiguration surfaces
+    // loudly instead of silently corrupting state. We key off the deployment's
+    // own STRIPE_LIVE_ENABLED flag rather than trusting the event alone.
+    const liveEnabled = process.env.STRIPE_LIVE_ENABLED === "true";
+    if (event.livemode !== liveEnabled) {
+      logger.error("Stripe webhook livemode mismatch", {
+        eventId: event.id,
+        type: event.type,
+        eventLivemode: event.livemode,
+        stripeLiveEnabled: liveEnabled,
+      });
+      res.status(400).json({ error: "Livemode mismatch" });
       return;
     }
 

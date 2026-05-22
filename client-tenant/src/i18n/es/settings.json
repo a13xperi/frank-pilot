@@ -1,0 +1,25 @@
+{
+  "page": {
+    "title": "Ajustes",
+    "subtitle": "Administra cómo inicias sesión en Frank Pilot."
+  },
+  "account": {
+    "heading": "Cuenta",
+    "emailLabel": "Correo electrónico",
+    "emailHint": "Tu enlace de acceso se envía a esta dirección."
+  },
+  "passwordReset": {
+    "heading": "Reenviar enlace de acceso",
+    "body": "Las cuentas de inquilino se inician con un enlace mágico de un solo uso. Si perdiste el acceso en este dispositivo, envíate un nuevo enlace a tu correo y úsalo para iniciar sesión de nuevo.",
+    "cta": "Enviarme un nuevo enlace de acceso",
+    "sending": "Enviando…",
+    "sent": "Revisa tu correo. Un nuevo enlace de acceso va camino a {{email}}.",
+    "errors": {
+      "rateLimited": "Has solicitado demasiados enlaces. Inténtalo de nuevo en un minuto.",
+      "generic": "No se pudo enviar el enlace. Inténtalo de nuevo en un momento."
+    }
+  },
+  "nav": {
+    "label": "Ajustes"
+  }
+}

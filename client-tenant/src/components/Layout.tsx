@@ -6,7 +6,9 @@ import {
   Receipt,
   FileText,
   LogOut,
+  Settings,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { clearToken } from '@/api/client';
 import { HF } from '@/styles/tokens';
 
@@ -28,6 +30,7 @@ const mobileNavItems = [
 
 export function Layout() {
   const navigate = useNavigate();
+  const { t } = useTranslation('settings');
 
   function handleLogout() {
     clearToken();
@@ -76,10 +79,22 @@ export function Layout() {
           ))}
         </nav>
         <div className="p-3" style={{ borderTop: `1px solid ${HF.border}` }}>
+          <NavLink
+            to="/settings"
+            className="flex items-center gap-3 px-3 py-2 text-sm font-medium transition"
+            style={({ isActive }) => ({
+              background: isActive ? HF.accentLo : 'transparent',
+              color: isActive ? HF.accentInk : HF.ink2,
+              borderRadius: HF.r.md,
+            })}
+          >
+            <Settings className="h-5 w-5" />
+            {t('nav.label')}
+          </NavLink>
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-3 px-3 py-2 text-sm"
-            style={{ color: HF.ink3, borderRadius: HF.r.md }}
+            style={{ color: HF.ink3, borderRadius: HF.r.md, marginTop: 4 }}
           >
             <LogOut className="h-5 w-5" />
             Log out
@@ -103,14 +118,27 @@ export function Layout() {
           >
             Frank Pilot
           </span>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1 text-xs font-medium"
-            style={{ color: HF.ink3 }}
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
+          <div className="flex items-center gap-3">
+            <NavLink
+              to="/settings"
+              aria-label={t('nav.label')}
+              className="flex items-center gap-1 text-xs font-medium"
+              style={({ isActive }) => ({
+                color: isActive ? HF.accent : HF.ink3,
+              })}
+            >
+              <Settings className="h-4 w-4" />
+              {t('nav.label')}
+            </NavLink>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1 text-xs font-medium"
+              style={{ color: HF.ink3 }}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </div>
         </header>
         <main className="flex-1 pb-20 md:pb-0">
           <Outlet />

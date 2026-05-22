@@ -158,7 +158,11 @@ describe("POST /intents — auth and scope guards", () => {
     expect(res.body.error).toMatch(/applicant or tenant role required/i);
   });
 
-  it("returns 403 when the caller does not own the application", async () => {
+  it("returns 404 (not 403) when the caller does not own / the application does not exist", async () => {
+    // Audit L1.1 fix 4: an unmatched ownership check must NOT distinguish
+    // "application exists but isn't yours" from "application doesn't exist" —
+    // 403 would leak application-id existence to an enumerating caller. Both
+    // collapse to a single 404 application_not_found.
     mockAuthQuery(applicant);
     mockOwnership(0);
 
@@ -167,8 +171,22 @@ describe("POST /intents — auth and scope guards", () => {
       .set("Authorization", tokenFor(applicant))
       .send({ applicationId: APP_ID, amountCents: 12500, attemptN: 1 });
 
-    expect(res.status).toBe(403);
-    expect(res.body.error).toMatch(/application not accessible/i);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe("application_not_found");
+  });
+
+  it("does NOT proceed to Stripe when the application is not found", async () => {
+    mockAuthQuery(applicant);
+    mockOwnership(0);
+
+    const res = await request(app)
+      .post("/intents")
+      .set("Authorization", tokenFor(applicant))
+      .send({ applicationId: APP_ID, amountCents: 12500, attemptN: 1 });
+
+    expect(res.status).toBe(404);
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled();
+    expect(mockStampTape).not.toHaveBeenCalled();
   });
 });
 
