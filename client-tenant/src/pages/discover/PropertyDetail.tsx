@@ -1,10 +1,15 @@
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { findGPMGBySlug, rentEstimate } from '@/api/gpmg-fixtures';
 import { CTA } from '@/components/primitives';
 import { getToken } from '@/api/client';
 import { UNIT_PLACEHOLDER } from '@/utils/unitPlaceholder';
 import { HF } from '@/styles/tokens';
+import {
+  getPropertyAvailability,
+  type BedroomBucket,
+} from '@/utils/availability';
 
 const AMENITIES = [
   'Affordable rents',
@@ -15,10 +20,31 @@ const AMENITIES = [
   'Smoke-free',
 ];
 
+const VALID_AMI_TIERS = new Set(['30', '50', '60', '80'] as const);
+type AmiTier = '30' | '50' | '60' | '80';
+
+const BEDROOM_BUCKETS: ReadonlyArray<{ key: BedroomBucket; i18nKey: string }> = [
+  { key: 'studio', i18nKey: 'availability.studio' },
+  { key: 'br1', i18nKey: 'availability.1' },
+  { key: 'br2', i18nKey: 'availability.2' },
+  { key: 'br3', i18nKey: 'availability.3' },
+];
+
 export function PropertyDetail() {
   const { slug = '' } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const { t } = useTranslation('discover');
   const prop = findGPMGBySlug(slug);
+
+  // Preserve a deep-linked amiTier when bouncing to /apply so the W0 funnel
+  // continues to know the applicant's tier. Validated against the same set
+  // as the AMI calculator emits.
+  const amiTierRaw = params.get('amiTier');
+  const amiTier: AmiTier | null =
+    amiTierRaw && VALID_AMI_TIERS.has(amiTierRaw as AmiTier)
+      ? (amiTierRaw as AmiTier)
+      : null;
 
   if (!prop) {
     return (
@@ -49,9 +75,32 @@ export function PropertyDetail() {
   }
 
   const est = rentEstimate(prop);
+  const availability = getPropertyAvailability(prop.name);
+  const hasAvailability = availability.availableCount > 0;
+
   const onApply = () => {
     // Apply requires auth; bounce unauthed users through /login with a return.
-    const target = `/apply?step=intent&unitType=2BR&propertyId=${encodeURIComponent(slug)}`;
+    // Preserve the AMI deep-link signal so W0 prefill still works when the
+    // user reaches /apply via /discover.
+    const qs = new URLSearchParams({
+      step: 'intent',
+      unitType: '2BR',
+      propertyId: slug,
+    });
+    if (amiTier) qs.set('amiTier', amiTier);
+    const target = `/apply?${qs.toString()}`;
+    navigate(getToken() ? target : `/login?return=${encodeURIComponent(target)}`);
+  };
+
+  const onApplyForProperty = () => {
+    // CTA shown only when the property has at least one available unit.
+    // Forwards amiTier when deep-linked so the funnel continues to know the
+    // applicant's tier.
+    const qs = new URLSearchParams({
+      propertyId: slug,
+    });
+    if (amiTier) qs.set('amiTier', amiTier);
+    const target = `/apply?${qs.toString()}`;
     navigate(getToken() ? target : `/login?return=${encodeURIComponent(target)}`);
   };
 
@@ -138,6 +187,92 @@ export function PropertyDetail() {
               </span>
             </div>
           </header>
+
+          {/* Live availability section — bedroom-grouped counts derived from
+              the deterministic seed rollup. Hidden when totalUnits=0 (e.g.
+              an off-catalog or unfixtured property). */}
+          {availability.totalUnits > 0 && (
+            <section
+              data-testid="live-availability"
+              style={{
+                marginTop: 24,
+                background: HF.paper,
+                border: `1px solid ${HF.border}`,
+                borderRadius: HF.r.md,
+                padding: 16,
+                boxShadow: HF.shadow.xs,
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: HF.display,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: HF.ink2,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  margin: 0,
+                }}
+              >
+                {t('availability.title')}
+              </h2>
+              {hasAvailability ? (
+                <ul
+                  className="grid grid-cols-2 gap-2"
+                  style={{ margin: '12px 0 0', padding: 0, listStyle: 'none' }}
+                  data-testid="availability-grid"
+                >
+                  {BEDROOM_BUCKETS.map(({ key, i18nKey }) => {
+                    const count = availability.bedroomBreakdown[key];
+                    if (count === 0) return null;
+                    return (
+                      <li
+                        key={key}
+                        data-testid={`availability-${key}`}
+                        style={{
+                          background: HF.cream,
+                          border: `1px solid ${HF.border}`,
+                          borderRadius: HF.r.sm,
+                          padding: '10px 12px',
+                          fontSize: 13,
+                          color: HF.ink2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span style={{ fontWeight: 700, color: HF.ink }}>
+                          {t(i18nKey)}
+                        </span>
+                        <span style={{ color: HF.accentInk }}>
+                          {t('availability.unit', { count })}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p
+                  style={{ margin: '12px 0 0', fontSize: 13, color: HF.ink3 }}
+                  data-testid="availability-empty"
+                >
+                  {t('availability.empty')}
+                </p>
+              )}
+              {hasAvailability && (
+                <div style={{ marginTop: 16 }}>
+                  <CTA
+                    tone="primary"
+                    block
+                    onClick={onApplyForProperty}
+                    data-testid="apply-for-property-cta"
+                  >
+                    {t('applyForProperty')} →
+                  </CTA>
+                </div>
+              )}
+            </section>
+          )}
 
           <section
             style={{

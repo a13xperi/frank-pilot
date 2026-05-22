@@ -47,4 +47,24 @@ describe('PropertyDetail (GPMG fixture)', () => {
     renderAt('/property/does-not-exist');
     expect(screen.getByText(/Property not found/i)).toBeInTheDocument();
   });
+
+  // ── Wedge #8 — live availability section ─────────────────────────────────
+
+  it('renders Live availability section with per-bedroom counts', () => {
+    renderAt('/property/david-j-hoggard-family-community');
+    expect(screen.getByTestId('live-availability')).toBeInTheDocument();
+    // Hoggard has 1BR/2BR/3BR/4BR — should render at least 3 bedroom rows
+    // (4BR collapses onto br3 with the deterministic 70% available logic).
+    const grid = screen.getByTestId('availability-grid');
+    expect(grid).toBeInTheDocument();
+    const rows = grid.querySelectorAll('li');
+    expect(rows.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('renders Apply-for-property CTA when at least one unit is available', () => {
+    renderAt('/property/david-j-hoggard-family-community');
+    const cta = screen.getByTestId('apply-for-property-cta');
+    expect(cta).toBeInTheDocument();
+    expect(cta.textContent).toMatch(/Apply for this property/i);
+  });
 });
