@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, within, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PropertyList } from '../PropertyList';
 
@@ -187,5 +187,199 @@ describe('PropertyList (GPMG fixtures)', () => {
     expect(aldeneRow.textContent).toMatch(/\$995/);
     expect(aldeneRow.textContent).not.toMatch(/2BR/);
     expect(aldeneRow.textContent).not.toMatch(/3BR/);
+  });
+});
+
+// ── Wedge #8 (live API) ─────────────────────────────────────────────────────
+//
+// PropertyList now calls `GET /api/properties?…` and hydrates tiles from the
+// response when it succeeds. The fallback path (errors / unauthed visitors)
+// is the same deterministic GPMG_FIXTURES + getPropertyAvailability render
+// the discover surface used pre-wedge-8 — that path is covered by the suite
+// above (those tests do not mock fetch; the call rejects in jsdom and we
+// silently fall back).
+//
+// The contract under test below is the wire shape: the right param names
+// land on the right requests, and a successful response drives the grid
+// from the API row order.
+
+interface CapturedRequest {
+  url: string;
+  params: URLSearchParams;
+}
+
+function mockPropertiesEndpoint(
+  responder: (params: URLSearchParams) => {
+    status: number;
+    body: unknown;
+  } | { reject: true },
+): { captured: CapturedRequest[]; fetchMock: ReturnType<typeof vi.fn> } {
+  const captured: CapturedRequest[] = [];
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    // The /discover page only consumes /api/properties. Anything else
+    // (e.g. the auth-warm fetchUnits call) we resolve to a benign 200 so
+    // it doesn't pollute the capture log or trigger noisy 404 fallbacks.
+    if (!url.includes('/api/properties') || url.includes('/api/applicants')) {
+      return new Response(JSON.stringify({}), { status: 200 });
+    }
+    const [, query = ''] = url.split('?');
+    const params = new URLSearchParams(query);
+    captured.push({ url, params });
+    const verdict = responder(params);
+    if ('reject' in verdict) throw new Error('network fail');
+    return new Response(JSON.stringify(verdict.body), {
+      status: verdict.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return { captured, fetchMock };
+}
+
+function makeApiProperty(overrides: Partial<{
+  id: string;
+  name: string;
+  city: string;
+  propertyType: 'senior' | 'family' | 'mixed_use';
+  amiTier: string | null;
+  availableCount: number;
+  totalUnits: number;
+  bedroomBreakdown: { studio: number; br1: number; br2: number; br3: number };
+}> = {}) {
+  return {
+    id: overrides.id ?? 'p-1',
+    name: overrides.name ?? 'Live Apartment One',
+    addressLine1: '100 Main St',
+    addressLine2: null,
+    city: overrides.city ?? 'Las Vegas',
+    state: 'NV',
+    zip: '89101',
+    propertyType: overrides.propertyType ?? 'family',
+    amiTier: overrides.amiTier ?? '60% AMI',
+    availability: {
+      availableCount: overrides.availableCount ?? 5,
+      leasedCount: 2,
+      totalUnits: overrides.totalUnits ?? 20,
+      bedroomBreakdown:
+        overrides.bedroomBreakdown ?? { studio: 0, br1: 2, br2: 3, br3: 0 },
+    },
+    rentRange: {
+      studio: null,
+      br1: { low: 900, high: 1100 },
+      br2: { low: 1200, high: 1400 },
+      br3: null,
+    },
+  };
+}
+
+describe('PropertyList (live /api/properties)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('?bedroom=2 + ?amiTier=60 → fetch URL carries both server-validated params', async () => {
+    const { captured } = mockPropertiesEndpoint(() => ({
+      status: 200,
+      body: { properties: [makeApiProperty()], total: 1 },
+    }));
+    renderList('/discover?bedroom=2&amiTier=60');
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    const last = captured[captured.length - 1]!;
+    expect(last.params.get('bedroom')).toBe('2');
+    expect(last.params.get('amiTier')).toBe('60');
+    // Tile renders from the API response name, not GPMG_FIXTURES.
+    expect(await screen.findByText('Live Apartment One')).toBeInTheDocument();
+  });
+
+  it('?availability=available_now + ?bedroom=studio → fetch URL carries both server params', async () => {
+    const { captured } = mockPropertiesEndpoint(() => ({
+      status: 200,
+      body: {
+        properties: [
+          makeApiProperty({
+            id: 'p-2',
+            name: 'Studio Tower',
+            propertyType: 'senior',
+            bedroomBreakdown: { studio: 4, br1: 0, br2: 0, br3: 0 },
+            availableCount: 4,
+            totalUnits: 12,
+          }),
+        ],
+        total: 1,
+      },
+    }));
+    renderList('/discover?availability=available_now&bedroom=studio');
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    const last = captured[captured.length - 1]!;
+    expect(last.params.get('availability')).toBe('available_now');
+    expect(last.params.get('bedroom')).toBe('studio');
+    expect(await screen.findByText('Studio Tower')).toBeInTheDocument();
+  });
+
+  it('API returns empty properties array → empty-state count copy renders', async () => {
+    mockPropertiesEndpoint(() => ({
+      status: 200,
+      body: { properties: [], total: 0 },
+    }));
+    renderList('/discover?bedroom=3&amiTier=80');
+    // Wait for the API result to apply (count drops to 0). The pre-existing
+    // copy is the result-count footer — same as the unauthed empty result.
+    await waitFor(() => {
+      expect(screen.getByTestId('result-count').textContent).toBe(
+        '0 communities',
+      );
+    });
+    expect(tileCount()).toBe(0);
+  });
+
+  it('fetch rejects → fallback render keeps all 17 deterministic fixture tiles', async () => {
+    // Server 500 / network failure / 401 unauthed all surface as a thrown
+    // error in api/client.ts. The discover surface must keep showing the
+    // 17-property deterministic catalog so the gpmglv demo walkthrough
+    // still works when the API is unreachable.
+    mockPropertiesEndpoint(() => ({ reject: true }));
+    renderList();
+    // Initial render hydrates from GPMG_FIXTURES because apiProperties starts
+    // null. After the rejected fetch settles, apiProperties stays null and
+    // the fixture render persists.
+    expect(tileCount()).toBe(17);
+    // Give the rejected promise a microtask to settle, then re-assert.
+    await waitFor(() => expect(tileCount()).toBe(17));
+  });
+
+  it('API success rewires availability count from the response (no client-side seed mirror)', async () => {
+    // The wire is load-bearing: the contract is "use the server's rollup,
+    // do not re-derive from PROPERTY_UNIT_MIX". If the API says 0 available
+    // for a property the tile must reflect that — even if the deterministic
+    // seed mirror would have said 7.
+    mockPropertiesEndpoint(() => ({
+      status: 200,
+      body: {
+        properties: [
+          makeApiProperty({
+            id: 'p-3',
+            name: 'Empty House',
+            availableCount: 0,
+            totalUnits: 10,
+            bedroomBreakdown: { studio: 0, br1: 0, br2: 0, br3: 0 },
+          }),
+        ],
+        total: 1,
+      },
+    }));
+    renderList();
+    const grid = await screen.findByTestId('property-grid');
+    await waitFor(() => {
+      // Single tile from the API.
+      expect(within(grid).queryAllByRole('link')).toHaveLength(1);
+    });
+    const badge = within(grid).getByTestId('availability-badge');
+    expect(badge.getAttribute('data-state')).toBe('fully-leased');
   });
 });

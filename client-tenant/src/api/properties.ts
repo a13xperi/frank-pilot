@@ -1,6 +1,89 @@
 import { api } from './client';
 import { UNIT_PLACEHOLDER } from '@/utils/unitPlaceholder';
 
+// ─── Wedge #8 — live `GET /api/properties` listing for /discover ──────────
+//
+// The server contract (`src/modules/properties/routes.ts:78-131`) zod-validates
+// `amiTier`, `bedroom`, `availability` and returns `{ properties, total }` with
+// a per-property availability rollup + rent range baked in. We don't redefine
+// those semantics client-side — we just translate the chip state into the
+// exact param names the server validates.
+//
+// `property:view` is admin-gated, so unauthed /discover users will see the
+// 401 → catch path and the PropertyList falls back to GPMG_FIXTURES. That's
+// the intentional contract: the live wire works for authed leasing agents
+// (and the gpmglv demo) without breaking the public browse surface.
+
+export type ApiAmiTier = '30' | '50' | '60' | '80';
+export type ApiBedroomFilter = 'studio' | '1' | '2' | '3';
+export type ApiAvailabilityFilter = 'available_now';
+
+export interface ApiPropertyAvailability {
+  availableCount: number;
+  leasedCount: number;
+  totalUnits: number;
+  bedroomBreakdown: {
+    studio: number;
+    br1: number;
+    br2: number;
+    br3: number;
+  };
+}
+
+export interface ApiRentBucket {
+  low: number;
+  high: number;
+}
+
+export interface ApiRentRange {
+  studio: ApiRentBucket | null;
+  br1: ApiRentBucket | null;
+  br2: ApiRentBucket | null;
+  br3: ApiRentBucket | null;
+}
+
+export interface ApiPropertyListing {
+  id: string;
+  name: string;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  state: string;
+  zip: string;
+  propertyType: 'senior' | 'family' | 'mixed_use';
+  amiTier: string | null;
+  availability: ApiPropertyAvailability;
+  rentRange: ApiRentRange;
+}
+
+export interface PropertiesListResponse {
+  properties: ApiPropertyListing[];
+  total: number;
+}
+
+export interface PropertiesListFilters {
+  amiTier?: ApiAmiTier;
+  bedroom?: ApiBedroomFilter;
+  availability?: ApiAvailabilityFilter;
+}
+
+/**
+ * Live properties listing. Uses the SAME param names the server's zod schema
+ * validates so any drift fails loudly (400 with `{ error, allowed }`) rather
+ * than silently fetching the unfiltered list. Throws on any non-2xx so the
+ * caller can fall back to the deterministic fixture render.
+ */
+export async function fetchPropertiesList(
+  filters: PropertiesListFilters = {},
+): Promise<PropertiesListResponse> {
+  const params = new URLSearchParams();
+  if (filters.amiTier) params.set('amiTier', filters.amiTier);
+  if (filters.bedroom) params.set('bedroom', filters.bedroom);
+  if (filters.availability) params.set('availability', filters.availability);
+  const qs = params.toString();
+  return api.get<PropertiesListResponse>(`/properties${qs ? `?${qs}` : ''}`);
+}
+
 export interface PropertyDetail {
   slug: string;
   name: string;
