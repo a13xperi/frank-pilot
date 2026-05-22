@@ -120,7 +120,7 @@ router.post(
   requirePermission("fraud:resolve"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { notes } = req.body;
+      const { notes } = req.body ?? {};
       if (!notes) {
         res.status(400).json({ error: "Resolution notes are required" });
         return;

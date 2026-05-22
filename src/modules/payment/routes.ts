@@ -21,7 +21,7 @@ router.post(
   requirePermission("payment:setup"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { email, firstName, lastName } = req.body;
+      const { email, firstName, lastName } = req.body ?? {};
       const result = await service.createCustomer({
         applicationId: param(req.params.applicationId),
         email,

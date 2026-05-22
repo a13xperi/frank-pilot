@@ -52,7 +52,7 @@ router.post(
   requirePermission("approval:tier1"),
   async (req: AuthRequest, res) => {
     try {
-      const { reason = "manual_resend", reasonDetail } = req.body;
+      const { reason = "manual_resend", reasonDetail } = req.body ?? {};
       const result = await service.sendNotice(
         req.params.applicationId as string,
         req.user!.id,
