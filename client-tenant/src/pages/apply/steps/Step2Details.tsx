@@ -19,8 +19,8 @@ const inputStyle = {
   width: '100%',
   borderRadius: HF.r.sm,
   border: `1px solid ${HF.border}`,
-  padding: '8px 12px',
-  fontSize: 14,
+  padding: '10px 12px',
+  fontSize: 16,
   background: HF.paper,
   color: HF.ink,
   fontFamily: HF.body,
@@ -99,7 +99,7 @@ export function Step2Details() {
           <label style={labelStyle} htmlFor="address">{t('details.address')}</label>
           <input id="address" style={inputStyle} value={s.addressLine1} onChange={(e) => s.setAddressLine1(e.target.value)} />
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <div>
             <label style={labelStyle} htmlFor="city">{t('details.city')}</label>
             <input id="city" style={inputStyle} value={s.city} onChange={(e) => s.setCity(e.target.value)} />

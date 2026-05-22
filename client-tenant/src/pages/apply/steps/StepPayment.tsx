@@ -150,7 +150,7 @@ function Field({
         inputMode={inputMode}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        style={{ background: HF.paper, border: `1px solid ${HF.border}`, borderRadius: HF.r.sm, padding: '10px 12px', fontSize: 14, color: HF.ink, fontFamily: HF.body }}
+        style={{ background: HF.paper, border: `1px solid ${HF.border}`, borderRadius: HF.r.sm, padding: '10px 12px', fontSize: 16, color: HF.ink, fontFamily: HF.body }}
       />
     </label>
   );
