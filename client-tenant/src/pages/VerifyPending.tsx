@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, CheckCircle } from 'lucide-react';
 import { api, clearToken } from '@/api/client';
 import { requestMagicLink } from '@/api/auth';
+import { HF } from '@/styles/tokens';
+import { CTA } from '@/components/primitives';
 
 interface MeResponse {
   user?: {
@@ -70,41 +72,64 @@ export function VerifyPending() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+    <div
+      className="flex min-h-screen items-center justify-center p-4"
+      style={{ background: HF.cream, color: HF.ink, fontFamily: HF.body }}
+    >
       <div className="w-full max-w-sm space-y-6 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600">
-          <Mail className="h-6 w-6 text-white" />
+        <div
+          className="mx-auto flex h-12 w-12 items-center justify-center"
+          style={{ background: HF.accent, borderRadius: HF.r.md }}
+        >
+          <Mail className="h-6 w-6" style={{ color: HF.paper }} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Check your email</h1>
-          <p className="mt-2 text-sm text-gray-500">
+          <h1
+            className="text-2xl font-bold"
+            style={{ color: HF.ink, fontFamily: HF.display }}
+          >
+            Check your email
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: HF.ink3 }}>
             We sent a verification link to{' '}
-            <span className="font-medium text-gray-900">{email || 'your inbox'}</span>.
-            Click it to continue your application.
+            <span className="font-medium" style={{ color: HF.ink }}>
+              {email || 'your inbox'}
+            </span>
+            . Click it to continue your application.
           </p>
         </div>
 
         {resent && (
-          <div className="flex items-center justify-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
+          <div
+            className="flex items-center justify-center gap-2 p-3 text-sm"
+            style={{ background: HF.sageLo, color: HF.sage, borderRadius: HF.r.md }}
+          >
             <CheckCircle className="h-4 w-4" />
             Link resent
           </div>
         )}
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          <div
+            className="p-3 text-sm"
+            style={{ background: HF.errLo, color: HF.err, borderRadius: HF.r.md }}
+          >
+            {error}
+          </div>
         )}
 
-        <button
+        <CTA
+          tone="primary"
+          block
           onClick={handleResend}
           disabled={resending || !email}
-          className="btn-primary w-full"
         >
           {resending ? 'Resending…' : 'Resend link'}
-        </button>
+        </CTA>
 
         <button
           onClick={handleSignOut}
-          className="text-sm text-gray-500 hover:text-gray-700 hover:underline"
+          className="text-sm underline"
+          style={{ color: HF.ink3 }}
         >
           Use a different email
         </button>
