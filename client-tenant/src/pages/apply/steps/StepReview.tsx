@@ -66,7 +66,7 @@ export function StepReview() {
                 <div style={{ fontFamily: HF.display, fontSize: 18, fontWeight: 700, color: HF.ink, marginTop: 2 }}>{propName}</div>
                 <div style={{ fontSize: 12, color: HF.ink3 }}>{propAddress}</div>
               </div>
-              <button onClick={() => setSearch({ step: 'intent' }, { replace: true })}
+              <button onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'intent'); return next; }, { replace: true })}
                       style={{ background: 'transparent', border: 'none', color: HF.accent, fontSize: 11, textDecoration: 'underline', cursor: 'pointer' }}>
                 {t('review.edit')}
               </button>
@@ -87,7 +87,7 @@ export function StepReview() {
                 {incomeBand && <Pill>{incomeBand}</Pill>}
                 <Pill>{t('review.household', { count: householdSize })}</Pill>
                 <Pill>{moveIn}</Pill>
-                <button onClick={() => setSearch({ step: 'intent' }, { replace: true })}
+                <button onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'intent'); return next; }, { replace: true })}
                         style={{ background: 'transparent', border: 'none', color: HF.accent, fontSize: 11, textDecoration: 'underline', cursor: 'pointer', marginLeft: 'auto' }}>
                   {t('review.edit')}
                 </button>
@@ -103,7 +103,7 @@ export function StepReview() {
           <div style={{ fontSize: 11, color: HF.ink3, marginTop: 2 }}>{t('review.confirmBody')}</div>
         </Card>
 
-        <CTA variant="mobile" onClick={() => setSearch({ step: 'household' }, { replace: true })}>
+        <CTA variant="mobile" onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'household'); return next; }, { replace: true })}>
           {t('review.cta')}
         </CTA>
       </div>

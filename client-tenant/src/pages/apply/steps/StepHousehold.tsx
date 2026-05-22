@@ -96,7 +96,7 @@ export function StepHousehold() {
           <div style={{ fontSize: 10, color: HF.ink3, marginTop: 4 }}>{t('household.disclaimer')}</div>
         </Card>
 
-        <CTA variant="mobile" onClick={() => setSearch({ step: 'payment' }, { replace: true })}>
+        <CTA variant="mobile" onClick={() => setSearch(prev => { const next = new URLSearchParams(prev); next.set('step', 'payment'); return next; }, { replace: true })}>
           {t('household.cta', { total })}
         </CTA>
       </div>
