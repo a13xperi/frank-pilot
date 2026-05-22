@@ -1,9 +1,9 @@
-import { FileText, Search, CheckCircle, Building2, Clock } from 'lucide-react';
+import { FileText, Search, CheckCircle, Building2, Clock, UserPlus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { RoleGate } from '@/components/RoleGate';
 import { StatusBadge } from '@/components/StatusBadge';
-import { formatRole, hasMinRole, type ApplicationListResponse, type PropertyListResponse, type AuditLogResponse } from '@/types';
+import { formatRole, hasMinRole, type ApplicationListResponse, type PropertyListResponse, type AuditLogResponse, type SignupStatsResponse } from '@/types';
 import type { LucideIcon } from 'lucide-react';
 
 function StatCard({ icon: Icon, label, value, loading }: { icon: LucideIcon; label: string; value: string | number; loading?: boolean }) {
@@ -31,6 +31,9 @@ export function Dashboard() {
   const audit = useApiQuery<AuditLogResponse>(
     user && hasMinRole(user.role, 'regional_manager') ? '/api/audit?limit=10' : null
   );
+  const signups = useApiQuery<SignupStatsResponse>(
+    user && hasMinRole(user.role, 'senior_manager') ? '/api/users/signup-stats' : null
+  );
 
   if (!user) return null;
 
@@ -54,6 +57,9 @@ export function Dashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={FileText} label="Active Applications" value={activeCount} loading={apps.loading} />
+        <RoleGate minRole="senior_manager">
+          <StatCard icon={UserPlus} label="Signups" value={signups.data?.registered ?? '--'} loading={signups.loading} />
+        </RoleGate>
         <RoleGate minRole="senior_manager">
           <StatCard icon={Search} label="Pending Screening" value={screeningCount} loading={apps.loading} />
         </RoleGate>

@@ -139,6 +139,11 @@ export interface UserListResponse {
   total: number;
 }
 
+export interface SignupStatsResponse {
+  registered: number;
+  verified: number;
+}
+
 // ── Screening types ───────────────────────────────────────────────
 
 export interface ScreeningResult {

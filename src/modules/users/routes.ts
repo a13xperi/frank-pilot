@@ -73,6 +73,30 @@ router.get(
 );
 
 /**
+ * GET /api/users/signup-stats
+ * Top-of-funnel counts from the tenant onboarding app: how many people have
+ * registered (applicant/tenant role) and how many have a verified email.
+ * Feeds the "Signups" stat card on the management Dashboard.
+ * Permission: user:view (senior_manager+)
+ *
+ * Declared before GET /:userId so the literal path isn't captured as an id.
+ */
+router.get(
+  "/signup-stats",
+  authenticate,
+  requirePermission("user:view"),
+  async (_req: AuthRequest, res) => {
+    try {
+      const stats = await service.signupStats();
+      res.json(stats);
+    } catch (err) {
+      logger.error("Failed to load signup stats", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to load signup stats" });
+    }
+  }
+);
+
+/**
  * GET /api/users/:userId
  * Get a single user by ID.
  * Permission: user:view (senior_manager+)

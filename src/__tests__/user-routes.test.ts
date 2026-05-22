@@ -34,6 +34,7 @@ const mockGetById = jest.fn();
 const mockCreate = jest.fn();
 const mockSetActive = jest.fn();
 const mockResetPassword = jest.fn();
+const mockSignupStats = jest.fn();
 
 jest.mock("../modules/users/service", () => ({
   UserService: jest.fn().mockImplementation(() => ({
@@ -42,6 +43,7 @@ jest.mock("../modules/users/service", () => ({
     create: mockCreate,
     setActive: mockSetActive,
     resetPassword: mockResetPassword,
+    signupStats: mockSignupStats,
   })),
 }));
 
@@ -196,6 +198,55 @@ describe("GET /users", () => {
       .set("Authorization", tokenFor(seniorManager));
     expect(res.status).toBe(500);
     expect(res.body.error).toMatch(/failed to list users/i);
+  });
+});
+
+// ── GET /users/signup-stats — funnel signup counts ─────────────────────────
+
+describe("GET /users/signup-stats", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("returns 401 without auth", async () => {
+    const res = await request(app).get("/users/signup-stats");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 403 for leasing_agent (user:view)", async () => {
+    mockAuthQuery(leasingAgent);
+    const res = await request(app)
+      .get("/users/signup-stats")
+      .set("Authorization", tokenFor(leasingAgent));
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 200 with registered/verified counts for senior_manager", async () => {
+    mockAuthQuery(seniorManager);
+    mockSignupStats.mockResolvedValue({ registered: 42, verified: 30 });
+    const res = await request(app)
+      .get("/users/signup-stats")
+      .set("Authorization", tokenFor(seniorManager));
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ registered: 42, verified: 30 });
+  });
+
+  it("is not shadowed by GET /:userId (hits signupStats, not getById)", async () => {
+    mockAuthQuery(seniorManager);
+    mockSignupStats.mockResolvedValue({ registered: 1, verified: 1 });
+    await request(app)
+      .get("/users/signup-stats")
+      .set("Authorization", tokenFor(seniorManager));
+    expect(mockSignupStats).toHaveBeenCalled();
+    expect(mockGetById).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when service throws", async () => {
+    mockAuthQuery(seniorManager);
+    mockSignupStats.mockRejectedValue(new Error("DB error"));
+    const res = await request(app)
+      .get("/users/signup-stats")
+      .set("Authorization", tokenFor(seniorManager));
+    expect(res.status).toBe(500);
+    expect(res.body.error).toMatch(/failed to load signup stats/i);
   });
 });
 
