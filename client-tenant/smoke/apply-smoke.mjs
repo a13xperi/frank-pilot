@@ -50,15 +50,15 @@ async function checkPropertiesAPI() {
 }
 
 async function checkDiscoverHTML() {
-  const label = `GET ${BASE}/discover contains "Las Vegas"`;
+  const label = `GET ${BASE}/discover returns SPA shell`;
   try {
     const res = await fetch(`${BASE}/discover`);
     if (!res.ok) return fail(label, `HTTP ${res.status}`);
     const html = await res.text();
-    // The SPA bundle is what we get back; "Las Vegas" appears at runtime
-    // in the rendered DOM, not the static shell. Treat as advisory.
-    if (html.includes('Las Vegas') || html.includes('discover')) ok(label);
-    else fail(label, 'no Las Vegas / discover marker in HTML shell');
+    // SPA bundle — runtime strings ("Las Vegas") hydrate client-side, so
+    // we look for shell markers proving the route served the React app.
+    if (html.includes('<div id="root"') || html.includes('CDPC') || html.includes('Apply')) ok(label);
+    else fail(label, 'no SPA shell marker found');
   } catch (e) {
     fail(label, e instanceof Error ? e.message : String(e));
   }
