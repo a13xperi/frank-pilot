@@ -87,13 +87,70 @@ export function filterPII(input: string): string {
   return filtered;
 }
 
-export function sanitizeObject<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
+/** Max recursion depth — guards against circular refs / pathological nesting. */
+const MAX_DEPTH = 10;
+/** Max array elements walked before truncating with a marker. */
+const MAX_ARRAY_ELEMENTS = 1000;
+
+/**
+ * UUID-ish key convention: `*Ids` / `*_ids` arrays hold UUIDs, which are NOT
+ * PII per project decision. Pass these arrays through untouched so we don't
+ * over-redact application/property/user ID collections.
+ */
+function isUuidIdKey(key: string): boolean {
+  return /(?:ids|_ids)$/i.test(key);
+}
+
+/**
+ * Walk an array value. `piiKey` = the array's own key matched a PII pattern,
+ * in which case every string element is FULLY redacted (matching how a
+ * PII-keyed scalar is redacted today).
+ */
+function sanitizeArray(arr: unknown[], piiKey: boolean, depth: number): unknown[] {
+  if (depth > MAX_DEPTH) return ["[MAX-DEPTH]"];
+
+  const limit = Math.min(arr.length, MAX_ARRAY_ELEMENTS);
+  const out: unknown[] = [];
+  for (let i = 0; i < limit; i++) {
+    const el = arr[i];
+    if (Array.isArray(el)) {
+      out.push(sanitizeArray(el, piiKey, depth + 1));
+    } else if (typeof el === "object" && el !== null) {
+      out.push(sanitizeObjectInner(el as Record<string, unknown>, depth + 1));
+    } else if (typeof el === "string") {
+      out.push(piiKey ? "[REDACTED]" : redactSensitiveStrings(el));
+    } else {
+      out.push(el);
+    }
+  }
+  if (arr.length > MAX_ARRAY_ELEMENTS) {
+    out.push(`[…${arr.length - MAX_ARRAY_ELEMENTS} more]`);
+  }
+  return out;
+}
+
+function sanitizeObjectInner(
+  obj: Record<string, unknown>,
+  depth: number,
+): Record<string, unknown> {
+  if (depth > MAX_DEPTH) return { __truncated: "[MAX-DEPTH]" };
+
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (keyMatchesPII(key)) {
+    if (Array.isArray(value)) {
+      // UUID-ish ID arrays are not PII — pass through untouched.
+      if (isUuidIdKey(key)) {
+        sanitized[key] = value;
+      } else {
+        // Fix (PR #135 follow-up): walk array elements. Objects recurse,
+        // strings run through redactSensitiveStrings, primitives pass
+        // through. PII-keyed arrays (e.g. `emails`) fully redact each string.
+        sanitized[key] = sanitizeArray(value, keyMatchesPII(key), depth + 1);
+      }
+    } else if (keyMatchesPII(key)) {
       sanitized[key] = "[REDACTED]";
-    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      sanitized[key] = sanitizeObject(value as Record<string, unknown>);
+    } else if (typeof value === "object" && value !== null) {
+      sanitized[key] = sanitizeObjectInner(value as Record<string, unknown>, depth + 1);
     } else if (typeof value === "string") {
       // Fix 1 (L1.3 audit): scan string LEAF values for PII patterns when the
       // key itself isn't PII. Catches shapes like
@@ -105,4 +162,8 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): Recor
     }
   }
   return sanitized;
+}
+
+export function sanitizeObject<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
+  return sanitizeObjectInner(obj, 0);
 }

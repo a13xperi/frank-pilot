@@ -132,3 +132,55 @@ describe("Gap 4 — login error logs err.name only", () => {
     expect(result.error).not.toContain("alex@example.com");
   });
 });
+
+describe("Gap 5 — sanitizeObject walks ARRAY elements (PR #135 follow-up)", () => {
+  it("redacts an email inside an array of objects", () => {
+    const result = sanitizeObject({ recipients: [{ email: "x@y.com" }] });
+    const recipients = result.recipients as Array<Record<string, unknown>>;
+    expect(recipients[0].email).toBe("[REDACTED]");
+  });
+
+  it("fully redacts every string in a PII-keyed array", () => {
+    const result = sanitizeObject({ emails: ["a@b.com", "c@d.com"] });
+    expect(result.emails).toEqual(["[REDACTED]", "[REDACTED]"]);
+  });
+
+  it("scans only PII-shaped strings in a non-PII-keyed array", () => {
+    const result = sanitizeObject({ tags: ["normal", "alice@example.com"] });
+    expect(result.tags).toEqual(["normal", "[EMAIL-REDACTED]"]);
+  });
+
+  it("recurses into nested arrays", () => {
+    const result = sanitizeObject({ batches: [[{ ssn: "123-45-6789" }]] });
+    const outer = result.batches as unknown[][];
+    const inner = outer[0][0] as Record<string, unknown>;
+    expect(inner.ssn).toBe("[REDACTED]");
+  });
+
+  it("passes through arrays of primitives unchanged", () => {
+    const result = sanitizeObject({ counts: [1, 2, 3] });
+    expect(result.counts).toEqual([1, 2, 3]);
+  });
+
+  it("passes through UUID-ish *Ids / *_ids arrays untouched (not PII)", () => {
+    const ids = ["550e8400-e29b-41d4-a716-446655440000"];
+    const result = sanitizeObject({ applicationIds: ids, property_ids: ids });
+    expect(result.applicationIds).toEqual(ids);
+    expect(result.property_ids).toEqual(ids);
+  });
+
+  it("does not crash on circular references", () => {
+    const obj: Record<string, unknown> = { name: "loop" };
+    const arr: unknown[] = [obj];
+    obj.self = arr; // arr -> obj -> arr ...
+    expect(() => sanitizeObject({ data: arr })).not.toThrow();
+  });
+
+  it("caps very large arrays with a truncation marker", () => {
+    const big = Array.from({ length: 1500 }, (_, i) => i);
+    const result = sanitizeObject({ counts: big });
+    const out = result.counts as unknown[];
+    expect(out.length).toBe(1001); // 1000 elements + 1 marker
+    expect(out[1000]).toBe("[…500 more]");
+  });
+});
