@@ -167,3 +167,86 @@ curl -sS -X POST http://localhost:3001/api/tape/payment-success \
 - Idempotency cache is in-process only — a server restart resets the dedupe set.
 - No Stripe webhook, no charge, no refund — these are BP-08.
 - `actor` is hard-coded to `"tenant"` for both beacons.
+
+---
+
+## BP-08 Stripe Payments (operator-facing)
+
+Real Stripe PaymentIntents wiring. Replaces the BP-03b fake-submit path once
+`STRIPE_LIVE_ENABLED=true`. Full implementation contract lives in
+[`bp-08-stripe-spec.md`](bp-08-stripe-spec.md); this section is the operator
+playbook for cutover, key rotation, DLQ replay, idempotency verification, and
+rollback.
+
+### Initial setup (one-time)
+
+- Stripe Dashboard → Developers → Webhooks → add endpoint
+  - URL: `https://api-production-ed89.up.railway.app/api/payments/webhook`
+  - Events: `payment_intent.succeeded`, `payment_intent.payment_failed`
+  - Copy the signing secret → set Railway env `STRIPE_WEBHOOK_SECRET`
+- Stripe Dashboard → Developers → API Keys → reveal Secret key
+  → set Railway env `STRIPE_SECRET_KEY` (`sk_live_*` for prod, `sk_test_*` for staging)
+- Publishable key → `STRIPE_PUBLISHABLE_KEY` (`pk_live_*` / `pk_test_*`)
+- Verify `.env.example` is current.
+
+### Production cutover (`STRIPE_LIVE_ENABLED=true`)
+
+Pre-flight checklist (mirrors [`bp-08-stripe-spec.md §8.1`](bp-08-stripe-spec.md#81-flip-criteria-production)):
+
+1. All keys above set on Railway? `railway variables --json | jq '.STRIPE_*'`
+2. Webhook secret matches the dashboard? Test with `stripe listen` locally first.
+3. Boot guard catches misconfig? Trigger by setting `STRIPE_LIVE_ENABLED=true`
+   with `STRIPE_SECRET_KEY=sk_test_changeme` — Railway should crash-loop
+   until you fix it. Roll back the flag flip.
+4. End-to-end: $1 test transaction via Stripe Dashboard manual capture.
+5. Flip `STRIPE_LIVE_ENABLED=true`, redeploy.
+
+### Key rotation
+
+- Generate new secret in Stripe Dashboard.
+- Set new key in Railway (paste into `STRIPE_SECRET_KEY` var).
+- Railway will redeploy automatically (~90s downtime acceptable for key rotation).
+- Revoke old key in Stripe Dashboard **only after** new deploy is verified.
+- For webhook secret: same procedure, but verify a test webhook fires
+  between old-revoke and new-active to confirm no gap.
+
+### DLQ replay (when webhook handler fails)
+
+The `stripe_webhook_dlq` table (see [`bp-08-stripe-spec.md §5.4`](bp-08-stripe-spec.md#54-dead-letter-table-optional-but-recommended))
+captures any webhook event whose handler threw. Replay procedure:
+
+```sql
+SELECT * FROM stripe_webhook_dlq
+WHERE attempt_count < 5
+  AND last_failed_at > NOW() - INTERVAL '24 hours'
+ORDER BY last_failed_at;
+```
+
+For each row:
+
+1. Identify the bug from `error_message`, fix the dispatch code.
+2. Replay via Stripe: `stripe events resend evt_<event_id>` (`event_id` from the DLQ row).
+3. After successful replay: `DELETE FROM stripe_webhook_dlq WHERE event_id = '<id>';`
+
+### Idempotency replay verification
+
+Run this after every prod deploy that touches `src/modules/payment/`:
+
+- Pick an `applicationId` with a recent successful payment.
+- `curl -X POST $API/api/payments/intents -H 'Authorization: Bearer $TOKEN'
+   -d '{"applicationId":"<id>","amountCents":50000,"attemptN":1}'`
+- First call: `201` + new `clientSecret`.
+- Second call (same body): `200` + **same** `clientSecret` (replay).
+- Third call (`attemptN: 1`, but original PI is succeeded): `409` + `replay_blocked`.
+
+If the second call returns a different `clientSecret`, the persistent
+idempotency layer is broken — page engineering before letting more traffic in.
+
+### Rollback procedure
+
+- Set `STRIPE_LIVE_ENABLED=false` on Railway → redeploy.
+- `VITE_PAYMENT_WIZARD_ENABLED=false` (already default) — client hides pay UI.
+- In-flight PaymentIntents remain valid on Stripe side; they'll either
+  succeed or auto-cancel after 7 days (Stripe default). No action needed.
+- Webhooks continue arriving while flag is off; idempotency keeps them
+  correct. No DLQ growth expected from this rollback.

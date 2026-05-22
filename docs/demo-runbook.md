@@ -2,7 +2,20 @@
 
 Stakeholder-facing demo of Frank-Pilot CDPC vs. **gpmglv.com** (the affordable-housing operator we benchmark against). Use this when walking through the product live — investor pitch, operator prospect call, HUD/auditor preview.
 
-**Last updated:** 2026-05-22 — main at `b376800` (after gpmglv wedges 1/2/6 shipped: W0 AMI prefill, sitemap env-flip + Step1 CTA portal, i18n EN-ES parity + CI guard).
+**Last updated:** 2026-05-22 (late) — main at `8603702`. Today's amplification ships landed: 24h claim countdown, analytics-consent gating, plus the operator-side QA bundle viewer.
+
+---
+
+## Recent ships (2026-05-22)
+
+What changed on screen since the morning version of this runbook:
+
+- **Wedge #4 (claim countdown)** — the "Your claim holds for 24h" banner at the top of the apply wizard (Step 6+) now ticks down live in `{hours}h {minutes}m` format and flips to a muted "expired" label past the 24h mark. EN + ES parity. Tick cadence is 60s. (PR #124)
+- **Wedge #5 (waitlist branch)** — when an applicant lands on a property with zero qualifying units, the Pick step now offers a waitlist-join branch with a "Check your position" CTA on confirm. Outcome flows end-to-end as `waitlisted` (no more dead-end). (PR #122, shipped earlier today.)
+- **Wedge #8 (live discover)** — `/discover` now reads from the live `/api/properties` endpoint (public, no auth). Bedroom + AMI filters work against real backend data. (PRs #105, #119)
+- **Wedge #9 (rent + AMI on cards)** — property tiles disclose rent ranges and the AMI tier chip publicly. (PR #72)
+- **Wedge #15 (analytics consent)** — analytics vendors are now consent-gated. `initAnalytics()` is a no-op unless the user has accepted analytics in the cookie banner; a user who accepts mid-session gets instrumented without a reload (no page bounce). `VITE_ANALYTICS_VENDOR` defaults to `none`. Demo behavior is unchanged unless that flag is flipped. (PR #126)
+- **Operator QA bundle viewer** — the `frank-qa-screenshots` bucket is now consumable in-app at `/qa-bundles` (operator portal, `regional_manager+`). Lists recent bundles, renders the PNG + JSON sidecar + rrweb replay inline. Not in the applicant demo path — mention only if an operator audience asks "how do you triage tenant-side bugs?" **Bucket lockdown is open follow-up work**: the bucket is currently public-read; do not show this surface to a security-conscious operator without the lockdown PR landed. (PR #103)
 
 ---
 
@@ -72,13 +85,13 @@ The full applicant journey. Use this for operator demos.
    - Step 3 (Intent) — **AMI tier is already filled in** from the W0 calculator on the landing page. No re-asking.
    - Step 4 (Checklist) — documents required.
    - Step 5 (Pick) — unit picker, AMI-aware list.
-   - Step 6 (Claim) — **the plant-a-flag moment.** Pick a unit, click "Claim this unit." Confetti / claim success state. Top of the page shows "Your claim holds for 24h."
-   - Talking point: "The carrot. Once they've claimed a unit, finishing the application is closing a loop, not opening one. Operators see ~3× completion vs. unclaimed flows."
+   - Step 6 (Claim) — **the plant-a-flag moment.** Pick a unit, click "Claim this unit." Confetti / claim success state. Top of the page shows a **live 24h countdown** ("Your claim holds for `23h 58m`") that ticks down in real time. Past expiry it flips to a muted "Claim expired" label. (Wedge #4, PR #124.)
+   - Talking point: "The carrot, with a timer. Once they've claimed a unit, finishing the application is closing a loop, not opening one — and the visible countdown turns 'finish later' into 'finish now.' Operators see ~3× completion vs. unclaimed flows."
    - Steps 7-9 (Household / Review / Payment scaffold / Confirm) — flip through quickly; payment is a fake-Stripe stub.
 
 5. **Switch language.** Bottom-right of layout: language switcher → ES. Entire surface translates including the wizard, property card chips, AMI disclosure, cookie banner. Talking point: "Title VI compliance reflex. They're English-only."
 
-6. **Cookie banner.** Fresh incognito = banner fires on first paint. Three options: Accept all / Reject non-essential / Customize. Customize opens a four-category modal (Essential / Functional / Analytics / Marketing). Talking point: "FCRA-adjacent posture. They have no banner and a 200-word privacy page."
+6. **Cookie banner.** Fresh incognito = banner fires on first paint. Three options: Accept all / Reject non-essential / Customize. Customize opens a four-category modal (Essential / Functional / Analytics / Marketing). Analytics is the live wire: **no vendor script loads unless the user explicitly opts in** (wedge #15, PR #126). If a user accepts mid-session, instrumentation activates without a reload — no awkward bounce. Talking point: "FCRA-adjacent posture. They have no banner and a 200-word privacy page. Ours doesn't even load the tracker until the user says yes."
 
 7. **SEO surfaces (close on this).**
    - Open `https://frank-pilot-tenant.vercel.app/robots.txt` — 200, points to sitemap.
@@ -115,7 +128,7 @@ Avoid: any property where the deterministic seed assigns it ≤2 available units
 | Languages | EN only | EN + ES, every surface, switchable |
 | Captcha / anti-spam | none | Turnstile + 30 req/min/IP outer ring + 5 req/min/(IP,email) inner ring |
 | Cookie posture | no `Set-Cookie`, thin policy | banner + 4-category consent store + real policy pages |
-| Waitlist | submit-and-disappear | position-aware (counter is the next amplify slice) |
+| Waitlist | submit-and-disappear | position-aware: zero-units path routes to waitlist-join with a "Check your position" CTA on confirm (wedge #5) |
 | Auth | none on tenant side | magic-link via Resend, no passwords |
 | Mobile apply UX | responsive but flow doesn't exist | sticky bottom CTA, `100dvh`, `visualViewport` keyboard handling, tap-target sized |
 
@@ -126,8 +139,9 @@ Avoid: any property where the deterministic seed assigns it ≤2 available units
 **Operators (the buyer)**
 - Applicants self-qualify before they ever hit your leasing office (AMI W0 pre-qualifier).
 - Live availability surfaced publicly = less inbound phone time on "is anything open?"
-- Position-aware waitlist closes the lead loop (no submit-and-vanish).
-- Unit-claim carrot drives wizard completion ~3× vs. unclaimed funnels.
+- Position-aware waitlist closes the lead loop (zero-units → waitlist-join branch, no submit-and-vanish).
+- Unit-claim carrot drives wizard completion ~3× vs. unclaimed funnels — now with a visible 24h countdown that turns "finish later" into "finish now."
+- Operator-side QA bundle viewer (`/qa-bundles`) — applicant screenshots + JSON sidecar + rrweb session replay all in-portal, gated to `regional_manager+`. Surface this if asked "how do you triage tenant-side bugs?" *(Bucket lockdown is an open follow-up — do not show this to a security audience until that lands.)*
 
 **HUD / auditors / fair-housing reviewers**
 - AMI tier disclosed on every property card (not buried in PDF).
@@ -191,8 +205,8 @@ If any of the first three return 404: check Vercel deployment status. If the API
 ## What's not in the demo (intentionally parked)
 
 - **Resident portal (post-move-in):** rent payment, lease document storage, maintenance ticketing. Stage 2 — separate sales motion.
-- **Real Stripe wiring:** payment-step scaffold has BP-03b tape beacons but no live Stripe. Follow-up slice (BP-08).
-- **Waitlist position counter:** position-aware infrastructure is shipped; the visible counter ("#142 of 287 for Meacham 1BR") is the next amplify wedge.
+- **Real Stripe wiring:** payment-step scaffold has BP-03b tape beacons but no live Stripe. Spec is at `docs/bp-08-stripe-spec.md` (PR #82, merged); server slice is in flight (PR #123, open). Operator-side cutover procedure is in [`operator-runbook.md`](operator-runbook.md#bp-08-stripe-payments-operator-facing).
+- **Waitlist position counter:** zero-units → waitlist-join branch is wired (wedge #5) with a "Check your position" CTA on confirm; the visible position counter UI ("#142 of 287 for Meacham 1BR") is the next amplify wedge.
 - **Real per-property photography + amenities:** content task, unblocks JSON-LD `image` field + richer `amenityFeature` arrays.
 
 ---
