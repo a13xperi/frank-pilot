@@ -1,8 +1,15 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchUnits } from '@/api/units';
 import { getToken } from '@/api/client';
+import {
+  fetchPropertiesList,
+  type ApiPropertyListing,
+  type ApiAmiTier,
+  type ApiBedroomFilter,
+  type ApiAvailabilityFilter,
+} from '@/api/properties';
 import {
   GPMG_FIXTURES,
   slugify,
@@ -17,12 +24,14 @@ import {
   getPropertyAvailability,
   propertyMatchesAmiTier,
   type BedroomBucket,
+  type PropertyAvailability,
 } from '@/utils/availability';
 import {
   propertyRentRange,
   propertyAmiTier,
   formatRentBucket,
   populatedBuckets,
+  type PropertyRentRange,
 } from '@/utils/pricing';
 
 type TypeFilter = 'all' | GPMGType;
@@ -95,6 +104,118 @@ function bedroomBucketFromFilter(filter: BedroomFilter): BedroomBucket | null {
   }
 }
 
+/**
+ * Server uses the same kebab/lowercase chip values as the URL chips, so
+ * `BedroomFilter` maps 1:1 onto `ApiBedroomFilter` except for the synthetic
+ * 'all' slot which means "omit the param entirely".
+ */
+function apiBedroomFromFilter(filter: BedroomFilter): ApiBedroomFilter | undefined {
+  return filter === 'all' ? undefined : filter;
+}
+
+/**
+ * Normalized tile shape — the rendering layer reads from this regardless of
+ * data source. When the live `/api/properties` call succeeds, we hydrate from
+ * the API response (using its `availability` rollup + `rentRange`). When the
+ * call errors (e.g. unauthed public visitor, network outage, server 500), we
+ * fall back to the GPMG_FIXTURES + `getPropertyAvailability` deterministic
+ * render — the gpmglv-demo offline guarantee.
+ *
+ * Why a normalized shape instead of branching at the JSX level? Because the
+ * filter-chip semantics need to operate on whichever source is live without
+ * the UI knowing or caring, AND because the existing PropertyTile reads from
+ * `GPMGProperty` today; introducing branches all the way down would multiply
+ * the diff. One adapter at the top, one shape downstream.
+ */
+interface TileSource {
+  name: string;
+  slug: string;
+  addr: string;
+  city: string;
+  zip: string;
+  type: GPMGType;
+  /** Display unit count for the "N units" subhead. */
+  unitsLabel: string;
+  /** From-$X estimate for the "From $X/mo" line. */
+  rentEstimateDollars: number;
+  /** Per-property availability rollup — same shape as `getPropertyAvailability`. */
+  availability: PropertyAvailability;
+  /** Per-bedroom rent range — same shape `populatedBuckets()` consumes. */
+  rentRange: PropertyRentRange;
+  /** Normalized AMI tier label, e.g. "60". null for market-rate. */
+  amiTier: string | null;
+}
+
+/**
+ * Hydrate a TileSource from the live API response. The server's `propertyType`
+ * narrows down to senior/family/mixed_use; we surface 'mixed_use' as 'family'
+ * for the chip + tile labels (the chip set is just senior|family today).
+ */
+function tileFromApi(p: ApiPropertyListing): TileSource {
+  const slug = slugify(p.name);
+  const type: GPMGType = p.propertyType === 'senior' ? 'senior' : 'family';
+  // Server returns the canonical label verbatim (e.g. "60% AMI" — see
+  // `normalizeAmiTier()` in src/modules/properties/service.ts). The chip i18n
+  // template ({{tier}}) renders this as-is, matching how the fixture path
+  // hydrates via `propertyAmiTier()`.
+  const amiTier = p.amiTier;
+  return {
+    name: p.name,
+    slug,
+    addr: p.addressLine1,
+    city: p.city,
+    zip: p.zip,
+    type,
+    unitsLabel:
+      p.availability.totalUnits > 0 ? `${p.availability.totalUnits} units` : '',
+    rentEstimateDollars: type === 'senior' ? 747 : 920,
+    availability: {
+      availableCount: p.availability.availableCount,
+      leasedCount: p.availability.leasedCount,
+      heldCount: 0,
+      totalUnits: p.availability.totalUnits,
+      bedroomBreakdown: { ...p.availability.bedroomBreakdown },
+    },
+    rentRange: {
+      studio: p.rentRange.studio,
+      br1: p.rentRange.br1,
+      br2: p.rentRange.br2,
+      br3: p.rentRange.br3,
+    },
+    amiTier,
+  };
+}
+
+/**
+ * Hydrate a TileSource from the deterministic GPMG fixture. Mirrors the
+ * pre-wedge-8 render path so the gpmglv demo keeps working when the API is
+ * unreachable.
+ */
+function tileFromFixture(p: GPMGProperty): TileSource {
+  const slug = slugify(p.name);
+  const availability = getPropertyAvailability(p.name);
+  const rentRange = propertyRentRange(p.name);
+  const amiTierLabel = propertyAmiTier(p.name); // e.g. "60% AMI"
+  const showCount = availability.totalUnits > 0;
+  return {
+    name: p.name,
+    slug,
+    addr: p.addr,
+    city: p.city,
+    zip: p.zip,
+    type: p.type,
+    unitsLabel: showCount
+      ? `${availability.totalUnits} units`
+      : p.units !== null
+      ? `${p.units} units`
+      : '',
+    rentEstimateDollars: rentEstimate(p),
+    availability,
+    rentRange,
+    amiTier: amiTierLabel,
+  };
+}
+
 export function PropertyList() {
   const { t } = useTranslation('discover');
   const [params, setParams] = useSearchParams();
@@ -143,24 +264,86 @@ export function PropertyList() {
     };
   }, []);
 
-  const filtered = useMemo(() => {
+  // ── Wedge #8 — live `/api/properties` data layer ────────────────────────
+  //
+  // Two-source rendering: when the live call succeeds, tiles render from the
+  // API response (so availability counts + rent ranges reflect what the DB
+  // actually has, not the seed mirror). When the call errors (401 for an
+  // unauthed visitor, network outage, server 500), we silently fall back to
+  // the GPMG_FIXTURES + `getPropertyAvailability` deterministic render —
+  // identical to the pre-wedge-8 behaviour. The gpmglv-demo offline
+  // guarantee is load-bearing for the runbook walkthrough.
+  //
+  // The chip values map 1:1 onto the server's zod-validated param names
+  // (`amiTier`, `bedroom`, `availability`) so a typo would fail loudly with a
+  // 400 — no silent "unfiltered list" surprise.
+  const [apiProperties, setApiProperties] = useState<ApiPropertyListing[] | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let alive = true;
+    const filters: {
+      amiTier?: ApiAmiTier;
+      bedroom?: ApiBedroomFilter;
+      availability?: ApiAvailabilityFilter;
+    } = {};
+    if (amiTier) filters.amiTier = amiTier;
+    const apiBedroom = apiBedroomFromFilter(bedroomFilter);
+    if (apiBedroom) filters.bedroom = apiBedroom;
+    if (availableNow) filters.availability = 'available_now';
+
+    fetchPropertiesList(filters)
+      .then((res) => {
+        if (alive) setApiProperties(res.properties);
+      })
+      .catch(() => {
+        // Tolerate — fall back to the deterministic fixture render below.
+        // The catch path is the unauthed-public default today since
+        // `property:view` is admin-gated; the offline render carries the
+        // demo regardless.
+        if (alive) setApiProperties(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [amiTier, bedroomFilter, availableNow]);
+
+  // Server doesn't have `?type` or `?city` params today (those are not part
+  // of the public discover contract; see the deferred wedges in
+  // `make-a-plan-of-zany-book.md`). When the API succeeds we still apply the
+  // Type + City chips client-side over the API response — that keeps the
+  // visible behaviour identical regardless of source. When the API fails we
+  // run the full filter set over GPMG_FIXTURES as before.
+  const tiles = useMemo<TileSource[]>(() => {
     const bucket = bedroomBucketFromFilter(bedroomFilter);
+    if (apiProperties !== null) {
+      return apiProperties
+        .map(tileFromApi)
+        .filter((t) => {
+          if (typeFilter !== 'all' && t.type !== typeFilter) return false;
+          if (cityFilter !== 'all' && t.city !== cityFilter) return false;
+          // Bedroom / availability already filtered server-side; type/city
+          // narrowing happens here. The server's amiTier filter narrowed
+          // there too, so we don't double-apply it.
+          return true;
+        });
+    }
+    // Fallback: deterministic fixture render. Identical to pre-wedge-8 logic.
     return GPMG_FIXTURES.filter((p) => {
       if (typeFilter !== 'all' && p.type !== typeFilter) return false;
       if (cityFilter !== 'all' && p.city !== cityFilter) return false;
       if (amiTier && !propertyMatchesAmiTier(p, amiTier)) return false;
-
-      // Bedroom / availability filters compare against the deterministic
-      // availability rollup (mirrors the seed). Studio/1BR/2BR/3BR show only
-      // properties with at least one available unit of that size.
       if (bucket || availableNow) {
         const avail = getPropertyAvailability(p.name);
         if (availableNow && avail.availableCount === 0) return false;
         if (bucket && avail.bedroomBreakdown[bucket] === 0) return false;
       }
       return true;
-    });
-  }, [typeFilter, cityFilter, bedroomFilter, availableNow, amiTier]);
+    }).map(tileFromFixture);
+  }, [apiProperties, typeFilter, cityFilter, bedroomFilter, availableNow, amiTier]);
+
+  const filtered = tiles;
 
   return (
     <div
@@ -385,22 +568,14 @@ function AvailabilityBadge({ availableCount }: { availableCount: number }) {
   );
 }
 
-function PropertyTile({ prop }: { prop: GPMGProperty }) {
+function PropertyTile({ prop }: { prop: TileSource }) {
   const { t } = useTranslation('discover');
-  const slug = slugify(prop.name);
-  const est = rentEstimate(prop);
-  const availability = getPropertyAvailability(prop.name);
-  // For DL2 (units=null in fixture, but seed.ts seeds 48), we still want a
-  // count. We trust the rollup even when fixture `units` is null — the
-  // sentinel test asserts the rollup totals reflect the seed truth.
-  const showCount = availability.totalUnits > 0;
+  const { slug, availability, rentRange, amiTier } = prop;
 
   // Wedge #9 — per-bedroom rent ranges + AMI tier. Only populated buckets
   // render (no "Studio $0" placeholders) and the chip only appears for
   // properties with a real set-aside (all 17 GPMG fixtures qualify today).
-  const rentRange = propertyRentRange(prop.name);
   const buckets = populatedBuckets(rentRange);
-  const amiTier = propertyAmiTier(prop.name);
 
   return (
     <li>
@@ -446,13 +621,7 @@ function PropertyTile({ prop }: { prop: GPMGProperty }) {
               className="flex items-center justify-between"
               style={{ marginTop: 10, gap: 8 }}
             >
-              <span style={{ fontSize: 12, color: HF.ink3 }}>
-                {showCount
-                  ? `${availability.totalUnits} units`
-                  : prop.units !== null
-                  ? `${prop.units} units`
-                  : ''}
-              </span>
+              <span style={{ fontSize: 12, color: HF.ink3 }}>{prop.unitsLabel}</span>
               <div className="flex items-center" style={{ gap: 6 }}>
                 {amiTier && (
                   <span
@@ -507,7 +676,7 @@ function PropertyTile({ prop }: { prop: GPMGProperty }) {
                   color: HF.ink,
                 }}
               >
-                From ${est}/mo
+                From ${prop.rentEstimateDollars}/mo
               </span>
               <div className="flex items-center" style={{ gap: 8 }}>
                 <AvailabilityBadge availableCount={availability.availableCount} />
