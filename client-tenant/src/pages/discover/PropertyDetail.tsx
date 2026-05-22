@@ -18,6 +18,7 @@ import {
   type BedroomBucket as PricingBedroomBucket,
 } from '@/utils/pricing';
 import { AMI_TABLES } from '@/lib/ami';
+import { PropertyJsonLd } from '@/components/PropertyJsonLd';
 
 // Household sizes 1–8 for the HUD income-limits disclosure (per spec).
 const HOUSEHOLD_SIZES: ReadonlyArray<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8> = [
@@ -143,6 +144,10 @@ export function PropertyDetail() {
     <div
       style={{ background: HF.cream, minHeight: '100vh', fontFamily: HF.body, color: HF.ink }}
     >
+      {/* wedge #14 — RealEstateListing JSON-LD. Renders null; injects a single
+          <script type="application/ld+json"> into <head> for the lifetime of
+          the page. No visual impact. */}
+      <PropertyJsonLd property={prop} />
       <div className="mx-auto max-w-3xl">
         <div className="relative">
           <div
