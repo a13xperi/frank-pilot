@@ -79,11 +79,11 @@ app.get("/health", async (_req, res) => {
     dbStatus = r.rows[0]?.ok === 1 ? "ok" : "unexpected";
   } catch (err) {
     dbStatus = "error";
+    logger.error("/health DB ping failed", { error: (err as Error).message });
     res.status(503).json({
       status: "degraded",
       service: "frank-pilot",
       db: dbStatus,
-      error: (err as Error).message,
       timestamp: new Date().toISOString(),
     });
     return;
