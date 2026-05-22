@@ -528,10 +528,12 @@ const waitlistJoinSchema = z.object({
 // POST /properties/:slug/waitlist-join — body { bedrooms }
 // Idempotent: re-joining the same (property, bedroom_count) is a no-op and
 // returns the existing position (does NOT shuffle the applicant to the back).
+// wedge #13: Turnstile fires first (anti-spam), then per-user rate-limit.
 router.post(
   "/properties/:slug/waitlist-join",
   authenticate,
   requireEmailVerified,
+  verifyTurnstile(),
   unitWriteLimiter,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {

@@ -116,7 +116,9 @@
     "continue": "Continuar tu solicitud",
     "pickDifferent": "Elegir otra unidad",
     "noActive": "Sin reserva activa — vamos a elegir una unidad.",
-    "startOver": "Empezar de nuevo"
+    "startOver": "Empezar de nuevo",
+    "expiresIn": "vence en {{hours}}h {{minutes}}m",
+    "expired": "vencida"
   },
   "details": {
     "title": "Detalles de la solicitud",

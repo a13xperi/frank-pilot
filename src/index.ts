@@ -5,6 +5,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { logger } from "./utils/logger";
+import { resolveCorsOrigin } from "./utils/cors-origin";
 import { authenticate, login, AuthRequest } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
 import { queryAuditLog } from "./middleware/audit";
@@ -55,13 +56,18 @@ const PORT = parseInt(process.env.PORT || "3000");
 
 // Security middleware
 app.use(helmet());
-// HIGH-2 (SECURITY-AUDIT-2026-05-21): fail closed on CORS — refuse to boot
-// without an explicit allow-list. Wildcard fallback removed.
-const corsOrigin = process.env.CORS_ORIGIN;
-if (!corsOrigin) {
-  throw new Error("CORS_ORIGIN is required (no wildcard fallback)");
+// HIGH-2 (SECURITY-AUDIT-2026-05-21): fail closed on CORS — production
+// refuses to boot without an explicit allow-list (mirrors the JWT_SECRET /
+// ENCRYPTION_KEY gate above). Dev/test fall back to localhost so `npm start`
+// works out of the box. See src/utils/cors-origin.ts + unit tests.
+let corsOrigins: string[];
+try {
+  corsOrigins = resolveCorsOrigin(process.env);
+} catch (err) {
+  console.error((err as Error).message);
+  process.exit(1);
 }
-app.use(cors({ origin: corsOrigin.split(",").map((s) => s.trim()) }));
+app.use(cors({ origin: corsOrigins }));
 app.use(express.json({ limit: "1mb" }));
 
 // Request logging (PII-safe)

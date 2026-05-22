@@ -12,7 +12,13 @@
  * that no raw card values appear in DB writes or audit logs.
  */
 
+import type { QueryResult } from "pg";
 import { PaymentService } from "../modules/payment/service";
+
+/** Wrap rows in a minimal QueryResult shape without casting to `any`. */
+function qr<T extends Record<string, unknown>>(rows: T[]): QueryResult<T> {
+  return { rows } as unknown as QueryResult<T>;
+}
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -81,7 +87,7 @@ describe("PaymentService.createCustomer — stub (Stripe not configured)", () =>
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY; // ensure stub path
     mockAuditLog.mockResolvedValue(undefined);
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
     service = new PaymentService();
   });
 
@@ -157,7 +163,7 @@ describe("PaymentService.createCustomer — live Stripe path", () => {
     mockStripePaymentMethodsAttach.mockReset();
     process.env = { ...originalEnv, STRIPE_SECRET_KEY: "sk_test_real123" };
     mockAuditLog.mockResolvedValue(undefined);
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
     mockStripeCustomersCreate.mockResolvedValue({ id: "cus_live_001" });
     service = new PaymentService();
   });
@@ -251,9 +257,7 @@ describe("PaymentService.setupPaymentMethod", () => {
   });
 
   it("throws when no stripe_customer_id exists on the application", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [makeApp({ stripe_customer_id: null })],
-    } as any);
+    mockQuery.mockResolvedValueOnce(qr([makeApp({ stripe_customer_id: null })]));
 
     await expect(
       service.setupPaymentMethod({
@@ -267,8 +271,8 @@ describe("PaymentService.setupPaymentMethod", () => {
 
   it("saves payment_method and stripe_payment_method_id to DB", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [makeApp()] } as any) // getApplication
-      .mockResolvedValueOnce({ rows: [] } as any);          // UPDATE
+      .mockResolvedValueOnce(qr([makeApp()])) // getApplication
+      .mockResolvedValueOnce(qr([]));          // UPDATE
 
     await service.setupPaymentMethod({
       applicationId: "app-001",
@@ -286,8 +290,8 @@ describe("PaymentService.setupPaymentMethod", () => {
 
   it("writes a payment_setup audit log with step=payment_method_attached", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [makeApp()] } as any)
-      .mockResolvedValueOnce({ rows: [] } as any);
+      .mockResolvedValueOnce(qr([makeApp()]))
+      .mockResolvedValueOnce(qr([]));
 
     await service.setupPaymentMethod({
       applicationId: "app-001",
@@ -309,8 +313,8 @@ describe("PaymentService.setupPaymentMethod", () => {
 
   it("returns success:true with the paymentType", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [makeApp()] } as any)
-      .mockResolvedValueOnce({ rows: [] } as any);
+      .mockResolvedValueOnce(qr([makeApp()]))
+      .mockResolvedValueOnce(qr([]));
 
     const result = await service.setupPaymentMethod({
       applicationId: "app-001",
@@ -329,8 +333,8 @@ describe("PaymentService.setupPaymentMethod", () => {
     service = new PaymentService();
 
     mockQuery
-      .mockResolvedValueOnce({ rows: [makeApp({ stripe_customer_id: "cus_abc" })] } as any)
-      .mockResolvedValueOnce({ rows: [] } as any);
+      .mockResolvedValueOnce(qr([makeApp({ stripe_customer_id: "cus_abc" })]))
+      .mockResolvedValueOnce(qr([]));
 
     await service.setupPaymentMethod({
       applicationId: "app-001",
@@ -364,7 +368,7 @@ describe("PaymentService.enrollAutoPay", () => {
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY;
     mockAuditLog.mockResolvedValue(undefined);
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
     service = new PaymentService();
   });
 
@@ -373,9 +377,7 @@ describe("PaymentService.enrollAutoPay", () => {
   });
 
   it("throws when no payment method is set up", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [makeApp({ stripe_payment_method_id: null })],
-    } as any);
+    mockQuery.mockResolvedValueOnce(qr([makeApp({ stripe_payment_method_id: null })]));
 
     await expect(
       service.enrollAutoPay({ applicationId: "app-001", ...baseActor })
@@ -384,8 +386,8 @@ describe("PaymentService.enrollAutoPay", () => {
 
   it("returns enrolled:true and monthlyDiscount:25", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [makeApp()] } as any)
-      .mockResolvedValueOnce({ rows: [] } as any);
+      .mockResolvedValueOnce(qr([makeApp()]))
+      .mockResolvedValueOnce(qr([]));
 
     const result = await service.enrollAutoPay({
       applicationId: "app-001",
@@ -397,8 +399,8 @@ describe("PaymentService.enrollAutoPay", () => {
 
   it("sets auto_pay_enrolled=true in DB", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [makeApp()] } as any)
-      .mockResolvedValueOnce({ rows: [] } as any);
+      .mockResolvedValueOnce(qr([makeApp()]))
+      .mockResolvedValueOnce(qr([]));
 
     await service.enrollAutoPay({ applicationId: "app-001", ...baseActor });
 
@@ -411,8 +413,8 @@ describe("PaymentService.enrollAutoPay", () => {
 
   it("writes auto_pay_enrolled audit log with monthlyDiscount:25", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [makeApp()] } as any)
-      .mockResolvedValueOnce({ rows: [] } as any);
+      .mockResolvedValueOnce(qr([makeApp()]))
+      .mockResolvedValueOnce(qr([]));
 
     await service.enrollAutoPay({ applicationId: "app-001", ...baseActor });
 
@@ -447,15 +449,13 @@ describe("PaymentService.getPaymentStatus", () => {
   });
 
   it("returns null when application is not found", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    mockQuery.mockResolvedValueOnce(qr([]));
 
     expect(await service.getPaymentStatus("app-missing")).toBeNull();
   });
 
   it("returns effectiveRent equal to requestedRent when auto-pay is not enrolled", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [makeApp({ auto_pay_enrolled: false, requested_rent_amount: "1500" })],
-    } as any);
+    mockQuery.mockResolvedValueOnce(qr([makeApp({ auto_pay_enrolled: false, requested_rent_amount: "1500" })]));
 
     const status = await service.getPaymentStatus("app-001");
 
@@ -465,9 +465,7 @@ describe("PaymentService.getPaymentStatus", () => {
   });
 
   it("deducts $25 from effectiveRent when auto-pay is enrolled", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [makeApp({ auto_pay_enrolled: true, requested_rent_amount: "1500" })],
-    } as any);
+    mockQuery.mockResolvedValueOnce(qr([makeApp({ auto_pay_enrolled: true, requested_rent_amount: "1500" })]));
 
     const status = await service.getPaymentStatus("app-001");
 
@@ -477,9 +475,7 @@ describe("PaymentService.getPaymentStatus", () => {
   });
 
   it("floors effectiveRent at $0 when rent is less than the $25 discount", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [makeApp({ auto_pay_enrolled: true, requested_rent_amount: "20" })],
-    } as any);
+    mockQuery.mockResolvedValueOnce(qr([makeApp({ auto_pay_enrolled: true, requested_rent_amount: "20" })]));
 
     const status = await service.getPaymentStatus("app-001");
 
@@ -487,9 +483,7 @@ describe("PaymentService.getPaymentStatus", () => {
   });
 
   it("reports hasPaymentMethod=true when stripe_payment_method_id is set", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [makeApp({ stripe_payment_method_id: "pm_abc" })],
-    } as any);
+    mockQuery.mockResolvedValueOnce(qr([makeApp({ stripe_payment_method_id: "pm_abc" })]));
 
     const status = await service.getPaymentStatus("app-001");
 
@@ -498,9 +492,7 @@ describe("PaymentService.getPaymentStatus", () => {
   });
 
   it("reports hasPaymentMethod=false and hasCustomer=false when not configured", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [makeApp({ stripe_customer_id: null, stripe_payment_method_id: null })],
-    } as any);
+    mockQuery.mockResolvedValueOnce(qr([makeApp({ stripe_customer_id: null, stripe_payment_method_id: null })]));
 
     const status = await service.getPaymentStatus("app-001");
 
@@ -509,9 +501,7 @@ describe("PaymentService.getPaymentStatus", () => {
   });
 
   it("defaults requestedRent to 0 when requested_rent_amount is null", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [makeApp({ requested_rent_amount: null })],
-    } as any);
+    mockQuery.mockResolvedValueOnce(qr([makeApp({ requested_rent_amount: null })]));
 
     const status = await service.getPaymentStatus("app-001");
 
