@@ -373,7 +373,11 @@ describe("POST /webhook — dispatch failure → DLQ", () => {
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
     // recordPayment throws — simulates ledger/DB outage.
     mockRecordPayment.mockRejectedValue(new Error("ledger DB connection lost"));
-    // recordDlq: INSERT into stripe_webhook_dlq.
+    // recordDlq path: (1) alreadyParked SELECT → not yet parked.
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // (2) activeDlqRowCount → comfortably under cap.
+    mockQuery.mockResolvedValueOnce({ rows: [{ count: 3 }] } as any);
+    // (3) the actual DLQ INSERT.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
 
     const res = await request(app)
@@ -384,10 +388,11 @@ describe("POST /webhook — dispatch failure → DLQ", () => {
 
     expect(res.status).toBe(200);
 
-    // Assert the DLQ insert happened — the second mockQuery call, with the DLQ SQL.
-    const dlqCall = mockQuery.mock.calls.find((c) =>
-      String(c[0]).includes("stripe_webhook_dlq")
-    );
+    // Assert the DLQ INSERT happened.
+    const dlqCall = mockQuery.mock.calls.find((c) => {
+      const sql = String(c[0]);
+      return sql.includes("stripe_webhook_dlq") && /INSERT/i.test(sql);
+    });
     expect(dlqCall).toBeDefined();
 
     // The stripe_processed_events INSERT must NOT happen when dispatch failed
@@ -399,5 +404,144 @@ describe("POST /webhook — dispatch failure → DLQ", () => {
       return sql.includes("stripe_processed_events") && /INSERT/i.test(sql);
     });
     expect(processedInsertCall).toBeUndefined();
+  });
+
+  it("skips the DLQ INSERT (still 200) when the active backlog is at the cap", async () => {
+    // Audit L1.1 fix 2: a buggy handler under load could grow stripe_webhook_dlq
+    // unbounded. Once active rows (attempt_count < 5) reach 10000 we log a warn
+    // and stop inserting NEW rows — Stripe still gets a 200.
+    const event = paymentIntentSucceededEvent({ id: "evt_dlq_cap_001" });
+    const payload = JSON.stringify(event);
+    const sig = signedHeader(payload);
+
+    // alreadyProcessed: no.
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    mockRecordPayment.mockRejectedValue(new Error("ledger DB connection lost"));
+    // recordDlq path: (1) alreadyParked SELECT → not parked.
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // (2) activeDlqRowCount → AT the cap.
+    mockQuery.mockResolvedValueOnce({ rows: [{ count: 10000 }] } as any);
+
+    const res = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("Stripe-Signature", sig)
+      .send(payload);
+
+    expect(res.status).toBe(200);
+
+    // No DLQ INSERT was issued — the cap short-circuited before it.
+    const dlqInsert = mockQuery.mock.calls.find((c) => {
+      const sql = String(c[0]);
+      return sql.includes("stripe_webhook_dlq") && /INSERT/i.test(sql);
+    });
+    expect(dlqInsert).toBeUndefined();
+  });
+
+  it("still bumps an already-parked DLQ row even when the backlog is at the cap", async () => {
+    // The cap gates NEW rows only — an event already in the DLQ must keep
+    // getting its attempt_count bumped so we don't lose retry tracking.
+    const event = paymentIntentSucceededEvent({ id: "evt_dlq_parked_001" });
+    const payload = JSON.stringify(event);
+    const sig = signedHeader(payload);
+
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // alreadyProcessed
+    mockRecordPayment.mockRejectedValue(new Error("ledger DB connection lost"));
+    // recordDlq: alreadyParked SELECT → row exists → skip the cap check.
+    mockQuery.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] } as any);
+    // the UPSERT (bumps attempt_count).
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+
+    const res = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("Stripe-Signature", sig)
+      .send(payload);
+
+    expect(res.status).toBe(200);
+
+    // The UPSERT ran (no COUNT(*) gate was consulted).
+    const dlqInsert = mockQuery.mock.calls.find((c) => {
+      const sql = String(c[0]);
+      return sql.includes("stripe_webhook_dlq") && /INSERT/i.test(sql);
+    });
+    expect(dlqInsert).toBeDefined();
+    const countCall = mockQuery.mock.calls.find((c) =>
+      /COUNT\(\*\)/i.test(String(c[0]))
+    );
+    expect(countCall).toBeUndefined();
+  });
+});
+
+// ── Livemode mismatch guard ────────────────────────────────────────────────
+
+describe("POST /webhook — livemode mismatch", () => {
+  const savedFlag = process.env.STRIPE_LIVE_ENABLED;
+  afterEach(() => {
+    if (savedFlag === undefined) delete process.env.STRIPE_LIVE_ENABLED;
+    else process.env.STRIPE_LIVE_ENABLED = savedFlag;
+  });
+
+  function liveSucceededEvent() {
+    const e = paymentIntentSucceededEvent({ id: "evt_live_001" });
+    return { ...e, livemode: true };
+  }
+
+  it("returns 400 when a live event hits a test-mode deployment (flag off)", async () => {
+    // Audit L1.1 fix 3.
+    delete process.env.STRIPE_LIVE_ENABLED; // flag off → test mode
+    const payload = JSON.stringify(liveSucceededEvent());
+    const sig = signedHeader(payload);
+
+    const res = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("Stripe-Signature", sig)
+      .send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/livemode mismatch/i);
+    // Rejected before any processing — no DB lookups, no ledger.
+    expect(mockRecordPayment).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when a test event hits a live-mode deployment (flag on)", async () => {
+    process.env.STRIPE_LIVE_ENABLED = "true"; // live mode
+    const payload = JSON.stringify(paymentIntentSucceededEvent({ id: "evt_test_at_live_001" })); // livemode:false
+    const sig = signedHeader(payload);
+
+    const res = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("Stripe-Signature", sig)
+      .send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/livemode mismatch/i);
+    expect(mockRecordPayment).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("processes normally when livemode matches the flag (test event, flag off)", async () => {
+    delete process.env.STRIPE_LIVE_ENABLED;
+    const event = paymentIntentSucceededEvent({ id: "evt_match_001" });
+    const payload = JSON.stringify(event); // livemode:false, flag off → match
+    const sig = signedHeader(payload);
+
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // alreadyProcessed
+    mockRecordPayment.mockResolvedValue({ id: "led-002", applicationId: APP_ID });
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // markStatus
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // audit
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // markProcessed
+
+    const res = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("Stripe-Signature", sig)
+      .send(payload);
+
+    expect(res.status).toBe(200);
+    expect(mockRecordPayment).toHaveBeenCalled();
   });
 });
