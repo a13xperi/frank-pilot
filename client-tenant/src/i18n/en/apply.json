@@ -96,6 +96,9 @@
     "fallbackBanner": "No exact matches. Here are the closest options — your preferences are noted on each card.",
     "adjust": "Adjust your search",
     "editPrefs": "← Edit preferences",
+    "waitlistCta": "Join the waitlist instead",
+    "waitlistLoading": "Joining waitlist…",
+    "waitlistError": "Could not join the waitlist",
     "claimError": "Could not claim this unit",
     "loadError": "Could not load units",
     "mismatch": {

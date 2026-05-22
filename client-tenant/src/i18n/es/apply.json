@@ -96,6 +96,9 @@
     "fallbackBanner": "Sin coincidencias exactas. Estas son las opciones más cercanas — tus preferencias aparecen en cada tarjeta.",
     "adjust": "Ajustar tu búsqueda",
     "editPrefs": "← Editar preferencias",
+    "waitlistCta": "Únete a la lista de espera",
+    "waitlistLoading": "Uniéndose a la lista de espera…",
+    "waitlistError": "No se pudo unirse a la lista de espera",
     "claimError": "No se pudo reservar esta unidad",
     "loadError": "No se pudieron cargar las unidades",
     "mismatch": {
