@@ -49,8 +49,10 @@ export function PropertySelector() {
       }
     })();
     return () => { cancelled = true; };
+    // propertiesLoading intentionally excluded: the effect sets it, so including
+    // it would cancel the in-flight fetch when its own state update fires.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.claimedUnit, s.properties.length, s.propertiesLoading]);
+  }, [s.claimedUnit, s.properties.length]);
 
   return (
     <>

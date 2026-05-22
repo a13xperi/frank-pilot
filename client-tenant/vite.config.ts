@@ -11,6 +11,8 @@ export default defineConfig({
   },
   server: {
     port: 5174,
+    // Allow cloudflared/ngrok tunnel hosts when demoing the dev server externally.
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:3002',

@@ -2,8 +2,8 @@
  * ApplyContext — STUB per Contract 2 (W1/W2 will replace with canonical).
  *
  * Shape:
- *  - adults: number (default 1)
- *  - paymentTotal: string — computed as $35.95 × (adults + 1)
+ *  - adults: number (default 1, counted as total adults living here)
+ *  - paymentTotal: string — computed as $35.95 × adults
  *  - paymentRef: string | null (default null)
  *
  * Persistence: sessionStorage key `frank_apply_state`.
@@ -30,7 +30,7 @@ interface ApplyContextValue {
 }
 
 function computeTotal(adults: number): string {
-  const total = FEE * (adults + 1);
+  const total = FEE * adults;
   return total.toFixed(2);
 }
 
