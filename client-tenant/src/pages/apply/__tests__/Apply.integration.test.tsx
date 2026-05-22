@@ -5,6 +5,16 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Apply } from '../../Apply';
 import { setToken } from '@/api/client';
 
+// This integration test walks the legacy `?step=2` (Step2Details) flow.
+// `.env.local` ships PAYMENT_WIZARD_ENABLED=true for dev, which would route
+// past Step2Details into the Lane-W wizard (Review/Household/Payment/Confirm)
+// — those steps have their own per-step tests. Pin the flag off here so this
+// suite stays the legacy-path canary. flags.ts caches `import.meta.env` at
+// module load, so stubEnv is too late; mock the module instead.
+vi.mock('@/lib/flags', () => ({
+  useFlag: (name: string) => name !== 'PAYMENT_WIZARD_ENABLED',
+}));
+
 // One mock fetch covering every endpoint the flow touches.
 function installFetch() {
   const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
