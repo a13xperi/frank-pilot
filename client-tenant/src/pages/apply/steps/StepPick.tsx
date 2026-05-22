@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { fetchUnits, claimUnit, type Unit } from '@/api/units';
+import { joinWaitlist } from '@/api/properties';
 import { UnitCard, type UnitMismatch } from '@/components/UnitCard';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
@@ -95,6 +96,8 @@ export function StepPick() {
   const { t, i18n } = useTranslation('apply');
   const [isFallback, setIsFallback] = useState(false);
   const [intentSnapshot, setIntentSnapshot] = useState<IntentSnapshot | null>(null);
+  const [waitlistJoining, setWaitlistJoining] = useState(false);
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
 
   useEffect(() => {
     if (s.intentBedrooms === null || !s.intentMoveInDate) {
@@ -171,6 +174,23 @@ export function StepPick() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.intentBedrooms, s.intentBudgetMax, s.intentMoveInDate, s.qualifyingAmiTier]);
 
+  async function handleJoinWaitlist() {
+    const slug = s.propertySlug ?? 'donna-louise-2';
+    const bedrooms = s.intentBedrooms ?? 1;
+    setWaitlistJoining(true);
+    setWaitlistError(null);
+    try {
+      await joinWaitlist(slug, bedrooms);
+      s.setPropertySlug(slug);
+      s.setOutcome('waitlisted');
+      s.setStep('confirm');
+    } catch (err) {
+      setWaitlistError(err instanceof Error ? err.message : (t('pick.waitlistError') as string));
+    } finally {
+      setWaitlistJoining(false);
+    }
+  }
+
   async function handleClaim(unitId: string) {
     s.setClaimingUnitId(unitId);
     s.setError(null);
@@ -223,6 +243,22 @@ export function StepPick() {
           >
             {t('pick.adjust')}
           </button>
+          <div className="mt-3 flex flex-col gap-2">
+            <button
+              onClick={handleJoinWaitlist}
+              disabled={waitlistJoining}
+              className="font-medium underline"
+              style={{ color: HF.accent, textAlign: 'left' }}
+              data-testid="join-waitlist-cta"
+            >
+              {waitlistJoining
+                ? (t('pick.waitlistLoading') as string)
+                : (t('pick.waitlistCta') as string)}
+            </button>
+            {waitlistError && (
+              <span style={{ color: HF.err, fontSize: 12 }}>{waitlistError}</span>
+            )}
+          </div>
         </div>
       ) : (
         <>

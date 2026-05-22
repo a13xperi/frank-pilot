@@ -96,6 +96,9 @@
     "fallbackBanner": "Sin coincidencias exactas. Estas son las opciones más cercanas — tus preferencias aparecen en cada tarjeta.",
     "adjust": "Ajustar tu búsqueda",
     "editPrefs": "← Editar preferencias",
+    "waitlistCta": "Únete a la lista de espera",
+    "waitlistLoading": "Uniéndose a la lista de espera…",
+    "waitlistError": "No se pudo unirse a la lista de espera",
     "claimError": "No se pudo reservar esta unidad",
     "loadError": "No se pudieron cargar las unidades",
     "mismatch": {
@@ -113,7 +116,9 @@
     "continue": "Continuar tu solicitud",
     "pickDifferent": "Elegir otra unidad",
     "noActive": "Sin reserva activa — vamos a elegir una unidad.",
-    "startOver": "Empezar de nuevo"
+    "startOver": "Empezar de nuevo",
+    "expiresIn": "vence en {{hours}}h {{minutes}}m",
+    "expired": "vencida"
   },
   "details": {
     "title": "Detalles de la solicitud",

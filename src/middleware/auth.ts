@@ -3,6 +3,13 @@ import jwt from "jsonwebtoken";
 import { query } from "../config/database";
 import { logger } from "../utils/logger";
 
+// CRIT-1: pre-computed bcrypt hash of an arbitrary string at cost 10. Used to
+// equalize timing on the four login-failure paths (unknown user / inactive /
+// null password_hash / wrong password) so all paths spend ~80ms in bcrypt
+// rather than exposing a fast-fail oracle on the first three.
+const BCRYPT_DUMMY_HASH =
+  "$2b$10$GfTcKuu5Qsz6BxIEt2A1neJ9XZin6d0TnhZ6NRu36HlW2Ahr5jI52";
+
 const JWT_SECRET = (() => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -123,12 +130,34 @@ export async function login(email: string, password: string): Promise<{ token: s
     [email]
   );
 
-  if (result.rows.length === 0) return null;
+  // CRIT-1: close the timing + 500-vs-401 oracle on /api/auth/login. Run a
+  // dummy bcrypt.compare on every failure path so unknown user / inactive
+  // user / applicant with NULL password_hash all spend ~80ms like a real
+  // wrong-password attempt would. The catch block also falls back to the
+  // dummy compare so a thrown bcrypt error can't surface as a 500 either.
+  if (result.rows.length === 0) {
+    await bcrypt.compare(password, BCRYPT_DUMMY_HASH);
+    return null;
+  }
 
   const user = result.rows[0];
-  if (!user.is_active) return null;
+  if (!user.is_active) {
+    await bcrypt.compare(password, BCRYPT_DUMMY_HASH);
+    return null;
+  }
 
-  const valid = await bcrypt.compare(password, user.password_hash);
+  if (user.password_hash == null) {
+    await bcrypt.compare(password, BCRYPT_DUMMY_HASH);
+    return null;
+  }
+
+  let valid = false;
+  try {
+    valid = await bcrypt.compare(password, user.password_hash);
+  } catch {
+    await bcrypt.compare(password, BCRYPT_DUMMY_HASH);
+    return null;
+  }
   if (!valid) return null;
 
   // Update last login

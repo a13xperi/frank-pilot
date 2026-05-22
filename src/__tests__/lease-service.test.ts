@@ -19,9 +19,15 @@
  *   propagate and must NOT cause the service method to throw.
  */
 
+import type { QueryResult } from "pg";
 import { LeaseService } from "../modules/lease/service";
 import { query } from "../config/database";
 import { writeAuditLog } from "../middleware/audit";
+
+/** Wrap rows in a minimal QueryResult shape without casting to `any`. */
+function qr<T extends Record<string, unknown>>(rows: T[]): QueryResult<T> {
+  return { rows } as unknown as QueryResult<T>;
+}
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -119,7 +125,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("throws when application is not found", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     await expect(
@@ -128,7 +134,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("throws when application is in draft status (not an approved status)", async () => {
-    mockQuery.mockResolvedValue({ rows: [approvedAppRow({ status: "draft" })] } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow({ status: "draft" })]));
 
     const service = makeService();
     await expect(
@@ -137,7 +143,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("throws when application is in submitted status", async () => {
-    mockQuery.mockResolvedValue({ rows: [approvedAppRow({ status: "submitted" })] } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow({ status: "submitted" })]));
 
     const service = makeService();
     await expect(
@@ -146,7 +152,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("throws when application is in lease_generated status (already has lease)", async () => {
-    mockQuery.mockResolvedValue({ rows: [approvedAppRow({ status: "lease_generated" })] } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow({ status: "lease_generated" })]));
 
     const service = makeService();
     await expect(
@@ -155,9 +161,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("throws when income_verified is false (LIHTC §42 compliance gate)", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [approvedAppRow({ income_verified: false })],
-    } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow({ income_verified: false })]));
 
     const service = makeService();
     await expect(
@@ -166,9 +170,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("throws when requested_rent_amount is missing", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [approvedAppRow({ requested_rent_amount: null })],
-    } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow({ requested_rent_amount: null })]));
 
     const service = makeService();
     await expect(
@@ -179,7 +181,7 @@ describe("LeaseService.generateLease()", () => {
   it.each(["tier1_approved", "tier2_approved", "tier3_approved"])(
     "succeeds when application is in %s status",
     async (status) => {
-      mockQuery.mockResolvedValue({ rows: [approvedAppRow({ status })] } as any);
+      mockQuery.mockResolvedValue(qr([approvedAppRow({ status })]));
       mockGenerateLease.mockResolvedValue({
         leaseId: "ols_001",
         documentUrl: "https://onesite.example.com/leases/ols_001",
@@ -194,7 +196,7 @@ describe("LeaseService.generateLease()", () => {
   );
 
   it("calls OneSiteService.generateLease with correct args", async () => {
-    mockQuery.mockResolvedValue({ rows: [approvedAppRow()] } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow()]));
     mockGenerateLease.mockResolvedValue({ leaseId: "ols_test", documentUrl: "https://..." });
     mockNotifyLeaseReady.mockResolvedValue(undefined);
 
@@ -217,7 +219,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("writes lease_generated audit log with leaseId and documentUrl", async () => {
-    mockQuery.mockResolvedValue({ rows: [approvedAppRow()] } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow()]));
     mockGenerateLease.mockResolvedValue({ leaseId: "ols_audit", documentUrl: "https://..." });
     mockNotifyLeaseReady.mockResolvedValue(undefined);
 
@@ -236,7 +238,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("returns { leaseId, documentUrl } from OneSite", async () => {
-    mockQuery.mockResolvedValue({ rows: [approvedAppRow()] } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow()]));
     mockGenerateLease.mockResolvedValue({
       leaseId: "ols_return",
       documentUrl: "https://onesite.example.com/leases/ols_return",
@@ -253,7 +255,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("sends Twilio SMS when phone is present", async () => {
-    mockQuery.mockResolvedValue({ rows: [approvedAppRow({ phone: "+17025550101" })] } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow({ phone: "+17025550101" })]));
     mockGenerateLease.mockResolvedValue({ leaseId: "ols_sms", documentUrl: "https://..." });
     mockNotifyLeaseReady.mockResolvedValue(undefined);
 
@@ -267,7 +269,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("skips Twilio SMS when phone is absent", async () => {
-    mockQuery.mockResolvedValue({ rows: [approvedAppRow({ phone: null })] } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow({ phone: null })]));
     mockGenerateLease.mockResolvedValue({ leaseId: "ols_nosms", documentUrl: "https://..." });
 
     const service = makeService();
@@ -279,7 +281,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("does NOT throw when Twilio SMS fails (non-blocking)", async () => {
-    mockQuery.mockResolvedValue({ rows: [approvedAppRow()] } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow()]));
     mockGenerateLease.mockResolvedValue({ leaseId: "ols_ok", documentUrl: "https://..." });
     mockNotifyLeaseReady.mockRejectedValue(new Error("Twilio down"));
 
@@ -293,7 +295,7 @@ describe("LeaseService.generateLease()", () => {
   });
 
   it("uses 'TBD' as unitNumber when unit_number is null", async () => {
-    mockQuery.mockResolvedValue({ rows: [approvedAppRow({ unit_number: null })] } as any);
+    mockQuery.mockResolvedValue(qr([approvedAppRow({ unit_number: null })]));
     mockGenerateLease.mockResolvedValue({ leaseId: "ols_tbd", documentUrl: "https://..." });
     mockNotifyLeaseReady.mockResolvedValue(undefined);
 
@@ -319,7 +321,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("throws when application is not found", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     await expect(
@@ -328,9 +330,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("throws when application is not in lease_generated status", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [leaseGeneratedRow({ status: "tier1_approved" })],
-    } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ status: "tier1_approved" })]));
 
     const service = makeService();
     await expect(
@@ -339,9 +339,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("throws when onesite_lease_id is missing", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [leaseGeneratedRow({ onesite_lease_id: null })],
-    } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ onesite_lease_id: null })]));
 
     const service = makeService();
     await expect(
@@ -350,7 +348,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("calls LoftService.createTenant with correct args", async () => {
-    mockQuery.mockResolvedValue({ rows: [leaseGeneratedRow()] } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow()]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_001" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -374,14 +372,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("calls LoftService.setupAutoPay when auto_pay_enrolled=true AND payment method present", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [
-        leaseGeneratedRow({
-          auto_pay_enrolled: true,
-          stripe_payment_method_id: "pm_test_001",
-        }),
-      ],
-    } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ auto_pay_enrolled: true, stripe_payment_method_id: "pm_test_001" })]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_auto" });
     mockSetupAutoPay.mockResolvedValue({ autoPayId: "ap_001" });
     mockSyncTenant.mockResolvedValue({ synced: true });
@@ -401,9 +392,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("skips LoftService.setupAutoPay when auto_pay_enrolled=false", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [leaseGeneratedRow({ auto_pay_enrolled: false, stripe_payment_method_id: "pm_001" })],
-    } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ auto_pay_enrolled: false, stripe_payment_method_id: "pm_001" })]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_no_ap" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -415,9 +404,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("skips LoftService.setupAutoPay when stripe_payment_method_id is null (even if enrolled)", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [leaseGeneratedRow({ auto_pay_enrolled: true, stripe_payment_method_id: null })],
-    } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ auto_pay_enrolled: true, stripe_payment_method_id: null })]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_no_pm" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -429,7 +416,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("syncs tenant to OneSite", async () => {
-    mockQuery.mockResolvedValue({ rows: [leaseGeneratedRow()] } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow()]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_sync" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -445,8 +432,8 @@ describe("LeaseService.completeOnboarding()", () => {
 
   it("updates application status to onboarded and stores loftTenantId", async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [leaseGeneratedRow()] } as any) // SELECT
-      .mockResolvedValueOnce({ rows: [] } as any);                   // UPDATE
+      .mockResolvedValueOnce(qr([leaseGeneratedRow()])) // SELECT
+      .mockResolvedValueOnce(qr([]));                   // UPDATE
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_update" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -460,7 +447,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("writes tenant_onboarded audit log", async () => {
-    mockQuery.mockResolvedValue({ rows: [leaseGeneratedRow()] } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow()]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_audit" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -483,7 +470,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("returns { onboarded: true, loftTenantId } on success", async () => {
-    mockQuery.mockResolvedValue({ rows: [leaseGeneratedRow()] } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow()]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_return" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -495,7 +482,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("does NOT throw when Twilio approval notification fails (non-blocking)", async () => {
-    mockQuery.mockResolvedValue({ rows: [leaseGeneratedRow()] } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow()]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_twilio" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockRejectedValue(new Error("Twilio outage"));
@@ -509,7 +496,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("skips Twilio notification when phone is absent", async () => {
-    mockQuery.mockResolvedValue({ rows: [leaseGeneratedRow({ phone: null })] } as any);
+    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ phone: null })]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_nophone" });
     mockSyncTenant.mockResolvedValue({ synced: true });
 
@@ -528,7 +515,7 @@ describe("LeaseService.getLeaseStatus()", () => {
   beforeEach(() => mockQuery.mockReset());
 
   it("returns null when application is not found", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     const result = await service.getLeaseStatus("app-notexist");
@@ -537,17 +524,7 @@ describe("LeaseService.getLeaseStatus()", () => {
   });
 
   it("returns lease status object with correct fields when found", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [
-        {
-          id: "app-001",
-          status: "onboarded",
-          onesite_lease_id: "ols_001",
-          loft_tenant_id: "lft_001",
-          auto_pay_enrolled: true,
-        },
-      ],
-    } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "onboarded", onesite_lease_id: "ols_001", loft_tenant_id: "lft_001", auto_pay_enrolled: true }]));
 
     const service = makeService();
     const result = await service.getLeaseStatus("app-001");
@@ -562,17 +539,7 @@ describe("LeaseService.getLeaseStatus()", () => {
   });
 
   it("returns null for onesiteLeaseId and loftTenantId when not yet set", async () => {
-    mockQuery.mockResolvedValue({
-      rows: [
-        {
-          id: "app-001",
-          status: "lease_generated",
-          onesite_lease_id: null,
-          loft_tenant_id: null,
-          auto_pay_enrolled: false,
-        },
-      ],
-    } as any);
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "lease_generated", onesite_lease_id: null as string | null, loft_tenant_id: null as string | null, auto_pay_enrolled: false }]));
 
     const service = makeService();
     const result = await service.getLeaseStatus("app-001");
@@ -583,7 +550,7 @@ describe("LeaseService.getLeaseStatus()", () => {
   });
 
   it("queries by applicationId", async () => {
-    mockQuery.mockResolvedValue({ rows: [] } as any);
+    mockQuery.mockResolvedValue(qr([]));
 
     const service = makeService();
     await service.getLeaseStatus("app-xyz");

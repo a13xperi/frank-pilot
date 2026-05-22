@@ -9,6 +9,7 @@ import {
   assertApplicationOwnership,
   requireEmailVerified,
 } from "../../middleware/scope";
+import { verifyTurnstile } from "../../middleware/verify-turnstile";
 import { query } from "../../config/database";
 import { LedgerService } from "../ledger/service";
 import { MaintenanceService } from "../maintenance/service";
@@ -41,8 +42,8 @@ const messageReadLimiter = rateLimit({
   message: { error: "Too many requests, slow down" },
 });
 
-// All tenant routes require auth + applicant/tenant role + scope
-router.use(authenticate, requireTenantRole, scopeToOwnApplications);
+// All tenant routes require auth + applicant/tenant role + email verified + scope
+router.use(authenticate, requireTenantRole, requireEmailVerified, scopeToOwnApplications);
 
 // ---------------------------------------------------------------
 // GET /api/tenant/me — current user
@@ -416,6 +417,7 @@ router.get(
 
 // ---------------------------------------------------------------
 // POST /api/tenant/applications/:applicationId/messages — reply to staff
+// wedge #13: Turnstile fires first (anti-spam), then per-user rate-limit.
 // ---------------------------------------------------------------
 const messageBodySchema = z.object({
   body: z.string().trim().min(1).max(4000),
@@ -423,7 +425,7 @@ const messageBodySchema = z.object({
 
 router.post(
   "/applications/:applicationId/messages",
-  requireEmailVerified,
+  verifyTurnstile(),
   messageWriteLimiter,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -462,7 +464,6 @@ router.post(
 // ---------------------------------------------------------------
 router.post(
   "/applications/:applicationId/messages/:msgId/read",
-  requireEmailVerified,
   messageReadLimiter,
   async (req: AuthRequest, res: Response) => {
     try {

@@ -12,9 +12,19 @@
  * Note on query ordering: `authenticate` issues a SELECT against users before
  * the handler runs, so authenticated tests must mockUsersRow() first.
  */
+import type { QueryResult } from "pg";
 import express from "express";
 import request from "supertest";
 import { generateToken, AuthUser } from "../middleware/auth";
+
+/** Wrap rows in a minimal QueryResult shape without casting to `any`. */
+function qr<T extends Record<string, unknown>>(rows: T[]): QueryResult<T> {
+  return { rows } as unknown as QueryResult<T>;
+}
+/** QueryResult with optional rowCount for DELETE responses. */
+function qrWithCount<T extends Record<string, unknown>>(rows: T[], rowCount: number): QueryResult<T> {
+  return { rows, rowCount } as unknown as QueryResult<T>;
+}
 
 jest.mock("../config/database", () => ({
   query: jest.fn(),
@@ -46,8 +56,8 @@ function buildApp() {
 const app = buildApp();
 
 function mockUsersRow(user: AuthUser, emailVerifiedAt: Date | null) {
-  mockQuery.mockResolvedValueOnce({
-    rows: [
+  mockQuery.mockResolvedValueOnce(
+    qr([
       {
         id: user.id,
         email: user.email,
@@ -58,8 +68,8 @@ function mockUsersRow(user: AuthUser, emailVerifiedAt: Date | null) {
         is_active: true,
         email_verified_at: emailVerifiedAt,
       },
-    ],
-  } as any);
+    ])
+  );
 }
 
 // Per-test unique user id so the per-user rate limiter on POST/DELETE
@@ -92,7 +102,7 @@ describe("GET /applicants/properties/:slug/waitlist-summary", () => {
 
   it("404 when slug resolves to no property", async () => {
     // resolvePropertyIdBySlug → no match
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    mockQuery.mockResolvedValueOnce(qr([]));
     const res = await request(app)
       .get(`/applicants/properties/${SLUG}/waitlist-summary?bedrooms=2`);
     expect(res.status).toBe(404);
@@ -100,8 +110,8 @@ describe("GET /applicants/properties/:slug/waitlist-summary", () => {
 
   it("unauth: returns totalQueue with no position (enrolled=false)", async () => {
     // Query order without auth: resolve slug → total queue.
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: PROPERTY_ID }] } as any); // resolve slug
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 7 }] } as any);            // total queue
+    mockQuery.mockResolvedValueOnce(qr([{ id: PROPERTY_ID }])); // resolve slug
+    mockQuery.mockResolvedValueOnce(qr([{ n: 7 }]));            // total queue
 
     const res = await request(app)
       .get(`/applicants/properties/${SLUG}/waitlist-summary?bedrooms=2`);
@@ -120,19 +130,15 @@ describe("GET /applicants/properties/:slug/waitlist-summary", () => {
     // Query order with auth: resolve slug → user lookup (optional auth) →
     // total queue → SELECT mine → COUNT ahead.
     const applicant = makeApplicant();
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: PROPERTY_ID }] } as any); // resolve slug
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: applicant.id }] } as any); // user lookup
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 3 }] } as any);            // total queue
-    mockQuery.mockResolvedValueOnce({                                          // SELECT mine
-      rows: [
-        {
-          created_at: new Date("2026-05-20T12:00:00Z"),
-          notified_position_at: null,
-          last_notified_position: null,
-        },
-      ],
-    } as any);
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 1 }] } as any);            // COUNT ahead
+    mockQuery.mockResolvedValueOnce(qr([{ id: PROPERTY_ID }])); // resolve slug
+    mockQuery.mockResolvedValueOnce(qr([{ id: applicant.id }])); // user lookup
+    mockQuery.mockResolvedValueOnce(qr([{ n: 3 }]));            // total queue
+    mockQuery.mockResolvedValueOnce(qr([{                                     // SELECT mine
+      created_at: new Date("2026-05-20T12:00:00Z"),
+      notified_position_at: null as Date | null,
+      last_notified_position: null as number | null,
+    }]));
+    mockQuery.mockResolvedValueOnce(qr([{ n: 1 }]));            // COUNT ahead
 
     const token = generateToken(applicant);
     const res = await request(app)
@@ -150,19 +156,15 @@ describe("GET /applicants/properties/:slug/waitlist-summary", () => {
 
   it("auth + enrolled + prior snapshot: returns movement direction=up", async () => {
     const applicant = makeApplicant();
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: PROPERTY_ID }] } as any);  // resolve slug
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: applicant.id }] } as any); // user lookup
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 10 }] } as any);            // total
-    mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          created_at: new Date("2026-05-20T12:00:00Z"),
-          notified_position_at: new Date("2026-04-20T12:00:00Z"),
-          last_notified_position: 8,
-        },
-      ],
-    } as any);
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 4 }] } as any); // 4 ahead → position 5
+    mockQuery.mockResolvedValueOnce(qr([{ id: PROPERTY_ID }]));  // resolve slug
+    mockQuery.mockResolvedValueOnce(qr([{ id: applicant.id }])); // user lookup
+    mockQuery.mockResolvedValueOnce(qr([{ n: 10 }]));            // total
+    mockQuery.mockResolvedValueOnce(qr([{
+      created_at: new Date("2026-05-20T12:00:00Z"),
+      notified_position_at: new Date("2026-04-20T12:00:00Z") as Date | null,
+      last_notified_position: 8 as number | null,
+    }]));
+    mockQuery.mockResolvedValueOnce(qr([{ n: 4 }])); // 4 ahead → position 5
 
     const token = generateToken(applicant);
     const res = await request(app)
@@ -175,10 +177,10 @@ describe("GET /applicants/properties/:slug/waitlist-summary", () => {
 
   it("auth but not enrolled: enrolled=false, no position", async () => {
     const applicant = makeApplicant();
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: PROPERTY_ID }] } as any);  // resolve slug
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: applicant.id }] } as any); // user lookup
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 5 }] } as any);             // total queue
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);                      // SELECT mine → none
+    mockQuery.mockResolvedValueOnce(qr([{ id: PROPERTY_ID }]));  // resolve slug
+    mockQuery.mockResolvedValueOnce(qr([{ id: applicant.id }])); // user lookup
+    mockQuery.mockResolvedValueOnce(qr([{ n: 5 }]));             // total queue
+    mockQuery.mockResolvedValueOnce(qr([]));                      // SELECT mine → none
 
     const token = generateToken(applicant);
     const res = await request(app)
@@ -195,8 +197,8 @@ describe("GET /applicants/properties/:slug/waitlist-summary", () => {
 
   it("estimatedWindow shifts with queue depth", async () => {
     // unauth path → resolve slug + total queue only.
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: PROPERTY_ID }] } as any); // resolve
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 50 }] } as any);
+    mockQuery.mockResolvedValueOnce(qr([{ id: PROPERTY_ID }])); // resolve
+    mockQuery.mockResolvedValueOnce(qr([{ n: 50 }]));
 
     const res = await request(app)
       .get(`/applicants/properties/${SLUG}/waitlist-summary?bedrooms=2`);
@@ -229,7 +231,7 @@ describe("POST /applicants/properties/:slug/waitlist-join", () => {
   it("404 when slug resolves to nothing", async () => {
     const applicant = makeApplicant();
     mockUsersRow(applicant, VERIFIED_AT);
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // resolve slug → none
+    mockQuery.mockResolvedValueOnce(qr([])); // resolve slug → none
     const token = generateToken(applicant);
     const res = await request(app)
       .post(`/applicants/properties/${SLUG}/waitlist-join`)
@@ -241,20 +243,16 @@ describe("POST /applicants/properties/:slug/waitlist-join", () => {
   it("first-to-join gets position 1, totalQueue 1", async () => {
     const applicant = makeApplicant();
     mockUsersRow(applicant, VERIFIED_AT);
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: PROPERTY_ID }] } as any); // resolve slug
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);                     // INSERT
+    mockQuery.mockResolvedValueOnce(qr([{ id: PROPERTY_ID }])); // resolve slug
+    mockQuery.mockResolvedValueOnce(qr([]));                     // INSERT
     // buildWaitlistSummary follow-up:
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 1 }] } as any);             // total
-    mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          created_at: new Date("2026-05-23T00:00:00Z"),
-          notified_position_at: null,
-          last_notified_position: null,
-        },
-      ],
-    } as any);
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 0 }] } as any);             // 0 ahead
+    mockQuery.mockResolvedValueOnce(qr([{ n: 1 }]));             // total
+    mockQuery.mockResolvedValueOnce(qr([{
+      created_at: new Date("2026-05-23T00:00:00Z"),
+      notified_position_at: null as Date | null,
+      last_notified_position: null as number | null,
+    }]));
+    mockQuery.mockResolvedValueOnce(qr([{ n: 0 }]));             // 0 ahead
 
     const token = generateToken(applicant);
     const res = await request(app)
@@ -272,19 +270,15 @@ describe("POST /applicants/properties/:slug/waitlist-join", () => {
   it("re-join is idempotent (ON CONFLICT DO NOTHING) — same position returned", async () => {
     const applicant = makeApplicant();
     mockUsersRow(applicant, VERIFIED_AT);
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: PROPERTY_ID }] } as any);
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);                     // INSERT (no rows = conflict)
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 3 }] } as any);             // total = same as before
-    mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          created_at: new Date("2026-05-21T00:00:00Z"),
-          notified_position_at: null,
-          last_notified_position: null,
-        },
-      ],
-    } as any);
-    mockQuery.mockResolvedValueOnce({ rows: [{ n: 1 }] } as any);             // still 1 ahead
+    mockQuery.mockResolvedValueOnce(qr([{ id: PROPERTY_ID }]));
+    mockQuery.mockResolvedValueOnce(qr([]));                     // INSERT (no rows = conflict)
+    mockQuery.mockResolvedValueOnce(qr([{ n: 3 }]));             // total = same as before
+    mockQuery.mockResolvedValueOnce(qr([{
+      created_at: new Date("2026-05-21T00:00:00Z"),
+      notified_position_at: null as Date | null,
+      last_notified_position: null as number | null,
+    }]));
+    mockQuery.mockResolvedValueOnce(qr([{ n: 1 }]));             // still 1 ahead
 
     const token = generateToken(applicant);
     const res = await request(app)
@@ -326,8 +320,8 @@ describe("DELETE /applicants/properties/:slug/waitlist-leave", () => {
   it("idempotent: ok=true even when no row to delete", async () => {
     const applicant = makeApplicant();
     mockUsersRow(applicant, VERIFIED_AT);
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: PROPERTY_ID }] } as any); // resolve slug
-    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);        // DELETE → 0
+    mockQuery.mockResolvedValueOnce(qr([{ id: PROPERTY_ID }])); // resolve slug
+    mockQuery.mockResolvedValueOnce(qrWithCount([], 0));        // DELETE → 0
     const token = generateToken(applicant);
     const res = await request(app)
       .delete(`/applicants/properties/${SLUG}/waitlist-leave?bedrooms=2`)
@@ -339,8 +333,8 @@ describe("DELETE /applicants/properties/:slug/waitlist-leave", () => {
   it("issues a DELETE keyed on (property, bedrooms, user)", async () => {
     const applicant = makeApplicant();
     mockUsersRow(applicant, VERIFIED_AT);
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: PROPERTY_ID }] } as any);
-    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);
+    mockQuery.mockResolvedValueOnce(qr([{ id: PROPERTY_ID }]));
+    mockQuery.mockResolvedValueOnce(qrWithCount([], 1));
     const token = generateToken(applicant);
     const res = await request(app)
       .delete(`/applicants/properties/${SLUG}/waitlist-leave?bedrooms=2`)
