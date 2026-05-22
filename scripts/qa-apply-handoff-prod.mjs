@@ -36,6 +36,26 @@ function check(label, cond) {
 }
 
 const ctx = await browser.newContext({ viewport: VP });
+
+// gpmglv wedge #15 — pre-seed cookie consent so the banner doesn't
+// cover bottom-fixed CTAs.
+await ctx.addInitScript(() => {
+  try {
+    window.localStorage.setItem(
+      'fp.consent.v1',
+      JSON.stringify({
+        essential: true,
+        functional: true,
+        analytics: false,
+        marketing: false,
+        recordedAt: new Date().toISOString(),
+      }),
+    );
+  } catch {
+    /* best-effort */
+  }
+});
+
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('PAGE ERROR', e.message.slice(0, 200)));
 page.on('console', (m) => {

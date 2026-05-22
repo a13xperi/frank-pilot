@@ -31,6 +31,29 @@ function check(label, cond) {
 }
 
 const ctx = await browser.newContext({ viewport: VP });
+
+// gpmglv wedge #15 — the cookie banner shows on first visit. Pre-seed
+// localStorage with a "decided" consent record so the banner doesn't
+// cover the bottom-fixed CTAs the smoke test interacts with. Chosen:
+// option 1 (inject localStorage before navigation) — keeps the
+// e2e path identical to today and avoids an extra click.
+await ctx.addInitScript(() => {
+  try {
+    window.localStorage.setItem(
+      'fp.consent.v1',
+      JSON.stringify({
+        essential: true,
+        functional: true,
+        analytics: false,
+        marketing: false,
+        recordedAt: new Date().toISOString(),
+      }),
+    );
+  } catch {
+    /* best-effort */
+  }
+});
+
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('PAGE ERROR', e.message.slice(0, 200)));
 page.on('console', (m) => {

@@ -18,6 +18,10 @@ import { WaitlistPosition } from '@/pages/waitlist/Position';
 import { WaitlistFasterList } from '@/pages/waitlist/FasterList';
 import { MagicLinkSent } from '@/pages/apply/MagicLinkSent';
 import { ScreenshotButton } from '@/components/dev/ScreenshotButton';
+import { CookieBanner } from '@/components/CookieBanner';
+import { SiteFooter } from '@/components/SiteFooter';
+import { PrivacyPolicy } from '@/pages/legal/PrivacyPolicy';
+import { CookiesPolicy } from '@/pages/legal/CookiesPolicy';
 import { getToken } from '@/api/client';
 
 function RootRedirect() {
@@ -38,6 +42,10 @@ export default function App() {
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/verify-pending" element={<VerifyPending />} />
 
+      {/* gpmglv wedge #15 — public legal pages, no auth gate */}
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/cookies" element={<CookiesPolicy />} />
+
       {/* BP-03b — waitlist screens (public; carrot pulls applicant back into flow) */}
       <Route path="/waitlist/position" element={<WaitlistPosition />} />
       <Route path="/waitlist/position/:slug" element={<WaitlistPosition />} />
@@ -56,6 +64,8 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    <SiteFooter />
+    <CookieBanner />
     <ScreenshotButton />
     </>
   );
