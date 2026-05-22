@@ -5,6 +5,7 @@
 // Step mapping (FROZEN CONTRACT 1, wizard slice):
 //   1 review · 2 household · 3 payment · 4 details (?step=2) · 5 confirm
 import type { ReactNode } from 'react';
+import { HF } from '@/styles/tokens';
 
 export type PayHeaderStep = 'review' | 'household' | 'payment' | 'details' | 'confirm';
 
@@ -52,27 +53,45 @@ export function PayHeader({ step, total, lang, onBack }: PayHeaderProps): ReactN
   const copy = COPY[lang];
 
   return (
-    <header className="space-y-2 px-4 pb-2 pt-3" data-testid="pay-header">
+    <header
+      className="space-y-2 px-4 pb-2 pt-3"
+      data-testid="pay-header"
+      style={{ fontFamily: HF.body }}
+    >
       <div className="flex items-center gap-2">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="text-xs text-gray-500 hover:text-gray-700"
+            className="text-xs"
+            style={{ color: HF.ink3 }}
             aria-label={copy.back}
           >
             ← {copy.back}
           </button>
         )}
-        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+        <span
+          className="ml-auto text-[10px] font-semibold uppercase tracking-wider"
+          style={{ color: HF.ink3 }}
+        >
           {copy.application} · {safeIdx + 1} / {STEP_ORDER.length}
         </span>
       </div>
-      <div className="flex gap-1" role="progressbar" aria-valuenow={safeIdx + 1} aria-valuemin={1} aria-valuemax={STEP_ORDER.length}>
+      <div
+        className="flex gap-1"
+        role="progressbar"
+        aria-valuenow={safeIdx + 1}
+        aria-valuemin={1}
+        aria-valuemax={STEP_ORDER.length}
+      >
         {STEP_ORDER.map((s, i) => (
           <div
             key={s}
-            className={`h-1 flex-1 rounded-full ${i <= safeIdx ? 'bg-emerald-500' : 'bg-gray-200'}`}
+            className="h-1 flex-1"
+            style={{
+              background: i <= safeIdx ? HF.accent : HF.border,
+              borderRadius: HF.r.pill,
+            }}
             data-segment={s}
             data-active={i <= safeIdx ? 'true' : 'false'}
           />
@@ -82,13 +101,19 @@ export function PayHeader({ step, total, lang, onBack }: PayHeaderProps): ReactN
         {STEP_ORDER.map((s, i) => (
           <span
             key={s}
-            className={`text-[10px] ${i === safeIdx ? 'font-bold text-gray-900' : 'text-gray-500'}`}
+            className="text-[10px]"
+            style={{
+              color: i === safeIdx ? HF.ink : HF.ink3,
+              fontWeight: i === safeIdx ? 700 : 400,
+            }}
           >
             {labels[s]}
           </span>
         ))}
       </div>
-      <div className="text-right text-xs text-gray-500">{total}</div>
+      <div className="text-right text-xs" style={{ color: HF.ink3 }}>
+        {total}
+      </div>
     </header>
   );
 }
