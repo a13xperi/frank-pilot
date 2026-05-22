@@ -231,6 +231,151 @@ describe("PropertyService", () => {
     });
   });
 
+  // ── Wedge #9 — rent range + AMI tier rollup ──────────────────────────────
+
+  describe("listWithAvailability (rent range + amiTier)", () => {
+    function makeAggregateRow(
+      overrides: Partial<Record<string, unknown>> = {}
+    ): Record<string, unknown> {
+      // Mirrors the aggregate row shape produced by the joined SQL in
+      // listWithAvailability: property columns + availability counts +
+      // per-bedroom rent min/max.
+      return {
+        ...makePropertyRow({ ami_set_aside: "60% AMI" }),
+        available_count: 7,
+        leased_count: 2,
+        total_units_actual: 10,
+        studio_count: 1,
+        br1_count: 2,
+        br2_count: 3,
+        br3_count: 1,
+        studio_rent_min: 850,
+        studio_rent_max: 850,
+        br1_rent_min: 975,
+        br1_rent_max: 1100,
+        br2_rent_min: 1200,
+        br2_rent_max: 1425,
+        br3_rent_min: 1500,
+        br3_rent_max: 1700,
+        ...overrides,
+      };
+    }
+
+    it("includes a per-bedroom rentRange and amiTier on each property", async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [makeAggregateRow()] } as any);
+
+      const result = await service.listWithAvailability();
+
+      expect(result).toHaveLength(1);
+      const prop = result[0]!;
+      expect(prop.amiTier).toBe("60% AMI");
+      expect(prop.rentRange).toEqual({
+        studio: { low: 850, high: 850 },
+        br1: { low: 975, high: 1100 },
+        br2: { low: 1200, high: 1425 },
+        br3: { low: 1500, high: 1700 },
+      });
+    });
+
+    it("returns null for bedroom buckets with no units (min/max NULL from SQL)", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          makeAggregateRow({
+            studio_count: 0,
+            studio_rent_min: null,
+            studio_rent_max: null,
+            br3_count: 0,
+            br3_rent_min: null,
+            br3_rent_max: null,
+          }),
+        ],
+      } as any);
+
+      const result = await service.listWithAvailability();
+      const prop = result[0]!;
+
+      expect(prop.rentRange.studio).toBeNull();
+      expect(prop.rentRange.br3).toBeNull();
+      // Populated buckets still come through.
+      expect(prop.rentRange.br1).toEqual({ low: 975, high: 1100 });
+      expect(prop.rentRange.br2).toEqual({ low: 1200, high: 1425 });
+    });
+
+    it("maps market-rate properties (empty/null ami_set_aside) to amiTier=null", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          makeAggregateRow({ ami_set_aside: null }),
+          makeAggregateRow({ ami_set_aside: "" }),
+        ],
+      } as any);
+
+      const result = await service.listWithAvailability();
+
+      expect(result).toHaveLength(2);
+      expect(result[0]!.amiTier).toBeNull();
+      expect(result[1]!.amiTier).toBeNull();
+    });
+
+    it("coerces NUMERIC strings (pg) to integer dollars in rent ranges", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          makeAggregateRow({
+            // pg's NUMERIC type comes back as a string by default.
+            br1_rent_min: "995.00",
+            br1_rent_max: "1194.50",
+          }),
+        ],
+      } as any);
+
+      const result = await service.listWithAvailability();
+      const prop = result[0]!;
+      // Rents are stored whole-dollar in seed.ts; we round defensively.
+      expect(prop.rentRange.br1).toEqual({ low: 995, high: 1195 });
+    });
+  });
+
+  describe("getRentRange", () => {
+    it("returns null when the property does not exist", async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+
+      const result = await service.getRentRange("missing");
+      expect(result).toBeNull();
+    });
+
+    it("returns per-bedroom rent buckets and the AMI tier", async () => {
+      // First query: ami_set_aside lookup. Second query: rent aggregate.
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ ami_set_aside: "60% AMI" }] } as any)
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              studio_min: 747,
+              studio_max: 747,
+              br1_min: 995,
+              br1_max: 995,
+              br2_min: 1194,
+              br2_max: 1194,
+              br3_min: null,
+              br3_max: null,
+            },
+          ],
+        } as any);
+
+      const result = await service.getRentRange(PROPERTY_ID);
+
+      expect(result).toEqual({
+        propertyId: PROPERTY_ID,
+        amiTier: "60% AMI",
+        rentRange: {
+          studio: { low: 747, high: 747 },
+          br1: { low: 995, high: 995 },
+          br2: { low: 1194, high: 1194 },
+          br3: null,
+        },
+      });
+    });
+  });
+
   describe("update", () => {
     it("throws when no fields are provided", async () => {
       await expect(

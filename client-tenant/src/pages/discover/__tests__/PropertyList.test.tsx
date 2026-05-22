@@ -139,4 +139,53 @@ describe('PropertyList (GPMG fixtures)', () => {
     // All seeded properties are 60% AMI — none qualify for an 80%-only slice.
     expect(tileCount()).toBe(0);
   });
+
+  // ── Wedge #9 — rent ranges + AMI tier chip ──────────────────────────────
+
+  it('renders an AMI tier chip ("60% AMI") on every GPMG tile', () => {
+    renderList();
+    // Every fixture is at 60% AMI; chip carries data-testid `ami-tier-chip-<slug>`.
+    const grid = screen.getByTestId('property-grid');
+    // Smith Williams chip carries the canonical "60% AMI" label.
+    const smithChip = within(grid).getByTestId(
+      'ami-tier-chip-smith-williams-senior-apartments'
+    );
+    expect(smithChip).toHaveTextContent('60% AMI');
+    // Tooltip / aria-label is the long-form set-aside explainer.
+    expect(smithChip.getAttribute('aria-label')).toMatch(
+      /Set-aside for households at or below 60% AMI/i
+    );
+    expect(smithChip.getAttribute('title')).toMatch(/60% AMI/);
+  });
+
+  it('renders rent range row on each tile with bucket figures from the seed', () => {
+    renderList();
+    const grid = screen.getByTestId('property-grid');
+    // Hoggard is the family property — Studio bucket is null, 1BR/2BR/3BR populated.
+    // Expect a single rent-row testid per tile, with all three labels visible.
+    const hoggardRow = within(grid).getByTestId(
+      'rent-row-david-j-hoggard-family-community'
+    );
+    expect(hoggardRow.textContent).toMatch(/1BR/);
+    expect(hoggardRow.textContent).toMatch(/\$995/);
+    expect(hoggardRow.textContent).toMatch(/2BR/);
+    expect(hoggardRow.textContent).toMatch(/\$1,194/);
+    expect(hoggardRow.textContent).toMatch(/3BR/);
+    // 3BR + 4BR collapse → range "$1,380–$1,539".
+    expect(hoggardRow.textContent).toMatch(/\$1,380.+\$1,539/);
+  });
+
+  it('Aldene (senior-only) rent row shows Studio + 1BR only — no 2BR/3BR placeholders', () => {
+    renderList();
+    const grid = screen.getByTestId('property-grid');
+    const aldeneRow = within(grid).getByTestId(
+      'rent-row-aldene-kline-barlow-senior-apartments'
+    );
+    expect(aldeneRow.textContent).toMatch(/Studio/);
+    expect(aldeneRow.textContent).toMatch(/\$747/);
+    expect(aldeneRow.textContent).toMatch(/1BR/);
+    expect(aldeneRow.textContent).toMatch(/\$995/);
+    expect(aldeneRow.textContent).not.toMatch(/2BR/);
+    expect(aldeneRow.textContent).not.toMatch(/3BR/);
+  });
 });

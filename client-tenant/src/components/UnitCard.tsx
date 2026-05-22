@@ -1,8 +1,10 @@
 import { Bed, Bath, Square, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Unit } from '@/api/units';
 import { CTA } from '@/components/primitives';
 import { HF } from '@/styles/tokens';
 import { getUnitPhoto } from '@/utils/unitPlaceholder';
+import { propertyAmiTier } from '@/utils/pricing';
 
 export interface UnitMismatch {
   notes: string[];
@@ -13,6 +15,10 @@ interface Props {
   onClaim: (unitId: string) => void;
   claiming?: boolean;
   mismatch?: UnitMismatch;
+  // Wedge #9 — explicit AMI tier override. Defaults to the deterministic
+  // mirror lookup by property name. Pass null to force-hide the tier line
+  // (e.g., a future market-rate unit on the same surface).
+  amiTier?: string | null;
 }
 
 function formatRent(rent: string | number): string {
@@ -29,10 +35,15 @@ const chipStyle = {
   fontFamily: HF.body,
 } as const;
 
-export function UnitCard({ unit, onClaim, claiming, mismatch }: Props) {
+export function UnitCard({ unit, onClaim, claiming, mismatch, amiTier }: Props) {
+  const { t } = useTranslation('discover');
   const photo = getUnitPhoto(unit.photo_url);
   const location = [unit.property_city, unit.property_state].filter(Boolean).join(', ');
   const hasMismatch = mismatch && mismatch.notes.length > 0;
+  // Resolve AMI tier: explicit prop wins (incl. null to hide); fall back to
+  // the deterministic property→tier mirror.
+  const resolvedAmiTier =
+    amiTier === undefined ? propertyAmiTier(unit.property_name) : amiTier;
 
   return (
     <div
@@ -89,6 +100,22 @@ export function UnitCard({ unit, onClaim, claiming, mismatch }: Props) {
             </span>
           )}
         </div>
+
+        {resolvedAmiTier && (
+          <p
+            data-testid="unit-ami-tier"
+            aria-label={t('amiDisclosure.tooltip', { tier: resolvedAmiTier })}
+            title={t('amiDisclosure.tooltip', { tier: resolvedAmiTier })}
+            style={{
+              margin: 0,
+              fontSize: 12,
+              color: HF.ink3,
+              fontFamily: HF.body,
+            }}
+          >
+            {t('amiDisclosure.setAsideHeading', { tier: resolvedAmiTier })}
+          </p>
+        )}
 
         {hasMismatch && (
           <ul

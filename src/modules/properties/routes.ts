@@ -163,6 +163,37 @@ router.get(
 );
 
 /**
+ * GET /api/properties/:propertyId/rent-range
+ *
+ * Wedge #9 — honest pricing + AMI tier disclosure. Returns the per-bedroom
+ * rent range (min/max from the units table) along with the property's
+ * canonical AMI set-aside (e.g. "60% AMI"). Buckets without units in that
+ * bedroom are returned as null so the client can omit them cleanly.
+ *
+ * Permission: property:view (all roles).
+ */
+router.get(
+  "/:propertyId/rent-range",
+  authenticate,
+  requirePermission("property:view"),
+  async (req: AuthRequest, res) => {
+    try {
+      const result = await service.getRentRange(req.params.propertyId as string);
+      if (!result) {
+        res.status(404).json({ error: "Property not found" });
+        return;
+      }
+      res.json(result);
+    } catch (err) {
+      logger.error("Failed to get property rent range", {
+        error: (err as Error).message,
+      });
+      res.status(500).json({ error: "Failed to get property rent range" });
+    }
+  }
+);
+
+/**
  * GET /api/properties/:propertyId
  * Get a single property.
  * Permission: property:view (all roles)
