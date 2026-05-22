@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Camera, Check, X, Loader2, Copy } from 'lucide-react';
 import { getQaBuffer, clearQaBuffer, type QaEntry } from '@/lib/qaBuffer';
+import {
+  installQaReplay,
+  getQaReplayEvents,
+  clearQaReplay,
+  stopQaReplay,
+} from '@/lib/qaSessionReplay';
+
+function replayEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_QA_SESSION_REPLAY_ENABLED === 'true';
+}
 
 const STORAGE_KEY = 'frank_qa';
 const TOKEN_KEY = 'frank_tenant_token';
@@ -98,12 +108,17 @@ function dumpStorage(store: Storage | undefined): Record<string, string> {
   return out;
 }
 
-function buildDebugPayload(pngUrl: string | null, qaBufferSnapshot: QaEntry[]): Record<string, unknown> {
+function buildDebugPayload(
+  pngUrl: string | null,
+  replayUrl: string | null,
+  qaBufferSnapshot: QaEntry[],
+): Record<string, unknown> {
   const token = (() => { try { return window.localStorage.getItem(TOKEN_KEY); } catch { return null; } })();
   const claims = token ? decodeJwtClaims(token) : null;
   return {
     capturedAt: new Date().toISOString(),
     screenshotUrl: pngUrl,
+    replayUrl,
     url: {
       href: window.location.href,
       pathname: window.location.pathname,
@@ -139,10 +154,12 @@ function buildDebugPayload(pngUrl: string | null, qaBufferSnapshot: QaEntry[]): 
 
 type Status = 'idle' | 'capturing' | 'uploading' | 'done' | 'error';
 
-type Bundle = { png: string; json: string };
+type Bundle = { png: string; json: string; replay: string | null };
 
 function clipboardBlock(b: Bundle): string {
-  return `Screenshot: ${b.png}\nDebug: ${b.json}`;
+  const lines = [`Screenshot: ${b.png}`, `Debug: ${b.json}`];
+  if (b.replay) lines.push(`Replay: ${b.replay}`);
+  return lines.join('\n');
 }
 
 export function ScreenshotButton() {
@@ -152,6 +169,11 @@ export function ScreenshotButton() {
   const [bundle, setBundle] = useState<Bundle | null>(null);
 
   useEffect(() => { setVisible(shouldShow()); }, []);
+
+  useEffect(() => {
+    if (!visible || !replayEnabled()) return;
+    void installQaReplay();
+  }, [visible]);
 
   async function capture() {
     if (status === 'capturing' || status === 'uploading') return;
@@ -165,6 +187,14 @@ export function ScreenshotButton() {
       // fresh and doesn't inherit this click's font-fetch + self-upload noise.
       const qaSnapshot = getQaBuffer();
       clearQaBuffer();
+
+      // Same idea for the rrweb buffer — stop the recorder BEFORE toPng() so
+      // its DOM-clone mutations aren't logged as events. Snapshot + clear,
+      // then re-install after toPng() returns so the next click captures
+      // fresh activity.
+      stopQaReplay();
+      const replaySnapshot = getQaReplayEvents();
+      clearQaReplay();
 
       const { toPng } = await import('html-to-image');
       const node = document.body;
@@ -182,9 +212,14 @@ export function ScreenshotButton() {
         },
       });
 
+      // Re-install the recorder now that toPng() has finished walking the DOM.
+      // Fire-and-forget — best-effort; we don't want to delay the upload.
+      if (replayEnabled()) void installQaReplay();
+
       const stem = `frank-${slugFromPath()}-${timestamp()}`;
       const pngName = `${stem}.png`;
       const jsonName = `${stem}.json`;
+      const replayName = `${stem}.replay.json`;
 
       const a = document.createElement('a');
       a.href = dataUrl;
@@ -215,7 +250,23 @@ export function ScreenshotButton() {
         return;
       }
 
-      const debugPayload = buildDebugPayload(pngUrl, qaSnapshot);
+      // Replay is best-effort: skip when empty, swallow upload failures so a
+      // broken rrweb upload never blocks the JSON sidecar (which is the most
+      // valuable file for Claude).
+      let replayUrl: string | null = null;
+      if (replaySnapshot.length > 0) {
+        try {
+          replayUrl = await uploadToSupabase(
+            JSON.stringify(replaySnapshot),
+            replayName,
+            'application/json',
+          );
+        } catch {
+          replayUrl = null;
+        }
+      }
+
+      const debugPayload = buildDebugPayload(pngUrl, replayUrl, qaSnapshot);
       let jsonUrl: string;
       try {
         jsonUrl = await uploadToSupabase(JSON.stringify(debugPayload, null, 2), jsonName, 'application/json');
@@ -226,7 +277,7 @@ export function ScreenshotButton() {
         return;
       }
 
-      const next: Bundle = { png: pngUrl, json: jsonUrl };
+      const next: Bundle = { png: pngUrl, json: jsonUrl, replay: replayUrl };
       let copied = false;
       if (navigator.clipboard?.writeText) {
         try { await navigator.clipboard.writeText(clipboardBlock(next)); copied = true; } catch { /* ignore */ }
@@ -292,6 +343,9 @@ export function ScreenshotButton() {
           </div>
           <div><span style={{ color: '#6b7280' }}>PNG:</span> {bundle.png}</div>
           <div><span style={{ color: '#6b7280' }}>JSON:</span> {bundle.json}</div>
+          {bundle.replay && (
+            <div><span style={{ color: '#6b7280' }}>Replay:</span> {bundle.replay}</div>
+          )}
           <button
             type="button"
             onClick={copyBoth}
