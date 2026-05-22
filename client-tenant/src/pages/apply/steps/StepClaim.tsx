@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
-import { CTA } from '@/components/primitives';
+import { StepCTA } from '../StepCTA';
 import { useFlag } from '@/lib/flags';
 import { getUnitPhoto } from '@/utils/unitPlaceholder';
 import { HF } from '@/styles/tokens';
@@ -17,9 +17,9 @@ export function StepClaim() {
     return (
       <div className="space-y-4 text-center">
         <p style={{ fontFamily: HF.body, fontSize: 13, color: HF.ink3 }}>{t('claim.noActive')}</p>
-        <CTA tone="primary" block onClick={() => s.setStep('intent')}>
+        <StepCTA tone="primary" block onClick={() => s.setStep('intent')}>
           {t('claim.startOver')}
-        </CTA>
+        </StepCTA>
       </div>
     );
   }
@@ -51,9 +51,9 @@ export function StepClaim() {
         </p>
       </div>
       <ClaimCountdown expiresAt={s.claimExpiresAt} />
-      <CTA tone="primary" block onClick={() => s.setStep(nextStep)}>
+      <StepCTA tone="primary" block onClick={() => s.setStep(nextStep)}>
         {t('claim.continue')}
-      </CTA>
+      </StepCTA>
       <button
         onClick={() => s.setStep('pick')}
         style={{
