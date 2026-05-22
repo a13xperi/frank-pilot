@@ -157,7 +157,11 @@ app.post("/api/auth/login", async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    logger.error("Login error", { error: (err as Error).message });
+    // L1.3 audit follow-up (PR #101): never log err.message — downstream
+    // validators may embed the submitted email/password in their messages,
+    // leaking credentials into combined.log. Log err.name only.
+    const errName = err instanceof Error ? err.name : "UnknownError";
+    logger.error("Login error", { errorName: errName });
     res.status(500).json({ error: "Login failed" });
   }
 });
