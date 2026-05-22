@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Clock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Unit } from '@/api/units';
 import { getUnitPhoto } from '@/utils/unitPlaceholder';
 import { HF } from '@/styles/tokens';
@@ -14,25 +15,27 @@ function formatRent(rent: string | number): string {
   return `$${Math.round(n).toLocaleString()}/mo`;
 }
 
-function formatCountdown(ms: number): string {
-  if (ms <= 0) return '00:00:00';
-  const total = Math.floor(ms / 1000);
-  const h = String(Math.floor(total / 3600)).padStart(2, '0');
-  const m = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
-  const s = String(total % 60).padStart(2, '0');
-  return `${h}:${m}:${s}`;
-}
-
 export function ClaimedUnitHeader({ unit, expiresAt }: Props) {
+  const { t } = useTranslation('apply');
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
+    const interval = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(interval);
   }, []);
 
   const remaining = new Date(expiresAt).getTime() - now;
   const photo = getUnitPhoto(unit.photo_url);
+  const isExpired = remaining <= 0;
+
+  const countdownLabel = isExpired
+    ? t('claim.expired')
+    : (() => {
+        const totalMinutes = Math.floor(remaining / 60_000);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        return t('claim.expiresIn', { hours, minutes });
+      })();
 
   return (
     <div
@@ -63,16 +66,20 @@ export function ClaimedUnitHeader({ unit, expiresAt }: Props) {
         <div className="flex flex-col items-end">
           <div
             className="inline-flex items-center gap-1 text-xs"
-            style={{ color: HF.accentInk }}
+            style={{ color: isExpired ? HF.ink3 : HF.accentInk }}
           >
-            <Clock className="h-3 w-3" />
-            <span className="font-mono font-medium" style={{ fontFamily: HF.mono }}>
-              {formatCountdown(remaining)}
+            {!isExpired && <Clock className="h-3 w-3" />}
+            <span
+              data-testid="claim-countdown"
+              className="font-medium"
+              style={{ fontFamily: isExpired ? HF.body : HF.mono }}
+            >
+              {countdownLabel}
             </span>
           </div>
           <div
             className="text-[10px] uppercase tracking-wide"
-            style={{ color: HF.accent }}
+            style={{ color: isExpired ? HF.ink3 : HF.accent }}
           >
             held
           </div>
