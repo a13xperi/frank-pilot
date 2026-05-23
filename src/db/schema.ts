@@ -283,6 +283,13 @@ CREATE TABLE properties (
   total_vacancy INTEGER DEFAULT 0,
   waiting_list_enabled BOOLEAN DEFAULT false,
 
+  -- QAP acquisitions layer (2026-05-22): location scoring (§7.3.1) and the
+  -- 30% basis boost (§11) for HUD Qualified Census Tracts / Difficult
+  -- Development Areas. See migration 2026-05-22-property-qct.sql.
+  census_tract VARCHAR(20),
+  is_qct BOOLEAN NOT NULL DEFAULT false,
+  is_dda BOOLEAN NOT NULL DEFAULT false,
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
