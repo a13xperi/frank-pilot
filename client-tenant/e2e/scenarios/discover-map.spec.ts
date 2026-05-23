@@ -1,12 +1,14 @@
 // 17/4/13 are the curated GPMG availability set (nv-gpmg-map-props.json).
 // If you edit that file, update these expected counts.
 //
-// NOTE: playwright.config.ts only defines a single "chromium" project (Desktop
-// Chrome). There is no mobile-chrome project with @mobile grep routing. The
-// mobile stacking test below manually sets a Pixel-5-sized viewport instead of
-// relying on project-level routing. Add a mobile-chrome project to
-// playwright.config.ts and reinstate a grepString/grepInvert pairing if you
-// want true multi-project mobile CI runs.
+// Phase 2-A: React (/discover?view=map) is now the single source of filter
+// truth. The map (/nv-housing-map.html) is a near-pure render surface — its own
+// filter rail + card list were removed. `#count` is now a small overlay pill on
+// the map surface (top-left, warm-paper style); it keeps a leading integer so
+// the count regression lock below still parses ^(\d+). The map still boots
+// filters from its src querystring (initFiltersFromURL) for deep-links + direct
+// nav, which is what the direct-navigation count tests exercise. The React
+// integration test exercises the postMessage transport.
 
 import { test, expect } from "../fixtures";
 
@@ -14,7 +16,7 @@ import { test, expect } from "../fixtures";
 // Data loads async (three parallel fetches + merge); we poll #count until a
 // non-zero leading integer appears before making count assertions.
 
-/** Parse the leading integer from `#count` innerText (e.g. "352 communities of 352"). */
+/** Parse the leading integer from `#count` innerText (e.g. "352 of 352"). */
 async function leadingCount(page: import("@playwright/test").Page): Promise<number> {
   const text = await page.locator("#count").innerText();
   return Number(text.match(/^(\d+)/)?.[1] ?? "0");
@@ -58,20 +60,6 @@ test.describe("nv-housing-map.html — hybrid map regression lock", () => {
     expect(await leadingCount(page)).toBe(13);
   });
 
-  // ── City dropdown (chip-wall fix) ────────────────────────────────────────
-
-  test("city dropdown #citySel is visible and has ≥ 25 options", async ({ page }) => {
-    await page.goto("/nv-housing-map.html");
-    // Wait for data to load (filters are built after hydrate())
-    await expect
-      .poll(() => leadingCount(page), { timeout: 15_000 })
-      .toBeGreaterThan(0);
-    const citySel = page.locator("#citySel");
-    await expect(citySel).toBeVisible();
-    const optionCount = await citySel.locator("option").count();
-    expect(optionCount).toBeGreaterThanOrEqual(25); // ~30 cities + "All cities" option
-  });
-
   // ── Leaflet markers render ───────────────────────────────────────────────
 
   test("markers render on default load", async ({ page }) => {
@@ -86,11 +74,12 @@ test.describe("nv-housing-map.html — hybrid map regression lock", () => {
     expect(markerCount).toBeGreaterThan(0);
   });
 
-  // ── Mobile stacking @mobile ──────────────────────────────────────────────
-  // Pixel 5 viewport: 393 × 851. The responsive CSS stacks .map-col ABOVE
-  // .list-col on mobile (map-col has order:-1 / comes first in DOM flex column).
+  // ── Mobile: map fills the width @mobile ──────────────────────────────────
+  // Phase 2-A removed the list rail, so the map is a single full-width column
+  // at every breakpoint. There's no more stacking to assert; instead confirm
+  // the map column spans (≈) the full viewport width on a phone-sized screen.
 
-  test("stacks map above list on mobile @mobile", async ({ page }) => {
+  test("map fills the viewport width on mobile @mobile", async ({ page }) => {
     // Pixel 5 logical dimensions (same as devices["Pixel 5"]).
     await page.setViewportSize({ width: 393, height: 851 });
     await page.goto("/nv-housing-map.html");
@@ -99,10 +88,48 @@ test.describe("nv-housing-map.html — hybrid map regression lock", () => {
       .toBeGreaterThan(0);
 
     const mapBox = await page.locator(".map-col").boundingBox();
-    const listBox = await page.locator(".list-col").boundingBox();
     expect(mapBox).not.toBeNull();
-    expect(listBox).not.toBeNull();
-    // map-col must render above (smaller Y) than list-col
-    expect(mapBox!.y).toBeLessThan(listBox!.y);
+    // Full-bleed: the map column spans (nearly) the full 393px viewport width.
+    expect(mapBox!.width).toBeGreaterThanOrEqual(380);
+  });
+});
+
+// ── React-driven integration: /discover?view=map → postMessage ────────────
+// Proves the Phase 2-A collapse end-to-end: the React parent owns the filter
+// chips and drives the iframe map via the 'frank:filters' postMessage (NO
+// iframe reload). Clicking the React "Available now" chip must narrow the
+// map's #count to 17 without touching the iframe src.
+test.describe("discover map — React postMessage integration", () => {
+  test("React 'Available now' chip narrows map #count to 17 via postMessage", async ({
+    page,
+  }) => {
+    await page.goto("/discover?view=map");
+
+    const frame = page.frameLocator('[data-testid="discover-map-iframe"]');
+
+    // Wait for the iframe map to hydrate (its #count gets a leading integer).
+    await expect
+      .poll(
+        async () => {
+          const text = await frame.locator("#count").innerText().catch(() => "0");
+          return Number(text.match(/^(\d+)/)?.[1] ?? "0");
+        },
+        { timeout: 20_000 },
+      )
+      .toBeGreaterThanOrEqual(300);
+
+    // Click the React-owned "Available now" chip in the PARENT page.
+    await page.getByTestId("chip-available-now").click();
+
+    // The postMessage path must narrow the map to exactly 17 — no reload.
+    await expect
+      .poll(
+        async () => {
+          const text = await frame.locator("#count").innerText().catch(() => "0");
+          return Number(text.match(/^(\d+)/)?.[1] ?? "0");
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(17);
   });
 });

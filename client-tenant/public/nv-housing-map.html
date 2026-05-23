@@ -42,57 +42,26 @@
   .eyebrow{margin-left:auto;font-family:var(--display);font-weight:700;font-size:12px;
     letter-spacing:.04em;text-transform:uppercase;color:var(--accent);}
 
-  /* Layout — header-height-agnostic: body is a flex column, .body fills the rest */
-  .body{display:grid;grid-template-columns:minmax(360px,440px) 1fr;flex:1 1 auto;min-height:0;}
-  .list-col{overflow-y:auto;padding:18px 18px 40px;border-right:1px solid var(--border);}
-  .map-col{position:relative;}
+  /* Layout — header-height-agnostic: body is a flex column, .body fills the rest.
+     Phase 2-A: the map is now a near-pure render surface (React owns filters via
+     postMessage), so the body is a single full-width map column — no more list
+     rail. */
+  .body{position:relative;flex:1 1 auto;min-height:0;}
+  .map-col{position:absolute;inset:0;}
   #map{position:absolute;inset:0;}
   /* warm the OSM tiles toward cream */
   .leaflet-tile-pane{filter:sepia(.18) saturate(.85) brightness(1.04) contrast(.96);}
   .leaflet-container{background:#e6ddc8;font-family:var(--body);}
 
-  /* Filter chips */
-  .filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;}
-  .chip{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:999px;
-    font-family:var(--body);font-weight:600;font-size:12.5px;cursor:pointer;
-    background:var(--paper);color:var(--ink2);border:1px solid var(--border);
-    box-shadow:var(--sh-xs);transition:all .12s;white-space:nowrap;}
-  .chip:hover{border-color:var(--borderHi);}
-  .chip.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
-  .chip.group-accent.active{background:var(--accent);border-color:var(--accent);}
-  .filter-label{font-family:var(--display);font-weight:700;font-size:10.5px;letter-spacing:.05em;
-    text-transform:uppercase;color:var(--ink3);width:100%;margin:6px 0 -4px;}
-  /* City has 30 values statewide — a select keeps the rail compact instead of
-     spilling into a chip wall. */
-  .filter-select{flex:1 1 100%;appearance:none;-webkit-appearance:none;margin-top:2px;
-    padding:8px 32px 8px 12px;border-radius:10px;border:1px solid var(--border);
-    background:var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8170' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
-    font-family:var(--body);font-weight:600;font-size:13px;color:var(--ink2);cursor:pointer;
-    box-shadow:var(--sh-xs);transition:border-color .12s;}
-  .filter-select:hover{border-color:var(--borderHi);}
-
-  .count{font-family:var(--display);font-weight:800;font-size:20px;margin:2px 0 14px;}
-  .count small{font-family:var(--body);font-weight:500;font-size:13px;color:var(--ink3);}
-
-  /* Cards */
-  .card{background:var(--paper);border:1px solid var(--border);border-radius:14px;
-    box-shadow:var(--sh-xs);padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:all .12s;}
-  .card:hover,.card.hot{border-color:var(--accentHi);box-shadow:var(--sh-md);transform:translateY(-1px);}
-  .card h3{font-family:var(--display);font-weight:700;font-size:15.5px;margin:0;color:var(--ink);
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .card .addr{font-size:12.5px;color:var(--ink3);margin:3px 0 0;}
-  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
-  .tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:7px;
-    font-size:11.5px;font-weight:600;border:1px solid;}
-  .tag.neutral{background:var(--cream);color:var(--ink2);border-color:var(--border);}
-  .tag.accent{background:var(--accentLo);color:var(--accentInk);border-color:#F3D7CB;}
-  .tag.sage{background:var(--sageLo);color:#3D5535;border-color:#D2DDC9;}
-  .tag.warn{background:var(--warnLo);color:#6B4A11;border-color:#E8D6A8;}
-  .card .meta{margin-top:11px;padding-top:11px;border-top:1px solid var(--border);
-    display:flex;justify-content:space-between;align-items:baseline;}
-  .card .units{font-family:var(--display);font-weight:700;font-size:16px;color:var(--ink);}
-  .card .units small{font-family:var(--body);font-weight:500;font-size:11.5px;color:var(--ink3);margin-left:3px;}
-  .card .restricted{font-size:11.5px;color:var(--ink3);}
+  /* Count overlay pill — warm-paper, top-left of the map. React owns the
+     filter rail now; this is the only chrome the map keeps. Its innerText must
+     start with the visible-count integer ("17 of 352") — an e2e regex parses
+     ^(\d+) as the count regression lock. */
+  .count{position:absolute;top:16px;left:16px;z-index:600;background:var(--paper);
+    border-radius:999px;box-shadow:var(--sh-sm);padding:8px 14px;
+    font-family:var(--display);font-weight:800;font-size:14px;color:var(--ink);
+    display:inline-flex;align-items:center;gap:4px;}
+  .count small{font-family:var(--body);font-weight:500;font-size:12px;color:var(--ink3);}
 
   /* Pins */
   .pin{width:34px;height:34px;}
@@ -140,20 +109,14 @@
     color:var(--ink2);display:flex;gap:14px;align-items:center;}
   .legend i{width:9px;height:9px;border-radius:99px;display:inline-block;margin-right:5px;vertical-align:middle;}
 
-  /* Mobile: stack the 2-col layout so the map gets full width instead of a
-     crushed sliver. Map on top (bounded height), filters + cards scroll below.
-     The 360px min-width on the desktop grid is what squeezed the map at narrow
-     widths; below 768px we drop the grid entirely. */
+  /* Mobile: the map is already full-bleed (single column), so we only trim the
+     header and overlay chrome. No list rail to stack anymore. */
   @media (max-width:768px){
     header.app{padding:11px 16px;gap:10px;}
     header.app .brand{font-size:15px;}
-    header.app .eyebrow{display:none;} /* the "335 statewide" count lives in .count below */
-    .body{display:flex;flex-direction:column;}
-    .map-col{order:-1;flex:none;height:46vh;min-height:280px;}
-    .list-col{flex:1 1 auto;min-height:0;border-right:none;border-top:1px solid var(--border);
-      padding:14px 14px 28px;}
+    header.app .eyebrow{display:none;}
     .legend{bottom:12px;left:12px;gap:11px;padding:7px 12px;font-size:11.5px;}
-    .count{font-size:18px;}
+    .count{top:12px;left:12px;font-size:13px;padding:7px 12px;}
   }
 </style>
 </head>
@@ -165,13 +128,9 @@
 </header>
 
 <div class="body">
-  <aside class="list-col">
-    <div class="filters" id="filters"></div>
-    <div class="count" id="count"></div>
-    <div id="cards"></div>
-  </aside>
   <div class="map-col">
     <div id="map"></div>
+    <div class="count" id="count"></div>
     <div class="legend">
       <span><i style="background:#C9492A"></i>Family</span>
       <span><i style="background:#5C7A4F"></i>Senior</span>
@@ -191,10 +150,11 @@ function slugify(name){
 let PROPS = [];
 PROPS.forEach((p,i)=>p._id=i);
 
-const TYPES = ['Family','Senior','Mixed'];
-let CITIES = [...new Set(PROPS.map(p=>p.city).filter(Boolean))].sort();
-let FUNDS  = [...new Set(PROPS.flatMap(p=>p.funding))].sort();
-
+// Filter state. React (the parent /discover page) is the source of truth and
+// drives these via the 'frank:filters' postMessage; initFiltersFromURL seeds
+// them for direct-nav / deep-link first paint. fFund stays 'all' (Funding was
+// dropped from the React filter UI in Phase 2-A) but is kept in matches() +
+// ctaQuery() so the popup-href logic is unchanged.
 let fType='all', fCity='all', fFund='all', fAvail=false;
 
 // Hydrate initial filter state from the URL the parent /discover page forwards
@@ -279,23 +239,6 @@ function popupHTML(p){
     + `<a class="pop-cta" href="/property/${slugify(p.name)}${ctaQuery()}" target="_top">${ctaLabel}</a></div>`;
 }
 
-// ---- Cards -----------------------------------------------------------
-function tag(cls,txt){return `<span class="tag ${cls}">${txt}</span>`;}
-function cardHTML(p){
-  const typeCls = p.type==='Senior'?'sage':p.type==='Mixed'?'warn':'accent';
-  const amiTags = p.amiTiers.slice(0,3).map(t=>tag('neutral',t)).join('');
-  const fundTags = p.funding.slice(0,2).map(f=>tag('neutral',f)).join('');
-  return `<div class="card" data-id="${p._id}">
-    <h3>${p.name}</h3>
-    <div class="addr">${p.address}</div>
-    <div class="tags">${tag(typeCls,p.type)}${amiTags}${fundTags}</div>
-    <div class="meta">
-      <div class="units">${p.totalUnits??'—'}<small>units</small></div>
-      <div class="restricted">${p.restrictedUnits!=null?p.restrictedUnits+' restricted':''}</div>
-    </div>
-  </div>`;
-}
-
 // ---- Filters ---------------------------------------------------------
 function matches(p){
   // Only the GPMG availability layer carries availableUnits. Statewide-coverage
@@ -307,71 +250,51 @@ function matches(p){
       && (fFund==='all'||p.funding.includes(fFund))
       && availOk;
 }
-function buildFilters(){
-  const el=document.getElementById('filters');
-  const seg=(label,items,cur,grp)=>{
-    let h=`<div class="filter-label">${label}</div>`;
-    h+=`<span class="chip ${grp} ${cur==='all'?'active':''}" data-grp="${grp}" data-val="all">All</span>`;
-    items.forEach(it=>{h+=`<span class="chip ${grp} ${cur===it?'active':''}" data-grp="${grp}" data-val="${it}">${it}</span>`;});
-    return h;
-  };
-  const citySel = `<div class="filter-label">City</div>`
-    + `<select class="filter-select" id="citySel">`
-    + `<option value="all"${fCity==='all'?' selected':''}>All cities (${CITIES.length})</option>`
-    + CITIES.map(c=>`<option value="${c}"${fCity===c?' selected':''}>${c}</option>`).join('')
-    + `</select>`;
-  el.innerHTML = seg('Type',TYPES,fType,'group-accent')
-               + citySel
-               + seg('Funding',FUNDS,fFund,'group-fund')
-               + `<div class="filter-label">Availability</div>`
-               + `<span class="chip group-accent ${fAvail?'active':''}" data-grp="group-avail" data-val="available_now">Available now</span>`;
-  el.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
-    const g=c.dataset.grp, v=c.dataset.val;
-    if(g==='group-accent') fType=v;
-    else if(g==='group-fund') fFund=v;
-    else if(g==='group-avail') fAvail=!fAvail;   // toggle
-    render();
-  });
-  const csEl=document.getElementById('citySel');
-  if(csEl) csEl.onchange=()=>{ fCity=csEl.value; render(); };
+
+// ---- postMessage: React is the single source of filter truth -----------
+// The parent /discover page (PropertyList.tsx) owns the Type / City /
+// Availability chips. It pushes filter changes down here WITHOUT reloading the
+// iframe. We accept messages only from our own origin and ignore anything
+// malformed. On boot we post 'frank:ready' up so React knows when to send the
+// current state (handshake — avoids a race where React posts before this
+// script is listening).
+function applyFilters(f){
+  if(!f || typeof f !== 'object') return;
+  // type: lowercase GPMGType ('family'|'senior'|'mixed'|'all'|null) → map's
+  // capitalized fType. Anything unrecognized resets to 'all'.
+  const t = String(f.type||'all').toLowerCase();
+  fType = t==='family' ? 'Family' : t==='senior' ? 'Senior' : t==='mixed' ? 'Mixed' : 'all';
+  // city: a string matches 1:1; 'all'/falsy clears it.
+  fCity = (typeof f.city === 'string' && f.city && f.city !== 'all') ? f.city : 'all';
+  // availability: only 'available_now' flips the flag.
+  fAvail = f.availability === 'available_now';
+  render();
 }
+window.addEventListener('message', (event)=>{
+  if(event.origin !== window.location.origin) return;
+  const d = event.data;
+  if(!d || typeof d !== 'object' || d.type !== 'frank:filters') return;
+  applyFilters(d.filters);
+});
 
 // ---- Render ----------------------------------------------------------
 function render(){
   const shown = PROPS.filter(matches);
 
-  // cards
-  document.getElementById('cards').innerHTML = shown.map(cardHTML).join('') ||
-    '<p style="color:var(--ink3);font-size:14px;">No communities match these filters.</p>';
+  // count overlay pill — leading integer is the count regression lock.
   document.getElementById('count').innerHTML =
-    `${shown.length} communities <small>of ${PROPS.length}${fAvail?' available now':''}</small>`;
+    `${shown.length} <small>of ${PROPS.length}${fAvail?' available now':''}</small>`;
   document.getElementById('eyebrow').textContent =
     `${PROPS.length} affordable communities`;
 
   // markers
   cluster.clearLayers();
-  const shownIds = new Set(shown.map(p=>p._id));
   Object.keys(markers).forEach(k=>delete markers[k]);
   shown.forEach(p=>{
     const m = L.marker([p.lat,p.lng],{icon:icon(p.type,false)});
     m.bindPopup(popupHTML(p));
-    m.on('mouseover',()=>hotCard(p._id,true));
-    m.on('mouseout',()=>hotCard(p._id,false));
     markers[p._id]=m;
     cluster.addLayer(m);
-  });
-
-  // card interactions
-  document.querySelectorAll('.card').forEach(card=>{
-    const id=+card.dataset.id;
-    card.onmouseenter=()=>hotPin(id,true);
-    card.onmouseleave=()=>hotPin(id,false);
-    card.onclick=()=>{
-      const p=PROPS[id], m=markers[id];
-      if(!m) return;
-      map.flyTo([p.lat,p.lng], Math.max(map.getZoom(),15), {duration:.6});
-      cluster.zoomToShowLayer(m, ()=>m.openPopup());
-    };
   });
 
   // fit bounds on first/filtered render
@@ -380,26 +303,15 @@ function render(){
     map.fitBounds(b,{padding:[40,40], maxZoom:14});
   }
 }
-function hotCard(id,on){
-  const c=document.querySelector(`.card[data-id="${id}"]`);
-  if(c){c.classList.toggle('hot',on); if(on) c.scrollIntoView({block:'nearest',behavior:'smooth'});}
-}
-function hotPin(id,on){
-  const m=markers[id];
-  if(m && m._icon){m._icon.classList.toggle('hot',on);}
-}
 
 function boot(){
   if(!PROPS.length){
-    document.getElementById('cards').innerHTML =
-      '<p style="color:var(--ink3);font-size:14px;">No communities to show yet.</p>';
-    document.getElementById('count').innerHTML = '0 communities <small>statewide Nevada</small>';
+    document.getElementById('count').innerHTML = '0 <small>statewide Nevada</small>';
     return;
   }
-  buildFilters();
   render();
-  // Container may have just been laid out (esp. the mobile stacked map-col);
-  // recompute size so the basemap fills it and fitBounds frames correctly.
+  // Container may have just been laid out; recompute size so the basemap fills
+  // it and fitBounds frames correctly.
   setTimeout(()=>map.invalidateSize(), 60);
 }
 
@@ -430,9 +342,10 @@ function hydrate(rows){
     funding: Array.isArray(p.funding) ? p.funding : [],
     _id: i,
   })).filter(p=>Number.isFinite(p.lat) && Number.isFinite(p.lng));
-  CITIES = [...new Set(PROPS.map(p=>p.city).filter(Boolean))].sort();
-  FUNDS  = [...new Set(PROPS.flatMap(p=>p.funding))].sort();
   boot();
+  // Handshake: tell the parent /discover page we're listening so it can push
+  // the current filter state down. Guarded to our own origin.
+  try{ window.parent?.postMessage({type:'frank:ready'}, window.location.origin); }catch(e){}
 }
 // Hybrid load: a real-availability layer (live DB rows if present, else the
 // bundled GPMG snapshot) merged with the statewide coverage snapshot. The
@@ -455,8 +368,6 @@ Promise.all([
   if(!merged.length) throw new Error('no data');
   hydrate(merged);
 }).catch(()=>{
-  document.getElementById('cards').innerHTML =
-    '<p style="color:var(--accentInk);font-size:14px;">Could not load properties. Please try again later.</p>';
   document.getElementById('count').innerHTML = '— <small>could not load</small>';
 });
 </script>

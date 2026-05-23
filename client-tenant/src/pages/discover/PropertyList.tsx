@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchUnits } from '@/api/units';
@@ -99,6 +99,86 @@ function ChipButton({
     >
       {children}
     </button>
+  );
+}
+
+/** Uppercase eyebrow label shared by every filter row (list + map views). */
+function FilterRowLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      style={{
+        fontSize: 12,
+        color: HF.ink3,
+        textTransform: 'uppercase',
+        letterSpacing: '0.04em',
+        fontWeight: 700,
+        minWidth: 36,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Type / City / Availability chip rows. Map view reuses this (Phase 2-A
+ * collapse) so the map's own filter rail can be deleted — React is now the
+ * single source of filter truth for both views. Bedroom is intentionally NOT
+ * here: the map has no bedroom dimension, and list view renders Bedroom
+ * separately (it sits between City and Availability there).
+ */
+function TypeCityAvailabilityFilters({
+  t,
+  typeFilter,
+  cityFilter,
+  availableNow,
+  updateParam,
+}: {
+  t: (key: string) => string;
+  typeFilter: TypeFilter;
+  cityFilter: CityFilter;
+  availableNow: boolean;
+  updateParam: (key: string, value: string | null) => void;
+}) {
+  return (
+    <>
+      <div className="flex items-center gap-2 overflow-x-auto">
+        <FilterRowLabel>{t('filter.type')}</FilterRowLabel>
+        {(Object.keys(TYPE_LABELS) as TypeFilter[]).map((k) => (
+          <ChipButton
+            key={k}
+            active={typeFilter === k}
+            onClick={() => updateParam('type', k === 'all' ? null : k)}
+          >
+            {TYPE_LABELS[k]}
+          </ChipButton>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 overflow-x-auto">
+        <FilterRowLabel>{t('filter.city')}</FilterRowLabel>
+        {(Object.keys(CITY_LABELS) as CityFilter[]).map((k) => (
+          <ChipButton
+            key={k}
+            active={cityFilter === k}
+            onClick={() => updateParam('city', k === 'all' ? null : k)}
+          >
+            {CITY_LABELS[k]}
+          </ChipButton>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 overflow-x-auto">
+        <FilterRowLabel>{t('filter.availability')}</FilterRowLabel>
+        <ChipButton
+          active={availableNow}
+          testId="chip-available-now"
+          onClick={() =>
+            updateParam('availability', availableNow ? null : 'available_now')
+          }
+        >
+          {t('filter.availableNow')}
+        </ChipButton>
+      </div>
+    </>
   );
 }
 
@@ -258,6 +338,68 @@ export function PropertyList() {
     }
     setParams(next, { replace: true });
   };
+
+  // ── Map view: React is the single source of filter truth ────────────────
+  //
+  // Phase 2-A collapses the duplicated filter rail. In map view the React
+  // chips above drive the map; the map itself is a near-pure render surface.
+  // We push filter changes into the iframe via postMessage (NOT by changing
+  // src — that would reload the whole Leaflet map). The iframe still boots
+  // from its src querystring (initFiltersFromURL) so deep-links + hard reloads
+  // paint the right slice on first render; postMessage only handles
+  // subsequent in-session changes.
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  // The iframe `src` is computed once at mount and never changed thereafter
+  // (changing it remounts the iframe). We capture the filters present at first
+  // entry into map view; later changes flow over postMessage. Recomputing this
+  // on every render is fine because React diffs the string — it only differs
+  // from the live DOM attribute if the component fully remounts.
+  const initialMapSrc = useMemo(() => {
+    const mapParams = new URLSearchParams(params);
+    mapParams.delete('view');
+    const qs = mapParams.toString();
+    return qs ? `/nv-housing-map.html?${qs}` : '/nv-housing-map.html';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally mount-only — see comment above
+
+  // Post the current filters down to the iframe. Same-origin only — we always
+  // pass an explicit targetOrigin (never '*').
+  const postFiltersToMap = () => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    win.postMessage(
+      {
+        type: 'frank:filters',
+        filters: {
+          type: typeFilter,
+          city: cityFilter,
+          availability: availableNow ? 'available_now' : null,
+        },
+      },
+      window.location.origin,
+    );
+  };
+
+  // Handshake + change propagation. The iframe posts 'frank:ready' once its
+  // script is listening; we (re)send the current filters then, which closes
+  // the race where React posts before the iframe wired its listener. We also
+  // resend whenever the filter dimensions change while in map view.
+  useEffect(() => {
+    if (viewMode !== 'map') return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== 'object' || d.type !== 'frank:ready') return;
+      postFiltersToMap();
+    };
+    window.addEventListener('message', onMessage);
+    // Also push immediately in case the iframe was already ready (e.g. a
+    // re-render after the handshake already fired).
+    postFiltersToMap();
+    return () => window.removeEventListener('message', onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, typeFilter, cityFilter, availableNow]);
 
   useEffect(() => {
     // Authed users still get the live catalog warm-fetched so cached
@@ -466,27 +608,44 @@ export function PropertyList() {
         )}
 
         {viewMode === 'map' ? (
-          <iframe
-            // Forward the active discover filters so the map renders the same
-            // slice the list does (it reads these from its own location.search).
-            // `view` is stripped — it's the parent's tab state, meaningless to
-            // the iframe — so the map URL only carries real filter dimensions.
-            src={(() => {
-              const mapParams = new URLSearchParams(params);
-              mapParams.delete('view');
-              const qs = mapParams.toString();
-              return qs ? `/nv-housing-map.html?${qs}` : '/nv-housing-map.html';
-            })()}
-            title="Nevada affordable housing map"
-            data-testid="discover-map-iframe"
-            className="w-full h-[86vh] md:h-[72vh]"
-            style={{
-              border: 'none',
-              borderRadius: HF.r.md,
-              boxShadow: '0 1px 3px rgba(31,26,18,.10)',
-              background: HF.paper,
-            }}
-          />
+          <>
+            {/* React owns the filter rail (Phase 2-A). These chips drive the
+                map below via postMessage — the map no longer has its own
+                interactive rail. Type / City / Availability only: the map has
+                no Bedroom dimension, and Funding was dropped from the UI. */}
+            <div
+              className="-mx-4 px-4 py-3 sm:-mx-6 sm:px-6 mb-3"
+              style={{ background: HF.cream, borderBottom: `1px solid ${HF.border}` }}
+            >
+              <div className="flex flex-col gap-2">
+                <TypeCityAvailabilityFilters
+                  t={t}
+                  typeFilter={typeFilter}
+                  cityFilter={cityFilter}
+                  availableNow={availableNow}
+                  updateParam={updateParam}
+                />
+              </div>
+            </div>
+            <iframe
+              ref={iframeRef}
+              // Initial src carries the current filters so a deep-link / hard
+              // reload paints the right slice via the map's initFiltersFromURL.
+              // We never mutate src on filter change — that reloads the iframe.
+              // Subsequent changes ride the 'frank:filters' postMessage.
+              // `view` is stripped — it's the parent's tab state.
+              src={initialMapSrc}
+              title="Nevada affordable housing map"
+              data-testid="discover-map-iframe"
+              className="w-full h-[86vh] md:h-[72vh]"
+              style={{
+                border: 'none',
+                borderRadius: HF.r.md,
+                boxShadow: '0 1px 3px rgba(31,26,18,.10)',
+                background: HF.paper,
+              }}
+            />
+          </>
         ) : (
           <>
         <div
