@@ -123,6 +123,16 @@
     background:var(--accent);color:#fff;font-family:var(--display);font-weight:700;
     font-size:12.5px;text-decoration:none;box-shadow:var(--sh-xs);transition:background .12s;}
   .pop .pop-cta:hover{background:var(--accentHi);}
+  /* Availability urgency badge — sage/ok green, sits under the title */
+  .pop .pop-avail{display:inline-flex;align-items:center;gap:5px;margin:0 0 8px;
+    padding:3px 9px;border-radius:999px;background:var(--sageLo);color:var(--ok);
+    border:1px solid #D2DDC9;font-family:var(--display);font-weight:700;font-size:11px;}
+  .pop .pop-avail b{color:var(--ok);}
+  /* AMI tier chips — tight popup-scoped pills reusing the neutral tag language */
+  .pop .pop-amis{display:flex;gap:5px;flex-wrap:wrap;margin:2px 0 1px;}
+  .pop .pop-ami{display:inline-flex;align-items:center;padding:2px 8px;border-radius:7px;
+    font-size:11px;font-weight:600;background:var(--cream);color:var(--ink2);
+    border:1px solid var(--border);}
 
   /* Legend */
   .legend{position:absolute;bottom:16px;left:16px;z-index:600;background:var(--paper);
@@ -232,18 +242,41 @@ const cluster = L.markerClusterGroup({
 map.addLayer(cluster);
 
 const markers = {};   // _id -> marker
+// Normalize an AMI tier label to the compact "60%" form. The two snapshots
+// disagree on format ("60%" vs "60% AMI"); strip a trailing "AMI" so chips
+// render consistently regardless of source.
+function normAmi(t){
+  return String(t||'').replace(/\s*ami\s*$/i,'').trim();
+}
+// Map the map's capitalized fType back to the lowercase GPMGType the React side
+// (initFiltersFromURL) expects, and build a querystring from only the active
+// (non-'all', truthy) filters to forward into the CTA href.
+function ctaQuery(){
+  const qs = new URLSearchParams();
+  if(fType && fType!=='all') qs.set('type', fType.toLowerCase());
+  if(fCity && fCity!=='all') qs.set('city', fCity);
+  if(fFund && fFund!=='all') qs.set('fund', fFund);
+  if(fAvail) qs.set('availability', 'available_now');
+  const s = qs.toString();
+  return s ? '?'+s : '';
+}
 function popupHTML(p){
-  const ami = p.amiTiers.length ? p.amiTiers.join(' · ') : '—';
+  const hasAvail = p.availableUnits > 0;
+  const amiChips = p.amiTiers.length
+    ? `<div class="pop-amis">${p.amiTiers.map(t=>`<span class="pop-ami">${normAmi(t)}</span>`).join('')}</div>`
+    : '<b>—</b>';
   const fund = p.funding.length ? p.funding.join(', ') : 'Not specified';
+  const ctaLabel = hasAvail ? 'Apply now &rarr;' : 'View / Apply &rarr;';
   return `<div class="pop"><h4>${p.name}</h4>`
+    + (hasAvail?`<div class="pop-avail">&#9679; <b>${p.availableUnits}</b> available now</div>`:'')
     + (p.aka?`<div class="addr">aka ${p.aka}</div>`:'')
     + `<div class="addr">${p.address}</div>`
     + `<div class="row"><b>${p.totalUnits??'—'}</b> total units`
     + (p.restrictedUnits!=null?` · <b>${p.restrictedUnits}</b> restricted`:'') + `</div>`
     + `<div class="row">Type: <b>${p.type}</b></div>`
-    + `<div class="row">AMI set-asides: <b>${ami}</b></div>`
+    + `<div class="row">AMI set-asides: ${amiChips}</div>`
     + `<div class="row">Funding: ${fund}</div>`
-    + `<a class="pop-cta" href="/property/${slugify(p.name)}" target="_top">View / Apply &rarr;</a></div>`;
+    + `<a class="pop-cta" href="/property/${slugify(p.name)}${ctaQuery()}" target="_top">${ctaLabel}</a></div>`;
 }
 
 // ---- Cards -----------------------------------------------------------
