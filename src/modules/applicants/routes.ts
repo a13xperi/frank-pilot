@@ -28,6 +28,10 @@ const registerSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   phone: z.string().max(20).optional(),
+  // Magic-link delivery channel. Defaults to 'email' so existing clients are
+  // unchanged; 'sms'/'both' route the link through Twilio to the user's phone
+  // of record. SMS delivery is fire-and-forget — it never affects the 202.
+  channel: z.enum(["email", "sms", "both"]).optional(),
   // wedge #13: Cloudflare Turnstile widget response. Optional in the schema
   // because dev/test bypass the middleware entirely (smoke + unit tests run
   // without TURNSTILE_SECRET_KEY); production fails at verify-turnstile with
@@ -132,7 +136,7 @@ router.post(
       return;
     }
 
-    const { email, firstName, lastName, phone } = parsed.data;
+    const { email, firstName, lastName, phone, channel } = parsed.data;
 
     const existing = await query("SELECT id, role, is_active FROM users WHERE email = $1", [email]);
     let userId: string | undefined;
@@ -167,12 +171,14 @@ router.post(
     const link = await createMagicLink(email);
     if (link) {
       logMagicLink(email, link.link);
-      // Fire-and-forget Resend delivery. sendMagicLink() returns synchronously
-      // after scheduling the send so per-branch latency stays constant. The
-      // staff branch (link === null) skips this call but already pays the
+      // Fire-and-forget delivery. sendMagicLink() returns synchronously after
+      // scheduling the send so per-branch latency stays constant. The staff
+      // branch (link === null) skips this call but already pays the
       // createMagicLink SELECT cost, and respondAtFloor() below absorbs the
-      // residual gap.
-      sendMagicLink(email, link.link, { firstName });
+      // residual gap. The channel selects the transport (email / sms / both);
+      // SMS resolves the phone via link.userId and is itself fire-and-forget,
+      // so an SMS failure never changes the 202 response.
+      sendMagicLink(email, link.link, { firstName, channel, userId: link.userId });
     }
 
     // INFO-level payload is deliberately minimal: log-aggregation viewers
