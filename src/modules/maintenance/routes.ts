@@ -34,12 +34,12 @@ router.get("/:id", authenticate, requirePermission("maintenance:view"),
 );
 
 const CreateSchema = z.object({
-  propertyId: z.string().uuid(),
+  propertyId: z.string().guid(),
   title: z.string().min(1),
   description: z.string().min(1),
   priority: z.enum(["emergency", "urgent", "routine", "low"]),
   unitNumber: z.string().optional(),
-  applicationId: z.string().uuid().optional(),
+  applicationId: z.string().guid().optional(),
   category: z.string().optional(),
 });
 
@@ -61,7 +61,7 @@ router.post("/", authenticate, requirePermission("maintenance:manage"),
   }
 );
 
-const AssignSchema = z.object({ assignedTo: z.string().uuid() });
+const AssignSchema = z.object({ assignedTo: z.string().guid() });
 
 router.post("/:id/assign", authenticate, requirePermission("maintenance:manage"),
   async (req: AuthRequest, res: Response): Promise<void> => {

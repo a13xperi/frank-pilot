@@ -40,7 +40,7 @@ router.get("/:id", authenticate, requirePermission("moveout:view"),
 );
 
 const InitiateSchema = z.object({
-  applicationId: z.string().uuid(),
+  applicationId: z.string().guid(),
   noticeDate: z.string(),
   forwardingAddress: z.string().min(1, "Forwarding address is required"),
 });

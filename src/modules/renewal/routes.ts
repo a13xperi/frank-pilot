@@ -31,7 +31,7 @@ router.get("/:id", authenticate, requirePermission("renewal:view"),
 );
 
 const CreateSchema = z.object({
-  applicationId: z.string().uuid(),
+  applicationId: z.string().guid(),
   proposedRent: z.number().positive(),
   proposedTermMonths: z.number().int().positive().optional(),
 });
