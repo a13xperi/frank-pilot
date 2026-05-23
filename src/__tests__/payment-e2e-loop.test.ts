@@ -321,8 +321,11 @@ describe("BP-08 payment loop — mint intent → signed test-mode webhook → le
       APP_ID,
       AMOUNT_DOLLARS,
       INTENT_ID,
-      "stripe-webhook",
-      "system",
+      // System-initiated by the webhook: no user actor. postedBy/postedByRole
+      // are null so they land as NULL in the nullable posted_by (uuid) /
+      // audit actor columns — "stripe-webhook"/"system" are not a uuid/enum.
+      null,
+      null,
       `Stripe PaymentIntent ${INTENT_ID}`
     );
     expect(store.balance[APP_ID]).toBe(0);

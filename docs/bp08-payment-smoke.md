@@ -107,3 +107,37 @@ Use the decline card `4000 0000 0000 0002`. Expect `payment_intent.payment_faile
 → `payment_idempotency.status='failed'`, **no** ledger entry, a
 `BP08_PAYMENT_FAILED` tape stamp. To retry, the client bumps `attemptN` (a repeat
 with the same terminal key returns `409`).
+
+---
+
+## Observed run — 2026-05-22 (first real test-mode transaction)
+
+Ran the loop above for the first time as a **real** client→Stripe→webhook→ledger
+transaction (not mocked). Stack was the e2e harness: API `:3002`, Vite `:5175`,
+`stripe listen` device `whsec`. Final result green: balance `$1,950 → $0`, a
+`payment` ledger row (−$1,950), `payment_idempotency=succeeded`,
+`payment_intent.succeeded` in `stripe_processed_events`, `stripe_webhook_dlq`
+empty, and the tenant Ledger UI shows the new "Payment received" entry.
+
+It surfaced **three production bugs invisible to the mocked unit tests** (none of
+which touch a real Postgres enum / UUID column):
+
+1. **Missing `audit_action` enum values.** `intents.ts`/`webhook.ts` write five
+   `payment_intent_*` audit actions never added to the `audit_action` enum →
+   `invalid input value for enum audit_action`. `writeAuditLog` re-throws by
+   design, so on the unwrapped replay/blocked paths the rejection crashed the API.
+   Fix: migration `2026-05-27-bp08-audit-action-enum.sql` + `schema.ts`.
+2. **Stripe `pi_…` id into a UUID column.** Three audit writes set
+   `resourceId: intent.id`; `audit_log.resource_id` is `uuid`. Fix: drop
+   `resourceId`, carry `paymentIntentId` in `details`.
+3. **System actor into UUID / enum columns.** Webhook called
+   `recordPayment(…, "stripe-webhook", "system")`; `posted_by`/`actor_id` are
+   `uuid` and `actor_role` an enum with no `system` member. Fix: `recordPayment`
+   `postedBy`/`postedByRole` widened to nullable; webhook passes `null`/`null`
+   (matching the seed convention of `posted_by = NULL` for system payments); the
+   textual actor lives in audit `details.actor` + ledger notes.
+
+> **Stripe idempotency note:** the key is `pi:<appId>:<attemptN>`. Re-running the
+> same attempt replays the prior (already-succeeded) intent. To force a fresh
+> intent, mark the attempt row terminal so the client's 409-retry bumps
+> `attemptN`.

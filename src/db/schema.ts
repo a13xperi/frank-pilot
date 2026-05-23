@@ -120,7 +120,13 @@ CREATE TYPE audit_action AS ENUM (
   'inspection_completed',
   'work_order_created',
   'work_order_assigned',
-  'work_order_completed'
+  'work_order_completed',
+  -- BP-08 Stripe payment lifecycle (intents.ts + webhook.ts)
+  'payment_intent_created',
+  'payment_intent_replay',
+  'payment_intent_replay_blocked',
+  'payment_intent_succeeded',
+  'payment_intent_failed'
 );
 
 CREATE TYPE fraud_flag_type AS ENUM (

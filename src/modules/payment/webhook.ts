@@ -155,8 +155,11 @@ async function handlePaymentIntentSucceeded(event: Stripe.Event): Promise<void> 
     meta.applicationId,
     amountDollars,
     intent.id,
-    "stripe-webhook",
-    "system",
+    // System-initiated via the Stripe webhook — no user actor. posted_by is a
+    // nullable UUID column, so we pass null; the Stripe identity is preserved
+    // in reference_id (intent.id) and the note below.
+    null,
+    null,
     `Stripe PaymentIntent ${intent.id}`
   );
 
@@ -177,12 +180,13 @@ async function handlePaymentIntentSucceeded(event: Stripe.Event): Promise<void> 
 
   await writeAuditLog({
     action: "payment_intent_succeeded",
-    actorId: "stripe-webhook",
-    actorRole: "system",
+    // System-initiated by the Stripe webhook: actor_id is a nullable UUID and
+    // actor_role a fixed enum (no "system" member), so the textual actor lives
+    // in details rather than those typed columns.
     applicationId: meta.applicationId,
     resourceType: "payment_intent",
-    resourceId: intent.id,
-    details: { amountCents, currency, ledgerEntryId: ledgerEntry.id, idempotencyKey },
+    // resource_id is a UUID column; a Stripe `pi_…` id is not — keep it in details.
+    details: { actor: "stripe-webhook", amountCents, currency, ledgerEntryId: ledgerEntry.id, idempotencyKey, paymentIntentId: intent.id },
   });
 }
 
@@ -215,12 +219,12 @@ async function handlePaymentIntentFailed(event: Stripe.Event): Promise<void> {
 
   await writeAuditLog({
     action: "payment_intent_failed",
-    actorId: "stripe-webhook",
-    actorRole: "system",
+    // System-initiated by the Stripe webhook — see succeeded path. Textual actor
+    // goes in details, not the typed actor_id (uuid) / actor_role (enum) columns.
     applicationId: meta.applicationId,
     resourceType: "payment_intent",
-    resourceId: intent.id,
-    details: { failureCode, failureMessage, idempotencyKey },
+    // resource_id is a UUID column; a Stripe `pi_…` id is not — keep it in details.
+    details: { actor: "stripe-webhook", failureCode, failureMessage, idempotencyKey, paymentIntentId: intent.id },
   });
 }
 

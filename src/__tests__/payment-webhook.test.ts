@@ -261,8 +261,11 @@ describe("POST /webhook — payment_intent.succeeded", () => {
       APP_ID,
       125, // 12500 cents → $125.00
       "pi_test_001",
-      "stripe-webhook",
-      "system",
+      // System actor (webhook): postedBy/postedByRole are null — they land as
+      // NULL in the nullable posted_by (uuid) / audit actor columns. The textual
+      // "stripe-webhook" actor lives in audit details, not a typed column.
+      null,
+      null,
       expect.stringContaining("pi_test_001")
     );
     expect(mockStampTape).toHaveBeenCalledWith(
