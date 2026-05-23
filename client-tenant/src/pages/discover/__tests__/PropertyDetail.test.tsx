@@ -96,23 +96,38 @@ describe('PropertyDetail (GPMG fixture)', () => {
     expect(link.textContent).toMatch(/income calculator/i);
   });
 
-  it('renders the HUD-LV income limits disclosure with rows 1–8 (60% AMI)', () => {
+  it('renders the official 2026 income limits disclosure with rows 1–12 (60% AMI)', () => {
     renderAt('/property/owens-senior-housing');
     const disclosure = screen.getByTestId('income-limits-disclosure');
     expect(disclosure).toBeInTheDocument();
-    // Header copy
-    expect(disclosure.textContent).toMatch(/Las Vegas-Henderson-Paradise MSA/);
-    // 8 household-size rows
-    for (let i = 1; i <= 8; i++) {
+    // Data-driven MSA name from the 2026 Novogradac Clark County export.
+    expect(disclosure.textContent).toMatch(
+      /Las Vegas-Henderson-North Las Vegas, NV MSA/
+    );
+    // 12 household-size rows (expanded from the old 1–8 stub).
+    for (let i = 1; i <= 12; i++) {
       expect(screen.getByTestId(`income-limits-row-${i}`)).toBeInTheDocument();
     }
-    // Anchor: household size 4 @ 60% AMI = $51,840 per ami.ts.
+    // Anchor: household size 4 @ 60% AMI = $63,300 (published 2026 limit).
     expect(screen.getByTestId('income-limits-row-4').textContent).toMatch(
-      /\$51,840/
+      /\$63,300/
     );
-    // Anchor: household size 1 @ 60% AMI = $36,300.
+    // Anchor: household size 1 @ 60% AMI = $44,340.
     expect(screen.getByTestId('income-limits-row-1').textContent).toMatch(
-      /\$36,300/
+      /\$44,340/
     );
+    // Novogradac provenance disclaimer is shown with the official numbers.
+    expect(screen.getByTestId('income-limits-source').textContent).toMatch(
+      /Novogradac/
+    );
+  });
+
+  it('renders the official max-rent column at the 60% set-aside', () => {
+    renderAt('/property/david-j-hoggard-family-community');
+    // Hoggard has 1BR/2BR/3BR. Published 60% caps: 1BR=$1,187, 2BR=$1,425,
+    // 3BR=$1,646. Asking rents ($995 / $1,194 / $1,380–$1,539) sit under cap.
+    expect(screen.getByTestId('rent-cap-br1').textContent).toMatch(/\$1,187/);
+    expect(screen.getByTestId('rent-cap-br2').textContent).toMatch(/\$1,425/);
+    expect(screen.getByTestId('rent-cap-br3').textContent).toMatch(/\$1,646/);
   });
 });

@@ -45,9 +45,9 @@ describe('qualifyAmiTier', () => {
     expect(qualifyAmiTier(MSA, 0, cap50size1)).toBe('50');
   });
 
-  it('clamps household size above 8 to 8', () => {
-    const cap50size8 = AMI_TABLES[MSA].limits[8]['50'];
-    expect(qualifyAmiTier(MSA, 12, cap50size8)).toBe('50');
+  it('clamps household size above 12 to 12', () => {
+    const cap50size12 = AMI_TABLES[MSA].limits[12]['50'];
+    expect(qualifyAmiTier(MSA, 20, cap50size12)).toBe('50');
   });
 
   it('rejects negative income', () => {

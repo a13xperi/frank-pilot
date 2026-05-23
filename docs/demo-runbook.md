@@ -2,7 +2,7 @@
 
 Stakeholder-facing demo of Frank-Pilot CDPC vs. **gpmglv.com** (the affordable-housing operator we benchmark against). Use this when walking through the product live — investor pitch, operator prospect call, HUD/auditor preview.
 
-**Last updated:** 2026-05-22 (late) — main at `8603702`. Today's amplification ships landed: 24h claim countdown, analytics-consent gating, plus the operator-side QA bundle viewer.
+**Last updated:** 2026-05-23 — main at `229659c` (statewide map AMI-tier enrichment merged via #155, on top of: W0 AMI prefill, sitemap env-flip + Step1 CTA portal, i18n EN-ES parity + CI guard). The 2026-05-22 amplification ships below (claim countdown, analytics-consent gating, operator QA bundle viewer) remain current.
 
 ---
 
@@ -15,7 +15,7 @@ What changed on screen since the morning version of this runbook:
 - **Wedge #8 (live discover)** — `/discover` now reads from the live `/api/properties` endpoint (public, no auth). Bedroom + AMI filters work against real backend data. (PRs #105, #119)
 - **Wedge #9 (rent + AMI on cards)** — property tiles disclose rent ranges and the AMI tier chip publicly. (PR #72)
 - **Wedge #15 (analytics consent)** — analytics vendors are now consent-gated. `initAnalytics()` is a no-op unless the user has accepted analytics in the cookie banner; a user who accepts mid-session gets instrumented without a reload (no page bounce). `VITE_ANALYTICS_VENDOR` defaults to `none`. Demo behavior is unchanged unless that flag is flipped. (PR #126)
-- **Operator QA bundle viewer** — the `frank-qa-screenshots` bucket is now consumable in-app at `/qa-bundles` (operator portal, `regional_manager+`). Lists recent bundles, renders the PNG + JSON sidecar + rrweb replay inline. Not in the applicant demo path — mention only if an operator audience asks "how do you triage tenant-side bugs?" **Bucket lockdown is open follow-up work**: the bucket is currently public-read; do not show this surface to a security-conscious operator without the lockdown PR landed. (PR #103)
+- **Operator QA bundle viewer** — the `frank-qa-screenshots` bucket is now consumable in-app at `/qa-bundles` (operator portal, `regional_manager+`). Lists recent bundles, renders the PNG + JSON sidecar + rrweb replay inline. Not in the applicant demo path — mention only if an operator audience asks "how do you triage tenant-side bugs?" **Bucket lockdown is open follow-up work**: PR #133 (merged) added an auth-gated server-proxy for the artifact bytes, but the `frank-qa-screenshots` bucket is still public-read until the privatization ops change lands; do not show this surface to a security-conscious operator until then. (PRs #103, #133)
 
 ---
 
@@ -67,6 +67,7 @@ The full applicant journey. Use this for operator demos.
    - Each tile: photo placeholder, name, **rent range** (`Studio $747 · 1BR $995 · 2BR $1,194 · 3BR $1,380`), **`60% AMI` chip**, **availability badge** (`3 available` or `Fully leased`).
    - Talking point: "Their cards have a name and a photo. Ours surface rent and availability publicly — eligibility-disqualified applicants self-select out before they ever call the leasing office."
    - Click into any tile (recommended: **Meacham Cove** or **Decatur Pines** — these have the cleanest 2BR availability for the 60% tier).
+   - **Optional map beat (`/discover?view=map`):** toggle the map view — ~352 clustered pins covering the whole state (335 statewide coverage + 17 live-availability properties). Click a pin → popup shows **AMI set-asides** (e.g. `60% · 50%`) for 271 of the 352 markers, up from zero before the 2026-05-23 enrichment. Talking point: "Even properties we don't have live availability for, we surface their AMI set-aside tiers — statewide coverage, not just our 17 active listings."
 
 3. **PropertyDetail** — the disclosure beat.
    - Above-the-fold: photo gallery placeholder + property metadata.

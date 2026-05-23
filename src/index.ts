@@ -5,6 +5,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { logger } from "./utils/logger";
+import { resolveCorsOrigin } from "./utils/cors-origin";
 import { authenticate, login, AuthRequest } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
 import { queryAuditLog } from "./middleware/audit";
@@ -14,6 +15,8 @@ import applicationRoutes from "./modules/application/routes";
 import screeningRoutes from "./modules/screening/routes";
 import approvalRoutes from "./modules/approval/routes";
 import paymentRoutes from "./modules/payment/routes";
+import paymentWebhookRouter from "./modules/payment/webhook";
+import { assertStripeProdConfig } from "./modules/payment/boot-guard";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
 import adverseActionRoutes from "./modules/adverse-action/routes";
@@ -34,6 +37,7 @@ import messagesRoutes from "./modules/messages/routes";
 import tapeRoutes from "./modules/tape/routes";
 import { createTapeViewerRoutes } from "./modules/tape/routes-viewer";
 import { qaRouter } from "./modules/qa/routes";
+import acquisitionRoutes from "./modules/acquisitions/routes";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -49,19 +53,34 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
+assertStripeProdConfig(process.env);
+
 const app = express();
 app.set("trust proxy", 1);
 const PORT = parseInt(process.env.PORT || "3000");
 
 // Security middleware
 app.use(helmet());
-// HIGH-2 (SECURITY-AUDIT-2026-05-21): fail closed on CORS — refuse to boot
-// without an explicit allow-list. Wildcard fallback removed.
-const corsOrigin = process.env.CORS_ORIGIN;
-if (!corsOrigin) {
-  throw new Error("CORS_ORIGIN is required (no wildcard fallback)");
+// HIGH-2 (SECURITY-AUDIT-2026-05-21): fail closed on CORS — production
+// refuses to boot without an explicit allow-list (mirrors the JWT_SECRET /
+// ENCRYPTION_KEY gate above). Dev/test fall back to localhost so `npm start`
+// works out of the box. See src/utils/cors-origin.ts + unit tests.
+let corsOrigins: string[];
+try {
+  corsOrigins = resolveCorsOrigin(process.env);
+} catch (err) {
+  console.error((err as Error).message);
+  process.exit(1);
 }
-app.use(cors({ origin: corsOrigin.split(",").map((s) => s.trim()) }));
+app.use(cors({ origin: corsOrigins }));
+
+// BP-08 Stripe webhook — MUST be mounted before `express.json()` so the raw
+// request body survives intact for `stripe.webhooks.constructEvent`. Moving
+// this below the JSON parser silently breaks signature verification: the
+// parser consumes the buffer and we lose the bytes the HMAC was computed
+// over. Do not reorder.
+app.use("/api/payments/webhook", paymentWebhookRouter);
+
 app.use(express.json({ limit: "1mb" }));
 
 // Request logging (PII-safe)
@@ -118,21 +137,33 @@ app.use("/api/tape", tapeRoutes);
 // BP-02 compliance tape viewer (operator-only: list, verify, export.pdf).
 // TODO(BP-02-Phase-2): Replace the stub service below with the real TapeService
 // from Lane B once it is wired. The stub returns 503 for all calls so the
-// routes exist in production but remain inert until Phase 2 completes.
-app.use(
-  "/api/compliance-tape",
-  createTapeViewerRoutes({
-    async list() {
-      throw Object.assign(new Error("service not wired"), { stub: true });
-    },
-    async verify() {
-      throw Object.assign(new Error("service not wired"), { stub: true });
-    },
-    async exportPdf() {
-      throw Object.assign(new Error("service not wired"), { stub: true });
-    },
-  })
-);
+// routes exist but remain inert until Phase 2 completes.
+//
+// Flag-gated on COMPLIANCE_TAPE_V2_ENABLED (mirrors the verify-cron gate in
+// src/scheduler.ts). When the flag is off the routes are NOT mounted, so a
+// request to /api/compliance-tape/* falls through to the 404 handler below
+// rather than returning the 503 stub.
+if (process.env.COMPLIANCE_TAPE_V2_ENABLED === "true") {
+  app.use(
+    "/api/compliance-tape",
+    createTapeViewerRoutes({
+      async list() {
+        throw Object.assign(new Error("service not wired"), { stub: true });
+      },
+      async verify() {
+        throw Object.assign(new Error("service not wired"), { stub: true });
+      },
+      async exportPdf() {
+        throw Object.assign(new Error("service not wired"), { stub: true });
+      },
+    })
+  );
+  logger.info("BP-02 compliance-tape viewer routes mounted");
+} else {
+  logger.info(
+    "BP-02 compliance-tape viewer routes skipped — COMPLIANCE_TAPE_V2_ENABLED is off"
+  );
+}
 
 // Password login (staff)
 app.post("/api/auth/login", async (req, res) => {
@@ -151,7 +182,11 @@ app.post("/api/auth/login", async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    logger.error("Login error", { error: (err as Error).message });
+    // L1.3 audit follow-up (PR #101): never log err.message — downstream
+    // validators may embed the submitted email/password in their messages,
+    // leaking credentials into combined.log. Log err.name only.
+    const errName = err instanceof Error ? err.name : "UnknownError";
+    logger.error("Login error", { errorName: errName });
     res.status(500).json({ error: "Login failed" });
   }
 });
@@ -189,6 +224,9 @@ app.use("/api/users", userRoutes);
 
 // Property management (asset_manager+: create/update; all roles: view)
 app.use("/api/properties", propertyRoutes);
+
+// QAP acquisitions — Demand-Evidence Engine (asset_manager+ / acquisition:view)
+app.use("/api/acquisitions", acquisitionRoutes);
 
 // Compliance reports (Fair Housing Act — audit:view / Regional Manager+)
 app.use("/api/compliance", complianceRoutes);

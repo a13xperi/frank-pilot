@@ -4,9 +4,12 @@ import { logger } from "../../utils/logger";
 import { TwilioService } from "../integrations/twilio";
 import { AuthRequest } from "../../middleware/auth";
 import { buildPropertyScope } from "../../middleware/scope";
+import { RecertComplianceService } from "../acquisitions/recert-compliance";
+import { recommendedRentAction } from "../acquisitions/compliance-bridge";
 
 export class RecertificationService {
   private twilio = new TwilioService();
+  private compliance = new RecertComplianceService();
 
   /**
    * Create an annual recertification record for a newly onboarded tenant.
@@ -211,6 +214,15 @@ export class RecertificationService {
       resourceId: recertId,
       details: { newIncome },
     });
+
+    // QAP Phase 3.1: measure the recertified income against the unit's AMI
+    // ceiling (140% Available Unit Rule) and snapshot/stamp the verdict.
+    // Best-effort — a compliance hiccup must never block the submission.
+    try {
+      await this.compliance.check(recertId, { income: newIncome ?? null, actorId });
+    } catch (err: any) {
+      logger.error("Recert income-ceiling check failed on submit (non-fatal)", { recertId, error: err?.message });
+    }
   }
 
   /**
@@ -248,6 +260,35 @@ export class RecertificationService {
       resourceId: recertId,
       details: { decision, notes, rentAdjustment },
     });
+
+    // QAP Phase 3.1: re-evaluate the income ceiling against the reviewed
+    // income (now persisted) and stamp the verdict under the reviewer's actor.
+    // The reviewer acts on this verdict; we never auto-change their decision.
+    // QAP Phase 3.2: derive the recommended rent consequence under the Next
+    // Available Unit Rule from the verdict and record it on the existing
+    // rent_adjustment / market_rent_* columns (best-effort, never blocks).
+    try {
+      const result = await this.compliance.check(recertId, { income: newIncome ?? null, actorId });
+      if (result) {
+        const rec = recommendedRentAction(result.check.verdict);
+        // Only auto-record when the reviewer didn't supply an explicit
+        // adjustment, so the manual decision always wins.
+        if (rentAdjustment === undefined || rentAdjustment === null) {
+          if (rec.action === "market_rent") {
+            await query(
+              `UPDATE recertifications
+                  SET market_rent_applied_at = COALESCE(market_rent_applied_at, NOW()),
+                      updated_at = NOW()
+                WHERE id = $1`,
+              [recertId]
+            ).catch(() => {});
+          }
+        }
+        logger.info("Recert NAU rent action recommended", { recertId, verdict: result.check.verdict, action: rec.action });
+      }
+    } catch (err: any) {
+      logger.error("Recert income-ceiling check failed on review (non-fatal)", { recertId, error: err?.message });
+    }
 
     // If approved, create next year's recertification automatically
     if (decision === "pass") {

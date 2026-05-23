@@ -17,12 +17,14 @@ import {
   populatedBuckets,
   type BedroomBucket as PricingBedroomBucket,
 } from '@/utils/pricing';
-import { AMI_TABLES } from '@/lib/ami';
+import { incomeLimit, maxRent, type BedroomKey } from '@/lib/ami';
+import { cityToCountyKey } from '@/lib/nv-counties';
+import { LIMITS_2026 } from '@/lib/limits-2026.generated';
 import { PropertyJsonLd } from '@/components/PropertyJsonLd';
 
-// Household sizes 1–8 for the HUD income-limits disclosure (per spec).
-const HOUSEHOLD_SIZES: ReadonlyArray<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8> = [
-  1, 2, 3, 4, 5, 6, 7, 8,
+// Household sizes 1–12 for the official 2026 income-limits disclosure.
+const HOUSEHOLD_SIZES: ReadonlyArray<number> = [
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
 ];
 
 const RENT_TABLE_BEDROOM_I18N: Record<PricingBedroomBucket, string> = {
@@ -47,6 +49,24 @@ const AMENITIES = [
 
 const VALID_AMI_TIERS = new Set(['30', '50', '60', '80'] as const);
 type AmiTier = '30' | '50' | '60' | '80';
+
+// Map the pricing bedroom buckets (studio/br1/br2/br3) onto the official
+// rent-limit bedroom keys. Studio == Efficiency in the Novogradac export.
+const BUCKET_TO_BEDROOM_KEY: Record<PricingBedroomBucket, BedroomKey> = {
+  studio: 'eff',
+  br1: 'br1',
+  br2: 'br2',
+  br3: 'br3',
+};
+
+/** Parse a set-aside label ("60% AMI") into a validated AMI tier ("60"). */
+function parseSetAsideTier(setAside: string | null): AmiTier | null {
+  if (!setAside) return null;
+  const digits = setAside.match(/^\d+/)?.[0];
+  return digits && VALID_AMI_TIERS.has(digits as AmiTier)
+    ? (digits as AmiTier)
+    : null;
+}
 
 const BEDROOM_BUCKETS: ReadonlyArray<{ key: BedroomBucket; i18nKey: string }> = [
   { key: 'studio', i18nKey: 'availability.studio' },
@@ -111,7 +131,12 @@ export function PropertyDetail() {
   const rentRange = propertyRentRange(prop.name);
   const rentBuckets = populatedBuckets(rentRange);
   const propertySetAside = propertyAmiTier(prop.name);
-  const amiTable = AMI_TABLES.LAS_VEGAS_HENDERSON;
+  // County-aware official 2026 limits. Resolve the property's county from its
+  // city; a null county = not-yet-ingested → "coming soon" rather than stale
+  // numbers. setAsideTier is the numeric tier ("60") parsed from "60% AMI".
+  const countyKey = cityToCountyKey(prop.city);
+  const setAsideTier = parseSetAsideTier(propertySetAside);
+  const countyMsa = countyKey ? LIMITS_2026[countyKey].msa : '';
   const showAmiDisclosure = !!propertySetAside && rentBuckets.length > 0;
 
   const onApply = () => {
@@ -297,6 +322,24 @@ export function PropertyDetail() {
                     >
                       {t('amiDisclosure.tableHeader.rent')}
                     </th>
+                    {countyKey && setAsideTier && (
+                      <th
+                        scope="col"
+                        style={{
+                          padding: '6px 8px',
+                          borderBottom: `1px solid ${HF.border}`,
+                          fontWeight: 700,
+                          fontSize: 12,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          textAlign: 'right',
+                        }}
+                      >
+                        {t('amiDisclosure.tableHeader.maxRent', {
+                          tier: propertySetAside,
+                        })}
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -324,6 +367,27 @@ export function PropertyDetail() {
                         {formatRentBucket(bucket)}
                         <span style={{ color: HF.ink3 }}>{t('pricing.suffix')}</span>
                       </td>
+                      {countyKey && setAsideTier && (
+                        <td
+                          data-testid={`rent-cap-${key}`}
+                          style={{
+                            padding: '8px',
+                            borderBottom: `1px solid ${HF.border}`,
+                            color: HF.ink3,
+                            textAlign: 'right',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {(() => {
+                            const cap = maxRent(
+                              countyKey,
+                              setAsideTier,
+                              BUCKET_TO_BEDROOM_KEY[key],
+                            );
+                            return cap != null ? formatUSD(cap) : '—';
+                          })()}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -394,6 +458,8 @@ export function PropertyDetail() {
                 >
                   {t('amiDisclosure.incomeLimitsToggle')}
                 </summary>
+                {countyKey && setAsideTier ? (
+                  <>
                 <p
                   style={{
                     margin: '10px 0 0',
@@ -401,7 +467,10 @@ export function PropertyDetail() {
                     color: HF.ink3,
                   }}
                 >
-                  {t('amiDisclosure.incomeLimitsTitle', { tier: propertySetAside })}
+                  {t('amiDisclosure.incomeLimitsTitle', {
+                    tier: propertySetAside,
+                    msa: countyMsa,
+                  })}
                 </p>
                 <table
                   data-testid="income-limits-table"
@@ -465,12 +534,37 @@ export function PropertyDetail() {
                             fontVariantNumeric: 'tabular-nums',
                           }}
                         >
-                          {formatUSD(amiTable.limits[size]['60'])}
+                          {formatUSD(incomeLimit(countyKey, setAsideTier, size))}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                <p
+                  data-testid="income-limits-source"
+                  style={{
+                    margin: '8px 0 0',
+                    fontSize: 11,
+                    color: HF.ink3,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {t('amiDisclosure.incomeLimitsSource')}
+                </p>
+                  </>
+                ) : (
+                  <p
+                    data-testid="income-limits-coming-soon"
+                    style={{
+                      margin: '10px 0 0',
+                      fontSize: 13,
+                      color: HF.ink3,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {t('amiDisclosure.comingSoonNote', { city: prop.city })}
+                  </p>
+                )}
               </details>
             </section>
           )}

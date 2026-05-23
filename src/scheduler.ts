@@ -103,45 +103,57 @@ export function startScheduler() {
     }
   });
 
-  // Every 5 minutes — BP-02 compliance-tape chain-integrity sweep.
-  // Samples up to 20 applicants that received a tape stamp in the last hour
-  // and runs verify() on each. WARN per broken chain is the in-app alert
-  // signal; the prod-smoke compliance-tape-verify job is the external one.
-  cron.schedule("*/5 * * * *", async () => {
-    try {
-      const { query } = await import("./config/database");
-      const { rows } = await query(
-        `SELECT DISTINCT applicant_id
-           FROM compliance_tape
-          WHERE created_at > NOW() - INTERVAL '1 hour'
-            AND applicant_id IS NOT NULL
-          LIMIT 20`
-      );
-      let warnings = 0;
-      for (const r of rows) {
-        const result = await tapeService.verify({
-          type: "applicant",
-          applicantId: r.applicant_id as string,
-        });
-        if (!result.ok) {
-          warnings++;
-          logger.warn("BP-02 chain break detected", {
-            applicantId: r.applicant_id,
-            brokeAt: result.brokeAt,
-            reason: result.reason,
+  // BP-02 verify-cron — gated on COMPLIANCE_TAPE_V2_ENABLED.
+  // Until Phase 2 Step 2 wires the canonical TapeService, this cron would
+  // run every 5 minutes against a stub that always throws "service not
+  // wired", flooding logs and obscuring real BP-02 issues when the service
+  // DOES land. Default OFF; ops flips the flag when the service is ready.
+  if (process.env.COMPLIANCE_TAPE_V2_ENABLED === "true") {
+    // Every 5 minutes — BP-02 compliance-tape chain-integrity sweep.
+    // Samples up to 20 applicants that received a tape stamp in the last hour
+    // and runs verify() on each. WARN per broken chain is the in-app alert
+    // signal; the prod-smoke compliance-tape-verify job is the external one.
+    cron.schedule("*/5 * * * *", async () => {
+      try {
+        const { query } = await import("./config/database");
+        const { rows } = await query(
+          `SELECT DISTINCT applicant_id
+             FROM compliance_tape
+            WHERE created_at > NOW() - INTERVAL '1 hour'
+              AND applicant_id IS NOT NULL
+            LIMIT 20`
+        );
+        let warnings = 0;
+        for (const r of rows) {
+          const result = await tapeService.verify({
+            type: "applicant",
+            applicantId: r.applicant_id as string,
           });
+          if (!result.ok) {
+            warnings++;
+            logger.warn("BP-02 chain break detected", {
+              applicantId: r.applicant_id,
+              brokeAt: result.brokeAt,
+              reason: result.reason,
+            });
+          }
         }
+        logger.info("BP-02 verify-cron tick", {
+          sampledApplicants: rows.length,
+          warnings,
+        });
+      } catch (err) {
+        logger.error("BP-02 verify-cron failed", {
+          error: (err as Error).message,
+        });
       }
-      logger.info("BP-02 verify-cron tick", {
-        sampledApplicants: rows.length,
-        warnings,
-      });
-    } catch (err) {
-      logger.error("BP-02 verify-cron failed", {
-        error: (err as Error).message,
-      });
-    }
-  });
+    });
+    logger.info("BP-02 verify-cron registered (COMPLIANCE_TAPE_V2_ENABLED=true)");
+  } else {
+    logger.info(
+      "BP-02 verify-cron skipped — COMPLIANCE_TAPE_V2_ENABLED is off"
+    );
+  }
 
-  logger.info("Scheduler started: rent postings (1st @ 6AM) + late fees (7AM) + renewals (7:30AM) + recert reminders (8AM) + TRACS checks (9AM) + BP-02 verify-cron (every 5min)");
+  logger.info("Scheduler started: rent postings (1st @ 6AM) + late fees (7AM) + renewals (7:30AM) + recert reminders (8AM) + TRACS checks (9AM)");
 }

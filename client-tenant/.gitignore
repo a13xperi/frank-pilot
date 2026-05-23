@@ -6,3 +6,8 @@ dist-ssr
 .DS_Store
 tsconfig.tsbuildinfo
 .vercel
+# Playwright (e2e/ — see e2e/README.md)
+test-results/
+playwright-report/
+.playwright/
+playwright/.cache/
