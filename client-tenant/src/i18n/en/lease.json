@@ -1,0 +1,21 @@
+{
+  "title": "Sign your lease",
+  "subtitle": "Review your lease, then sign below to finish the leasing process.",
+  "loading": "Loading your lease…",
+  "noLease": "You don't have a lease ready to sign yet.",
+  "backToStatus": "Back to status",
+  "documentHeading": "Your lease document",
+  "openDocument": "Open lease document",
+  "previewUnavailable": "Open the document in a new tab to review it before signing.",
+  "signatureHeading": "Your signature",
+  "signatureNameLabel": "Type your full legal name",
+  "signatureNamePlaceholder": "e.g. Jordan A. Rivera",
+  "consentLabel": "I agree to sign this lease electronically. My electronic signature is the legal equivalent of my handwritten signature (E-SIGN Act / UETA).",
+  "signCta": "Sign lease",
+  "signing": "Signing…",
+  "signedTitle": "Lease signed",
+  "signedBody": "Thanks — your signed lease is on file. Your property manager will complete move-in.",
+  "errorConsent": "Please agree to sign electronically before continuing.",
+  "errorName": "Please type your full legal name.",
+  "errorGeneric": "We couldn't record your signature. Please try again."
+}
