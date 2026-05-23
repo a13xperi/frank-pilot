@@ -19,6 +19,7 @@ import { PgTapeRepository } from '../tape/repository';
 import {
   evaluateRecertIncome,
   comparableUnit,
+  recommendedRentAction,
   type AmiDesignation,
   type NauUnit,
   type RecertIncomeCheck,
@@ -337,11 +338,172 @@ export class RecertComplianceService {
     return context;
   }
 
+  /**
+   * Mark an open NAU obligation **lost** (QAP Phase 3.2 — the inverse of
+   * {@link resolveNau}). The Next Available Unit Rule is lost when the owner
+   * fails to honour it: the next comparable available unit at the property is
+   * rented to a *non-qualifying* household (consuming the slot), or the
+   * obligation otherwise lapses. The over-income unit then stops counting
+   * toward the set-aside and converts to market rent
+   * (IRC §42(g)(2)(D)(ii)).
+   *
+   * Staff-attested (mirrors resolveNau's manual flow): the reviewer records
+   * *why* the obligation was lost. If a `triggeringUnitId` is supplied it must
+   * be a comparable unit that is actually rented (the slot that was consumed);
+   * if omitted, the `reason` alone attests a lapse. On success sets
+   * `nau_status='lost'`, applies `market_rent_applied_at` (the real
+   * consequence), and stamps `acq.nau_lost`. Throws on any validation failure
+   * (the route maps it to 400).
+   *
+   * @returns the resolved check context.
+   */
+  async markNauLost(
+    recertId: string,
+    triggeringUnitId: string | null,
+    actorId: string | null,
+    reason: string,
+  ): Promise<RecertCheckContext> {
+    // Load the over-income recert + its occupied unit (same shape as resolveNau).
+    const res = await query(
+      `SELECT r.id, r.property_id, r.tenant_name, r.nau_status,
+              r.income_ceiling_verdict,
+              a.id AS application_id, a.household_size,
+              u.id AS unit_id, u.unit_number, u.ami_designation, u.bedrooms,
+              p.ami_area
+         FROM recertifications r
+         JOIN applications a ON r.application_id = a.id
+         LEFT JOIN units u ON a.claimed_unit_id = u.id
+         JOIN properties p ON r.property_id = p.id
+        WHERE r.id = $1`,
+      [recertId],
+    );
+    const row = (res.rows as (ResolveRow & {
+      nau_status: string | null;
+      income_ceiling_verdict: string | null;
+    })[])[0];
+    if (!row) throw new Error('Recertification not found');
+
+    if (row.income_ceiling_verdict !== 'over_income') {
+      throw new Error('Recertification has no over-income verdict — no NAU obligation to lose.');
+    }
+    if (row.nau_status !== 'open') {
+      throw new Error(
+        `NAU obligation is not open (current status: ${row.nau_status ?? 'none'}).`,
+      );
+    }
+    if (!row.unit_id) {
+      throw new Error('Recertification has no occupied unit — cannot evaluate NAU comparability.');
+    }
+
+    // If a triggering unit is named, it must be the comparable slot that was
+    // consumed: same property, ≥ bedrooms, equal-or-deeper tier, and actually
+    // rented. (That it went to a *non-qualifying* household is what staff
+    // attest via `reason` — the income of that household is not modelled here.)
+    let triggeringUnitNumber: string | null = null;
+    let triggeringDesignation: string | null = null;
+    let triggeringBedrooms: number | null = null;
+    if (triggeringUnitId) {
+      const overIncomeUnit: NauUnit = {
+        propertyId: row.property_id,
+        bedrooms: row.bedrooms ?? 0,
+        amiDesignation: (row.ami_designation as AmiDesignation | null) ?? null,
+      };
+
+      const candRes = await query(
+        `SELECT id, property_id, unit_number, bedrooms, ami_designation, status, claimed_unit
+           FROM (
+             SELECT u.id, u.property_id, u.unit_number, u.bedrooms,
+                    u.ami_designation, u.status,
+                    (SELECT a2.id FROM applications a2
+                      WHERE a2.claimed_unit_id = u.id LIMIT 1) AS claimed_unit
+               FROM units u
+              WHERE u.id = $1
+           ) c`,
+        [triggeringUnitId],
+      );
+      const cand = candRes.rows[0] as
+        | {
+            id: string;
+            property_id: string;
+            unit_number: string | null;
+            bedrooms: number | null;
+            ami_designation: string | null;
+            status: string | null;
+            claimed_unit: string | null;
+          }
+        | undefined;
+      if (!cand) throw new Error('Triggering unit not found.');
+
+      const candidateUnit: NauUnit = {
+        propertyId: cand.property_id,
+        bedrooms: cand.bedrooms ?? 0,
+        amiDesignation: (cand.ami_designation as AmiDesignation | null) ?? null,
+      };
+      if (!comparableUnit(overIncomeUnit, candidateUnit)) {
+        throw new Error(
+          'Triggering unit is not comparable: must be in the same property, have at least as many bedrooms, and carry an equal-or-deeper AMI tier.',
+        );
+      }
+      const occupied = cand.claimed_unit !== null && cand.status !== 'available' && cand.status !== 'held';
+      if (!occupied) {
+        throw new Error(
+          'Triggering unit must be rented (the consumed slot) to lose the Next Available Unit obligation; an available/held unit means the obligation is still open.',
+        );
+      }
+      triggeringUnitNumber = cand.unit_number;
+      triggeringDesignation = cand.ami_designation;
+      triggeringBedrooms = cand.bedrooms;
+    }
+
+    // Mark lost and apply the rent consequence (market_rent) atomically. The
+    // partial UPDATE guard (nau_status='open') makes this idempotent under a
+    // double-submit.
+    await query(
+      `UPDATE recertifications
+          SET nau_status = 'lost',
+              nau_resolved_at = NOW(),
+              nau_resolving_unit_id = $2,
+              market_rent_applied_at = COALESCE(market_rent_applied_at, NOW()),
+              updated_at = NOW()
+        WHERE id = $1 AND nau_status = 'open'`,
+      [recertId, triggeringUnitId],
+    );
+
+    const context: RecertCheckContext = {
+      recertId: row.id,
+      applicationId: row.application_id,
+      propertyId: row.property_id,
+      tenantName: row.tenant_name,
+      unitId: row.unit_id,
+      unitNumber: row.unit_number,
+      designation: (row.ami_designation as AmiDesignation | null) ?? null,
+      bedrooms: row.bedrooms ?? null,
+      amiArea: row.ami_area,
+      householdSize: row.household_size && row.household_size > 0 ? row.household_size : 1,
+      limitYear: null,
+    };
+
+    const rent = recommendedRentAction('over_income', { nauLost: true });
+    await this.stampNau('acq.nau_lost', context, actorId, {
+      triggeringUnitId,
+      triggeringUnitNumber,
+      triggeringDesignation,
+      triggeringBedrooms,
+      designation: context.designation,
+      bedrooms: context.bedrooms,
+      rentAction: rent.action,
+      rentActionReason: rent.reason,
+      reason,
+    });
+
+    return context;
+  }
+
   /** Stamp a NAU tape event best-effort. subjectId MUST be null (global-scope
    *  admin event): compliance_tape.applicant_id is FK'd to users(id), so the
    *  recert/unit ids ride in evidence, never the scope key. */
   private async stampNau(
-    kind: 'acq.nau_triggered' | 'acq.nau_satisfied',
+    kind: 'acq.nau_triggered' | 'acq.nau_satisfied' | 'acq.nau_lost',
     context: RecertCheckContext,
     actorId: string | null,
     evidence: Record<string, unknown>,

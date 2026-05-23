@@ -286,6 +286,122 @@ describe('RecertComplianceService.resolveNau', () => {
   });
 });
 
+describe('RecertComplianceService.markNauLost', () => {
+  function overIncomeRecertRow(over: Record<string, unknown> = {}) {
+    return {
+      id: 'recert-1',
+      property_id: 'prop-1',
+      tenant_name: 'Jane Doe',
+      nau_status: 'open',
+      income_ceiling_verdict: 'over_income',
+      application_id: 'app-1',
+      household_size: 3,
+      unit_id: 'unit-1',
+      unit_number: '204',
+      ami_designation: '60',
+      bedrooms: 2,
+      ami_area: 'Clark County',
+      ...over,
+    };
+  }
+
+  function candidateRow(over: Record<string, unknown> = {}) {
+    return {
+      id: 'unit-9',
+      property_id: 'prop-1',
+      unit_number: '310',
+      bedrooms: 2,
+      ami_designation: '60',
+      status: 'occupied',
+      claimed_unit: 'app-77', // rented to a non-qualifying household (staff-attested via reason)
+      ...over,
+    };
+  }
+
+  it('with a triggering unit → lost + market_rent applied + acq.nau_lost stamped (subjectId null)', async () => {
+    mockQuery
+      .mockResolvedValueOnce(qr([overIncomeRecertRow()])) // load recert + unit
+      .mockResolvedValueOnce(qr([candidateRow()])) // load triggering unit
+      .mockResolvedValueOnce(qr([])) // UPDATE lost
+      .mockResolvedValue(qr([]));
+
+    const ctx = await service.markNauLost('recert-1', 'unit-9', 'rev-1', 'next comparable unit went to a market household');
+    expect(ctx.recertId).toBe('recert-1');
+
+    // single atomic UPDATE flips status AND applies the market-rent consequence
+    const lostUpdate = mockQuery.mock.calls.find((c) => String(c[0]).includes("nau_status = 'lost'"));
+    expect(lostUpdate).toBeDefined();
+    expect(String(lostUpdate![0])).toContain('market_rent_applied_at');
+
+    expect(stamp).toHaveBeenCalledTimes(1);
+    const s = stamp.mock.calls[0][0] as any;
+    expect(s.kind).toBe('acq.nau_lost');
+    expect(s.payload.subjectId).toBeNull();
+    expect(s.payload.evidence.recertId).toBe('recert-1');
+    expect(s.payload.evidence.triggeringUnitId).toBe('unit-9');
+    expect(s.payload.evidence.rentAction).toBe('market_rent');
+    expect(s.payload.evidence.reason).toMatch(/market household/);
+  });
+
+  it('without a triggering unit (lapsed obligation) → lost + stamp, no candidate lookup', async () => {
+    mockQuery
+      .mockResolvedValueOnce(qr([overIncomeRecertRow()])) // load recert + unit
+      .mockResolvedValueOnce(qr([])) // UPDATE lost (no candidate query in between)
+      .mockResolvedValue(qr([]));
+
+    const ctx = await service.markNauLost('recert-1', null, 'rev-1', 'compliance window lapsed without a comparable rental');
+    expect(ctx.recertId).toBe('recert-1');
+    expect(stamp).toHaveBeenCalledTimes(1);
+    const s = stamp.mock.calls[0][0] as any;
+    expect(s.kind).toBe('acq.nau_lost');
+    expect(s.payload.evidence.triggeringUnitId).toBeNull();
+    expect(s.payload.evidence.rentAction).toBe('market_rent');
+    // exactly two queries: load + UPDATE (no candidate lookup)
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a non-comparable triggering unit (fewer bedrooms)', async () => {
+    mockQuery
+      .mockResolvedValueOnce(qr([overIncomeRecertRow()]))
+      .mockResolvedValueOnce(qr([candidateRow({ bedrooms: 1 })]))
+      .mockResolvedValue(qr([]));
+
+    await expect(service.markNauLost('recert-1', 'unit-9', 'rev-1', 'x')).rejects.toThrow(/not comparable/i);
+    expect(mockQuery.mock.calls.find((c) => String(c[0]).includes("nau_status = 'lost'"))).toBeUndefined();
+    expect(stamp).not.toHaveBeenCalled();
+  });
+
+  it('rejects a comparable but still-available (not rented) triggering unit', async () => {
+    mockQuery
+      .mockResolvedValueOnce(qr([overIncomeRecertRow()]))
+      .mockResolvedValueOnce(qr([candidateRow({ status: 'available', claimed_unit: null })]))
+      .mockResolvedValue(qr([]));
+
+    await expect(service.markNauLost('recert-1', 'unit-9', 'rev-1', 'x')).rejects.toThrow(/must be rented/i);
+  });
+
+  it('rejects when the recert has no open NAU obligation', async () => {
+    mockQuery
+      .mockResolvedValueOnce(qr([overIncomeRecertRow({ nau_status: 'satisfied' })]))
+      .mockResolvedValue(qr([]));
+
+    await expect(service.markNauLost('recert-1', 'unit-9', 'rev-1', 'x')).rejects.toThrow(/not open/i);
+  });
+
+  it('rejects when the verdict is not over_income', async () => {
+    mockQuery
+      .mockResolvedValueOnce(qr([overIncomeRecertRow({ income_ceiling_verdict: 'qualified', nau_status: null })]))
+      .mockResolvedValue(qr([]));
+
+    await expect(service.markNauLost('recert-1', 'unit-9', 'rev-1', 'x')).rejects.toThrow(/no over-income verdict/i);
+  });
+
+  it('throws for an unknown recert', async () => {
+    mockQuery.mockResolvedValueOnce(qr([]));
+    await expect(service.markNauLost('nope', null, 'rev-1', 'x')).rejects.toThrow(/not found/i);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 3. Scope-routing regression guard — both NAU kinds are global-scope.
 //
@@ -339,6 +455,18 @@ describe('tape scope routing (regression: NAU stamps are global-scope)', () => {
       kind: 'acq.nau_satisfied',
       payload: nauPayload(null),
       sessionId: 'sess-nau-2',
+    });
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0].applicantId).toBeNull();
+  });
+
+  it('routes acq.nau_lost (subjectId:null) to applicant_id=null', async () => {
+    const { repo, inserted } = captureRepo();
+    const realTape = realCreateTapeService(repo);
+    await realTape.stamp({
+      kind: 'acq.nau_lost',
+      payload: nauPayload(null),
+      sessionId: 'sess-nau-lost-1',
     });
     expect(inserted).toHaveLength(1);
     expect(inserted[0].applicantId).toBeNull();

@@ -226,6 +226,49 @@ router.post(
   }
 );
 
+// Mark an open NAU (Next Available Unit Rule) obligation LOST (QAP Phase 3.2):
+// the inverse of /nau-resolve. The next comparable available unit was rented
+// to a non-qualifying household (consuming the slot), or the obligation
+// otherwise lapsed — the over-income unit converts to market rent. Staff
+// attest the reason; an optional triggeringUnitId names the consumed slot
+// (must be comparable + rented). Scope-checked via getById. Validation
+// failures (no open obligation / non-comparable / not-rented) map to 400.
+const NauLostSchema = z.object({
+  triggeringUnitId: z.string().uuid().optional(),
+  reason: z.string().min(1, "A reason is required"),
+});
+
+router.post(
+  "/:id/nau-lost",
+  authenticate,
+  requirePermission("recertification:review"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const parsed = NauLostSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const recert = await service.getById(req.params.id as string, req);
+      if (!recert) {
+        res.status(404).json({ error: "Recertification not found" });
+        return;
+      }
+      const context = await compliance.markNauLost(
+        req.params.id as string,
+        parsed.data.triggeringUnitId ?? null,
+        req.user!.id,
+        parsed.data.reason
+      );
+      const updated = await service.getById(req.params.id as string, req);
+      res.json({ success: true, recertification: updated, context });
+    } catch (err: any) {
+      logger.error("Failed to mark NAU obligation lost", { error: err.message });
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
 // Manual trigger: process all reminders (system_admin)
 router.post(
   "/process-reminders",
