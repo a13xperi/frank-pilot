@@ -62,6 +62,14 @@
   .chip.group-accent.active{background:var(--accent);border-color:var(--accent);}
   .filter-label{font-family:var(--display);font-weight:700;font-size:10.5px;letter-spacing:.05em;
     text-transform:uppercase;color:var(--ink3);width:100%;margin:6px 0 -4px;}
+  /* City has 30 values statewide — a select keeps the rail compact instead of
+     spilling into a chip wall. */
+  .filter-select{flex:1 1 100%;appearance:none;-webkit-appearance:none;margin-top:2px;
+    padding:8px 32px 8px 12px;border-radius:10px;border:1px solid var(--border);
+    background:var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8170' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
+    font-family:var(--body);font-weight:600;font-size:13px;color:var(--ink2);cursor:pointer;
+    box-shadow:var(--sh-xs);transition:border-color .12s;}
+  .filter-select:hover{border-color:var(--borderHi);}
 
   .count{font-family:var(--display);font-weight:800;font-size:20px;margin:2px 0 14px;}
   .count small{font-family:var(--body);font-weight:500;font-size:13px;color:var(--ink3);}
@@ -87,8 +95,10 @@
   .card .restricted{font-size:11.5px;color:var(--ink3);}
 
   /* Pins */
-  .pin{width:26px;height:26px;}
-  .pin svg{display:block;filter:drop-shadow(0 2px 3px rgba(31,26,18,.35));}
+  .pin{width:34px;height:34px;}
+  .pin svg{display:block;width:100%;height:100%;
+    filter:drop-shadow(0 3px 5px rgba(31,26,18,.5));}
+  .pin svg path{stroke:#fff;stroke-width:1.3;paint-order:stroke fill;}
   .pin.senior svg path{fill:var(--sage);}
   .pin.family svg path{fill:var(--accent);}
   .pin.mixed  svg path{fill:var(--warn);}
@@ -97,9 +107,10 @@
     filter:drop-shadow(0 4px 6px rgba(201,73,42,.5));}
 
   /* Cluster bubbles */
-  .marker-cluster div{background:var(--accent);color:#fff;font-family:var(--display);
-    font-weight:800;border:3px solid rgba(255,255,255,.85);box-shadow:var(--sh-md);}
-  .marker-cluster{background:rgba(201,73,42,.25);}
+  .marker-cluster{background:rgba(201,73,42,.3);width:46px !important;height:46px !important;}
+  .marker-cluster div{width:38px;height:38px;margin:4px;line-height:38px;font-size:15px;
+    background:var(--accent);color:#fff;font-family:var(--display);
+    font-weight:800;border:3px solid #fff;box-shadow:var(--sh-md);}
 
   /* Popup */
   .leaflet-popup-content-wrapper{border-radius:14px;box-shadow:var(--sh-md);}
@@ -212,11 +223,11 @@ window.addEventListener('resize', ()=>{
 const pinSVG = `<svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 0C7 0 3 4 3 9c0 6 9 15 9 15s9-9 9-15c0-5-4-9-9-9z"/><circle cx="12" cy="9" r="3.4" fill="#fff"/></svg>`;
 function icon(type,hot){
   return L.divIcon({html:pinSVG, className:`pin ${type.toLowerCase()}${hot?' hot':''}`,
-    iconSize:[26,26], iconAnchor:[13,26], popupAnchor:[0,-24]});
+    iconSize:[34,34], iconAnchor:[17,34], popupAnchor:[0,-32]});
 }
 
 const cluster = L.markerClusterGroup({
-  maxClusterRadius:48, spiderfyOnMaxZoom:true, showCoverageOnHover:false,
+  maxClusterRadius:30, spiderfyOnMaxZoom:true, showCoverageOnHover:false,
 });
 map.addLayer(cluster);
 
@@ -254,9 +265,10 @@ function cardHTML(p){
 
 // ---- Filters ---------------------------------------------------------
 function matches(p){
-  // availableUnits is present on the GPMG demo dataset; if a live row omits it
-  // (the DB markers endpoint doesn't compute availability yet) we don't hide it.
-  const availOk = !fAvail || !('availableUnits' in p) || (p.availableUnits>0);
+  // Only the GPMG availability layer carries availableUnits. Statewide-coverage
+  // rows have none, so "Available now" narrows to the real-availability subset
+  // and the coverage markers drop out while the filter is active.
+  const availOk = !fAvail || (p.availableUnits>0);
   return (fType==='all'||p.type===fType)
       && (fCity==='all'||p.city===fCity)
       && (fFund==='all'||p.funding.includes(fFund))
@@ -270,19 +282,25 @@ function buildFilters(){
     items.forEach(it=>{h+=`<span class="chip ${grp} ${cur===it?'active':''}" data-grp="${grp}" data-val="${it}">${it}</span>`;});
     return h;
   };
+  const citySel = `<div class="filter-label">City</div>`
+    + `<select class="filter-select" id="citySel">`
+    + `<option value="all"${fCity==='all'?' selected':''}>All cities (${CITIES.length})</option>`
+    + CITIES.map(c=>`<option value="${c}"${fCity===c?' selected':''}>${c}</option>`).join('')
+    + `</select>`;
   el.innerHTML = seg('Type',TYPES,fType,'group-accent')
-               + seg('City',CITIES,fCity,'group-city')
+               + citySel
                + seg('Funding',FUNDS,fFund,'group-fund')
                + `<div class="filter-label">Availability</div>`
                + `<span class="chip group-accent ${fAvail?'active':''}" data-grp="group-avail" data-val="available_now">Available now</span>`;
   el.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
     const g=c.dataset.grp, v=c.dataset.val;
     if(g==='group-accent') fType=v;
-    else if(g==='group-city') fCity=v;
     else if(g==='group-fund') fFund=v;
     else if(g==='group-avail') fAvail=!fAvail;   // toggle
     render();
   });
+  const csEl=document.getElementById('citySel');
+  if(csEl) csEl.onchange=()=>{ fCity=csEl.value; render(); };
 }
 
 // ---- Render ----------------------------------------------------------
@@ -373,6 +391,7 @@ function hydrate(rows){
     lng: p.lng,
     totalUnits: p.totalUnits,
     restrictedUnits: p.restrictedUnits,
+    availableUnits: p.availableUnits,   // present only on the GPMG availability layer
     type: p.type,
     amiTiers: Array.isArray(p.amiTiers) ? p.amiTiers : [],
     funding: Array.isArray(p.funding) ? p.funding : [],
@@ -382,22 +401,31 @@ function hydrate(rows){
   FUNDS  = [...new Set(PROPS.flatMap(p=>p.funding))].sort();
   boot();
 }
-function loadFallback(){
-  return fetch('/nv-gpmg-map-props.json')
-    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(hydrate);
+// Hybrid load: a real-availability layer (live DB rows if present, else the
+// bundled GPMG snapshot) merged with the statewide coverage snapshot. The
+// availability layer wins on slug collision so its availableUnits drive the
+// "Available now" filter; coverage rows fill out the statewide map.
+function okJson(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+function mergeLayers(availLayer, coverage){
+  const seen = new Set(availLayer.map(p=>p.slug || slugify(p.name)));
+  return availLayer.concat(coverage.filter(p=>!seen.has(p.slug || slugify(p.name))));
 }
-fetch('/api/applicants/properties/map')
-  .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-  .then(rows=>{
-    if(!Array.isArray(rows) || !rows.length) return loadFallback();
-    hydrate(rows);
-  })
-  .catch(()=> loadFallback().catch(()=>{
-    document.getElementById('cards').innerHTML =
-      '<p style="color:var(--accentInk);font-size:14px;">Could not load properties. Please try again later.</p>';
-    document.getElementById('count').innerHTML = '— <small>could not load</small>';
-  }));
+Promise.all([
+  fetch('/api/applicants/properties/map').then(okJson).catch(()=>[]),
+  fetch('/nv-gpmg-map-props.json').then(okJson).catch(()=>[]),
+  fetch('/nv-housing-props.json').then(okJson).catch(()=>[]),
+]).then(([live, gpmg, statewide])=>{
+  const liveOk = Array.isArray(live) && live.some(r=>r && 'availableUnits' in r);
+  const availLayer = liveOk ? live : (Array.isArray(gpmg) ? gpmg : []);
+  const coverage = Array.isArray(statewide) ? statewide : [];
+  const merged = mergeLayers(availLayer, coverage);
+  if(!merged.length) throw new Error('no data');
+  hydrate(merged);
+}).catch(()=>{
+  document.getElementById('cards').innerHTML =
+    '<p style="color:var(--accentInk);font-size:14px;">Could not load properties. Please try again later.</p>';
+  document.getElementById('count').innerHTML = '— <small>could not load</small>';
+});
 </script>
 </body>
 </html>
