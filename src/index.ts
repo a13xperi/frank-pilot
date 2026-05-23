@@ -137,21 +137,33 @@ app.use("/api/tape", tapeRoutes);
 // BP-02 compliance tape viewer (operator-only: list, verify, export.pdf).
 // TODO(BP-02-Phase-2): Replace the stub service below with the real TapeService
 // from Lane B once it is wired. The stub returns 503 for all calls so the
-// routes exist in production but remain inert until Phase 2 completes.
-app.use(
-  "/api/compliance-tape",
-  createTapeViewerRoutes({
-    async list() {
-      throw Object.assign(new Error("service not wired"), { stub: true });
-    },
-    async verify() {
-      throw Object.assign(new Error("service not wired"), { stub: true });
-    },
-    async exportPdf() {
-      throw Object.assign(new Error("service not wired"), { stub: true });
-    },
-  })
-);
+// routes exist but remain inert until Phase 2 completes.
+//
+// Flag-gated on COMPLIANCE_TAPE_V2_ENABLED (mirrors the verify-cron gate in
+// src/scheduler.ts). When the flag is off the routes are NOT mounted, so a
+// request to /api/compliance-tape/* falls through to the 404 handler below
+// rather than returning the 503 stub.
+if (process.env.COMPLIANCE_TAPE_V2_ENABLED === "true") {
+  app.use(
+    "/api/compliance-tape",
+    createTapeViewerRoutes({
+      async list() {
+        throw Object.assign(new Error("service not wired"), { stub: true });
+      },
+      async verify() {
+        throw Object.assign(new Error("service not wired"), { stub: true });
+      },
+      async exportPdf() {
+        throw Object.assign(new Error("service not wired"), { stub: true });
+      },
+    })
+  );
+  logger.info("BP-02 compliance-tape viewer routes mounted");
+} else {
+  logger.info(
+    "BP-02 compliance-tape viewer routes skipped — COMPLIANCE_TAPE_V2_ENABLED is off"
+  );
+}
 
 // Password login (staff)
 app.post("/api/auth/login", async (req, res) => {
