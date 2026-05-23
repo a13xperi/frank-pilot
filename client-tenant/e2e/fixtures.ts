@@ -17,7 +17,34 @@ type Fixtures = {
   agentPage: Page;
 };
 
-async function signInViaDevMagicLink(page: Page, email: string): Promise<void> {
+// Worker-scoped token cache. POST /auth/magic-link/request is rate-limited
+// per (ip, email) at 5/min (src/modules/auth/routes.ts), and several seeded
+// specs sign the same applicant in (apply-checklist + apply-resume = 7 calls).
+// Mint each identity's Bearer token once per worker, then inject it into later
+// pages' localStorage instead of re-requesting a link (which 429s).
+const tokenCache = new Map<string, string>();
+
+// Lift the Bearer token onto the browser context so `page.request.*` calls are
+// authenticated the same way the SPA's fetches are. Context-level headers apply
+// to the page's APIRequestContext too (proven by apply-checklist.spec.ts).
+async function liftToken(page: Page, token: string): Promise<void> {
+  await page.context().setExtraHTTPHeaders({ Authorization: `Bearer ${token}` });
+}
+
+async function signInViaDevMagicLink(page: Page, email: string): Promise<string> {
+  // Reuse a cached token when this worker has already minted one for `email`,
+  // injecting it into localStorage so the SPA boots authenticated on the next
+  // navigation — no second magic-link request (avoids the 5/min limiter).
+  const cached = tokenCache.get(email);
+  if (cached) {
+    await page.addInitScript(
+      (t) => localStorage.setItem("frank_tenant_token", t),
+      cached,
+    );
+    await liftToken(page, cached);
+    return cached;
+  }
+
   // Dev backends return `devLink` in the magic-link response. We hit the API
   // directly via the page's request context so the cookie/origin matches the
   // browser session that will consume the link.
@@ -37,15 +64,13 @@ async function signInViaDevMagicLink(page: Page, email: string): Promise<void> {
     timeout: 15_000,
   });
   // Auth token lives in localStorage (see client-tenant/src/api/client.ts).
-  // Lift it onto the page's request context so `page.request.get(...)` calls
-  // are authenticated the same way the SPA's fetches are.
   const token = await page.evaluate(() => localStorage.getItem("frank_tenant_token"));
-  if (token) {
-    // BrowserContext-level so it applies to page.request.* too (the SPA reads
-    // the token from localStorage, but page.request runs out-of-process and
-    // needs the header lifted onto it explicitly).
-    await page.context().setExtraHTTPHeaders({ Authorization: `Bearer ${token}` });
+  if (!token) {
+    throw new Error(`no auth token in localStorage after magic-link verify for ${email}.`);
   }
+  tokenCache.set(email, token);
+  await liftToken(page, token);
+  return token;
 }
 
 export const test = base.extend<Fixtures>({
@@ -68,6 +93,13 @@ export const test = base.extend<Fixtures>({
     const url = new URL(regBody.devLink);
     await page.goto(`/auth/callback${url.search}`);
     await page.waitForURL(/\/apply\?step=intent/, { timeout: 15_000 });
+    // Lift the Bearer token (set in localStorage by the callback) onto the
+    // context so this fixture's `page.request.*` calls are authenticated —
+    // the register path doesn't go through signInViaDevMagicLink.
+    const token = await page.evaluate(() =>
+      localStorage.getItem("frank_tenant_token"),
+    );
+    if (token) await liftToken(page, token);
     await use(page);
   },
 
