@@ -271,8 +271,8 @@ const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
 const AWARD_STATUS_KEYS = AWARD_STATUSES as [AwardStatus, ...AwardStatus[]];
 
 const AwardCreateSchema = z.object({
-  acqProjectId: z.string().uuid(),
-  propertyId: z.string().uuid().optional().nullable(),
+  acqProjectId: z.string().guid(),
+  propertyId: z.string().guid().optional().nullable(),
   status: z.enum(AWARD_STATUS_KEYS).optional(),
   reservationAmount: z.coerce.number().min(0).optional().nullable(),
   awardDate: DATE.optional().nullable(),
@@ -283,7 +283,7 @@ const AwardCreateSchema = z.object({
 // Update: every field optional, but at least one present (a no-op PUT is a 400).
 const AwardUpdateSchema = z
   .object({
-    propertyId: z.string().uuid().nullable(),
+    propertyId: z.string().guid().nullable(),
     status: z.enum(AWARD_STATUS_KEYS),
     reservationAmount: z.coerce.number().min(0).nullable(),
     awardDate: DATE.nullable(),
@@ -293,13 +293,13 @@ const AwardUpdateSchema = z
   .partial()
   .refine((o) => Object.keys(o).length > 0, { message: 'No fields to update.' });
 
-const BindSchema = z.object({ propertyId: z.string().uuid().nullable() });
+const BindSchema = z.object({ propertyId: z.string().guid().nullable() });
 
 const DesignationsSchema = z.object({
   assignments: z
     .array(
       z.object({
-        unitId: z.string().uuid(),
+        unitId: z.string().guid(),
         designation: z.enum(['30', '50', '60', 'market']),
       }),
     )
@@ -554,7 +554,7 @@ router.get(
 // ── Lane 2: over-income / AUR queue ─────────────────────────────────────────
 
 const AurQueueQuerySchema = z.object({
-  propertyId: z.string().uuid().optional(),
+  propertyId: z.string().guid().optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });

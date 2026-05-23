@@ -113,7 +113,7 @@ router.post(
       if (!parsed.success) {
         res
           .status(400)
-          .json({ error: "Validation failed", details: parsed.error.errors });
+          .json({ error: "Validation failed", details: parsed.error.issues });
         return;
       }
 

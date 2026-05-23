@@ -69,7 +69,7 @@ router.post(
       res.json(result);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation failed", details: err.errors });
+        res.status(400).json({ error: "Validation failed", details: err.issues });
         return;
       }
 

@@ -39,7 +39,7 @@ const CreateUserSchema = z.object({
     "asset_manager",
     "system_admin",
   ]),
-  propertyIds: z.array(z.string().uuid()).optional(),
+  propertyIds: z.array(z.string().guid()).optional(),
 });
 
 const ResetPasswordSchema = z.object({

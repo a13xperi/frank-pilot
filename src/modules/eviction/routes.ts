@@ -42,7 +42,7 @@ router.get("/violations/:id", authenticate, requirePermission("eviction:view"),
 );
 
 const ReportViolationSchema = z.object({
-  applicationId: z.string().uuid(),
+  applicationId: z.string().guid(),
   violationType: z.string().min(1),
   description: z.string().min(1),
   occurredAt: z.string(),
@@ -179,7 +179,7 @@ router.get("/cases", authenticate, requirePermission("eviction:view"),
 );
 
 const FileCaseSchema = z.object({
-  noticeId: z.string().uuid(),
+  noticeId: z.string().guid(),
   caseNumber: z.string().min(1),
   jurisdiction: z.string().min(1),
 });
