@@ -101,7 +101,7 @@ router.get(
 
 // Create recertification manually
 const CreateSchema = z.object({
-  applicationId: z.string().uuid(),
+  applicationId: z.string().guid(),
 });
 
 router.post(
@@ -191,7 +191,7 @@ router.post(
 // manager can't resolve recerts outside their portfolio. Validation failures
 // (non-comparable / not-rented / no open obligation) map to 400.
 const NauResolveSchema = z.object({
-  resolvingUnitId: z.string().uuid(),
+  resolvingUnitId: z.string().guid(),
   notes: z.string().min(1, "Notes are required"),
 });
 

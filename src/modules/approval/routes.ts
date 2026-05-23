@@ -32,7 +32,7 @@ router.post(
       res.json(result);
     } catch (err: any) {
       if (err.name === "ZodError") {
-        res.status(400).json({ error: "Validation failed", details: err.errors });
+        res.status(400).json({ error: "Validation failed", details: err.issues });
         return;
       }
       logger.error("Tier 1 review failed", { error: err.message });
@@ -59,7 +59,7 @@ router.post(
       res.json(result);
     } catch (err: any) {
       if (err.name === "ZodError") {
-        res.status(400).json({ error: "Validation failed", details: err.errors });
+        res.status(400).json({ error: "Validation failed", details: err.issues });
         return;
       }
       logger.error("Tier 2 review failed", { error: err.message });
@@ -86,7 +86,7 @@ router.post(
       res.json(result);
     } catch (err: any) {
       if (err.name === "ZodError") {
-        res.status(400).json({ error: "Validation failed", details: err.errors });
+        res.status(400).json({ error: "Validation failed", details: err.issues });
         return;
       }
       logger.error("Tier 3 review failed", { error: err.message });

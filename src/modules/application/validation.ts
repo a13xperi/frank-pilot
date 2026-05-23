@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const createApplicationSchema = z.object({
-  propertyId: z.string().uuid(),
+  propertyId: z.string().guid(),
   unitNumber: z.string().max(20).optional(),
 
   // Applicant info
@@ -57,7 +57,7 @@ export const createApplicationSchema = z.object({
 });
 
 export const submitApplicationSchema = z.object({
-  applicationId: z.string().uuid(),
+  applicationId: z.string().guid(),
 });
 
 export const updateApplicationSchema = createApplicationSchema.partial().omit({

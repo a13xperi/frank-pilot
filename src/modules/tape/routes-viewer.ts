@@ -42,13 +42,13 @@ interface TapeViewerService {
 // ---------------------------------------------------------------------------
 
 const listQuerySchema = z.object({
-  applicantId: z.string().uuid().optional(),
+  applicantId: z.string().guid().optional(),
   afterSequence: z.coerce.number().int().nonnegative().optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 
 const scopedQuerySchema = z.object({
-  applicantId: z.string().uuid().optional(),
+  applicantId: z.string().guid().optional(),
 });
 
 // ---------------------------------------------------------------------------

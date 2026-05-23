@@ -42,11 +42,11 @@ router.get("/:id", authenticate, requirePermission("inspection:view"),
 );
 
 const ScheduleSchema = z.object({
-  propertyId: z.string().uuid(),
+  propertyId: z.string().guid(),
   inspectionType: z.string().min(1),
   scheduledDate: z.string(),
   unitNumber: z.string().optional(),
-  applicationId: z.string().uuid().optional(),
+  applicationId: z.string().guid().optional(),
 });
 
 router.post("/", authenticate, requirePermission("inspection:manage"),

@@ -37,7 +37,7 @@ import {
  */
 
 const intentSchema = z.object({
-  applicationId: z.string().uuid(),
+  applicationId: z.string().guid(),
   amountCents: z.number().int().positive().max(10_000_000),
   currency: z
     .string()
@@ -77,7 +77,7 @@ router.post(
       input = intentSchema.parse(req.body);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation failed", details: err.errors });
+        res.status(400).json({ error: "Validation failed", details: err.issues });
         return;
       }
       throw err;
