@@ -3,10 +3,12 @@ import { z } from "zod";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requirePermission } from "../../middleware/rbac";
 import { RecertificationService } from "./service";
+import { RecertComplianceService } from "../acquisitions/recert-compliance";
 import { logger } from "../../utils/logger";
 
 const router = Router();
 const service = new RecertificationService();
+const compliance = new RecertComplianceService();
 
 // List recertifications with filters
 router.get(
@@ -62,6 +64,37 @@ router.get(
     } catch (err: any) {
       logger.error("Failed to get recertification", { error: err.message });
       res.status(500).json({ error: "Failed to get recertification" });
+    }
+  }
+);
+
+// Income-ceiling check (QAP Phase 3.1): measure recertified income against the
+// occupied unit's AMI designation w/ the 140% Available Unit Rule. Read-only
+// preview — does not persist or stamp (submit/review do that); scope enforced
+// via getById so a manager can't probe recerts outside their portfolio.
+router.get(
+  "/:id/income-check",
+  authenticate,
+  requirePermission("recertification:view"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const recert = await service.getById(req.params.id as string, req);
+      if (!recert) {
+        res.status(404).json({ error: "Recertification not found" });
+        return;
+      }
+      const result = await compliance.check(req.params.id as string, {
+        persist: false,
+        stamp: false,
+      });
+      if (!result) {
+        res.status(404).json({ error: "Recertification not found" });
+        return;
+      }
+      res.json(result);
+    } catch (err: any) {
+      logger.error("Failed to run recert income check", { error: err.message });
+      res.status(500).json({ error: "Failed to run recert income check" });
     }
   }
 );

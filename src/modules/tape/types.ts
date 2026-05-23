@@ -29,7 +29,9 @@ export type TapeStampKind =
   | "LEASE_EXECUTED"
   // QAP acquisitions Phase 3 (Compliance Bridge) — global-scope admin events
   | "acq.award_recorded"
-  | "acq.units_designated";
+  | "acq.units_designated"
+  // QAP acquisitions Phase 3.1 — recert income-ceiling enforcement (subject = recert)
+  | "acq.recert_income_checked";
 
 /** A JSON-LD payload. Lane C provides one `make<Event>Payload` per kind.
  *  The `@context` URL is stubbed in v1 (see docs/bp-02-contracts.md §5). */
@@ -139,6 +141,7 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   LEASE_EXECUTED: "HUD 4350.3 Ch. 6-5 + 15 U.S.C. 7001 (ESIGN)",
   "acq.award_recorded": "IRC §42 + NV 2026 QAP §3",
   "acq.units_designated": "IRC §42(g) + 26 CFR 1.42-5 (LURA)",
+  "acq.recert_income_checked": "IRC §42(g)(2)(D)(ii) (Available Unit Rule) + 26 CFR 1.42-5",
 };
 
 /** Feature flag controlling dual-write during cutover. When false, the new

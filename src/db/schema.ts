@@ -853,6 +853,18 @@ CREATE TABLE recertifications (
   market_rent_applied_at TIMESTAMPTZ,
   market_rent_amount DECIMAL(10,2),
 
+  -- QAP acquisitions Phase 3.1: income-ceiling enforcement snapshot. Recertified
+  -- income measured against the occupied unit's AMI designation (Phase 3) with
+  -- the 140% Available Unit Rule. See 2026-05-27-recert-income-ceiling.sql.
+  income_ceiling_verdict TEXT
+    CHECK (income_ceiling_verdict IN
+      ('not_restricted','qualified','over_income_aur','over_income','indeterminate')),
+  income_ceiling_designation TEXT
+    CHECK (income_ceiling_designation IN ('30','50','60','market')),
+  income_ceiling_limit DECIMAL(12,2),
+  income_ceiling_income DECIMAL(12,2),
+  income_ceiling_checked_at TIMESTAMPTZ,
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

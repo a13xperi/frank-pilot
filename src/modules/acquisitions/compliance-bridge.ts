@@ -156,6 +156,129 @@ export function buildDesignationPlan(
   };
 }
 
+/**
+ * Available Unit Rule factor (IRC §42(g)(2)(D)(ii)). At recertification a
+ * household keeps qualifying until its income exceeds 140% of the applicable
+ * income limit. Past that the unit no longer counts toward the set-aside until
+ * the Next Available Unit Rule is satisfied — the *initial* certification uses
+ * 100% of the limit, but recerts use this higher ceiling.
+ */
+export const RECERT_AUR_FACTOR = 1.4;
+
+/**
+ * Verdict of a recertification income-ceiling check against the unit's actual
+ * AMI designation:
+ *  - not_restricted: market unit (or undesignated) — no LIHTC income ceiling.
+ *  - qualified:      income at or under the applicable limit.
+ *  - over_income_aur: over the limit but ≤140% — still LIHTC-qualified, but the
+ *      Available Unit Rule now governs the next comparable vacancy.
+ *  - over_income:    over 140% — unit out of compliance until AUR is satisfied.
+ *  - indeterminate:  missing designation/limit/income — needs manual review.
+ */
+export type RecertIncomeVerdict =
+  | 'not_restricted'
+  | 'qualified'
+  | 'over_income_aur'
+  | 'over_income'
+  | 'indeterminate';
+
+export interface RecertIncomeInput {
+  /** The occupied unit's AMI designation (units.ami_designation), or null. */
+  designation: AmiDesignation | null;
+  /** Applicable annual income limit ($) for the tier + household size, or null. */
+  applicableLimit: number | null;
+  /** Recertified household annual income ($), or null if not on file. */
+  householdIncome: number | null;
+}
+
+export interface RecertIncomeCheck {
+  verdict: RecertIncomeVerdict;
+  /** AMI ceiling % the designation enforces (30/50/60), or null. */
+  ceilingAmiPct: number | null;
+  /** The applicable income limit ($) measured against, or null. */
+  applicableLimit: number | null;
+  /** 140% Available Unit Rule threshold ($), or null when not restricted. */
+  aurThreshold: number | null;
+  /** Income measured ($), or null. */
+  householdIncome: number | null;
+  /** Income as a % of the applicable limit, or null. */
+  pctOfLimit: number | null;
+  /** Human-readable explanation for the reviewer / tape evidence. */
+  note: string;
+}
+
+/**
+ * Evaluate a household's recertified income against the income ceiling its
+ * occupied unit's AMI designation enforces, applying the 140% Available Unit
+ * Rule. Pure: the service resolves designation + limit + income from the DB and
+ * passes plain numbers in.
+ */
+export function evaluateRecertIncome(input: RecertIncomeInput): RecertIncomeCheck {
+  const { designation, applicableLimit, householdIncome } = input;
+  const ceilingAmiPct = designation ? amiCeilingPct(designation) : null;
+
+  // Market or undesignated unit → no LIHTC income ceiling to enforce.
+  if (designation === null || designation === 'market') {
+    return {
+      verdict: 'not_restricted',
+      ceilingAmiPct: null,
+      applicableLimit: null,
+      aurThreshold: null,
+      householdIncome,
+      pctOfLimit: null,
+      note:
+        designation === 'market'
+          ? 'Unit is market-rate — no LIHTC income ceiling applies.'
+          : 'Unit has no AMI designation — no income ceiling to enforce.',
+    };
+  }
+
+  if (applicableLimit === null || householdIncome === null) {
+    return {
+      verdict: 'indeterminate',
+      ceilingAmiPct,
+      applicableLimit,
+      aurThreshold: applicableLimit === null ? null : applicableLimit * RECERT_AUR_FACTOR,
+      householdIncome,
+      pctOfLimit:
+        applicableLimit && householdIncome !== null
+          ? (householdIncome / applicableLimit) * 100
+          : null,
+      note:
+        applicableLimit === null
+          ? `No income limit on file for the ${ceilingAmiPct}% AMI tier and household size — manual review required.`
+          : 'No recertified income on file — manual review required.',
+    };
+  }
+
+  const aurThreshold = applicableLimit * RECERT_AUR_FACTOR;
+  const pctOfLimit = (householdIncome / applicableLimit) * 100;
+  const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
+
+  let verdict: RecertIncomeVerdict;
+  let note: string;
+  if (householdIncome <= applicableLimit) {
+    verdict = 'qualified';
+    note = `Income ${fmt(householdIncome)} is within the ${ceilingAmiPct}% AMI limit ${fmt(applicableLimit)}.`;
+  } else if (householdIncome <= aurThreshold) {
+    verdict = 'over_income_aur';
+    note = `Income ${fmt(householdIncome)} exceeds the ${ceilingAmiPct}% AMI limit ${fmt(applicableLimit)} but is within 140% (${fmt(aurThreshold)}). Household stays qualified; the Available Unit Rule now governs the next comparable vacancy.`;
+  } else {
+    verdict = 'over_income';
+    note = `Income ${fmt(householdIncome)} exceeds 140% of the ${ceilingAmiPct}% AMI limit (${fmt(aurThreshold)}). Unit is out of compliance until the Next Available Unit Rule is satisfied.`;
+  }
+
+  return {
+    verdict,
+    ceilingAmiPct,
+    applicableLimit,
+    aurThreshold,
+    householdIncome,
+    pctOfLimit,
+    note,
+  };
+}
+
 export interface AssignmentError {
   unitId: string;
   reason: string;

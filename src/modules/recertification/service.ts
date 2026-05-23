@@ -4,9 +4,11 @@ import { logger } from "../../utils/logger";
 import { TwilioService } from "../integrations/twilio";
 import { AuthRequest } from "../../middleware/auth";
 import { buildPropertyScope } from "../../middleware/scope";
+import { RecertComplianceService } from "../acquisitions/recert-compliance";
 
 export class RecertificationService {
   private twilio = new TwilioService();
+  private compliance = new RecertComplianceService();
 
   /**
    * Create an annual recertification record for a newly onboarded tenant.
@@ -211,6 +213,15 @@ export class RecertificationService {
       resourceId: recertId,
       details: { newIncome },
     });
+
+    // QAP Phase 3.1: measure the recertified income against the unit's AMI
+    // ceiling (140% Available Unit Rule) and snapshot/stamp the verdict.
+    // Best-effort — a compliance hiccup must never block the submission.
+    try {
+      await this.compliance.check(recertId, { income: newIncome ?? null, actorId });
+    } catch (err: any) {
+      logger.error("Recert income-ceiling check failed on submit (non-fatal)", { recertId, error: err?.message });
+    }
   }
 
   /**
@@ -248,6 +259,15 @@ export class RecertificationService {
       resourceId: recertId,
       details: { decision, notes, rentAdjustment },
     });
+
+    // QAP Phase 3.1: re-evaluate the income ceiling against the reviewed
+    // income (now persisted) and stamp the verdict under the reviewer's actor.
+    // The reviewer acts on this verdict; we never auto-change their decision.
+    try {
+      await this.compliance.check(recertId, { income: newIncome ?? null, actorId });
+    } catch (err: any) {
+      logger.error("Recert income-ceiling check failed on review (non-fatal)", { recertId, error: err?.message });
+    }
 
     // If approved, create next year's recertification automatically
     if (decision === "pass") {
