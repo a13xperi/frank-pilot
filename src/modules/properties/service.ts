@@ -390,6 +390,71 @@ export class PropertyService {
     };
   }
 
+  /**
+   * Full-unify — map markers. Returns every property that has geocoordinates,
+   * in the shape the statewide Nevada housing map consumes
+   * (`{slug, name, city, type, totalUnits, restrictedUnits, lat, lng}`).
+   *
+   * `slug` is derived in SQL with the SAME normalization the rest of the app
+   * uses (LOWER → non-alnum→'-' → trim '-') so a marker popup's
+   * `/property/<slug>` link resolves against `resolvePropertyIdBySlug`.
+   *
+   * `type` is mapped back to the map's capitalized vocabulary
+   * (senior→Senior, family→Family, mixed_use→Mixed) so the marker icon/filter
+   * code reads it unchanged. `restrictedUnits` isn't tracked on `properties`,
+   * so we surface `unit_count` (every unit in this LIHTC catalog is
+   * income-restricted) — callers can treat total≈restricted.
+   *
+   * Anonymous / read-only: no PII, no compliance metadata, no internal IDs.
+   */
+  async listMapMarkers(): Promise<
+    Array<{
+      slug: string;
+      name: string;
+      city: string;
+      type: "Family" | "Senior" | "Mixed";
+      totalUnits: number;
+      restrictedUnits: number;
+      lat: number;
+      lng: number;
+    }>
+  > {
+    const result = await query(
+      `SELECT
+         trim(BOTH '-' FROM regexp_replace(LOWER(name), '[^a-z0-9]+', '-', 'g')) AS slug,
+         name,
+         city,
+         property_type,
+         unit_count,
+         latitude,
+         longitude
+       FROM properties
+      WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+      ORDER BY name ASC`,
+      []
+    );
+
+    const typeLabel: Record<string, "Family" | "Senior" | "Mixed"> = {
+      senior: "Senior",
+      family: "Family",
+      mixed_use: "Mixed",
+    };
+
+    return result.rows.map((row) => {
+      const total = Number(row.unit_count) || 0;
+      return {
+        slug: row.slug,
+        name: row.name,
+        city: row.city,
+        type: typeLabel[row.property_type] ?? "Family",
+        totalUnits: total,
+        restrictedUnits: total,
+        lat: Number(row.latitude),
+        lng: Number(row.longitude),
+      };
+    });
+  }
+
   async getById(propertyId: string): Promise<PropertyRecord | null> {
     const result = await query(
       `SELECT ${ALL_COLUMNS} FROM properties WHERE id = $1`,

@@ -1,26 +1,38 @@
-import { FileText, Search, CheckCircle, Building2, Clock } from 'lucide-react';
+import { FileText, Search, CheckCircle, Building2, Clock, UserPlus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { RoleGate } from '@/components/RoleGate';
 import { StatusBadge } from '@/components/StatusBadge';
-import { formatRole, hasMinRole, type ApplicationListResponse, type PropertyListResponse, type AuditLogResponse } from '@/types';
+import { formatRole, hasMinRole, type ApplicationListResponse, type PropertyListResponse, type AuditLogResponse, type SignupStatsResponse } from '@/types';
 import type { LucideIcon } from 'lucide-react';
 
-function StatCard({ icon: Icon, label, value, loading }: { icon: LucideIcon; label: string; value: string | number; loading?: boolean }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
-      <div className="flex items-center gap-3">
-        <div className="rounded-lg bg-emerald-50 p-2">
-          <Icon className="h-5 w-5 text-emerald-600" />
-        </div>
-        <div>
-          <p className="text-sm text-gray-500">{label}</p>
-          <p className="text-2xl font-semibold text-gray-900">
-            {loading ? <span className="inline-block h-6 w-10 animate-pulse rounded bg-gray-200" /> : value}
-          </p>
-        </div>
+function StatCard({ icon: Icon, label, value, loading, to }: { icon: LucideIcon; label: string; value: string | number; loading?: boolean; to?: string }) {
+  const inner = (
+    <div className="flex items-center gap-3">
+      <div className="rounded-lg bg-emerald-50 p-2">
+        <Icon className="h-5 w-5 text-emerald-600" />
+      </div>
+      <div>
+        <p className="text-sm text-gray-500">{label}</p>
+        <p className="text-2xl font-semibold text-gray-900">
+          {loading ? <span className="inline-block h-6 w-10 animate-pulse rounded bg-gray-200" /> : value}
+        </p>
       </div>
     </div>
+  );
+
+  if (!to) {
+    return <div className="rounded-xl border border-gray-200 bg-white p-5">{inner}</div>;
+  }
+
+  return (
+    <Link
+      to={to}
+      className="block rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-emerald-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+    >
+      {inner}
+    </Link>
   );
 }
 
@@ -30,6 +42,9 @@ export function Dashboard() {
   const props = useApiQuery<PropertyListResponse>('/api/properties');
   const audit = useApiQuery<AuditLogResponse>(
     user && hasMinRole(user.role, 'regional_manager') ? '/api/audit?limit=10' : null
+  );
+  const signups = useApiQuery<SignupStatsResponse>(
+    user && hasMinRole(user.role, 'senior_manager') ? '/api/users/signup-stats' : null
   );
 
   if (!user) return null;
@@ -53,14 +68,17 @@ export function Dashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={FileText} label="Active Applications" value={activeCount} loading={apps.loading} />
+        <StatCard icon={FileText} label="Active Applications" value={activeCount} loading={apps.loading} to="/applications" />
         <RoleGate minRole="senior_manager">
-          <StatCard icon={Search} label="Pending Screening" value={screeningCount} loading={apps.loading} />
+          <StatCard icon={UserPlus} label="Signups" value={signups.data?.registered ?? '--'} loading={signups.loading} to="/applications" />
         </RoleGate>
         <RoleGate minRole="senior_manager">
-          <StatCard icon={CheckCircle} label="Pending Approvals" value={approvalCount} loading={apps.loading} />
+          <StatCard icon={Search} label="Pending Screening" value={screeningCount} loading={apps.loading} to="/screening" />
         </RoleGate>
-        <StatCard icon={Building2} label="Properties" value={props.data?.total ?? '--'} loading={props.loading} />
+        <RoleGate minRole="senior_manager">
+          <StatCard icon={CheckCircle} label="Pending Approvals" value={approvalCount} loading={apps.loading} to="/approvals" />
+        </RoleGate>
+        <StatCard icon={Building2} label="Properties" value={props.data?.total ?? '--'} loading={props.loading} to="/properties" />
       </div>
 
       <RoleGate minRole="regional_manager">

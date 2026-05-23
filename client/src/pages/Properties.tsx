@@ -8,11 +8,25 @@ import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
 import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
+import { getPropertyPhoto } from '@/utils/propertyPhoto';
 import type { Property, PropertyListResponse } from '@/types';
 
 const TYPE_LABELS: Record<string, string> = { senior: 'Senior', family: 'Family', mixed_use: 'Mixed' };
 
 const columns: Column<Property>[] = [
+  {
+    key: 'photo',
+    header: '',
+    className: 'w-16 pr-0',
+    render: (r) => (
+      <img
+        src={getPropertyPhoto(r.photoUrl)}
+        alt=""
+        loading="lazy"
+        className="h-10 w-10 rounded-lg object-cover ring-1 ring-gray-200"
+      />
+    ),
+  },
   { key: 'name', header: 'Name' },
   {
     key: 'type',

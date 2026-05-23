@@ -113,6 +113,9 @@ export interface Property {
   totalVacancy: number;
   waitingListEnabled: boolean;
   createdAt: string;
+  /** Optional cover photo. Not yet returned by /api/properties — when the
+   *  backend adds it, the Properties list thumbnail lights up automatically. */
+  photoUrl?: string | null;
 }
 
 export interface PropertyListResponse {
@@ -137,6 +140,11 @@ export interface StaffUser {
 export interface UserListResponse {
   users: StaffUser[];
   total: number;
+}
+
+export interface SignupStatsResponse {
+  registered: number;
+  verified: number;
 }
 
 // ── Screening types ───────────────────────────────────────────────

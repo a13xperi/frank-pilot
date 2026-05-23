@@ -1,12 +1,31 @@
 import { Router } from "express";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requirePermission } from "../../middleware/rbac";
+import { writeAuditLog } from "../../middleware/audit";
+import { createMagicLink, logMagicLink, sendMagicLink } from "../auth/magic-link-service";
 import { UserService } from "./service";
 import { logger } from "../../utils/logger";
 
 const router = Router();
 const service = new UserService();
+
+// Wedge #10: tenants/applicants authenticate via magic-link, so a "password
+// reset" for them is operationally a fresh sign-in link to their proven email.
+// Keyed on the authenticated user id (populated by `authenticate`), 3/min is
+// generous for a real human clicking a button and tight enough to prevent a
+// hijacked token from blasting their inbox.
+const passwordResetEmailLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  keyGenerator: (req) => (req as AuthRequest).user?.id ?? "anon",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, try again in a minute" },
+});
+
+const PasswordResetEmailSchema = z.object({}).strict();
 
 const CreateUserSchema = z.object({
   email: z.string().email(),
@@ -49,6 +68,30 @@ router.get(
     } catch (err) {
       logger.error("Failed to list users", { error: (err as Error).message });
       res.status(500).json({ error: "Failed to list users" });
+    }
+  }
+);
+
+/**
+ * GET /api/users/signup-stats
+ * Top-of-funnel counts from the tenant onboarding app: how many people have
+ * registered (applicant/tenant role) and how many have a verified email.
+ * Feeds the "Signups" stat card on the management Dashboard.
+ * Permission: user:view (senior_manager+)
+ *
+ * Declared before GET /:userId so the literal path isn't captured as an id.
+ */
+router.get(
+  "/signup-stats",
+  authenticate,
+  requirePermission("user:view"),
+  async (_req: AuthRequest, res) => {
+    try {
+      const stats = await service.signupStats();
+      res.json(stats);
+    } catch (err) {
+      logger.error("Failed to load signup stats", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to load signup stats" });
     }
   }
 );
@@ -186,6 +229,92 @@ router.post(
     } catch (err) {
       logger.error("Failed to reset password", { error: (err as Error).message });
       res.status(400).json({ error: (err as Error).message });
+    }
+  }
+);
+
+/**
+ * POST /api/users/me/password-reset-email
+ * Wedge #10 — tenant-facing self-serve "password reset".
+ *
+ * Architectural call (choice B): tenants and applicants don't have a password
+ * hash to "current-verify" against — `users.password_hash` is nullable for
+ * magic-link-only accounts. So the canonical reset surface is to fire a fresh
+ * magic-link to the authenticated user's already-proven email. Same primitive
+ * the Login + Apply flows use, just initiated from inside an authenticated
+ * session (e.g. a "lost my device, sign me in again" affordance).
+ *
+ * Contract:
+ *   - 204 on success — body is empty, link is delivered out-of-band via email.
+ *   - 400 if the request body has stray properties (zod .strict).
+ *   - 401 if no JWT is present (handled by `authenticate`).
+ *   - 403 if the caller is a staff role — staff log in by password, not magic
+ *     link. They should use the admin reset endpoint instead.
+ *   - 429 if the per-user rate limit trips.
+ *
+ * No email is taken from the request body — the only address we'd ever send to
+ * is the authenticated user's own. That closes any "reset someone else's"
+ * vector and keeps the JWT subject as the sole authority.
+ */
+router.post(
+  "/me/password-reset-email",
+  authenticate,
+  passwordResetEmailLimiter,
+  async (req: AuthRequest, res) => {
+    // Reject unexpected body keys defensively — the schema is intentionally
+    // empty because the only input is the JWT subject.
+    const parsed = PasswordResetEmailSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: parsed.error.flatten(),
+      });
+      return;
+    }
+
+    const user = req.user!;
+
+    // Staff use the admin reset endpoint (which requires a new password).
+    // createMagicLink would short-circuit anyway, but bail explicitly so the
+    // caller gets a precise 403 instead of a misleading 204.
+    if (!["applicant", "tenant"].includes(user.role)) {
+      res.status(403).json({
+        error: "Magic-link reset is only for tenants and applicants",
+      });
+      return;
+    }
+
+    try {
+      const link = await createMagicLink(user.email);
+
+      // createMagicLink returns null for inactive users or staff. The
+      // authenticate middleware already filtered out inactive users, and the
+      // role check above filtered staff, so this branch should be unreachable
+      // in practice — but stay 204 either way to keep the contract simple.
+      if (link) {
+        logMagicLink(user.email, link.link);
+        sendMagicLink(user.email, link.link, { firstName: user.firstName });
+      }
+
+      await writeAuditLog({
+        action: "permission_change",
+        actorId: user.id,
+        actorRole: user.role,
+        resourceType: "user",
+        resourceId: user.id,
+        details: {
+          action: "tenant_password_reset_email_requested",
+          targetEmail: user.email,
+        },
+      });
+
+      res.status(204).end();
+    } catch (err) {
+      logger.error("Failed to send tenant password-reset email", {
+        error: (err as Error).message,
+        userId: user.id,
+      });
+      res.status(500).json({ error: "Failed to send reset email" });
     }
   }
 );

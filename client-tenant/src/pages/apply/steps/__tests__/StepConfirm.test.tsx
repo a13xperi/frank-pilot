@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import axe from 'axe-core';
 import { StepConfirm } from '../StepConfirm';
-import { ApplyProvider } from '@/pages/apply/context/ApplyContext';
+import { TestApplyProvider } from './applyTestUtils';
 
 function renderConfirm(opts?: {
   withRef?: boolean;
@@ -13,22 +13,16 @@ function renderConfirm(opts?: {
   propertySlug?: string | null;
   bedrooms?: number | null;
 }) {
-  if (opts?.withRef) {
-    sessionStorage.setItem(
-      'frank_apply_state',
-      JSON.stringify({ adults: 1, paymentTotal: '35.95', paymentRef: 'pay_test_abc123' }),
-    );
-  }
   return render(
     <MemoryRouter>
-      <ApplyProvider>
+      <TestApplyProvider paymentRef={opts?.withRef ? 'pay_test_abc123' : null}>
         <StepConfirm
           waitlist={opts?.position != null ? { position: opts.position } : null}
           outcome={opts?.outcome ?? null}
           propertySlug={opts?.propertySlug ?? null}
           bedrooms={opts?.bedrooms ?? null}
         />
-      </ApplyProvider>
+      </TestApplyProvider>
     </MemoryRouter>,
   );
 }

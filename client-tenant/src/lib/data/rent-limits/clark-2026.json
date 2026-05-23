@@ -1,0 +1,30 @@
+{
+  "countyKey": "CLARK",
+  "county": "Clark County",
+  "state": "NV",
+  "msa": "Las Vegas-Henderson-North Las Vegas, NV MSA",
+  "year": 2026,
+  "program": "IRC Section 42 Low Income Housing Tax Credit (LIHTC)",
+  "rentCalculationBasis": "MTSP",
+  "personsPerBedroom": 1.5,
+  "fourPersonAmi": 98200,
+  "hudNonMetro50PctMedian": 42350,
+  "source": "https://rent-income.novoco.com/free/calculator",
+  "sourceFile": "sources/rent-limits-export-clark-2026.xlsx",
+  "retrieved": "2026-05-23",
+  "_note": "Novogradac Rent & Income Limit Calculator export. 2026 limits, project placed in service on/after 05-01-2026. Income/rent limits by household size (1-12) and bedroom (Efficiency-5BR). Numbers are verbatim from the export; tiers other than 50/60 are derived downstream by the standard MTSP multiplier off the 50% base.",
+  "hudPublished": {
+    "mtsp50": { "1": 36950, "2": 42200, "3": 47500, "4": 52750, "5": 57000, "6": 61200, "7": 65450, "8": 69650, "9": 73850, "10": 78050, "11": 82300, "12": 86500 },
+    "section8ExtremelyLow": { "1": 22200, "2": 25350, "3": 28500, "4": 33000, "5": 38680, "6": 44360, "7": 50040, "8": 55720 },
+    "section8VeryLow": { "1": 36950, "2": 42200, "3": 47500, "4": 52750, "5": 57000, "6": 61200, "7": 65450, "8": 69650, "9": 73850, "10": 78070, "11": 82290, "12": 86510 },
+    "section8Low": { "1": 59100, "2": 67550, "3": 76000, "4": 84400, "5": 91200, "6": 97950, "7": 104700, "8": 111450, "9": 118160, "10": 124912, "11": 131664, "12": 138416 }
+  },
+  "incomeLimits": {
+    "60": { "1": 44340, "2": 50640, "3": 57000, "4": 63300, "5": 68400, "6": 73440, "7": 78540, "8": 83580, "9": 88620, "10": 93660, "11": 98760, "12": 103800 },
+    "140": { "1": 62076, "2": 70896, "3": 79800, "4": 88620, "5": 95760, "6": 102816, "7": 109956, "8": 117012, "9": 124068, "10": 131124, "11": 138264, "12": 145320 }
+  },
+  "rentLimits": {
+    "60": { "eff": 1108, "br1": 1187, "br2": 1425, "br3": 1646, "br4": 1836, "br5": 2026 },
+    "fmr": { "eff": 1333, "br1": 1478, "br2": 1735, "br3": 2413, "br4": 2764 }
+  }
+}

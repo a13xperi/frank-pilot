@@ -6,16 +6,22 @@
   "scripts": {
     "dev": "vite",
     "sitemap": "node scripts/generate-sitemap.mjs",
+    "ingest:limits": "node scripts/ingest-rent-limits.mjs",
     "build": "npm run sitemap && tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:a11y": "vitest run --grep a11y",
-    "check:i18n": "node scripts/check-i18n-parity.mjs"
+    "check:i18n": "node scripts/check-i18n-parity.mjs",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@rrweb/record": "^2.0.0-alpha.20",
+    "@stripe/react-stripe-js": "^6.4.0",
+    "@stripe/stripe-js": "^9.6.0",
     "html-to-image": "^1.11.13",
     "i18next": "^26.2.0",
     "i18next-browser-languagedetector": "^8.2.1",
@@ -27,6 +33,7 @@
   },
   "devDependencies": {
     "@axe-core/react": "^4.11.3",
+    "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
