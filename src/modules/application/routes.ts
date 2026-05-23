@@ -101,7 +101,7 @@ router.patch(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const verifiedIncome =
-        req.body.verifiedIncome !== undefined
+        req.body?.verifiedIncome !== undefined
           ? Number(req.body.verifiedIncome)
           : undefined;
 
@@ -132,7 +132,7 @@ router.patch(
         param(req.params.id),
         req.user!.id,
         req.user!.role,
-        req.body.reason
+        req.body?.reason
       );
       res.json(result);
     } catch (err: any) {
