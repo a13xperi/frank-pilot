@@ -336,7 +336,7 @@ export function PropertyList() {
         .map(tileFromApi)
         .filter((t) => {
           if (typeFilter !== 'all' && t.type !== typeFilter) return false;
-          if (cityFilter !== 'all' && t.city !== cityFilter) return false;
+          // [INTENTIONAL REGRESSION — DO NOT MERGE] city filter neutralized on the API path
           // Bedroom / availability already filtered server-side; type/city
           // narrowing happens here. The server's amiTier filter narrowed
           // there too, so we don't double-apply it.
