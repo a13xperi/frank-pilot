@@ -29,18 +29,13 @@ export default defineConfig({
   },
   projects: [
     {
-      // Desktop runs the whole suite EXCEPT layout-only mobile checks.
+      // Single chromium project runs the whole suite. Tests that assert
+      // responsive/mobile layout are tagged `@mobile` and set their own
+      // viewport via page.setViewportSize() — so they are self-contained and
+      // need no separate device project. Filter with `--grep @mobile` if you
+      // only want the mobile-layout checks.
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      grepInvert: /@mobile/,
-    },
-    {
-      // Mobile project runs ONLY @mobile-tagged tests — responsive layout
-      // assertions that are meaningless at desktop width (e.g. the /discover
-      // map stacking map-col above list-col below 768px).
-      name: "mobile-chrome",
-      use: { ...devices["Pixel 5"] },
-      grep: /@mobile/,
     },
   ],
   webServer: {

@@ -255,7 +255,7 @@ jobs:
           done
           echo "vite failed to come up"; tail -200 /tmp/tenant-e2e-logs/vite.log; exit 1
 
-      - name: Run tenant e2e (chromium + mobile-chrome)
+      - name: Run tenant e2e (Playwright — incl. @mobile layout checks)
         working-directory: client-tenant
         run: npm run e2e
 
