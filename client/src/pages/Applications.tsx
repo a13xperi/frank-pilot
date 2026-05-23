@@ -31,6 +31,11 @@ const columns: Column<Application>[] = [
     header: 'Status',
     render: (r) => <StatusBadge status={r.status} />,
   },
+  {
+    key: 'property_name',
+    header: 'Property',
+    render: (r) => r.property_name ?? '—',
+  },
   { key: 'unit_number', header: 'Unit' },
   {
     key: 'household_size',

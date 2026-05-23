@@ -16,7 +16,7 @@ const CATEGORIES = [
 ];
 
 export function MaintenancePage() {
-  const { data, loading, refetch } = useApiQuery<{ workOrders: WorkOrder[]; total: number }>('/api/maintenance?limit=100');
+  const { data, loading, error, refetch } = useApiQuery<{ workOrders: WorkOrder[]; total: number }>('/api/maintenance?limit=100');
   const { data: propsData } = useApiQuery<PropertyListResponse>('/api/properties');
   const { data: usersData } = useApiQuery<UserListResponse>('/api/users');
   const [selected, setSelected] = useState<WorkOrder | null>(null);
@@ -81,7 +81,7 @@ export function MaintenancePage() {
 
       {actionMsg && <div className={`rounded-lg px-4 py-3 text-sm ${actionMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{actionMsg.text}</div>}
 
-      <DataTable columns={columns} data={workOrders} loading={loading} onRowClick={setSelected} emptyMessage="No work orders" />
+      <DataTable columns={columns} data={workOrders} loading={loading} error={error} onRowClick={setSelected} emptyMessage="No work orders" />
 
       {/* Create Modal */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Work Order" wide>

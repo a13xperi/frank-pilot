@@ -65,7 +65,10 @@ describe("POST /applicants/register — magic-link email delivery wiring", () =>
     expect(mockSendMagicLink).toHaveBeenCalledWith(
       "new@example.com",
       "http://portal/auth/callback?token=raw-1",
-      { firstName: "Nora" }
+      // /register now also threads `channel` (default undefined → email) and
+      // `userId` for the optional SMS transport; assert on the email-relevant
+      // field without coupling this email-wiring test to the SMS additions.
+      expect.objectContaining({ firstName: "Nora" })
     );
   });
 
@@ -88,7 +91,7 @@ describe("POST /applicants/register — magic-link email delivery wiring", () =>
     expect(mockSendMagicLink).toHaveBeenCalledWith(
       "existing@example.com",
       "http://portal/auth/callback?token=raw-2",
-      { firstName: "Eve" }
+      expect.objectContaining({ firstName: "Eve" })
     );
   });
 
