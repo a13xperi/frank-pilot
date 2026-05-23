@@ -1,13 +1,14 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LogOut, BarChart3, Building2, FolderKanban } from 'lucide-react';
+import { LogOut, BarChart3, Building2, FolderKanban, Award } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatRole } from '@/types';
 
-// Acquisitions nav. Phase 1 ships Demand; Phase 2 adds Projects; Awards
-// (Phase 3) slots in next without a layout change.
+// Acquisitions nav. Phase 1 ships Demand; Phase 2 adds Projects; Phase 3 adds
+// Awards (the compliance bridge from won credits to designated units).
 const NAV = [
   { to: '/', label: 'Demand Evidence', icon: BarChart3, end: true },
   { to: '/projects', label: 'Candidate Projects', icon: FolderKanban, end: false },
+  { to: '/awards', label: 'Awards', icon: Award, end: false },
 ];
 
 export function Layout() {
