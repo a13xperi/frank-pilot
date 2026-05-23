@@ -231,11 +231,9 @@ describe("logger PII redaction (LOW-1)", () => {
     expect(inner.id).toBe("x-1");
   });
 
-  it("does NOT walk array elements (documents known gap from pii-filter.ts:56)", async () => {
-    // sanitizeObject deliberately skips arrays (`!Array.isArray(value)`).
-    // This test pins that behavior so a future fix is a conscious change,
-    // not an accidental one. Current offenders use flat objects, so this
-    // gap is acceptable for LOW-1.
+  it("walks array elements and redacts PII inside them (PR #135 follow-up)", async () => {
+    // sanitizeObject now recurses into arrays (the 5th gap flagged during
+    // PR #135). Element-level PII is redacted just like flat-object PII.
     const { logger, capture } = buildTestLogger();
 
     await logAndWait(logger, capture, () =>
@@ -246,7 +244,7 @@ describe("logger PII redaction (LOW-1)", () => {
 
     expect(capture.lines).toHaveLength(1);
     const recipients = capture.lines[0].recipients as Array<Record<string, unknown>>;
-    // Element-level email is NOT redacted today — documented gap.
-    expect(recipients[0].email).toBe("leaks@example.com");
+    // Element-level email is now redacted.
+    expect(recipients[0].email).toBe("[REDACTED]");
   });
 });

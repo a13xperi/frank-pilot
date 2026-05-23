@@ -18,10 +18,10 @@ export const piiFilterFormat = winston.format((info) => {
   if (typeof info.message === "string") {
     info.message = filterPII(info.message);
   }
-  // sanitizeObject walks PII_KEYS (email/phone/ssn/dob/token/etc.) and
-  // recursively redacts nested objects. Winston's own string keys (level,
-  // message, timestamp, service) are not in PII_KEYS so they pass through
-  // unchanged.
+  // sanitizeObject walks PII_KEY_PATTERNS (email/phone/ssn/dob/token/etc.),
+  // redacts string leaf values that contain PII patterns, and recursively
+  // redacts nested objects. Winston's own string keys (level, message,
+  // timestamp, service) match no PII pattern so they pass through unchanged.
   const sanitized = sanitizeObject(info as unknown as Record<string, unknown>);
   for (const key of Object.keys(sanitized)) {
     (info as Record<string, unknown>)[key] = sanitized[key];
