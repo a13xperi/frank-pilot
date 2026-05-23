@@ -799,7 +799,7 @@ const intentSchema = z.object({
   budget_min: z.number().min(0).max(20000).optional(),
   budget_max: z.number().min(0).max(20000),
   move_in_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  household_size: z.number().int().min(1).max(12),
+  household_size: z.number().int().min(0).max(12), // INTENTIONAL REGRESSION (gate verify): min(1)→min(0) lets a 0-person household slip past intent validation; tenant-e2e funnel test 2 must catch it.
   // W0 AMI pre-qualifier — both optional and nullable. Frontend sends
   // `gross_annual_income` whenever it has a value, and `qualifying_ami_tier`
   // is null when the applicant is over-income for the highest tier. When
