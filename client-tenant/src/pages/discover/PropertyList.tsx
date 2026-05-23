@@ -35,8 +35,17 @@ import {
 } from '@/utils/pricing';
 
 type TypeFilter = 'all' | GPMGType;
-type CityFilter = 'all' | 'Las Vegas' | 'North Las Vegas' | 'Henderson';
+type CityFilter =
+  | 'all'
+  | 'Las Vegas'
+  | 'North Las Vegas'
+  | 'Henderson'
+  | 'Reno'
+  | 'Sparks'
+  | 'Carson City'
+  | 'Elko';
 type BedroomFilter = 'all' | 'studio' | '1' | '2' | '3';
+type ViewMode = 'list' | 'map';
 
 const TYPE_LABELS: Record<TypeFilter, string> = {
   all: 'All',
@@ -49,6 +58,10 @@ const CITY_LABELS: Record<CityFilter, string> = {
   'Las Vegas': 'Las Vegas',
   'North Las Vegas': 'N. Las Vegas',
   Henderson: 'Henderson',
+  Reno: 'Reno',
+  Sparks: 'Sparks',
+  'Carson City': 'Carson City',
+  Elko: 'Elko',
 };
 
 const VALID_AMI_TIERS = new Set(['30', '50', '60', '80'] as const);
@@ -228,6 +241,7 @@ export function PropertyList() {
   const cityFilter = (params.get('city') as CityFilter | null) ?? 'all';
   const bedroomFilter = (params.get('bedroom') as BedroomFilter | null) ?? 'all';
   const availableNow = params.get('availability') === 'available_now';
+  const viewMode: ViewMode = params.get('view') === 'map' ? 'map' : 'list';
 
   const amiTierRaw = params.get('amiTier');
   const amiTier: AmiTier | null =
@@ -363,9 +377,52 @@ export function PropertyList() {
             Find your home
           </h1>
           <p style={{ marginTop: 4, fontSize: 14, color: HF.ink3 }}>
-            17 affordable communities across the Las Vegas valley
+            Affordable communities across Nevada
           </p>
         </header>
+
+        <div
+          role="tablist"
+          aria-label="View mode"
+          data-testid="view-toggle"
+          style={{
+            display: 'inline-flex',
+            gap: 0,
+            marginBottom: 14,
+            background: HF.paper,
+            border: `1px solid ${HF.border}`,
+            borderRadius: HF.r.pill,
+            padding: 3,
+          }}
+        >
+          {(['list', 'map'] as ViewMode[]).map((mode) => {
+            const active = viewMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                data-active={active}
+                data-testid={`view-toggle-${mode}`}
+                onClick={() => updateParam('view', mode === 'list' ? null : mode)}
+                style={{
+                  background: active ? HF.accent : 'transparent',
+                  color: active ? HF.paper : HF.ink2,
+                  border: 'none',
+                  borderRadius: HF.r.pill,
+                  padding: '6px 18px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  fontFamily: HF.body,
+                  cursor: 'pointer',
+                }}
+              >
+                {mode === 'list' ? 'List' : 'Map'}
+              </button>
+            );
+          })}
+        </div>
 
         {amiTier && (
           <div
@@ -408,6 +465,22 @@ export function PropertyList() {
           </div>
         )}
 
+        {viewMode === 'map' ? (
+          <iframe
+            src="/nv-housing-map.html"
+            title="Nevada affordable housing map"
+            data-testid="discover-map-iframe"
+            style={{
+              width: '100%',
+              height: '70vh',
+              border: 'none',
+              borderRadius: HF.r.md,
+              boxShadow: '0 1px 3px rgba(31,26,18,.10)',
+              background: HF.paper,
+            }}
+          />
+        ) : (
+          <>
         <div
           className="sticky top-12 z-10 -mx-4 px-4 py-3 sm:-mx-6 sm:px-6"
           style={{ background: HF.cream, borderBottom: `1px solid ${HF.border}` }}
@@ -521,6 +594,8 @@ export function PropertyList() {
             <PropertyTile key={p.name} prop={p} />
           ))}
         </ul>
+          </>
+        )}
       </div>
     </div>
   );
