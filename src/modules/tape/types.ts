@@ -31,7 +31,10 @@ export type TapeStampKind =
   | "acq.award_recorded"
   | "acq.units_designated"
   // QAP acquisitions Phase 3.1 — recert income-ceiling enforcement (subject = recert)
-  | "acq.recert_income_checked";
+  | "acq.recert_income_checked"
+  // QAP acquisitions Phase 3.2 — Next Available Unit Rule (global-scope admin events)
+  | "acq.nau_triggered"
+  | "acq.nau_satisfied";
 
 /** A JSON-LD payload. Lane C provides one `make<Event>Payload` per kind.
  *  The `@context` URL is stubbed in v1 (see docs/bp-02-contracts.md §5). */
@@ -142,6 +145,8 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   "acq.award_recorded": "IRC §42 + NV 2026 QAP §3",
   "acq.units_designated": "IRC §42(g) + 26 CFR 1.42-5 (LURA)",
   "acq.recert_income_checked": "IRC §42(g)(2)(D)(ii) (Available Unit Rule) + 26 CFR 1.42-5",
+  "acq.nau_triggered": "IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)",
+  "acq.nau_satisfied": "IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)",
 };
 
 /** Feature flag controlling dual-write during cutover. When false, the new

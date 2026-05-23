@@ -279,6 +279,126 @@ export function evaluateRecertIncome(input: RecertIncomeInput): RecertIncomeChec
   };
 }
 
+// ---------------------------------------------------------------------------
+// Next Available Unit Rule (NAU) — IRC §42(g)(2)(D)(ii), Phase 3.2.
+//
+// When a recert verdict is `over_income` (>140% of the applicable limit) the
+// occupied low-income unit goes OUT OF COMPLIANCE and stays so until the *next
+// comparable available unit* in the same property is rented to a qualifying
+// household. `over_income_aur` (≤140%) does NOT trigger NAU — the household
+// stays and the unit keeps its status; the AUR governs and we only record that
+// state. These functions stay pure; the service resolves units from the DB and
+// passes plain shapes in.
+// ---------------------------------------------------------------------------
+
+/** A unit's restricted-tier "depth": a deeper tier is a lower AMI %. 30 is the
+ *  deepest, then 50, then 60. `market` is not restricted and never qualifies as
+ *  a NAU substitute, so it carries no depth (null). A larger number = deeper. */
+export function tierDepth(designation: AmiDesignation | null): number | null {
+  switch (designation) {
+    case '30':
+      return 3;
+    case '50':
+      return 2;
+    case '60':
+      return 1;
+    case 'market':
+    case null:
+      return null;
+  }
+}
+
+/** Minimal unit shape the NAU comparability predicate needs. */
+export interface NauUnit {
+  propertyId: string;
+  bedrooms: number;
+  amiDesignation: AmiDesignation | null;
+}
+
+/**
+ * Is `candidate` a comparable unit that can satisfy the NAU obligation created
+ * by `overIncomeUnit` going out of compliance? Comparable when:
+ *  - same property,
+ *  - candidate bedrooms >= the over-income unit's bedrooms (≥ the displaced
+ *    household's size of unit), and
+ *  - candidate's restricted tier is equal-or-deeper than the over-income unit's
+ *    (a deeper tier — lower AMI % — still preserves the set-aside; market is
+ *    not restricted and never qualifies).
+ *
+ * Pure boolean. The service additionally checks the candidate is actually
+ * available and rented to a qualifying household before crediting it.
+ */
+export function comparableUnit(overIncomeUnit: NauUnit, candidate: NauUnit): boolean {
+  if (overIncomeUnit.propertyId !== candidate.propertyId) return false;
+  if (candidate.bedrooms < overIncomeUnit.bedrooms) return false;
+
+  const overDepth = tierDepth(overIncomeUnit.amiDesignation);
+  const candidateDepth = tierDepth(candidate.amiDesignation);
+  // The over-income unit must itself be restricted (it triggered NAU), and the
+  // candidate must be restricted at an equal-or-deeper tier.
+  if (overDepth === null || candidateDepth === null) return false;
+  return candidateDepth >= overDepth;
+}
+
+/** The rent consequence recommended for a recert verdict under the NAU rule. */
+export type RentAction = 'none' | 'hold_restricted' | 'hold_pending_nau' | 'market_rent';
+
+export interface RentActionRecommendation {
+  action: RentAction;
+  reason: string;
+}
+
+/**
+ * Map a recert income verdict to its recommended rent consequence under the
+ * Next Available Unit Rule (IRC §42(g)(2)(D)(ii)):
+ *  - qualified / not_restricted → none: nothing to do.
+ *  - over_income_aur (≤140%)    → hold_restricted: household stays, rent stays
+ *      restricted; the AUR governs the next comparable vacancy.
+ *  - over_income (>140%)        → hold_pending_nau: unit is out of compliance,
+ *      rent held restricted until the next comparable available unit is rented
+ *      to a qualifying household. If that obligation is lost/unsatisfied the
+ *      rule escalates to market_rent.
+ *  - indeterminate              → none: manual review owns the call, no
+ *      automatic rent action.
+ *
+ * Pure: the service decides when an `over_income` NAU obligation has been
+ * *lost* (vs merely pending) and asks for `market_rent` explicitly.
+ */
+export function recommendedRentAction(
+  verdict: RecertIncomeVerdict,
+  opts: { nauLost?: boolean } = {},
+): RentActionRecommendation {
+  switch (verdict) {
+    case 'qualified':
+    case 'not_restricted':
+      return { action: 'none', reason: 'Household qualifies; no rent action.' };
+    case 'over_income_aur':
+      return {
+        action: 'hold_restricted',
+        reason:
+          'Income over the limit but within 140%; household stays and rent stays restricted — the Available Unit Rule governs the next comparable vacancy.',
+      };
+    case 'over_income':
+      if (opts.nauLost) {
+        return {
+          action: 'market_rent',
+          reason:
+            'Over 140% and the Next Available Unit obligation was lost; the unit no longer counts toward the set-aside and converts to market rent.',
+        };
+      }
+      return {
+        action: 'hold_pending_nau',
+        reason:
+          'Over 140% of the applicable limit; rent held restricted until the next comparable available unit is rented to a qualifying household (Next Available Unit Rule).',
+      };
+    case 'indeterminate':
+      return {
+        action: 'none',
+        reason: 'Income check is indeterminate; manual review required before any rent action.',
+      };
+  }
+}
+
 export interface AssignmentError {
   unitId: string;
   reason: string;

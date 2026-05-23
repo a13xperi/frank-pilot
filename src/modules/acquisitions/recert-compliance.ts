@@ -18,7 +18,9 @@ import { createTapeService } from '../tape/service';
 import { PgTapeRepository } from '../tape/repository';
 import {
   evaluateRecertIncome,
+  comparableUnit,
   type AmiDesignation,
+  type NauUnit,
   type RecertIncomeCheck,
 } from './compliance-bridge';
 
@@ -34,6 +36,8 @@ export interface RecertCheckContext {
   unitId: string | null;
   unitNumber: string | null;
   designation: AmiDesignation | null;
+  /** Bedrooms of the occupied unit — used for NAU comparability. */
+  bedrooms: number | null;
   amiArea: string | null;
   householdSize: number;
   /** Calendar year the income limit was drawn from (current or prior fallback). */
@@ -58,6 +62,7 @@ interface ResolveRow {
   unit_id: string | null;
   unit_number: string | null;
   ami_designation: string | null;
+  bedrooms: number | null;
   ami_area: string | null;
 }
 
@@ -103,7 +108,7 @@ export class RecertComplianceService {
               r.new_annual_income, r.previous_annual_income,
               a.id AS application_id, a.claimed_unit_id,
               a.household_size, a.annual_income AS application_income,
-              u.id AS unit_id, u.unit_number, u.ami_designation,
+              u.id AS unit_id, u.unit_number, u.ami_designation, u.bedrooms,
               p.ami_area
          FROM recertifications r
          JOIN applications a ON r.application_id = a.id
@@ -145,6 +150,7 @@ export class RecertComplianceService {
       unitId: row.unit_id,
       unitNumber: row.unit_number,
       designation,
+      bedrooms: row.bedrooms ?? null,
       amiArea: row.ami_area,
       householdSize,
       limitYear,
@@ -153,7 +159,218 @@ export class RecertComplianceService {
     if (persist) await this.persist(recertId, designation, check);
     if (stamp) await this.stampSafe(context, check, opts.actorId ?? null);
 
+    // QAP Phase 3.2: an over_income (>140%) verdict opens a Next Available Unit
+    // obligation — the unit is out of compliance until a comparable available
+    // unit is rented to a qualifying household. Only open it when persisting and
+    // not already resolved; stamp the immutable record.
+    if (persist && check.verdict === 'over_income') {
+      await this.openNau(context, check, opts.actorId ?? null);
+    }
+
     return { context, check };
+  }
+
+  /** Open a NAU obligation on the recert (idempotent — never reopens a
+   *  satisfied/lost row) and stamp acq.nau_triggered. Best-effort on the tape. */
+  private async openNau(
+    context: RecertCheckContext,
+    check: RecertIncomeCheck,
+    actorId: string | null,
+  ): Promise<void> {
+    // Only set open when there is no terminal NAU state yet, so re-running the
+    // check on an already-resolved over-income recert doesn't reopen it.
+    await query(
+      `UPDATE recertifications
+          SET nau_status = 'open', updated_at = NOW()
+        WHERE id = $1 AND nau_status IS NULL`,
+      [context.recertId],
+    );
+    await this.stampNau('acq.nau_triggered', context, actorId, {
+      verdict: check.verdict,
+      ceilingAmiPct: check.ceilingAmiPct,
+      applicableLimit: check.applicableLimit,
+      aurThreshold: check.aurThreshold,
+      householdIncome: check.householdIncome,
+      designation: context.designation,
+      bedrooms: context.bedrooms,
+      note: check.note,
+    });
+  }
+
+  /**
+   * Satisfy a recert's open NAU obligation by crediting a comparable available
+   * unit that has been rented to a qualifying household. Validates: the recert
+   * is over_income with an open obligation, the resolving unit is comparable
+   * (same property, ≥ bedrooms, equal-or-deeper tier), and the resolving unit is
+   * actually occupied (rented). On success marks nau_status='satisfied' and
+   * stamps acq.nau_satisfied. Throws a clear Error on any validation failure
+   * (the route maps it to 400).
+   *
+   * @returns the updated check context.
+   */
+  async resolveNau(
+    recertId: string,
+    resolvingUnitId: string,
+    actorId: string | null,
+    notes: string,
+  ): Promise<RecertCheckContext> {
+    // Load the over-income recert + its occupied unit.
+    const res = await query(
+      `SELECT r.id, r.property_id, r.tenant_name, r.nau_status,
+              r.income_ceiling_verdict,
+              a.id AS application_id, a.household_size,
+              u.id AS unit_id, u.unit_number, u.ami_designation, u.bedrooms,
+              p.ami_area
+         FROM recertifications r
+         JOIN applications a ON r.application_id = a.id
+         LEFT JOIN units u ON a.claimed_unit_id = u.id
+         JOIN properties p ON r.property_id = p.id
+        WHERE r.id = $1`,
+      [recertId],
+    );
+    const row = (res.rows as (ResolveRow & {
+      nau_status: string | null;
+      income_ceiling_verdict: string | null;
+    })[])[0];
+    if (!row) throw new Error('Recertification not found');
+
+    if (row.income_ceiling_verdict !== 'over_income') {
+      throw new Error('Recertification has no over-income verdict — no NAU obligation to satisfy.');
+    }
+    if (row.nau_status !== 'open') {
+      throw new Error(
+        `NAU obligation is not open (current status: ${row.nau_status ?? 'none'}).`,
+      );
+    }
+    if (!row.unit_id) {
+      throw new Error('Recertification has no occupied unit — cannot evaluate NAU comparability.');
+    }
+
+    const overIncomeUnit: NauUnit = {
+      propertyId: row.property_id,
+      bedrooms: row.bedrooms ?? 0,
+      amiDesignation: (row.ami_designation as AmiDesignation | null) ?? null,
+    };
+
+    // Load the candidate resolving unit.
+    const candRes = await query(
+      `SELECT id, property_id, unit_number, bedrooms, ami_designation, status, claimed_unit
+         FROM (
+           SELECT u.id, u.property_id, u.unit_number, u.bedrooms,
+                  u.ami_designation, u.status,
+                  (SELECT a2.id FROM applications a2
+                    WHERE a2.claimed_unit_id = u.id LIMIT 1) AS claimed_unit
+             FROM units u
+            WHERE u.id = $1
+         ) c`,
+      [resolvingUnitId],
+    );
+    const cand = candRes.rows[0] as
+      | {
+          id: string;
+          property_id: string;
+          unit_number: string | null;
+          bedrooms: number | null;
+          ami_designation: string | null;
+          status: string | null;
+          claimed_unit: string | null;
+        }
+      | undefined;
+    if (!cand) throw new Error('Resolving unit not found.');
+
+    const candidateUnit: NauUnit = {
+      propertyId: cand.property_id,
+      bedrooms: cand.bedrooms ?? 0,
+      amiDesignation: (cand.ami_designation as AmiDesignation | null) ?? null,
+    };
+
+    if (!comparableUnit(overIncomeUnit, candidateUnit)) {
+      throw new Error(
+        'Resolving unit is not comparable: must be in the same property, have at least as many bedrooms, and carry an equal-or-deeper AMI tier.',
+      );
+    }
+
+    // The comparable unit must actually be rented to a qualifying household to
+    // credit the set-aside: i.e. occupied (a household claims it) and not still
+    // sitting available/held.
+    const occupied = cand.claimed_unit !== null && cand.status !== 'available' && cand.status !== 'held';
+    if (!occupied) {
+      throw new Error(
+        'Resolving unit must be rented to a qualifying household before it can satisfy the Next Available Unit Rule.',
+      );
+    }
+
+    await query(
+      `UPDATE recertifications
+          SET nau_status = 'satisfied',
+              nau_resolved_at = NOW(),
+              nau_resolving_unit_id = $2,
+              updated_at = NOW()
+        WHERE id = $1 AND nau_status = 'open'`,
+      [recertId, resolvingUnitId],
+    );
+
+    const context: RecertCheckContext = {
+      recertId: row.id,
+      applicationId: row.application_id,
+      propertyId: row.property_id,
+      tenantName: row.tenant_name,
+      unitId: row.unit_id,
+      unitNumber: row.unit_number,
+      designation: (row.ami_designation as AmiDesignation | null) ?? null,
+      bedrooms: row.bedrooms ?? null,
+      amiArea: row.ami_area,
+      householdSize: row.household_size && row.household_size > 0 ? row.household_size : 1,
+      limitYear: null,
+    };
+
+    await this.stampNau('acq.nau_satisfied', context, actorId, {
+      resolvingUnitId,
+      resolvingUnitNumber: cand.unit_number,
+      resolvingDesignation: cand.ami_designation,
+      resolvingBedrooms: cand.bedrooms,
+      designation: context.designation,
+      bedrooms: context.bedrooms,
+      notes,
+    });
+
+    return context;
+  }
+
+  /** Stamp a NAU tape event best-effort. subjectId MUST be null (global-scope
+   *  admin event): compliance_tape.applicant_id is FK'd to users(id), so the
+   *  recert/unit ids ride in evidence, never the scope key. */
+  private async stampNau(
+    kind: 'acq.nau_triggered' | 'acq.nau_satisfied',
+    context: RecertCheckContext,
+    actorId: string | null,
+    evidence: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      await tape.stamp({
+        kind,
+        payload: {
+          '@context': 'https://schema.org',
+          '@type': 'AcquisitionComplianceEvent',
+          actorId,
+          subjectId: null, // global-scope: applicant_id is FK'd to users(id); ids live in evidence
+          ruleCitation: 'IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)',
+          evidence: {
+            recertId: context.recertId,
+            propertyId: context.propertyId,
+            unitId: context.unitId,
+            unitNumber: context.unitNumber,
+            ...evidence,
+          },
+        },
+      });
+    } catch (err) {
+      logger.error('acquisitions: NAU tape stamp failed (non-fatal)', {
+        recertId: context.recertId,
+        kind,
+        err,
+      });
+    }
   }
 
   /** Look up the income limit for a tier + household size, falling back to the

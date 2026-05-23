@@ -865,6 +865,16 @@ CREATE TABLE recertifications (
   income_ceiling_income DECIMAL(12,2),
   income_ceiling_checked_at TIMESTAMPTZ,
 
+  -- QAP acquisitions Phase 3.2: Next Available Unit Rule (IRC §42(g)(2)(D)(ii)).
+  -- An over_income (>140%) verdict opens a NAU obligation; the unit stays out of
+  -- compliance until a comparable available unit is rented to a qualifying
+  -- household (satisfied) or the obligation is lost (→ market rent). See
+  -- 2026-05-28-nau-rule.sql.
+  nau_status TEXT
+    CHECK (nau_status IN ('open','satisfied','lost')),
+  nau_resolved_at TIMESTAMPTZ,
+  nau_resolving_unit_id UUID,
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -970,6 +980,8 @@ CREATE INDEX idx_recertifications_property ON recertifications(property_id);
 CREATE INDEX idx_recertifications_status ON recertifications(status);
 CREATE INDEX idx_recertifications_anniversary ON recertifications(anniversary_date);
 CREATE INDEX idx_recertifications_cutoff ON recertifications(cutoff_date);
+-- QAP Phase 3.2: surface open NAU obligations for the follow-up queue.
+CREATE INDEX idx_recertifications_nau_open ON recertifications(nau_status) WHERE nau_status = 'open';
 
 -- ============================================================
 -- TRIGGERS
