@@ -8,6 +8,9 @@ import {
   parseStem,
   splitName,
   groupBundles,
+  classifyDemoFiles,
+  RUN_ID_RE,
+  DEMO_FILE_RE,
   QA_BUCKET,
   type StorageObject,
 } from "../modules/qa/routes";
@@ -171,5 +174,49 @@ describe("groupBundles", () => {
     expect(out[0].urls.json).toBe(
       "https://other.example/bucket/path/frank-home-20260522-143000.json"
     );
+  });
+});
+
+describe("demo run helpers", () => {
+  it("RUN_ID_RE accepts well-formed run ids and rejects traversal", () => {
+    expect(RUN_ID_RE.test("rabc123-xyz789")).toBe(true);
+    expect(RUN_ID_RE.test("r1-2")).toBe(true);
+    expect(RUN_ID_RE.test("../etc")).toBe(false);
+    expect(RUN_ID_RE.test("rabc/xyz")).toBe(false);
+    expect(RUN_ID_RE.test("frank-home")).toBe(false); // no leading r-token shape
+  });
+
+  it("DEMO_FILE_RE whitelists only known artifact names", () => {
+    expect(DEMO_FILE_RE.test("replay-000.json")).toBe(true);
+    expect(DEMO_FILE_RE.test("replay-12.json")).toBe(true);
+    expect(DEMO_FILE_RE.test("events.json")).toBe(true);
+    expect(DEMO_FILE_RE.test("manifest.json")).toBe(true);
+    expect(DEMO_FILE_RE.test("../../secret.json")).toBe(false);
+    expect(DEMO_FILE_RE.test("replay-000.json.exe")).toBe(false);
+    expect(DEMO_FILE_RE.test("replay-.json")).toBe(false);
+  });
+
+  it("classifyDemoFiles sorts replay segments ascending by sequence", () => {
+    const out = classifyDemoFiles([
+      "replay-2.json",
+      "manifest.json",
+      "replay-10.json",
+      "replay-1.json",
+      "events.json",
+    ]);
+    expect(out.segments).toEqual([
+      "replay-1.json",
+      "replay-2.json",
+      "replay-10.json",
+    ]);
+    expect(out.events).toBe("events.json");
+    expect(out.manifest).toBe("manifest.json");
+  });
+
+  it("classifyDemoFiles reports nulls when artifacts are absent", () => {
+    const out = classifyDemoFiles(["replay-0.json"]);
+    expect(out.segments).toEqual(["replay-0.json"]);
+    expect(out.events).toBeNull();
+    expect(out.manifest).toBeNull();
   });
 });

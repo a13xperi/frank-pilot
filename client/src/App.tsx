@@ -13,6 +13,7 @@ import { Compliance } from '@/pages/Compliance';
 import { AuditLog } from '@/pages/AuditLog';
 import { QaBundles } from '@/pages/QaBundles';
 import { QaBundleDetail } from '@/pages/QaBundleDetail';
+import { DemoSessionDetail } from '@/pages/DemoSessionDetail';
 import { Recertifications } from '@/pages/Recertifications';
 import { LedgerOverview, LedgerDetail } from '@/pages/Ledger';
 import { Evictions } from '@/pages/Evictions';
@@ -50,6 +51,7 @@ export default function App() {
               <Route path="compliance" element={<Compliance />} />
               <Route path="audit-log" element={<AuditLog />} />
               <Route path="qa-bundles" element={<QaBundles />} />
+              <Route path="qa-bundles/demo/:runId" element={<DemoSessionDetail />} />
               <Route path="qa-bundles/:stem" element={<QaBundleDetail />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
