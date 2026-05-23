@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "sitemap": "node scripts/generate-sitemap.mjs",
+    "ingest:limits": "node scripts/ingest-rent-limits.mjs",
     "build": "npm run sitemap && tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",

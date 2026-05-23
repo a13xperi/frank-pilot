@@ -1,0 +1,325 @@
+[
+  {
+    "name": "Aldene Kline Barlow Senior Apartments",
+    "slug": "aldene-kline-barlow-senior-apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1327 H St, Las Vegas, NV 89106",
+    "lat": 36.1851935,
+    "lng": -115.1519779,
+    "totalUnits": 39,
+    "restrictedUnits": 39,
+    "availableUnits": 28,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "David J. Hoggard Family Community",
+    "slug": "david-j-hoggard-family-community",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1100 W Monroe Ave, Las Vegas, NV 89106",
+    "lat": 36.184989,
+    "lng": -115.155292,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "availableUnits": 70,
+    "type": "Family",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Donna Louise Apartments",
+    "slug": "donna-louise-apartments",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "6225 Donna St, North Las Vegas, NV 89081",
+    "lat": 36.2731268,
+    "lng": -115.1304869,
+    "totalUnits": 48,
+    "restrictedUnits": 48,
+    "availableUnits": 36,
+    "type": "Family",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Donna Louise Apartments 2",
+    "slug": "donna-louise-apartments-2",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "6225 Donna St, North Las Vegas, NV 89081",
+    "lat": 36.2731268,
+    "lng": -115.1304869,
+    "totalUnits": 48,
+    "restrictedUnits": 48,
+    "availableUnits": 36,
+    "type": "Family",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Luther Mack, Jr. Senior Apartments",
+    "slug": "luther-mack-jr-senior-apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "8158 Giles St, Las Vegas, NV 89123",
+    "lat": 36.0413768,
+    "lng": -115.1700096,
+    "totalUnits": 48,
+    "restrictedUnits": 48,
+    "availableUnits": 36,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Dr. Paul Meacham Senior Community",
+    "slug": "dr-paul-meacham-senior-community",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "65 E Windmill Ln, Las Vegas, NV 89123",
+    "lat": 36.0422731,
+    "lng": -115.1686062,
+    "totalUnits": 57,
+    "restrictedUnits": 57,
+    "availableUnits": 42,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Ethel Mae Fletcher Apartments",
+    "slug": "ethel-mae-fletcher-apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1503 Laurelhurst Dr, Las Vegas, NV 89108",
+    "lat": 36.1859332,
+    "lng": -115.2090498,
+    "totalUnits": 42,
+    "restrictedUnits": 42,
+    "availableUnits": 30,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Ethel Mae Robinson Senior Apartments",
+    "slug": "ethel-mae-robinson-senior-apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1327 H St, Las Vegas, NV 89106",
+    "lat": 36.1851935,
+    "lng": -115.1519779,
+    "totalUnits": 20,
+    "restrictedUnits": 20,
+    "availableUnits": 17,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Mike O'Callaghan Legacy Apartments",
+    "slug": "mike-o-callaghan-legacy-apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1502 Laurelhurst Dr, Las Vegas, NV 89108",
+    "lat": 36.1866512,
+    "lng": -115.2089459,
+    "totalUnits": 40,
+    "restrictedUnits": 40,
+    "availableUnits": 28,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Juan Garcia Garden Apartments",
+    "slug": "juan-garcia-garden-apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2851 Sunrise Ave, Las Vegas, NV 89101",
+    "lat": 36.1626192,
+    "lng": -115.1106732,
+    "totalUnits": 52,
+    "restrictedUnits": 52,
+    "availableUnits": 40,
+    "type": "Family",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Louise Shell Senior Apartments",
+    "slug": "louise-shell-senior-apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2101 N Martin Luther King Blvd, Las Vegas, NV 89106",
+    "lat": 36.1976762,
+    "lng": -115.16069,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "availableUnits": 70,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Owens Senior Housing",
+    "slug": "owens-senior-housing",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "1626 Davis Pl, North Las Vegas, NV 89030",
+    "lat": 36.1890096,
+    "lng": -115.1378049,
+    "totalUnits": 72,
+    "restrictedUnits": 72,
+    "availableUnits": 53,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sarann Knight Apartments",
+    "slug": "sarann-knight-apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1327 H St, Las Vegas, NV 89106",
+    "lat": 36.1851935,
+    "lng": -115.1519779,
+    "totalUnits": 82,
+    "restrictedUnits": 82,
+    "availableUnits": 58,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Senator Harry Reid Senior Apartments",
+    "slug": "senator-harry-reid-senior-apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "328 N 11th St, Las Vegas, NV 89101",
+    "lat": 36.1689913,
+    "lng": -115.131914,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "availableUnits": 70,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Senator Richard Bryan Senior Apartments",
+    "slug": "senator-richard-bryan-senior-apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2651 Searles Ave, Las Vegas, NV 89101",
+    "lat": 36.184721,
+    "lng": -115.113451,
+    "totalUnits": 120,
+    "restrictedUnits": 120,
+    "availableUnits": 84,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Smith Williams Senior Apartments",
+    "slug": "smith-williams-senior-apartments",
+    "aka": "",
+    "city": "Henderson",
+    "address": "575 E Lake Mead Pkwy, Henderson, NV 89015",
+    "lat": 36.0479328,
+    "lng": -114.9725404,
+    "totalUnits": 80,
+    "restrictedUnits": 80,
+    "availableUnits": 56,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Yale Keyes Senior Apartments",
+    "slug": "yale-keyes-senior-apartments",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "1705 Yale St, North Las Vegas, NV 89030",
+    "lat": 36.1908176,
+    "lng": -115.1359582,
+    "totalUnits": 70,
+    "restrictedUnits": 70,
+    "availableUnits": 51,
+    "type": "Senior",
+    "amiTiers": [
+      "60% AMI"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  }
+]

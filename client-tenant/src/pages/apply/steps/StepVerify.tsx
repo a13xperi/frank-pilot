@@ -39,8 +39,11 @@ export function StepVerify() {
     s.setResending(true);
     s.setError(null);
     try {
-      await requestMagicLink(s.email);
+      // Server returns `devLink` only when the email isn't actually delivered
+      // (dev / staging). Capture it so resend keeps the click-through fresh.
+      const res = (await requestMagicLink(s.email)) as { ok: boolean; devLink?: string };
       s.setResent(true);
+      if (res.devLink) s.setDevLink(res.devLink);
     } catch (err) {
       s.setError(err instanceof Error ? err.message : t('verify.resendError'));
     } finally {
@@ -80,7 +83,11 @@ export function StepVerify() {
       <CTA onClick={handleResend} disabled={s.resending || !s.email}>
         {s.resending ? t('verify.resending') : t('verify.resend')}
       </CTA>
-      {import.meta.env.DEV && s.devLink && (
+      {/* Show whenever the server emitted a devLink — it only does so when the
+          email isn't really sent (dev / staging), so this stays hidden in prod
+          and unblocks testers on deployed builds where import.meta.env.DEV is
+          false. Mirrors Login.tsx. */}
+      {s.devLink && (
         <a
           href={s.devLink}
           className="block px-4 py-2 text-center text-sm font-medium"

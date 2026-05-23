@@ -29,6 +29,11 @@ export default defineConfig({
   },
   projects: [
     {
+      // Single chromium project runs the whole suite. Tests that assert
+      // responsive/mobile layout are tagged `@mobile` and set their own
+      // viewport via page.setViewportSize() — so they are self-contained and
+      // need no separate device project. Filter with `--grep @mobile` if you
+      // only want the mobile-layout checks.
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },

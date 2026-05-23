@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { HF } from '@/styles/tokens';
 import { Card } from '@/components/primitives';
 import { StepCTA } from '@/pages/apply/StepCTA';
-import { useApply } from '@/pages/apply/context/ApplyContext';
+import { useApply } from '@/pages/apply/ApplyContext';
 import { PayHeader } from '@/pages/apply/PayHeader';
 
 interface WaitlistSummary {
@@ -50,10 +50,10 @@ export function StepConfirm({
 }: StepConfirmProps) {
   const { t, i18n } = useTranslation('apply');
   const lang = (i18n.language?.startsWith('es') ? 'es' : 'en') as 'en' | 'es';
-  const { state } = useApply();
+  const { paymentTotal, paymentRef } = useApply();
 
   const position = waitlist?.position;
-  const hasRef = !!state.paymentRef;
+  const hasRef = !!paymentRef;
 
   // Wedge #5 — build position URL when the applicant landed on the waitlist.
   const showPositionCta = outcome === 'waitlisted' && !!propertySlug;
@@ -89,7 +89,7 @@ export function StepConfirm({
             <span style={{ color: HF.ink3, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>
               {t('confirm.paid')}
             </span>
-            <span style={{ fontFamily: HF.display, fontSize: 22, fontWeight: 700 }}>${state.paymentTotal}</span>
+            <span style={{ fontFamily: HF.display, fontSize: 22, fontWeight: 700 }}>{paymentTotal}</span>
           </div>
           <div style={{ height: 8 }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: HF.ink2 }}>
@@ -97,7 +97,7 @@ export function StepConfirm({
               {t('confirm.ref')}
             </span>
             <span style={{ fontFamily: HF.mono }} data-testid="payment-ref">
-              {hasRef ? state.paymentRef : t('confirm.refMissing')}
+              {hasRef ? paymentRef : t('confirm.refMissing')}
             </span>
           </div>
           <div style={{ height: 8 }} />

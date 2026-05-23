@@ -1,0 +1,5907 @@
+[
+  {
+    "name": "City Center Las Vegas",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "811 Bridger Ave, NV 89101",
+    "lat": 36.165536,
+    "lng": -115.138504,
+    "totalUnits": 300,
+    "restrictedUnits": 295,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Cottonwood Village",
+    "aka": "",
+    "city": "Reno",
+    "address": "Linden/Yori Street, NV 89502",
+    "lat": 39.4879,
+    "lng": -119.7806,
+    "totalUnits": 44,
+    "restrictedUnits": 43,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Silver Pines Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "6650 E Russell Rd, NV 89122",
+    "lat": 36.085752,
+    "lng": -115.027236,
+    "totalUnits": 198,
+    "restrictedUnits": 198,
+    "type": "Family",
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "Tax-Exempt Bond",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Yale Keys Apts",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "1705 Yale St, NV 89030",
+    "lat": 36.190071,
+    "lng": -115.136512,
+    "totalUnits": 70,
+    "restrictedUnits": 70,
+    "type": "Senior",
+    "amiTiers": [
+      "45%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Hilltop Villas",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "601 N 13Th St, NV 89101",
+    "lat": 36.174067,
+    "lng": -115.12931,
+    "totalUnits": 111,
+    "restrictedUnits": 111,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Louise Shell/Harmony Park Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2101 N Martin Luther King Blvd, NV 89106",
+    "lat": 36.197567,
+    "lng": -115.16089,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "type": "Senior",
+    "amiTiers": [
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Mi Casita Aka Pinewood Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3600 Swenson St, NV 89109",
+    "lat": 36.12397,
+    "lng": -115.145914,
+    "totalUnits": 755,
+    "restrictedUnits": 755,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Dayton Valley Village Ii",
+    "aka": "",
+    "city": "Dayton",
+    "address": "369 Dayton Valley Road, NV 89403",
+    "lat": 39.242004,
+    "lng": -119.570752,
+    "totalUnits": 22,
+    "restrictedUnits": 22,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Southridge Apartments I",
+    "aka": "",
+    "city": "Reno",
+    "address": "1550 Sky Valley Dr., NV 89503",
+    "lat": 39.519338,
+    "lng": -119.853428,
+    "totalUnits": 92,
+    "restrictedUnits": 92,
+    "type": "Family",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Stillwater Apts",
+    "aka": "",
+    "city": "Fallon",
+    "address": "240 Serpa Pl, NV 89406",
+    "lat": 39.482003,
+    "lng": -118.773298,
+    "totalUnits": 40,
+    "restrictedUnits": 40,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Ruby Hills Apts",
+    "aka": "",
+    "city": "Eureka",
+    "address": "10191 Monroe Street, NV 89316",
+    "lat": 40.0806,
+    "lng": -116.2195,
+    "totalUnits": 12,
+    "restrictedUnits": 12,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Pecos Pointe Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1650 N Pecos Rd, NV 89115",
+    "lat": 36.189778,
+    "lng": -115.09812,
+    "totalUnits": 160,
+    "restrictedUnits": 156,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Somerset Commons Aka Saratoga Palms Ei",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2775 East Fremont Street, NV 89104",
+    "lat": 36.155744,
+    "lng": -115.112353,
+    "totalUnits": 360,
+    "restrictedUnits": 245,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Terracina Henderson Apts Phases I & Ii",
+    "aka": "",
+    "city": "Henderson",
+    "address": "510 College Dr, NV 89015",
+    "lat": 36.018222,
+    "lng": -114.962931,
+    "totalUnits": 144,
+    "restrictedUnits": 143,
+    "type": "Family",
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Sierra Run Apartments",
+    "aka": "",
+    "city": "Fernley",
+    "address": "237 Meadow Circle, NV 89406",
+    "lat": 39.602709,
+    "lng": -119.238791,
+    "totalUnits": 22,
+    "restrictedUnits": 21,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sonoma Palms",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3050 N Jones Blvd, NV 89108",
+    "lat": 36.213984,
+    "lng": -115.225165,
+    "totalUnits": 238,
+    "restrictedUnits": 238,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Stewart Pines Iii Senior Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "Stewart Ave, NV 89101",
+    "lat": 36.1702,
+    "lng": -115.1305,
+    "totalUnits": 57,
+    "restrictedUnits": 57,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Arbor Pointe",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "8855 W Arby Ave, NV 89148",
+    "lat": 36.059003,
+    "lng": -115.285623,
+    "totalUnits": 180,
+    "restrictedUnits": 178,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Aspen Terrace Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "355 Kirman Ave, NV 89502",
+    "lat": 39.522692,
+    "lng": -119.79848,
+    "totalUnits": 42,
+    "restrictedUnits": 42,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "55%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "City Hall Apartments",
+    "aka": "",
+    "city": "Sparks",
+    "address": "625 5T Street, NV 89431",
+    "lat": 39.53909,
+    "lng": -119.749393,
+    "totalUnits": 42,
+    "restrictedUnits": 42,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sen Richard Bryan Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2651 Searles Ave, NV 89101",
+    "lat": 36.185036,
+    "lng": -115.1143,
+    "totalUnits": 120,
+    "restrictedUnits": 120,
+    "type": "Senior",
+    "amiTiers": [
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Pahrump Valley Apts.",
+    "aka": "",
+    "city": "Pahrump",
+    "address": "2151 Pahrump Valley Blvd, NV 89048",
+    "lat": 36.189963,
+    "lng": -115.988724,
+    "totalUnits": 33,
+    "restrictedUnits": 32,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Paseo Del Prado",
+    "aka": "",
+    "city": "Henderson",
+    "address": "740 E Warm Springs Rd, NV 89015",
+    "lat": 36.050423,
+    "lng": -114.964408,
+    "totalUnits": 120,
+    "restrictedUnits": 119,
+    "type": "Family",
+    "amiTiers": [
+      "60%",
+      "50%",
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Shadow Creek Apartments",
+    "aka": "",
+    "city": "Overton",
+    "address": "350 Ryan Ave, NV 89040",
+    "lat": 36.549978,
+    "lng": -114.448486,
+    "totalUnits": 24,
+    "restrictedUnits": 24,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Rockwood Apartments",
+    "aka": "",
+    "city": "Fernley",
+    "address": "645 Silverlace Blvd, NV 89408",
+    "lat": 39.601967,
+    "lng": -119.240865,
+    "totalUnits": 32,
+    "restrictedUnits": 32,
+    "type": "Mixed",
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Silverado Apartments",
+    "aka": "",
+    "city": "Silver Springs",
+    "address": "3160 Elm Street, NV 89429",
+    "lat": 39.402609,
+    "lng": -119.230867,
+    "totalUnits": 24,
+    "restrictedUnits": 24,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Yorkshire Terrace Apts.",
+    "aka": "",
+    "city": "Reno",
+    "address": "7900 Golden Valley Rd., NV 89506",
+    "lat": 39.6497,
+    "lng": -119.855,
+    "totalUnits": 30,
+    "restrictedUnits": 30,
+    "type": "Family",
+    "amiTiers": [
+      "40%",
+      "50%",
+      "55%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Mesquite Bluffs Apts",
+    "aka": "",
+    "city": "Mesquite",
+    "address": "100 N Grapevine Rd, NV 89027",
+    "lat": 36.805414,
+    "lng": -114.085018,
+    "totalUnits": 176,
+    "restrictedUnits": 176,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Stewart Pines Apts. Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1391 E. Stewart Ave., NV 89101",
+    "lat": 36.167367,
+    "lng": -115.128895,
+    "totalUnits": 49,
+    "restrictedUnits": 48,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Test",
+    "aka": "",
+    "city": "Carson City",
+    "address": "123 Bogus Ave, NV 89701",
+    "lat": 39.1628,
+    "lng": -119.7436,
+    "totalUnits": 10,
+    "restrictedUnits": 10,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "The Bluffs Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "4050 Gardella Ave, NV 89512",
+    "lat": 39.566592,
+    "lng": -119.809599,
+    "totalUnits": 300,
+    "restrictedUnits": 298,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Courtyards",
+    "aka": "",
+    "city": "Pahrump",
+    "address": "2831 East Dandelion St., NV 89048",
+    "lat": 36.175198,
+    "lng": -115.962513,
+    "totalUnits": 60,
+    "restrictedUnits": 59,
+    "type": "Family",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Parkside Garden Apartments",
+    "aka": "",
+    "city": "Sparks",
+    "address": "1800 Sullivan Lane, NV 89431",
+    "lat": 39.54842,
+    "lng": -119.775743,
+    "totalUnits": 285,
+    "restrictedUnits": 285,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Silver Terrace Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "1611 Wedekind Road, NV 89512",
+    "lat": 39.546515,
+    "lng": -119.802309,
+    "totalUnits": 126,
+    "restrictedUnits": 126,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Wood Creek Apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4485 Pennwood Avenue, NV 89102",
+    "lat": 36.137142,
+    "lng": -115.200903,
+    "totalUnits": 232,
+    "restrictedUnits": 232,
+    "type": "Family",
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Sedona Hills",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2895 E Charleston Blvd, NV 89104",
+    "lat": 36.158615,
+    "lng": -115.109558,
+    "totalUnits": 256,
+    "restrictedUnits": 256,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Dakota Crest Apts.",
+    "aka": "",
+    "city": "Reno",
+    "address": "446 Kirman St., NV 89502",
+    "lat": 39.521293,
+    "lng": -119.798265,
+    "totalUnits": 48,
+    "restrictedUnits": 47,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Lake Tonopah",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2151 Citrus Hills Avenue, NV 89106",
+    "lat": 36.195709,
+    "lng": -115.171637,
+    "totalUnits": 356,
+    "restrictedUnits": 356,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Desert Pines I",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3750 E Bonanza Road, NV 89110",
+    "lat": 36.173643,
+    "lng": -115.09506,
+    "totalUnits": 72,
+    "restrictedUnits": 71,
+    "type": "Mixed",
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Desert Pines Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3750 E Bonanza, NV 89110",
+    "lat": 36.173643,
+    "lng": -115.09506,
+    "totalUnits": 36,
+    "restrictedUnits": 36,
+    "type": "Mixed",
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Desert Pines Iii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3750 E Bonanza, NV 89110",
+    "lat": 36.173643,
+    "lng": -115.09506,
+    "totalUnits": 60,
+    "restrictedUnits": 60,
+    "type": "Mixed",
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Yale/Keyes Senior Apts",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "1705 Yale St, NV 89030",
+    "lat": 36.190071,
+    "lng": -115.136512,
+    "totalUnits": 70,
+    "restrictedUnits": 70,
+    "type": "Senior",
+    "amiTiers": [
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Palm Terrace Senior Village",
+    "aka": "",
+    "city": "Pahrump",
+    "address": "421 Margaret Street, NV 89048",
+    "lat": 36.213664,
+    "lng": -116.027671,
+    "totalUnits": 64,
+    "restrictedUnits": 63,
+    "type": "Senior",
+    "amiTiers": [
+      "40%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Villanova Apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2815 W Ford Ave, NV 89117",
+    "lat": 36.031748,
+    "lng": -115.177891,
+    "totalUnits": 348,
+    "restrictedUnits": 348,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "David Hoggard Family Community",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1100 W Monroe Ave, NV 89106",
+    "lat": 36.185074,
+    "lng": -115.15516,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "type": "Family",
+    "amiTiers": [
+      "55%"
+    ],
+    "funding": [
+      "LIHTC",
+      "Tax-Exempt Bond",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Los Pecos Apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "5950 S. Pecos Road, NV 89120",
+    "lat": 36.0818,
+    "lng": -115.100728,
+    "totalUnits": 192,
+    "restrictedUnits": 189,
+    "type": "Senior",
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Meadowbrook Apartments",
+    "aka": "",
+    "city": "Stateline",
+    "address": "134 Kahle Drive, NV 89449",
+    "lat": 38.970122,
+    "lng": -119.934715,
+    "totalUnits": 30,
+    "restrictedUnits": 30,
+    "type": "Family",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Pacific Pines",
+    "aka": "",
+    "city": "Henderson",
+    "address": "132 E Pacific Ave, NV 89015",
+    "lat": 36.035727,
+    "lng": -114.979903,
+    "totalUnits": 84,
+    "restrictedUnits": 83,
+    "type": "Senior",
+    "amiTiers": [
+      "45%",
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Desert Pines Iv",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3750 E Bonanza, NV 89110",
+    "lat": 36.173643,
+    "lng": -115.09506,
+    "totalUnits": 36,
+    "restrictedUnits": 36,
+    "type": "Mixed",
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Fremont Villas",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "121 N 15Th St, NV 89101",
+    "lat": 36.165174,
+    "lng": -115.128934,
+    "totalUnits": 138,
+    "restrictedUnits": 138,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Saratoga Palms North Apts Ii",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "2225 Las Vegas Blvd N, NV 89030",
+    "lat": 36.200909,
+    "lng": -115.122545,
+    "totalUnits": 252,
+    "restrictedUnits": 252,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "Tax-Exempt Bond"
+    ]
+  },
+  {
+    "name": "Arville/Greenville Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3820 Pennwood Ave, NV 89102",
+    "lat": 36.137512,
+    "lng": -115.190893,
+    "totalUnits": 566,
+    "restrictedUnits": 555,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Buena Vista Springs Ii",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "2417 Morton Ave, NV 89032",
+    "lat": 36.204221,
+    "lng": -115.16275,
+    "totalUnits": 40,
+    "restrictedUnits": 30,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Henderson Manor Apts.",
+    "aka": "",
+    "city": "Henderson",
+    "address": "435 East Van Wagenen, NV 89015",
+    "lat": 36.023566,
+    "lng": -114.975064,
+    "totalUnits": 60,
+    "restrictedUnits": 60,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Lovelock Garden Apartments",
+    "aka": "",
+    "city": "Lovelock",
+    "address": "865 6Th St., NV 89419",
+    "lat": 40.176459,
+    "lng": -118.483369,
+    "totalUnits": 40,
+    "restrictedUnits": 39,
+    "type": "Family",
+    "amiTiers": [
+      "60%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Parkview Point",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3665 Cambridge St, NV 89169",
+    "lat": 36.122848,
+    "lng": -115.141948,
+    "totalUnits": 191,
+    "restrictedUnits": 191,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "Tax-Exempt Bond",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Parkway Plaza",
+    "aka": "",
+    "city": "Carson City",
+    "address": "500 College Pkwy, NV",
+    "lat": 39.190846,
+    "lng": -119.761895,
+    "totalUnits": 316,
+    "restrictedUnits": 316,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "Tax-Exempt Bond"
+    ]
+  },
+  {
+    "name": "Pinewood",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3600 Swenson St, NV 89169",
+    "lat": 36.12397,
+    "lng": -115.145914,
+    "totalUnits": 755,
+    "restrictedUnits": 755,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "Tax-Exempt Bond",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Rivers Bend",
+    "aka": "",
+    "city": "Mesquite",
+    "address": "P O Box 8000-191, NV 89027",
+    "lat": 36.8013,
+    "lng": -114.0651,
+    "totalUnits": 48,
+    "restrictedUnits": 48,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sunrise Quarters",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "601 S Bridge St, NV 89445",
+    "lat": 40.971782,
+    "lng": -117.731832,
+    "totalUnits": 28,
+    "restrictedUnits": 28,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Bonanza Pines Senior Apartment",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4170 E Bonanza Rd, NV 89110",
+    "lat": 36.173645,
+    "lng": -115.086584,
+    "totalUnits": 96,
+    "restrictedUnits": 95,
+    "type": "Senior",
+    "amiTiers": [
+      "45%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "David Hoggard Family Comm. Aka Evergreen",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "Monroe / J Street, NV 89106",
+    "lat": 36.1819,
+    "lng": -115.1697,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "type": "Family",
+    "amiTiers": [
+      "55%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Mcknight Senior Village I",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "651 Mcknight St, NV 89101",
+    "lat": 36.175209,
+    "lng": -115.112318,
+    "totalUnits": 110,
+    "restrictedUnits": 110,
+    "type": "Senior",
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Rosemont Casa Del Norte",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "2125 Las Vegas Blvd N, NV 89030",
+    "lat": 36.198789,
+    "lng": -115.125765,
+    "totalUnits": 252,
+    "restrictedUnits": 252,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sierra Pines",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3201 S Mojave Rd, NV 89121",
+    "lat": 36.13099,
+    "lng": -115.105549,
+    "totalUnits": 90,
+    "restrictedUnits": 90,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sunrise Senior Village",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "571 30Th Street, NV 89101",
+    "lat": 36.172228,
+    "lng": -115.107452,
+    "totalUnits": 90,
+    "restrictedUnits": 90,
+    "type": "Senior",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Willowbrook Apts Iii",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "1648 Midas Dr, NV 89445",
+    "lat": 40.96164,
+    "lng": -117.721026,
+    "totalUnits": 20,
+    "restrictedUnits": 20,
+    "type": "Senior",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Buena Vista Springs Ii",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "2417 Morton Avenue, NV 89030",
+    "lat": 36.204221,
+    "lng": -115.16275,
+    "totalUnits": 24,
+    "restrictedUnits": 18,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Eastline Apartments",
+    "aka": "",
+    "city": "Wendover",
+    "address": "1550 Eastline Lane, NV 89833",
+    "lat": 40.7358,
+    "lng": -114.0789,
+    "totalUnits": 30,
+    "restrictedUnits": 30,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sen. Harry Reid Senior Apts Aka 11Th St",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "11Th Street / Stewart Avenue, NV 89106",
+    "lat": 36.1819,
+    "lng": -115.1697,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sunrise Quarters Apartments",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "601 Bridge Street, NV 89445",
+    "lat": 40.971782,
+    "lng": -117.731832,
+    "totalUnits": 29,
+    "restrictedUnits": 28,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Test Las Vegas",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1771 E Flamingo Rd, NV 89119",
+    "lat": 36.114704,
+    "lng": -115.128932,
+    "totalUnits": 10,
+    "restrictedUnits": 10,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Whittell Pointe Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "1855 Selmi Drive, NV 89512",
+    "lat": 39.558434,
+    "lng": -119.795165,
+    "totalUnits": 120,
+    "restrictedUnits": 120,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Harrison Pines Senior Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "5045 Harrison Drive, NV 89120",
+    "lat": 36.097644,
+    "lng": -115.112419,
+    "totalUnits": 89,
+    "restrictedUnits": 89,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Humboldt Village Apartments",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "400 Weso Street, NV 89445",
+    "lat": 40.964512,
+    "lng": -117.731848,
+    "totalUnits": 38,
+    "restrictedUnits": 38,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Sunset Canyon Apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "9700 W. Sunset Rd, NV 89148",
+    "lat": 36.070302,
+    "lng": -115.304602,
+    "totalUnits": 186,
+    "restrictedUnits": 186,
+    "type": "Family",
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Sierra Pines",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3201 S. Mojave, NV 89121",
+    "lat": 36.13099,
+    "lng": -115.105549,
+    "totalUnits": 89,
+    "restrictedUnits": 88,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Willowbrook Iii Apartments",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "1648 Midas, NV 89445",
+    "lat": 40.96164,
+    "lng": -117.721026,
+    "totalUnits": 20,
+    "restrictedUnits": 20,
+    "type": "Senior",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Cheyenne Pointe",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3240 No Las Vegas Blvd, NV 89115",
+    "lat": 36.216489,
+    "lng": -115.094925,
+    "totalUnits": 204,
+    "restrictedUnits": 203,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Heritage Park Apartments",
+    "aka": "",
+    "city": "Beatty",
+    "address": "1225 South Crowell Avenue, NV 89003",
+    "lat": 36.902399,
+    "lng": -116.765004,
+    "totalUnits": 20,
+    "restrictedUnits": 20,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Joshua Villas",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3985 E Cheyenne Ave, NV 89115",
+    "lat": 36.21753,
+    "lng": -115.086997,
+    "totalUnits": 176,
+    "restrictedUnits": 176,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "Tax-Exempt Bond"
+    ]
+  },
+  {
+    "name": "Judith Villas",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "711 E Nelson Ave, NV 89030",
+    "lat": 36.204762,
+    "lng": -115.132357,
+    "totalUnits": 144,
+    "restrictedUnits": 144,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Park Manor",
+    "aka": "",
+    "city": "Reno",
+    "address": "500 Block Kuenzli, NV 89502",
+    "lat": 39.4879,
+    "lng": -119.7806,
+    "totalUnits": 85,
+    "restrictedUnits": 85,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Vintage At 7 Hills Aka St Rose",
+    "aka": "",
+    "city": "Henderson",
+    "address": "845 Seven Hills Drive, NV 89052",
+    "lat": 35.996597,
+    "lng": -115.123911,
+    "totalUnits": 244,
+    "restrictedUnits": 244,
+    "type": "Senior",
+    "amiTiers": [
+      "60%",
+      "50%",
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Grace Senior Apartments",
+    "aka": "",
+    "city": "Sparks",
+    "address": "1260 Commerce St, NV 89431",
+    "lat": 39.544562,
+    "lng": -119.763065,
+    "totalUnits": 55,
+    "restrictedUnits": 55,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Annabelle Pines",
+    "aka": "",
+    "city": "Henderson",
+    "address": "310 Annabelle Ln, NV 89014",
+    "lat": 36.053019,
+    "lng": -115.050593,
+    "totalUnits": 104,
+    "restrictedUnits": 104,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Annabelle Pines I",
+    "aka": "",
+    "city": "Henderson",
+    "address": "320 Annabelle Ln, NV 89014",
+    "lat": 36.053389,
+    "lng": -115.05058,
+    "totalUnits": 50,
+    "restrictedUnits": 50,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Lahontan Springs Apartments",
+    "aka": "",
+    "city": "Fernley",
+    "address": "Willow Way, NV 89408",
+    "lat": 39.5641,
+    "lng": -119.1751,
+    "totalUnits": 48,
+    "restrictedUnits": 47,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sierra Crest Senior Apts",
+    "aka": "",
+    "city": "Sparks",
+    "address": "795 Prater Way, NV 89431",
+    "lat": 39.540213,
+    "lng": -119.752355,
+    "totalUnits": 72,
+    "restrictedUnits": 72,
+    "type": "Senior",
+    "amiTiers": [
+      "60%",
+      "50%",
+      "45%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Zephyr Pointe Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "10640 N Mccarran Blvd, NV 89503",
+    "lat": 39.53817,
+    "lng": -119.863463,
+    "totalUnits": 216,
+    "restrictedUnits": 216,
+    "type": "Family",
+    "amiTiers": [
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Centennial Park",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "2627 Donna St, NV 89030",
+    "lat": 36.20829,
+    "lng": -115.129239,
+    "totalUnits": 155,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Baltimore Gardens",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "316 W Baltimore Ave, NV 89102",
+    "lat": 36.146758,
+    "lng": -115.160615,
+    "totalUnits": 20,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Rancho Mesa Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2881 N Rancho Dr, NV 89130",
+    "lat": 36.211521,
+    "lng": -115.207388,
+    "totalUnits": 272,
+    "restrictedUnits": 270,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "St. Vincent H.E.L.P. I",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1521 N Las Vegas Blvd, NV 89101",
+    "lat": 36.187111,
+    "lng": -115.134254,
+    "totalUnits": 66,
+    "restrictedUnits": 66,
+    "type": "Senior",
+    "amiTiers": [
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sun River Apartments",
+    "aka": "",
+    "city": "Mesquite",
+    "address": "61 North Arrowhead, NV 89027",
+    "lat": 36.804736,
+    "lng": -114.075733,
+    "totalUnits": 24,
+    "restrictedUnits": 24,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Vintage Hills Senior Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "4195 W. 7Th Street, NV 89503",
+    "lat": 39.53525,
+    "lng": -119.861272,
+    "totalUnits": 200,
+    "restrictedUnits": 198,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Vista Point Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "Talus Way, NV 89503",
+    "lat": 39.5499,
+    "lng": -119.8329,
+    "totalUnits": 44,
+    "restrictedUnits": 44,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Yerington Garden Apts.",
+    "aka": "",
+    "city": "Yerington",
+    "address": "608 Surprise St., NV 89447",
+    "lat": 38.984964,
+    "lng": -119.169562,
+    "totalUnits": 32,
+    "restrictedUnits": 31,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Austin Crest Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "1295 Grand Summit Drive, NV 89523",
+    "lat": 39.520325,
+    "lng": -119.871889,
+    "totalUnits": 268,
+    "restrictedUnits": 266,
+    "type": "Mixed",
+    "amiTiers": [
+      "80%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Maryland Villas",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "701 N 13Th Street, NV 89101",
+    "lat": 36.177087,
+    "lng": -115.129208,
+    "totalUnits": 108,
+    "restrictedUnits": 108,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "35%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Annabelle Pines",
+    "aka": "",
+    "city": "Henderson",
+    "address": "310 Annabelle Lane, NV 89014",
+    "lat": 36.053019,
+    "lng": -115.050593,
+    "totalUnits": 106,
+    "restrictedUnits": 104,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Annabelle Pines Ii",
+    "aka": "",
+    "city": "Henderson",
+    "address": "320 Annabelle Lane, NV 89014",
+    "lat": 36.053389,
+    "lng": -115.05058,
+    "totalUnits": 50,
+    "restrictedUnits": 50,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Glenbrook Terrace",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "6551 Mccarren St, NV 89086",
+    "lat": 36.279783,
+    "lng": -115.112583,
+    "totalUnits": 272,
+    "restrictedUnits": 272,
+    "type": "Family",
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "L'Octaine Urban",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "801 S Las Vegas Blvd, NV 89101",
+    "lat": 36.160946,
+    "lng": -115.145785,
+    "totalUnits": 51,
+    "restrictedUnits": 51,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Rochelle Pines",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4285 Hildebrand Ave, NV 89121",
+    "lat": 36.111564,
+    "lng": -115.107811,
+    "totalUnits": 115,
+    "restrictedUnits": 113,
+    "type": "Senior",
+    "amiTiers": [
+      "60%",
+      "50%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Bellaire Apts",
+    "aka": "",
+    "city": "Fallon",
+    "address": "1825 Auction Rd, NV 89406",
+    "lat": 39.477568,
+    "lng": -118.798211,
+    "totalUnits": 21,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%",
+      "50%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Bellewood Apts",
+    "aka": "",
+    "city": "Fallon",
+    "address": "1885 Auction Rd, NV 89406",
+    "lat": 39.477832,
+    "lng": -118.798931,
+    "totalUnits": 20,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%",
+      "50%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Cleveland Gardens",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "313 W Cleveland Ave, NV 89102",
+    "lat": 36.145816,
+    "lng": -115.159965,
+    "totalUnits": 36,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Dayton Valley Village I",
+    "aka": "",
+    "city": "Dayton",
+    "address": "369 Dayton Valley Rd, NV 89403",
+    "lat": 39.242004,
+    "lng": -119.570752,
+    "totalUnits": 24,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Desertaire Apts",
+    "aka": "",
+    "city": "Fallon",
+    "address": "1795 Auction Rd, NV 89406",
+    "lat": 39.477603,
+    "lng": -118.79781,
+    "totalUnits": 19,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%",
+      "50%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Granada Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "304 W Cleveland Ave, NV 89102",
+    "lat": 36.145502,
+    "lng": -115.160257,
+    "totalUnits": 16,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Highland Terrace Apts",
+    "aka": "",
+    "city": "Ely",
+    "address": "115 W Highland Dr, NV 89301",
+    "lat": 39.243347,
+    "lng": -114.865059,
+    "totalUnits": 36,
+    "restrictedUnits": 36,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Stewart Pines Senior Living",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1351 East Stewart, NV 89101",
+    "lat": 36.167555,
+    "lng": -115.129333,
+    "totalUnits": 72,
+    "restrictedUnits": 72,
+    "type": "Senior",
+    "amiTiers": [
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sunset Palms (Formerly Las Vegas Family)",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1905 H Street, NV 89106",
+    "lat": 36.192237,
+    "lng": -115.152036,
+    "totalUnits": 56,
+    "restrictedUnits": 56,
+    "type": "Family",
+    "amiTiers": [
+      "45%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Toana View Apartments",
+    "aka": "",
+    "city": "Wendover",
+    "address": "3081 W. Tibbetts Blvd, NV 89883",
+    "lat": 40.727668,
+    "lng": -114.101047,
+    "totalUnits": 36,
+    "restrictedUnits": 35,
+    "type": "Family",
+    "amiTiers": [
+      "40%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "St. Vincent H.E.L.P. I (B)",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1521 N Las Vegas Blvd, NV 89101",
+    "lat": 36.187111,
+    "lng": -115.134254,
+    "totalUnits": 54,
+    "restrictedUnits": 54,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Autumn Ridge Apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "5540 West Harmon Ave., NV 89103",
+    "lat": 36.10778,
+    "lng": -115.217327,
+    "totalUnits": 168,
+    "restrictedUnits": 165,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Capistrano Pines Apts.",
+    "aka": "",
+    "city": "Henderson",
+    "address": "400 N. Major Ave., NV 89015",
+    "lat": 36.033113,
+    "lng": -114.96913,
+    "totalUnits": 184,
+    "restrictedUnits": 183,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Casa Sorrento Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3580 E Alexander Rd, NV 89115",
+    "lat": 36.23264,
+    "lng": -115.097232,
+    "totalUnits": 236,
+    "restrictedUnits": 236,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sundance Village Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "6500 W Charleston Blvd, NV 89146",
+    "lat": 36.159364,
+    "lng": -115.23847,
+    "totalUnits": 528,
+    "restrictedUnits": 528,
+    "type": "Family",
+    "amiTiers": [
+      "80%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Whittell Pointe Ii Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "1855 Selmi Drive, NV 89512",
+    "lat": 39.558434,
+    "lng": -119.795165,
+    "totalUnits": 108,
+    "restrictedUnits": 108,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Bonanza Pines Senior Apts Iii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4180 E Bonanza Rd, NV 89110",
+    "lat": 36.173644,
+    "lng": -115.086312,
+    "totalUnits": 62,
+    "restrictedUnits": 61,
+    "type": "Senior",
+    "amiTiers": [
+      "45%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Cimarron Village",
+    "aka": "",
+    "city": "Elko",
+    "address": "550 Cimarron Way, NV 89801",
+    "lat": 40.833635,
+    "lng": -115.781252,
+    "totalUnits": 48,
+    "restrictedUnits": 48,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Harrison Pines Iii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "5070 Harrison Drive, NV 89120",
+    "lat": 36.097224,
+    "lng": -115.112003,
+    "totalUnits": 20,
+    "restrictedUnits": 20,
+    "type": "Senior",
+    "amiTiers": [
+      "60%",
+      "50%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Help Genesis Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1559 N Main St, NV 89101",
+    "lat": 36.187304,
+    "lng": -115.136394,
+    "totalUnits": 75,
+    "restrictedUnits": 75,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Autumn Village I",
+    "aka": "",
+    "city": "Carson City",
+    "address": "1101 Beverly Dr, NV 89706",
+    "lat": 39.175045,
+    "lng": -119.757015,
+    "totalUnits": 46,
+    "restrictedUnits": 46,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Winchestrer Ct",
+    "aka": "",
+    "city": "Elko",
+    "address": "1806 Winchester Dr, NV 89801",
+    "lat": 40.830351,
+    "lng": -115.734155,
+    "totalUnits": 40,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "40%",
+      "45%",
+      "50%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Winterwood",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "5025 Mohave Ave, NV 89104",
+    "lat": 36.153884,
+    "lng": -115.064811,
+    "totalUnits": 80,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "40%",
+      "50%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Hill Street Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "244 Hill St, NV 89501",
+    "lat": 39.522443,
+    "lng": -119.8141,
+    "totalUnits": 8,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Home Suites Apts",
+    "aka": "",
+    "city": "Sparks",
+    "address": "615 E Lincoln Way, NV 89431",
+    "lat": 39.537396,
+    "lng": -119.735781,
+    "totalUnits": 249,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Linden Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "400 Linden St, NV 89502",
+    "lat": 39.499471,
+    "lng": -119.791948,
+    "totalUnits": 40,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Neil Villa Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "4205 Neil Rd, NV 89502",
+    "lat": 39.485792,
+    "lng": -119.780429,
+    "totalUnits": 28,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Mountain View",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "1200 Hanson St, NV 89445",
+    "lat": 40.961814,
+    "lng": -117.72891,
+    "totalUnits": 42,
+    "restrictedUnits": 41,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "River Valley Apartments",
+    "aka": "",
+    "city": "Dayton",
+    "address": "350 Dayton Valley Road, NV 89403",
+    "lat": 39.242073,
+    "lng": -119.572191,
+    "totalUnits": 24,
+    "restrictedUnits": 24,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Bonanza Gardens",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2751 E Bonanza Rd, NV 89101",
+    "lat": 36.173644,
+    "lng": -115.112609,
+    "totalUnits": 168,
+    "restrictedUnits": 167,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Crestmore Village Apartments",
+    "aka": "",
+    "city": "Gardnerville",
+    "address": "1330 Stodick Parkway, NV 89411",
+    "lat": 38.934712,
+    "lng": -119.730993,
+    "totalUnits": 40,
+    "restrictedUnits": 40,
+    "type": "Family",
+    "amiTiers": [
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Diamond Creek Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "South Meadows Parkway, NV 89511",
+    "lat": 39.4246,
+    "lng": -119.7242,
+    "totalUnits": 288,
+    "restrictedUnits": 288,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "South Valley Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "10250 Spencer St, NV 89183",
+    "lat": 36.003895,
+    "lng": -115.127674,
+    "totalUnits": 270,
+    "restrictedUnits": 270,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Spanish Hills Apts",
+    "aka": "",
+    "city": "Sparks",
+    "address": "1475 Vista Del Rancho Pkwy, NV 89436",
+    "lat": 39.594007,
+    "lng": -119.716069,
+    "totalUnits": 152,
+    "restrictedUnits": 152,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Silver Sky Assisted Living Residence",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "8220 Silver Sky Dr, NV 89145",
+    "lat": 36.175823,
+    "lng": -115.272843,
+    "totalUnits": 90,
+    "restrictedUnits": 90,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Virginia St",
+    "aka": "",
+    "city": "Reno",
+    "address": "652 S Virginia St, NV 89501",
+    "lat": 39.519246,
+    "lng": -119.809545,
+    "totalUnits": 84,
+    "restrictedUnits": 84,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Horizon Crest Family Apts",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "11 W Owens Ave, NV 89030",
+    "lat": 36.188186,
+    "lng": -115.138914,
+    "totalUnits": 78,
+    "restrictedUnits": 78,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "45%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Autumn Village",
+    "aka": "",
+    "city": "Carson City",
+    "address": "1101 Beverly Drive, NV 89706",
+    "lat": 39.175045,
+    "lng": -119.757015,
+    "totalUnits": 47,
+    "restrictedUnits": 46,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Bonanza Pines Iii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4180 E. Bonanza Rd., NV 89110",
+    "lat": 36.173644,
+    "lng": -115.086312,
+    "totalUnits": 62,
+    "restrictedUnits": 62,
+    "type": "Senior",
+    "amiTiers": [
+      "45%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Carriage Stone Senior Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "695 S. Center St, NV 89501",
+    "lat": 39.519215,
+    "lng": -119.808614,
+    "totalUnits": 84,
+    "restrictedUnits": 84,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Help @ Owens 1A",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1559 No Main Street, NV 89101",
+    "lat": 36.187304,
+    "lng": -115.136394,
+    "totalUnits": 75,
+    "restrictedUnits": 75,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Rancho Vista Apts",
+    "aka": "",
+    "city": "Gardnerville",
+    "address": "1386 Village Way, NV 89410",
+    "lat": 38.936074,
+    "lng": -119.735136,
+    "totalUnits": 36,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Riley Street Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "1450 Riley Ave, NV 89502",
+    "lat": 39.493823,
+    "lng": -119.779177,
+    "totalUnits": 9,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sierra Pointe Apts I",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1064 Sierra Vista Dr, NV 89169",
+    "lat": 36.127078,
+    "lng": -115.140031,
+    "totalUnits": 160,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sierra Pointe Apts Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1064 Sierra Vista Dr, NV 89169",
+    "lat": 36.127078,
+    "lng": -115.140031,
+    "totalUnits": 20,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Skyview Assoc",
+    "aka": "",
+    "city": "Reno",
+    "address": "1590 Sky Valley Dr, NV 89523",
+    "lat": 39.522059,
+    "lng": -119.852517,
+    "totalUnits": 39,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Tammany Hall Apts I",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4386 Escondido St, NV 89119",
+    "lat": 36.109578,
+    "lng": -115.135026,
+    "totalUnits": 60,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Wedekind Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "2300 Wedekind Rd, NV 89512",
+    "lat": 39.551366,
+    "lng": -119.789612,
+    "totalUnits": 79,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sunset Park Apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1555 Balzar Avenue, NV 89106",
+    "lat": 36.199174,
+    "lng": -115.16221,
+    "totalUnits": 48,
+    "restrictedUnits": 48,
+    "type": "Family",
+    "amiTiers": [
+      "45%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Courtyard Centre Aka Studio Iii",
+    "aka": "",
+    "city": "Reno",
+    "address": "695 West 3Rd Street, NV 89503",
+    "lat": 39.527199,
+    "lng": -119.822213,
+    "totalUnits": 240,
+    "restrictedUnits": 240,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Riverside Artist Lofts",
+    "aka": "",
+    "city": "Reno",
+    "address": "17 South Virginia, NV 89501",
+    "lat": 39.524735,
+    "lng": -119.812633,
+    "totalUnits": 35,
+    "restrictedUnits": 35,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Shadow Creek Ii Apartments",
+    "aka": "",
+    "city": "Overton",
+    "address": "375 Ryan Avenue, NV 89040",
+    "lat": 36.54966,
+    "lng": -114.448596,
+    "totalUnits": 25,
+    "restrictedUnits": 24,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Stonecreek",
+    "aka": "",
+    "city": "Wendover",
+    "address": "2701 W. Tibbets Blvd, NV 89883",
+    "lat": 40.729922,
+    "lng": -114.094243,
+    "totalUnits": 42,
+    "restrictedUnits": 41,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Apache Pines",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "9552 W. Tropicana Ave., NV 89147",
+    "lat": 36.100296,
+    "lng": -115.300577,
+    "totalUnits": 274,
+    "restrictedUnits": 272,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Banbridge Apartments",
+    "aka": "",
+    "city": "Sparks",
+    "address": "1000 El Rancho Drive, NV 89431",
+    "lat": 39.541006,
+    "lng": -119.77584,
+    "totalUnits": 128,
+    "restrictedUnits": 128,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Southwest Village Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "3295 S Virginia Street, NV 89502",
+    "lat": 39.493146,
+    "lng": -119.797422,
+    "totalUnits": 332,
+    "restrictedUnits": 331,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Autumn Village Ii",
+    "aka": "",
+    "city": "Carson City",
+    "address": "1150 E Long St, NV 89706",
+    "lat": 39.174215,
+    "lng": -119.756495,
+    "totalUnits": 41,
+    "restrictedUnits": 41,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Cheyenne Crossing",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "2630 E Cheyenne, NV 89030",
+    "lat": 36.217863,
+    "lng": -115.113588,
+    "totalUnits": 176,
+    "restrictedUnits": 176,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Otto Merida Desert Villas",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "50 No Honolulu Street, NV 89101",
+    "lat": 36.16011,
+    "lng": -115.093381,
+    "totalUnits": 60,
+    "restrictedUnits": 60,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "45%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Summit Crest Apartments",
+    "aka": "",
+    "city": "Carson City",
+    "address": "921 Mica Drive, NV 89705",
+    "lat": 39.091098,
+    "lng": -119.778977,
+    "totalUnits": 28,
+    "restrictedUnits": 27,
+    "type": "Family",
+    "amiTiers": [
+      "45%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Centennial Park Annex",
+    "aka": "",
+    "city": "Reno",
+    "address": "1652 Wedekind Rd, NV 89512",
+    "lat": 39.546854,
+    "lng": -119.800953,
+    "totalUnits": 40,
+    "restrictedUnits": 40,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Horizon Crest",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "13 W Owens Ave., NV 89101",
+    "lat": 36.1819,
+    "lng": -115.1697,
+    "totalUnits": 78,
+    "restrictedUnits": 69,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Willow Creek Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "402 Linden St, NV 89502",
+    "lat": 39.499471,
+    "lng": -119.791921,
+    "totalUnits": 26,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sleepytime Apartments",
+    "aka": "",
+    "city": "Minden",
+    "address": "1133 Hollows Lane, NV 89410",
+    "lat": 38.9701,
+    "lng": -119.5723,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Cleveland Gardens",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "313-321 Cleveland Ave, NV 89102",
+    "lat": 36.145816,
+    "lng": -115.159965,
+    "totalUnits": 36,
+    "restrictedUnits": 36,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Tammany Hall Apts Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4386 Escondido St, NV 89119",
+    "lat": 36.109578,
+    "lng": -115.135026,
+    "totalUnits": 26,
+    "restrictedUnits": 26,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Spring Mountain Apts",
+    "aka": "",
+    "city": "Pahrump",
+    "address": "1441 E Calvada Blvd, NV 89048",
+    "lat": 36.191776,
+    "lng": -115.987946,
+    "totalUnits": 33,
+    "restrictedUnits": 32,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Arborwood I Apartments",
+    "aka": "",
+    "city": "Fallon",
+    "address": "100 Serpa Place, NV 89406",
+    "lat": 39.481991,
+    "lng": -118.775603,
+    "totalUnits": 36,
+    "restrictedUnits": 35,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Homestead",
+    "aka": "",
+    "city": "Pahrump",
+    "address": "4451 North Blagg Road, NV 89060",
+    "lat": 36.284594,
+    "lng": -116.014332,
+    "totalUnits": 20,
+    "restrictedUnits": 20,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Juan Garcia Aka Ernie Cragin",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2851 Sunrise Ave, NV 89101",
+    "lat": 36.162839,
+    "lng": -115.110012,
+    "totalUnits": 52,
+    "restrictedUnits": 52,
+    "type": "Family",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Owens Senior",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "1626 Davis Pl, NV 89030",
+    "lat": 36.189069,
+    "lng": -115.13771,
+    "totalUnits": 72,
+    "restrictedUnits": 71,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Parkway At Silverado Ranch",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "10192 S Maryland Pkwy, NV 89123",
+    "lat": 36.004926,
+    "lng": -115.136757,
+    "totalUnits": 272,
+    "restrictedUnits": 271,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Shepherd Hills",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1950 Simmons St, NV 89106",
+    "lat": 36.194075,
+    "lng": -115.178607,
+    "totalUnits": 195,
+    "restrictedUnits": 193,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Vintage Desert Rose Senior Apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1701 N Jones Blvd, NV 89108",
+    "lat": 36.189987,
+    "lng": -115.224315,
+    "totalUnits": 184,
+    "restrictedUnits": 184,
+    "type": "Senior",
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Karen Pines",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4450 Karen Ave, NV 89121",
+    "lat": 36.140811,
+    "lng": -115.078494,
+    "totalUnits": 144,
+    "restrictedUnits": 144,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Pacific Pines Ii Apartments",
+    "aka": "",
+    "city": "Henderson",
+    "address": "130 E Pacific Ave, NV 89015",
+    "lat": 36.035761,
+    "lng": -114.979941,
+    "totalUnits": 51,
+    "restrictedUnits": 51,
+    "type": "Senior",
+    "amiTiers": [
+      "45%",
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Pacific Pines Iii Senior Apartments",
+    "aka": "",
+    "city": "Henderson",
+    "address": "134 E. Pacific Avenue, NV 89015",
+    "lat": 36.035703,
+    "lng": -114.979876,
+    "totalUnits": 51,
+    "restrictedUnits": 50,
+    "type": "Senior",
+    "amiTiers": [
+      "45%",
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Quail Run At River'S Edge",
+    "aka": "",
+    "city": "Elko",
+    "address": "610 South 12Th Street, NV 89801",
+    "lat": 40.833597,
+    "lng": -115.745893,
+    "totalUnits": 60,
+    "restrictedUnits": 60,
+    "type": "Family",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Senator Richard Bryan Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "Searles/Eastern, NV 89101",
+    "lat": 36.1702,
+    "lng": -115.1305,
+    "totalUnits": 120,
+    "restrictedUnits": 120,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Silver Sage Senior Residence",
+    "aka": "",
+    "city": "Reno",
+    "address": "4885 South Mccarran Blvd, NV 89502",
+    "lat": 39.47718,
+    "lng": -119.77622,
+    "totalUnits": 41,
+    "restrictedUnits": 41,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Fernwood Meadows",
+    "aka": "",
+    "city": "Fernley",
+    "address": "625 Silver Lace Boulevard, NV 89408",
+    "lat": 39.602785,
+    "lng": -119.240855,
+    "totalUnits": 28,
+    "restrictedUnits": 28,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Riverwood Village",
+    "aka": "",
+    "city": "Laughlin",
+    "address": "1705 Cal Edison Dr, NV 89029",
+    "lat": 35.135114,
+    "lng": -114.619051,
+    "totalUnits": 208,
+    "restrictedUnits": 208,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Manhattan Place Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "930 Manhattan St, NV 89512",
+    "lat": 39.539221,
+    "lng": -119.789242,
+    "totalUnits": 10,
+    "restrictedUnits": 10,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sierra West Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "1380 Riley Ave, NV 89502",
+    "lat": 39.493246,
+    "lng": -119.77873,
+    "totalUnits": 26,
+    "restrictedUnits": 26,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Humboldt Village Family",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "1300 Hanson St, NV 89445",
+    "lat": 40.961807,
+    "lng": -117.726771,
+    "totalUnits": 36,
+    "restrictedUnits": 35,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Arborwood Iii Apartments",
+    "aka": "",
+    "city": "Fallon",
+    "address": "160 Serpa, NV 89406",
+    "lat": 39.481991,
+    "lng": -118.774874,
+    "totalUnits": 24,
+    "restrictedUnits": 24,
+    "type": "Senior",
+    "amiTiers": [
+      "60%",
+      "50%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Arborwood Ii Apartments",
+    "aka": "",
+    "city": "Fallon",
+    "address": "451 North Broadway, NV 89406",
+    "lat": 39.480887,
+    "lng": -118.774292,
+    "totalUnits": 36,
+    "restrictedUnits": 36,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Palo Verde Ii Aka Don Dawson",
+    "aka": "",
+    "city": "Henderson",
+    "address": "101 Palo Verde Dr, NV 89015",
+    "lat": 36.02662,
+    "lng": -114.963363,
+    "totalUnits": 60,
+    "restrictedUnits": 60,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Cottonwood Apartments",
+    "aka": "",
+    "city": "Searchlight",
+    "address": "350 Surprise Street, NV 89046",
+    "lat": 35.463811,
+    "lng": -114.915073,
+    "totalUnits": 24,
+    "restrictedUnits": 23,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Lighthouse Of The Sierra",
+    "aka": "",
+    "city": "Reno",
+    "address": "Clearacre & Crystal Lanes, NV 89512",
+    "lat": 39.5433,
+    "lng": -119.8099,
+    "totalUnits": 26,
+    "restrictedUnits": 26,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Tropical Pines Senior Living",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "5030 S Jeffreys, NV 89119",
+    "lat": 36.098042,
+    "lng": -115.120998,
+    "totalUnits": 60,
+    "restrictedUnits": 60,
+    "type": "Senior",
+    "amiTiers": [
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Buena Vista Springs, Phase Iii",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "2417 W Morton Ave, NV 89032",
+    "lat": 36.204221,
+    "lng": -115.16275,
+    "totalUnits": 58,
+    "restrictedUnits": 58,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Crestmore Village Apt. Phase Ii",
+    "aka": "",
+    "city": "Gardnerville",
+    "address": "1301 Elges Lane, NV 89411",
+    "lat": 39.0381,
+    "lng": -119.8348,
+    "totalUnits": 40,
+    "restrictedUnits": 40,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Horizon Apartments",
+    "aka": "",
+    "city": "Wendover",
+    "address": "1654 Butte Stree, NV 89883",
+    "lat": 40.736147,
+    "lng": -114.074444,
+    "totalUnits": 63,
+    "restrictedUnits": 62,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Mountain Shadows Apartments",
+    "aka": "",
+    "city": "Elko",
+    "address": "1810 Winchester Drive, NV 89801",
+    "lat": 40.830275,
+    "lng": -115.734174,
+    "totalUnits": 24,
+    "restrictedUnits": 24,
+    "type": "Family",
+    "amiTiers": [
+      "40%",
+      "45%",
+      "50%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "City Center Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "160 Sinclair Street, NV 89501",
+    "lat": 39.524407,
+    "lng": -119.808995,
+    "totalUnits": 258,
+    "restrictedUnits": 258,
+    "type": "Mixed",
+    "amiTiers": [
+      "80%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Golden Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "520 Brinkby Ave, NV 89509",
+    "lat": 39.495306,
+    "lng": -119.803891,
+    "totalUnits": 159,
+    "restrictedUnits": 159,
+    "type": "Family",
+    "amiTiers": [
+      "60%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Help Owens 2",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1455 N Main St, NV 89101",
+    "lat": 36.186559,
+    "lng": -115.136865,
+    "totalUnits": 50,
+    "restrictedUnits": 50,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Riverwood I Apts.",
+    "aka": "",
+    "city": "Laughlin",
+    "address": "1705 Cal Edison Drive, NV 89029",
+    "lat": 35.135114,
+    "lng": -114.619051,
+    "totalUnits": 108,
+    "restrictedUnits": 108,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Southgate Apartments",
+    "aka": "",
+    "city": "Carson City",
+    "address": "2100 California Street, NV 89701",
+    "lat": 39.148134,
+    "lng": -119.765993,
+    "totalUnits": 99,
+    "restrictedUnits": 98,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Willows At Wells Senior Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "201 S. Wells Ave, NV 89501",
+    "lat": 39.524667,
+    "lng": -119.80328,
+    "totalUnits": 39,
+    "restrictedUnits": 39,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Harmon Pines Senior Apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "6000 W. Harmon, NV 89103",
+    "lat": 36.107362,
+    "lng": -115.224371,
+    "totalUnits": 105,
+    "restrictedUnits": 70,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Riverwood Ii Apartments",
+    "aka": "",
+    "city": "Laughlin",
+    "address": "1701 Cal Edison Drive, NV 89029",
+    "lat": 35.13511,
+    "lng": -114.619,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Desert View Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4550 Karen Ave, NV 89121",
+    "lat": 36.140817,
+    "lng": -115.075173,
+    "totalUnits": 128,
+    "restrictedUnits": 127,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Pecos Terrace I",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3555 E Lake Mead Blvd, NV 89115",
+    "lat": 36.195587,
+    "lng": -115.095832,
+    "totalUnits": 56,
+    "restrictedUnits": 55,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sunwood Apartments",
+    "aka": "",
+    "city": "Lovelock",
+    "address": "150 Bovean Street, NV 89419",
+    "lat": 40.174099,
+    "lng": -118.480055,
+    "totalUnits": 24,
+    "restrictedUnits": 23,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Skyline Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "1570 Sky Valley Drive, NV 89503",
+    "lat": 39.521696,
+    "lng": -119.852592,
+    "totalUnits": 100,
+    "restrictedUnits": 80,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Skyview Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "1590 Sky Valley Drive, NV 89503",
+    "lat": 39.522059,
+    "lng": -119.852517,
+    "totalUnits": 100,
+    "restrictedUnits": 55,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Pecos Terrace Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3555 E Lake Mead Blvd, NV 89115",
+    "lat": 36.195587,
+    "lng": -115.095832,
+    "totalUnits": 128,
+    "restrictedUnits": 128,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sierra Springs Apartments",
+    "aka": "",
+    "city": "Carson City",
+    "address": "633 Hot Springs Rd., NV 89706",
+    "lat": 39.185398,
+    "lng": -119.762583,
+    "totalUnits": 90,
+    "restrictedUnits": 89,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Sunrise Apartments",
+    "aka": "",
+    "city": "Elko",
+    "address": "950 Metzler, NV 89801",
+    "lat": 40.832857,
+    "lng": -115.740188,
+    "totalUnits": 22,
+    "restrictedUnits": 22,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Whispering Palms",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "2655 W Lake Mead Blvd, NV 89030",
+    "lat": 36.197181,
+    "lng": -115.176124,
+    "totalUnits": 208,
+    "restrictedUnits": 208,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Bonanza View Apts. Aka Help Las Vegas",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "640 Mcknight St, NV 89101",
+    "lat": 36.174702,
+    "lng": -115.111927,
+    "totalUnits": 75,
+    "restrictedUnits": 75,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Citivista Seniors",
+    "aka": "",
+    "city": "Reno",
+    "address": "650 Record St, NV 89512",
+    "lat": 39.533595,
+    "lng": -119.809509,
+    "totalUnits": 152,
+    "restrictedUnits": 152,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "Tax-Exempt Bond"
+    ]
+  },
+  {
+    "name": "Fourth Street I",
+    "aka": "",
+    "city": "Reno",
+    "address": "801 E Fourth St, NV 89512",
+    "lat": 39.532186,
+    "lng": -119.803189,
+    "totalUnits": 20,
+    "restrictedUnits": 20,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Fourth Street Ii",
+    "aka": "",
+    "city": "Reno",
+    "address": "801 E Fourth St, NV 89512",
+    "lat": 39.532186,
+    "lng": -119.803189,
+    "totalUnits": 30,
+    "restrictedUnits": 30,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Lake Vista",
+    "aka": "",
+    "city": "Stateline",
+    "address": "131 Market St, NV",
+    "lat": 38.967495,
+    "lng": -119.93042,
+    "totalUnits": 40,
+    "restrictedUnits": 40,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "Tax-Exempt Bond"
+    ]
+  },
+  {
+    "name": "Lindell Harbor",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3440 Lindell St, NV 89146",
+    "lat": 36.127038,
+    "lng": -115.21631,
+    "totalUnits": 19,
+    "restrictedUnits": 19,
+    "type": "Senior",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Portofino",
+    "aka": "",
+    "city": "Henderson",
+    "address": "1001 Las Palmas Entrada Ave, NV 89012",
+    "lat": 36.029162,
+    "lng": -115.03049,
+    "totalUnits": 205,
+    "restrictedUnits": 205,
+    "type": "Senior",
+    "amiTiers": [
+      "60%",
+      "55%",
+      "50%",
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "San Jacinto Apartments",
+    "aka": "",
+    "city": "Jackpot",
+    "address": "880 Lady Luck Drive, NV 89825",
+    "lat": 41.989317,
+    "lng": -114.66579,
+    "totalUnits": 20,
+    "restrictedUnits": 19,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Silver Creek",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "6170 Boulder Hwy, NV 89122",
+    "lat": 36.089104,
+    "lng": -115.038236,
+    "totalUnits": 224,
+    "restrictedUnits": 222,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Stewart Villas",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2611 Stewart Street, NV 89101",
+    "lat": 36.166681,
+    "lng": -115.113785,
+    "totalUnits": 113,
+    "restrictedUnits": 113,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Citivista Senior Apartments",
+    "aka": "",
+    "city": "Reno",
+    "address": "650 Record Street, NV 89512",
+    "lat": 39.533595,
+    "lng": -119.809509,
+    "totalUnits": 152,
+    "restrictedUnits": 151,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Fourth Street Project Ii",
+    "aka": "",
+    "city": "Reno",
+    "address": "450 N. Wells Ave., NV 89512",
+    "lat": 39.534922,
+    "lng": -119.802973,
+    "totalUnits": 30,
+    "restrictedUnits": 30,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Lake Vista Apartments Ii",
+    "aka": "",
+    "city": "Stateline",
+    "address": "131 Market Street, NV 89449",
+    "lat": 38.967495,
+    "lng": -119.93042,
+    "totalUnits": 40,
+    "restrictedUnits": 40,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Horizon Pines Senior Apartments",
+    "aka": "",
+    "city": "Henderson",
+    "address": "2570 Horizon Ridge Pkwy, NV 89052",
+    "lat": 36.005917,
+    "lng": -115.098095,
+    "totalUnits": 156,
+    "restrictedUnits": 155,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Horizon Seniors",
+    "aka": "",
+    "city": "Henderson",
+    "address": "990 Equestrian Dr, NV 89015",
+    "lat": 36.010036,
+    "lng": -114.951103,
+    "totalUnits": 228,
+    "restrictedUnits": 228,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Orchard Club",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1220 Tree Line Dr, NV 89117",
+    "lat": 36.157504,
+    "lng": -115.039784,
+    "totalUnits": 342,
+    "restrictedUnits": 338,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "11Th St Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "328 N 11Th St, NV 89101",
+    "lat": 36.168926,
+    "lng": -115.13185,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "type": "Senior",
+    "amiTiers": [
+      "60%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Cedar Village Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2850 Cedar Ave, NV 89101",
+    "lat": 36.169891,
+    "lng": -115.11048,
+    "totalUnits": 154,
+    "restrictedUnits": 152,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Smith Williams Apts",
+    "aka": "",
+    "city": "Henderson",
+    "address": "575 E. Lake Mead, NV 89015",
+    "lat": 36.046931,
+    "lng": -114.974008,
+    "totalUnits": 80,
+    "restrictedUnits": 80,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Coronado Drive Apartments",
+    "aka": "",
+    "city": "Henderson",
+    "address": "Corner Of Coronado And, NV 89015",
+    "lat": 36.0405,
+    "lng": -114.9738,
+    "totalUnits": 60,
+    "restrictedUnits": 59,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Ethel Mae Robinson Senior Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1320 H Street, NV 89106",
+    "lat": 36.185751,
+    "lng": -115.151693,
+    "totalUnits": 18,
+    "restrictedUnits": 18,
+    "type": "Senior",
+    "amiTiers": [
+      "39%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Silver Sage At Neil Road",
+    "aka": "",
+    "city": "Reno",
+    "address": "3870 Neil Road, NV 89502",
+    "lat": 39.488796,
+    "lng": -119.780113,
+    "totalUnits": 58,
+    "restrictedUnits": 58,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sky View Pines Apts",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "21 W Owens Ave, NV 89030",
+    "lat": 36.188183,
+    "lng": -115.139331,
+    "totalUnits": 144,
+    "restrictedUnits": 129,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "45%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Washoe Mills Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "1375 Mill Street, NV 98502",
+    "lat": 39.523748,
+    "lng": -119.793736,
+    "totalUnits": 115,
+    "restrictedUnits": 115,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Humboldt Pines Family",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "1300 Hansen Street, NV 89445",
+    "lat": 40.961807,
+    "lng": -117.726771,
+    "totalUnits": 36,
+    "restrictedUnits": 35,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sierra Run Ii",
+    "aka": "",
+    "city": "Fernley",
+    "address": "201 Lois Lane, NV 89408",
+    "lat": 39.603257,
+    "lng": -119.236928,
+    "totalUnits": 24,
+    "restrictedUnits": 24,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Larios Arms Senior Apartments",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "242 West Minor Street, NV 89445",
+    "lat": 40.965456,
+    "lng": -117.724432,
+    "totalUnits": 30,
+    "restrictedUnits": 30,
+    "type": "Senior",
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Pacific Pines 4",
+    "aka": "",
+    "city": "Henderson",
+    "address": "Texas Ave / Army Street, NV 89015",
+    "lat": 36.0405,
+    "lng": -114.9738,
+    "totalUnits": 62,
+    "restrictedUnits": 62,
+    "type": "Senior",
+    "amiTiers": [
+      "45%",
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Santa Barbara Palms I",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4880 Santa Barbara St, NV 89121",
+    "lat": 36.100765,
+    "lng": -115.084987,
+    "totalUnits": 72,
+    "restrictedUnits": 63,
+    "type": "Senior",
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%",
+      "55%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Acapella Aka Winterwood Senior Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "5025 E Mohave, NV 89104",
+    "lat": 36.153884,
+    "lng": -115.064811,
+    "totalUnits": 142,
+    "restrictedUnits": 124,
+    "type": "Senior",
+    "amiTiers": [
+      "40%",
+      "50%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "College Villas Senior Living Apts",
+    "aka": "",
+    "city": "Henderson",
+    "address": "511 College Dr, NV 89015",
+    "lat": 36.018137,
+    "lng": -114.963496,
+    "totalUnits": 226,
+    "restrictedUnits": 224,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Pershing Meadows Apartments",
+    "aka": "",
+    "city": "Lovelock",
+    "address": "395 4Th Street, NV 89411",
+    "lat": 40.17489,
+    "lng": -118.479731,
+    "totalUnits": 24,
+    "restrictedUnits": 24,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Christina Court Apts",
+    "aka": "",
+    "city": "Carson City",
+    "address": "1800 Russell Way, NV 89706",
+    "lat": 39.176897,
+    "lng": -119.742806,
+    "totalUnits": 40,
+    "restrictedUnits": 36,
+    "type": "Senior",
+    "amiTiers": [
+      "40%",
+      "45%",
+      "50%",
+      "55%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Decatur Pines 2",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "6741 N Decatur Blvd, NV 89131",
+    "lat": 36.283008,
+    "lng": -115.206869,
+    "totalUnits": 75,
+    "restrictedUnits": 75,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Arbor Cove @ Virginia Lake",
+    "aka": "",
+    "city": "Reno",
+    "address": "2350 Lymberry Street, NV 89509",
+    "lat": 39.501793,
+    "lng": -119.804156,
+    "totalUnits": 66,
+    "restrictedUnits": 66,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Aspen Village",
+    "aka": "",
+    "city": "Sparks",
+    "address": "1401 Sullivan Ln, NV 89436",
+    "lat": 39.546775,
+    "lng": -119.776329,
+    "totalUnits": 43,
+    "restrictedUnits": 43,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Lone Mountain Senior Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4652 N Rainbow Blvd, NV 89108",
+    "lat": 36.245176,
+    "lng": -115.242012,
+    "totalUnits": 75,
+    "restrictedUnits": 65,
+    "type": "Senior",
+    "amiTiers": [
+      "35%",
+      "40%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Lovelock Manor/ Rosewood Apts",
+    "aka": "",
+    "city": "Lovelock",
+    "address": "500 Meadow Ln, NV",
+    "lat": 40.172813,
+    "lng": -118.481742,
+    "totalUnits": 24,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Dr. Luther Mack Jr. Senior Apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "8158 Giles St, NV 89123",
+    "lat": 36.042033,
+    "lng": -115.170342,
+    "totalUnits": 48,
+    "restrictedUnits": 48,
+    "type": "Mixed",
+    "amiTiers": [
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Rosewood Village Apartments",
+    "aka": "",
+    "city": "Lovelock",
+    "address": "500 Meadow Lane, NV 89419",
+    "lat": 40.172813,
+    "lng": -118.481742,
+    "totalUnits": 24,
+    "restrictedUnits": 24,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sage West I & Ii",
+    "aka": "",
+    "city": "Elko",
+    "address": "1002 West Sage, NV 89801",
+    "lat": 40.832777,
+    "lng": -115.779463,
+    "totalUnits": 55,
+    "restrictedUnits": 55,
+    "type": "Family",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Santa Barbara Palms 2",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4880 Santa Barbara St, NV 89121",
+    "lat": 36.100765,
+    "lng": -115.084987,
+    "totalUnits": 42,
+    "restrictedUnits": 35,
+    "type": "Senior",
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%",
+      "55%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Centennial Park Arms Apartments",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "2627 Donna Street, NV 89030",
+    "lat": 36.20829,
+    "lng": -115.129239,
+    "totalUnits": 155,
+    "restrictedUnits": 155,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Dr. Paul Meacham",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "65 E Windmill, NV 89123",
+    "lat": 36.042179,
+    "lng": -115.169552,
+    "totalUnits": 57,
+    "restrictedUnits": 48,
+    "type": "Mixed",
+    "amiTiers": [
+      "40%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Highland Terrace",
+    "aka": "",
+    "city": "Ely",
+    "address": "15 West Highland Drive, NV 89301",
+    "lat": 39.1497,
+    "lng": -115.3114,
+    "totalUnits": 60,
+    "restrictedUnits": 60,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Indigo Village Apartments",
+    "aka": "",
+    "city": "Fallon",
+    "address": "1755 Auction Rd, NV 89406",
+    "lat": 39.477624,
+    "lng": -118.796722,
+    "totalUnits": 48,
+    "restrictedUnits": 48,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Landsman Gardens Apts.",
+    "aka": "",
+    "city": "Henderson",
+    "address": "750 Major Street, NV 89015",
+    "lat": 36.038641,
+    "lng": -114.96592,
+    "totalUnits": 100,
+    "restrictedUnits": 100,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "Tax-Exempt Bond"
+    ]
+  },
+  {
+    "name": "Metropolitan Gardens",
+    "aka": "",
+    "city": "Reno",
+    "address": "325 E 7Th Street, NV 89512",
+    "lat": 39.534412,
+    "lng": -119.811185,
+    "totalUnits": 83,
+    "restrictedUnits": 83,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Parkway Vista Senior Community",
+    "aka": "",
+    "city": "Gardnerville",
+    "address": "1330 Crestmore Drive, NV 89410",
+    "lat": 38.933689,
+    "lng": -119.731379,
+    "totalUnits": 30,
+    "restrictedUnits": 30,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Tempo Senior Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "5625 South Hollywood Blvd., NV 89122",
+    "lat": 36.087051,
+    "lng": -115.029128,
+    "totalUnits": 101,
+    "restrictedUnits": 100,
+    "type": "Senior",
+    "amiTiers": [
+      "35%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Westcliff Pines 2",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "8286 Silver Sky Drive, NV 89145",
+    "lat": 36.175803,
+    "lng": -115.27406,
+    "totalUnits": 80,
+    "restrictedUnits": 80,
+    "type": "Mixed",
+    "amiTiers": [
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Westcliff Pines 3",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "8286 Silver Sky Dr #1, NV 89145",
+    "lat": 36.175803,
+    "lng": -115.27406,
+    "totalUnits": 40,
+    "restrictedUnits": 40,
+    "type": "Mixed",
+    "amiTiers": [
+      "40%",
+      "30%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Agate Seniors",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2675 W. Agate Ave., NV 89123",
+    "lat": 36.024596,
+    "lng": -115.177795,
+    "totalUnits": 182,
+    "restrictedUnits": 182,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Bonnie Lane Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "2047 Bonnie Lane, NV 89156",
+    "lat": 36.196826,
+    "lng": -115.046204,
+    "totalUnits": 65,
+    "restrictedUnits": 65,
+    "type": "Mixed",
+    "amiTiers": [
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Boulder Pointe Apts.",
+    "aka": "",
+    "city": "Henderson",
+    "address": "993 Equestrian Drive, NV 89002",
+    "lat": 36.00977,
+    "lng": -114.950653,
+    "totalUnits": 210,
+    "restrictedUnits": 210,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Juniper Village",
+    "aka": "",
+    "city": "Reno",
+    "address": "525 Morrill Avenue, NV 89502",
+    "lat": 39.533898,
+    "lng": -119.802194,
+    "totalUnits": 44,
+    "restrictedUnits": 44,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Westcliff Heights Senior Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "8206 Silver Sky Dr. Bldg. #3, NV 89145",
+    "lat": 36.175845,
+    "lng": -115.272,
+    "totalUnits": 80,
+    "restrictedUnits": 50,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Winchester Court",
+    "aka": "",
+    "city": "Elko",
+    "address": "1806 Winchester Drive, NV 89801",
+    "lat": 40.830351,
+    "lng": -115.734155,
+    "totalUnits": 40,
+    "restrictedUnits": 30,
+    "type": "Mixed",
+    "amiTiers": [
+      "40%",
+      "45%",
+      "50%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Winterwood Seniors Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "Nellis Blvd / Sahara Ave, NV 89142",
+    "lat": 36.152,
+    "lng": -115.0451,
+    "totalUnits": 80,
+    "restrictedUnits": 65,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC",
+      "HOME"
+    ]
+  },
+  {
+    "name": "Carefree Living Lincoln County",
+    "aka": "",
+    "city": "Panaca",
+    "address": "236 South 4Th Street, NV 89042",
+    "lat": 37.786419,
+    "lng": -114.38704,
+    "totalUnits": 52,
+    "restrictedUnits": 52,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Kingsbury Village",
+    "aka": "",
+    "city": "Minden",
+    "address": "1770 Pinewood Drive, NV 89423",
+    "lat": 38.962202,
+    "lng": -119.781788,
+    "totalUnits": 36,
+    "restrictedUnits": 36,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Larios Arrms Ii",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "242 W. Minor Street, NV 89445",
+    "lat": 40.965456,
+    "lng": -117.724432,
+    "totalUnits": 30,
+    "restrictedUnits": 30,
+    "type": "Mixed",
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Lincoln Way",
+    "aka": "",
+    "city": "Sparks",
+    "address": "618 4Th Street, NV 89431",
+    "lat": 39.539274,
+    "lng": -119.747806,
+    "totalUnits": 45,
+    "restrictedUnits": 45,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sonoma Springs",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "1100 Hanson Street, NV 89445",
+    "lat": 40.962303,
+    "lng": -117.731874,
+    "totalUnits": 32,
+    "restrictedUnits": 32,
+    "type": "Mixed",
+    "amiTiers": [
+      "40%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Terracina Reno",
+    "aka": "",
+    "city": "Reno",
+    "address": "2175 Sierra Highlands Dr., NV 89523",
+    "lat": 39.536493,
+    "lng": -119.869627,
+    "totalUnits": 140,
+    "restrictedUnits": 140,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Vera Johnson",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "503 N Lamb Blvd., NV 89110",
+    "lat": 36.170866,
+    "lng": -115.08067,
+    "totalUnits": 112,
+    "restrictedUnits": 112,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Village At North",
+    "aka": "",
+    "city": "Reno",
+    "address": "925 N. Virginia Street, NV 89503",
+    "lat": 39.536588,
+    "lng": -119.816597,
+    "totalUnits": 25,
+    "restrictedUnits": 25,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Summerhill",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3630 Owens Ave, NV 89110",
+    "lat": 36.18834,
+    "lng": -115.096197,
+    "totalUnits": 221,
+    "restrictedUnits": 221,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Russell Senior Apts. Ph. Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "Russell Road, NV 89122",
+    "lat": 36.1047,
+    "lng": -115.0401,
+    "totalUnits": 75,
+    "restrictedUnits": 75,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Baltimore Gardens And Cleveland Gardens",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "316 West Baltimore Ave., NV 89102",
+    "lat": 36.146758,
+    "lng": -115.160615,
+    "totalUnits": 201,
+    "restrictedUnits": 201,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Community Gardens",
+    "aka": "",
+    "city": "Reno",
+    "address": "2330 Wedekind Road, NV 89512",
+    "lat": 39.551364,
+    "lng": -119.787252,
+    "totalUnits": 181,
+    "restrictedUnits": 181,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Cordero Pines 2",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "499 No. Lamb Blvd., NV 89110",
+    "lat": 36.170302,
+    "lng": -115.080771,
+    "totalUnits": 60,
+    "restrictedUnits": 54,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "Market"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Rose Garden",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "12 E. Webb Ave., NV 89030",
+    "lat": 36.189705,
+    "lng": -115.138898,
+    "totalUnits": 114,
+    "restrictedUnits": 114,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Woodhaus Apartments",
+    "aka": "",
+    "city": "Battle Mountain",
+    "address": "453 Elquist Drive, NV 89820",
+    "lat": 40.644405,
+    "lng": -116.944915,
+    "totalUnits": 28,
+    "restrictedUnits": 28,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Russell Seniors Iii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "5625 S. Hollywood Blvd, NV 89122",
+    "lat": 36.087051,
+    "lng": -115.029128,
+    "totalUnits": 105,
+    "restrictedUnits": 83,
+    "type": "Senior",
+    "amiTiers": [
+      "35%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sierra Pt./Granada",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "1064 Sierra Vista Drive, NV 89169",
+    "lat": 36.127078,
+    "lng": -115.140031,
+    "totalUnits": 175,
+    "restrictedUnits": 175,
+    "type": "Mixed",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Vintage At The Crossings",
+    "aka": "",
+    "city": "Reno",
+    "address": "11565 Old Virginia Road, NV 89521",
+    "lat": 39.425288,
+    "lng": -119.755966,
+    "totalUnits": 230,
+    "restrictedUnits": 230,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Woodlands Village Apts.",
+    "aka": "",
+    "city": "Elko",
+    "address": "1040 Cypress Ave, NV 89801",
+    "lat": 40.835102,
+    "lng": -115.781971,
+    "totalUnits": 24,
+    "restrictedUnits": 24,
+    "type": "Senior",
+    "amiTiers": [
+      "35%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Asi Veterans Supportive Housing Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "3757 Pecos Mcleod Interconnect, NV 89121",
+    "lat": 36.1221,
+    "lng": -115.0878,
+    "totalUnits": 50,
+    "restrictedUnits": 49,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Carefree Living Overton Apts.",
+    "aka": "",
+    "city": "Overton",
+    "address": "130 S. Conley Street, NV 89040",
+    "lat": 36.54179,
+    "lng": -114.439668,
+    "totalUnits": 20,
+    "restrictedUnits": 20,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "City Impact",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "978 E. Sahara Ave., NV 89104",
+    "lat": 36.144331,
+    "lng": -115.141255,
+    "totalUnits": 66,
+    "restrictedUnits": 65,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Desert Properties Apartments",
+    "aka": "",
+    "city": "Tonopah",
+    "address": "1000 S. Erie Main St., NV 89049",
+    "lat": 38.1227,
+    "lng": -116.678,
+    "totalUnits": 56,
+    "restrictedUnits": 56,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Flamingo Pines",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "Durango / Flamingo, NV 89147",
+    "lat": 36.1074,
+    "lng": -115.2836,
+    "totalUnits": 66,
+    "restrictedUnits": 53,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Highland At Vista",
+    "aka": "",
+    "city": "Dayton",
+    "address": "3501 Vista Grande Blvd., NV 89403",
+    "lat": 39.2684,
+    "lng": -119.5934,
+    "totalUnits": 52,
+    "restrictedUnits": 51,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Madison Palms",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "3150 West Ann Rd., NV 89031",
+    "lat": 36.261807,
+    "lng": -115.182709,
+    "totalUnits": 54,
+    "restrictedUnits": 54,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Madison Palms Tc",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "3150 West Ann Road, NV 89031",
+    "lat": 36.261807,
+    "lng": -115.182709,
+    "totalUnits": 73,
+    "restrictedUnits": 73,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "North 5Th Street",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "140 E. Rome Blvd, NV 89084",
+    "lat": 36.2845,
+    "lng": -115.1577,
+    "totalUnits": 176,
+    "restrictedUnits": 160,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Plaza At 4Th Street",
+    "aka": "",
+    "city": "Reno",
+    "address": "450 N Wells Ave, NV 89512",
+    "lat": 39.534922,
+    "lng": -119.802973,
+    "totalUnits": 73,
+    "restrictedUnits": 72,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sandia Manor",
+    "aka": "",
+    "city": "Fernley",
+    "address": "365 Jill Court, NV 89408",
+    "lat": 39.611054,
+    "lng": -119.221893,
+    "totalUnits": 26,
+    "restrictedUnits": 26,
+    "type": "Mixed",
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%",
+      "55%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Tenaya Senior Apartments",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "4204 N. Tenaya Way, NV 89129",
+    "lat": 36.236627,
+    "lng": -115.251244,
+    "totalUnits": 272,
+    "restrictedUnits": 272,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Bristlecone Apts",
+    "aka": "",
+    "city": "Ely",
+    "address": "1650 Avenue F, NV 89301",
+    "lat": 39.258564,
+    "lng": -114.857311,
+    "totalUnits": 68,
+    "restrictedUnits": 65,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Crescendo - Fort Apache Senior",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "9550 W. Russell Rd, NV 89148",
+    "lat": 36.085278,
+    "lng": -115.300867,
+    "totalUnits": 195,
+    "restrictedUnits": 195,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Flamingo Pines 2 Senior Apts.",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "8710 W. Flamingo Rd, NV 89147",
+    "lat": 36.115067,
+    "lng": -115.281918,
+    "totalUnits": 66,
+    "restrictedUnits": 53,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Rome Pines Ii - North 5Th Street 2",
+    "aka": "",
+    "city": "North Las Vegas",
+    "address": "140 E. Rome Blvd, NV 89084",
+    "lat": 36.2845,
+    "lng": -115.1577,
+    "totalUnits": 116,
+    "restrictedUnits": 105,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sky Mountain By Vintage",
+    "aka": "",
+    "city": "Reno",
+    "address": "1405 Sky Mountain Dr., NV 89523",
+    "lat": 39.521919,
+    "lng": -119.858909,
+    "totalUnits": 288,
+    "restrictedUnits": 288,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Steamboat By Vintage",
+    "aka": "",
+    "city": "Reno",
+    "address": "600 Geiger Grade Road, NV 89521",
+    "lat": 39.401437,
+    "lng": -119.741375,
+    "totalUnits": 360,
+    "restrictedUnits": 360,
+    "type": "Mixed",
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Willie J. Wynn Apts.",
+    "aka": "",
+    "city": "Reno",
+    "address": "1202 Hillboro Ave, NV 89512",
+    "lat": 39.542391,
+    "lng": -119.796908,
+    "totalUnits": 44,
+    "restrictedUnits": 44,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Carson Southgate Apts",
+    "aka": "",
+    "city": "Carson City",
+    "address": "2100 California St, NV 89701",
+    "lat": 39.148134,
+    "lng": -119.765993,
+    "totalUnits": 48,
+    "restrictedUnits": 48,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sarann Knight Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "900 W Monroe Ave, NV 89106",
+    "lat": 36.185035,
+    "lng": -115.15284,
+    "totalUnits": 82,
+    "restrictedUnits": 82,
+    "type": "Family",
+    "amiTiers": [
+      "49%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sierra Manor Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "2350 Paradise Drive, NV 89512",
+    "lat": 39.54451,
+    "lng": -119.780823,
+    "totalUnits": 145,
+    "restrictedUnits": 143,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Southgate Apartments Ii",
+    "aka": "",
+    "city": "Carson City",
+    "address": "2100 California Street, NV 89701",
+    "lat": 39.148134,
+    "lng": -119.765993,
+    "totalUnits": 48,
+    "restrictedUnits": 48,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Autumn Village Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "195 Gentry Way, NV 89502",
+    "lat": 39.495045,
+    "lng": -119.79546,
+    "totalUnits": 43,
+    "restrictedUnits": 43,
+    "type": "Family",
+    "amiTiers": [
+      "30%",
+      "40%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Decatur Pines",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "6725 N Decatur Blvd, NV 89131",
+    "lat": 36.282465,
+    "lng": -115.206875,
+    "totalUnits": 75,
+    "restrictedUnits": 75,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Foothill Gardens Apts",
+    "aka": "",
+    "city": "Carson City",
+    "address": "1770 Russell Way, NV 89706",
+    "lat": 39.176552,
+    "lng": -119.74281,
+    "totalUnits": 99,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Mcknight Senior Village Ii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "651 Mcknight Street, NV 89101",
+    "lat": 36.175209,
+    "lng": -115.112318,
+    "totalUnits": 78,
+    "restrictedUnits": 66,
+    "type": "Senior",
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Mahogany Court",
+    "aka": "",
+    "city": "Minden",
+    "address": "Mahogany Dr, NV",
+    "lat": 39.0278,
+    "lng": -119.7233,
+    "totalUnits": 20,
+    "restrictedUnits": null,
+    "type": "Mixed",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Vintage At Laughlin",
+    "aka": "",
+    "city": "Laughlin",
+    "address": "2250 Cougar Drive, NV 89029",
+    "lat": 35.156484,
+    "lng": -114.614346,
+    "totalUnits": 150,
+    "restrictedUnits": 149,
+    "type": "Senior",
+    "amiTiers": [
+      "40%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Vista Creek Apts",
+    "aka": "",
+    "city": "Laughlin",
+    "address": "2220 Cougar Drive, NV 89029",
+    "lat": 35.15558,
+    "lng": -114.612111,
+    "totalUnits": 300,
+    "restrictedUnits": 298,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Westcliff Pines",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "8206 Silver Sky Drive, NV 89145",
+    "lat": 36.175845,
+    "lng": -115.272,
+    "totalUnits": 40,
+    "restrictedUnits": 40,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Ethel Mae Robinson Senior Apts",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "900 W Monroe, NV 89106",
+    "lat": 36.1819,
+    "lng": -115.1697,
+    "totalUnits": 20,
+    "restrictedUnits": 20,
+    "type": "Senior",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Foothill Gardens Apts",
+    "aka": "",
+    "city": "Carson City",
+    "address": "1770 Russell Way, NV 89706",
+    "lat": 39.176552,
+    "lng": -119.74281,
+    "totalUnits": 100,
+    "restrictedUnits": 99,
+    "type": "Family",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Humboldt Pines - Elderly",
+    "aka": "",
+    "city": "Winnemucca",
+    "address": "1310 Hanson Street, NV 89445",
+    "lat": 40.961805,
+    "lng": -117.726382,
+    "totalUnits": 28,
+    "restrictedUnits": 28,
+    "type": "Senior",
+    "amiTiers": [
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Mahogany Court",
+    "aka": "",
+    "city": "Minden",
+    "address": "Mahogany Drive, NV 89423",
+    "lat": 39.0278,
+    "lng": -119.7233,
+    "totalUnits": 21,
+    "restrictedUnits": 20,
+    "type": "Family",
+    "amiTiers": [],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Coronado Dr Apts",
+    "aka": "",
+    "city": "Henderson",
+    "address": "500 N Major Ave, NV 89015",
+    "lat": 36.035161,
+    "lng": -114.967921,
+    "totalUnits": 60,
+    "restrictedUnits": 59,
+    "type": "Senior",
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Mcknight Senior Village Iii",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "651 Mcknight St, NV 89101",
+    "lat": 36.175209,
+    "lng": -115.112318,
+    "totalUnits": 24,
+    "restrictedUnits": 20,
+    "type": "Senior",
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "River Senior Apts",
+    "aka": "",
+    "city": "Reno",
+    "address": "895 Kuenzli St, NV 89502",
+    "lat": 39.528495,
+    "lng": -119.799355,
+    "totalUnits": 55,
+    "restrictedUnits": 55,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "45%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Sierra Ridge",
+    "aka": "",
+    "city": "Carson City",
+    "address": "1820 Russell Way, NV 89706",
+    "lat": 39.177411,
+    "lng": -119.742998,
+    "totalUnits": 42,
+    "restrictedUnits": 41,
+    "type": "Senior",
+    "amiTiers": [
+      "35%",
+      "45%",
+      "50%",
+      "55%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  },
+  {
+    "name": "Silver Sky At Deer Springs",
+    "aka": "",
+    "city": "Las Vegas",
+    "address": "6741 N. Decatur Blvd, NV 89131",
+    "lat": 36.283008,
+    "lng": -115.206869,
+    "totalUnits": 90,
+    "restrictedUnits": 90,
+    "type": "Senior",
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
+    "funding": [
+      "LIHTC"
+    ]
+  }
+]

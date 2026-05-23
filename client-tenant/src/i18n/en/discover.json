@@ -61,13 +61,16 @@
   "amiDisclosure.sectionTitle": "Rent & AMI disclosure",
   "amiDisclosure.tableHeader.bedroom": "Bedrooms",
   "amiDisclosure.tableHeader.rent": "Monthly rent",
+  "amiDisclosure.tableHeader.maxRent": "Max at {{tier}}",
   "amiDisclosure.setAsideHeading": "Set-aside: {{tier}}",
   "amiDisclosure.explainer": "All units in this community are reserved for households earning at or below {{tier}} of Las Vegas Area Median Income. Use the <1>income calculator</1> on the home page to confirm eligibility.",
-  "amiDisclosure.incomeLimitsTitle": "Income limits ({{tier}}, Las Vegas-Henderson-Paradise MSA)",
+  "amiDisclosure.incomeLimitsTitle": "Income limits ({{tier}}, {{msa}})",
   "amiDisclosure.incomeLimitsToggle": "Show income limits by household size",
   "amiDisclosure.incomeLimitsHeader.size": "Household size",
   "amiDisclosure.incomeLimitsHeader.max": "Max annual income",
   "amiDisclosure.incomeLimitsRow": "{{count}} person",
   "amiDisclosure.incomeLimitsRow_other": "{{count}} people",
+  "amiDisclosure.incomeLimitsSource": "Source: Novogradac Rent & Income Limit Calculator, 2026. Limits are not guaranteed; confirm with the property.",
+  "amiDisclosure.comingSoonNote": "Official 2026 income limits for {{city}} are coming soon.",
   "amiDisclosure.incomeCalculatorLink": "income calculator"
 }

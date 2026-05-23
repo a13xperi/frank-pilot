@@ -38,6 +38,7 @@ CREATE TYPE application_status AS ENUM (
   'tier3_approved',
   'tier3_denied',
   'lease_generated',
+  'lease_signed',
   'onboarded',
   'cancelled'
 );
@@ -70,6 +71,7 @@ CREATE TYPE audit_action AS ENUM (
   'tier3_approved',
   'tier3_denied',
   'lease_generated',
+  'lease_signed',
   'payment_setup',
   'auto_pay_enrolled',
   'tenant_onboarded',
@@ -289,6 +291,13 @@ CREATE TABLE properties (
   total_vacancy INTEGER DEFAULT 0,
   waiting_list_enabled BOOLEAN DEFAULT false,
 
+  -- QAP acquisitions layer (2026-05-22): location scoring (§7.3.1) and the
+  -- 30% basis boost (§11) for HUD Qualified Census Tracts / Difficult
+  -- Development Areas. See migration 2026-05-22-property-qct.sql.
+  census_tract VARCHAR(20),
+  is_qct BOOLEAN NOT NULL DEFAULT false,
+  is_dda BOOLEAN NOT NULL DEFAULT false,
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -434,6 +443,9 @@ CREATE TABLE units (
   photo_url TEXT,
   description TEXT,
   available_from DATE,
+  -- QAP acquisitions Phase 3: per-unit AMI designation from a bound award's
+  -- election/unit-mix. NULL = undesignated. See 2026-05-25-acq-awards-and-designations.sql.
+  ami_designation VARCHAR(10) CHECK (ami_designation IN ('30','50','60','market')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (property_id, unit_number)
@@ -847,6 +859,28 @@ CREATE TABLE recertifications (
   market_rent_applied_at TIMESTAMPTZ,
   market_rent_amount DECIMAL(10,2),
 
+  -- QAP acquisitions Phase 3.1: income-ceiling enforcement snapshot. Recertified
+  -- income measured against the occupied unit's AMI designation (Phase 3) with
+  -- the 140% Available Unit Rule. See 2026-05-27-recert-income-ceiling.sql.
+  income_ceiling_verdict TEXT
+    CHECK (income_ceiling_verdict IN
+      ('not_restricted','qualified','over_income_aur','over_income','indeterminate')),
+  income_ceiling_designation TEXT
+    CHECK (income_ceiling_designation IN ('30','50','60','market')),
+  income_ceiling_limit DECIMAL(12,2),
+  income_ceiling_income DECIMAL(12,2),
+  income_ceiling_checked_at TIMESTAMPTZ,
+
+  -- QAP acquisitions Phase 3.2: Next Available Unit Rule (IRC §42(g)(2)(D)(ii)).
+  -- An over_income (>140%) verdict opens a NAU obligation; the unit stays out of
+  -- compliance until a comparable available unit is rented to a qualifying
+  -- household (satisfied) or the obligation is lost (→ market rent). See
+  -- 2026-05-28-nau-rule.sql.
+  nau_status TEXT
+    CHECK (nau_status IN ('open','satisfied','lost')),
+  nau_resolved_at TIMESTAMPTZ,
+  nau_resolving_unit_id UUID,
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -952,6 +986,8 @@ CREATE INDEX idx_recertifications_property ON recertifications(property_id);
 CREATE INDEX idx_recertifications_status ON recertifications(status);
 CREATE INDEX idx_recertifications_anniversary ON recertifications(anniversary_date);
 CREATE INDEX idx_recertifications_cutoff ON recertifications(cutoff_date);
+-- QAP Phase 3.2: surface open NAU obligations for the follow-up queue.
+CREATE INDEX idx_recertifications_nau_open ON recertifications(nau_status) WHERE nau_status = 'open';
 
 -- ============================================================
 -- TRIGGERS
@@ -1061,9 +1097,78 @@ CREATE TABLE IF NOT EXISTS stripe_webhook_dlq (
   first_failed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_failed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Lease e-signature (native). One tenant signature row per application; the
+-- executed PDF + a sha256 hash give tamper-evidence, and the compliance tape
+-- (LEASE_EXECUTED stamp) is the legally-meaningful audit record. ESIGN/UETA:
+-- consent_at captures the "agree to sign electronically" affirmation.
+CREATE TABLE IF NOT EXISTS lease_signatures (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id      UUID NOT NULL UNIQUE REFERENCES applications(id) ON DELETE CASCADE,
+  signer_user_id      UUID NOT NULL REFERENCES users(id),
+  signer_name         TEXT NOT NULL,
+  signature_image     TEXT NOT NULL,
+  signed_document_url TEXT,
+  document_hash       TEXT,
+  signer_ip           INET,
+  consent_at          TIMESTAMPTZ NOT NULL,
+  signed_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- QAP acquisitions layer — candidate projects (Phase 2). A prospective LIHTC
+-- development being evaluated for a 9%/4% credit application. Scored against
+-- the focused, funnel-relevant QAP subset (§7.4.1 low-rent, §7.4.2 low-income,
+-- §7.4.3 resident services, §7.3.1 location/basis-boost) with the unit mix and
+-- election the project commits to. Demand evidence is joined at score time from
+-- the funnel (see demand-service.ts), not stored here.
+CREATE TABLE IF NOT EXISTS acq_projects (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name                TEXT NOT NULL,
+  geographic_account  TEXT NOT NULL CHECK (geographic_account IN ('CLARK','WASHOE','OTHER')),
+  city                TEXT,
+  set_aside           TEXT CHECK (set_aside IN ('NONPROFIT','USDA_RD','TRIBAL','ADDITIONAL')),
+  election_kind       TEXT NOT NULL CHECK (election_kind IN ('STD_40_60','STD_20_50','AVERAGE_INCOME')),
+  total_units         INTEGER NOT NULL DEFAULT 0 CHECK (total_units >= 0),
+  units_30_ami        INTEGER NOT NULL DEFAULT 0 CHECK (units_30_ami >= 0),
+  units_50_ami        INTEGER NOT NULL DEFAULT 0 CHECK (units_50_ami >= 0),
+  units_60_ami        INTEGER NOT NULL DEFAULT 0 CHECK (units_60_ami >= 0),
+  is_qct              BOOLEAN NOT NULL DEFAULT false,
+  is_dda              BOOLEAN NOT NULL DEFAULT false,
+  resident_services   TEXT[] NOT NULL DEFAULT '{}',
+  notes               TEXT,
+  created_by          UUID REFERENCES users(id),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_acq_projects_account ON acq_projects(geographic_account);
+
+-- QAP acquisitions Phase 3 (Compliance Bridge): an acq_project that won a
+-- credit reservation, optionally bound to the managed property it operates as.
+-- One award per project (UNIQUE acq_project_id). The award's election + unit
+-- mix drives per-unit AMI designations on the bound property's units.
+CREATE TABLE IF NOT EXISTS acq_awards (
+  id                         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  acq_project_id             UUID NOT NULL UNIQUE REFERENCES acq_projects(id) ON DELETE CASCADE,
+  property_id                UUID REFERENCES properties(id) ON DELETE SET NULL,
+  status                     TEXT NOT NULL DEFAULT 'reserved'
+                               CHECK (status IN ('reserved','placed_in_service','in_service','closed')),
+  reservation_amount         NUMERIC(14,2) CHECK (reservation_amount IS NULL OR reservation_amount >= 0),
+  award_date                 DATE,
+  placed_in_service_deadline DATE,
+  notes                      TEXT,
+  created_by                 UUID REFERENCES users(id),
+  created_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_acq_awards_project ON acq_awards(acq_project_id);
+CREATE INDEX IF NOT EXISTS idx_acq_awards_property ON acq_awards(property_id);
 `;
 
 export const DROP_SCHEMA_SQL = `
+DROP TABLE IF EXISTS acq_awards CASCADE;
+DROP TABLE IF EXISTS acq_projects CASCADE;
+DROP TABLE IF EXISTS lease_signatures CASCADE;
 DROP TABLE IF EXISTS stripe_webhook_dlq CASCADE;
 DROP TABLE IF EXISTS stripe_processed_events CASCADE;
 DROP TABLE IF EXISTS payment_idempotency CASCADE;
