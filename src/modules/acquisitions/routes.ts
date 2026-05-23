@@ -24,6 +24,7 @@ import { logger } from '../../utils/logger';
 import { DemandService, type DemandFilters, type AmiTier } from './demand-service';
 import { ProjectService, type ProjectInput } from './project-service';
 import { AwardService, AwardInput, AwardStatus, AWARD_STATUSES, BridgeError } from './award-service';
+import { AurQueueService } from './aur-queue-service';
 import type { AmiDesignation } from './compliance-bridge';
 import {
   GEOGRAPHIC_ACCOUNTS,
@@ -37,6 +38,7 @@ const router = Router();
 const service = new DemandService();
 const projects = new ProjectService();
 const awards = new AwardService();
+const aurQueue = new AurQueueService();
 
 const ACCOUNTS = Object.keys(GEOGRAPHIC_ACCOUNTS) as [GeographicAccount, ...GeographicAccount[]];
 const SET_ASIDE_KEYS = Object.keys(SET_ASIDES) as [string, ...string[]];
@@ -545,6 +547,44 @@ router.get(
       if (handleBridgeError(err, res)) return;
       logger.error('acquisitions: compliance rollup failed', { err });
       res.status(500).json({ error: 'Failed to build compliance rollup' });
+    }
+  },
+);
+
+// ── Lane 2: over-income / AUR queue ─────────────────────────────────────────
+
+const AurQueueQuerySchema = z.object({
+  propertyId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
+/**
+ * GET /api/acquisitions/aur-queue
+ * Returns recertifications where income_ceiling_verdict is over_income or
+ * over_income_aur, scoped to the caller's portfolio. Staff with
+ * system_admin / asset_manager / regional_manager see all properties;
+ * scoped roles see only their assigned property_ids.
+ *
+ * Query: propertyId (UUID, optional), limit (1-200, default 50), offset (default 0).
+ * Response: { queue: [...], total: N }
+ */
+router.get(
+  '/aur-queue',
+  authenticate,
+  requirePermission('acquisition:view'),
+  async (req: AuthRequest, res) => {
+    const parsed = AurQueueQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid query', details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const result = await aurQueue.list(parsed.data, req);
+      res.json(result);
+    } catch (err) {
+      logger.error('acquisitions: aur-queue failed', { err });
+      res.status(500).json({ error: 'Failed to fetch AUR queue' });
     }
   },
 );
