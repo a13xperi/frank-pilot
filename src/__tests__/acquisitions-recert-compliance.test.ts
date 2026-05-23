@@ -146,11 +146,15 @@ describe('RecertComplianceService.check', () => {
     const updateCall = mockQuery.mock.calls.find((c) => String(c[0]).includes('UPDATE recertifications'));
     expect(updateCall).toBeDefined();
 
-    // tape stamped with the recert as subject
+    // tape stamped as a GLOBAL-scope admin event. subjectId is FK'd to
+    // users(id) via compliance_tape.applicant_id, so it MUST be null — the
+    // recert id rides in evidence, never the scope key. (Regression: a recert
+    // id in subjectId FK-violates on every restricted-unit stamp in prod.)
     expect(stamp).toHaveBeenCalledTimes(1);
     const payload = (stamp.mock.calls[0][0] as any).payload;
     expect((stamp.mock.calls[0][0] as any).kind).toBe('acq.recert_income_checked');
-    expect(payload.subjectId).toBe('recert-1');
+    expect(payload.subjectId).toBeNull();
+    expect(payload.evidence.recertId).toBe('recert-1');
     expect(payload.evidence.verdict).toBe('over_income_aur');
   });
 
@@ -199,5 +203,71 @@ describe('RecertComplianceService.check', () => {
     stamp.mockRejectedValueOnce(new Error('tape down'));
 
     await expect(service.check('recert-1', { persist: false, actorId: 'rev-1' })).resolves.not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3. Scope-routing regression guard
+//
+// The service-layer tests above mock createTapeService, so they never exercise
+// how a payload's subjectId maps onto the DB row. compliance_tape.applicant_id
+// is FK'd to users(id) -- a non-null subjectId routes the recert id straight
+// into that column and FK-violates in prod. This block drives the REAL tape
+// service (with an in-memory repo) to pin the contract: subjectId:null -> a
+// global-scope insert with applicant_id null; a non-null subjectId -> that id in
+// applicant_id (which is exactly why a recert stamp must pass null).
+// ---------------------------------------------------------------------------
+describe('tape scope routing (regression: recert stamps are global-scope)', () => {
+  const { createTapeService: realCreateTapeService } = jest.requireActual('../modules/tape/service');
+
+  function captureRepo() {
+    const inserted: Array<{ applicantId: string | null }> = [];
+    const repo = {
+      tail: async () => null,
+      list: async () => [],
+      insert: async (row: any) => {
+        inserted.push({ applicantId: row.applicantId ?? null });
+        return { id: 'entry-1', createdAt: new Date().toISOString(), ...row };
+      },
+    };
+    return { repo, inserted };
+  }
+
+  function recertPayload(subjectId: string | null) {
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'AcquisitionComplianceEvent',
+      actorId: 'rev-1',
+      subjectId,
+      ruleCitation: 'IRC 42(g)(2)(D)(ii) (Available Unit Rule) + 26 CFR 1.42-5',
+      evidence: { recertId: 'recert-1', verdict: 'over_income_aur' },
+    };
+  }
+
+  it('routes a recert stamp (subjectId:null) to applicant_id=null -- never the users FK', async () => {
+    const { repo, inserted } = captureRepo();
+    const realTape = realCreateTapeService(repo);
+
+    await realTape.stamp({
+      kind: 'acq.recert_income_checked',
+      payload: recertPayload(null),
+      sessionId: 'sess-recert-1',
+    });
+
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0].applicantId).toBeNull();
+  });
+
+  it('a non-null subjectId lands in applicant_id (the users-FK column) -- why recert must pass null', async () => {
+    const { repo, inserted } = captureRepo();
+    const realTape = realCreateTapeService(repo);
+
+    await realTape.stamp({
+      kind: 'acq.recert_income_checked',
+      payload: recertPayload('recert-1'),
+      sessionId: 'sess-recert-2',
+    });
+
+    expect(inserted[0].applicantId).toBe('recert-1');
   });
 });
