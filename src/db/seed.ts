@@ -299,6 +299,117 @@ async function seed() {
     }
     console.log(`  Distribution check passed: ${distReport.map((r) => `${r.status}=${r.actual}%`).join(" / ")}`);
 
+    // ── Seeded applicant: applicantA@cdpc.test (e2e harness) ───────────
+    // Pre-walked through register + verify + intent + claim. Lands on
+    // /checklist when signed in via dev magic-link. Additive to the staff
+    // users above — smoke-apply (qa-apply-handoff.mjs) is untouched.
+    const applicantEmail = "applicantA@cdpc.test";
+    const applicantHash = await bcrypt.hash("password123", 10);
+    const applicantRes = await query(
+      `INSERT INTO users (email, password_hash, first_name, last_name, role, email_verified_at, is_active)
+       VALUES ($1, $2, 'Alex', 'Applicant', 'applicant', NOW(), true)
+       ON CONFLICT (email) DO UPDATE
+         SET role = 'applicant', email_verified_at = NOW(), is_active = true
+       RETURNING id`,
+      [applicantEmail, applicantHash]
+    );
+    const applicantId: string = applicantRes.rows[0].id;
+
+    // Pin the claim to a deterministic unit on the family property so the
+    // applicant lands somewhere stable across re-seeds.
+    const claimUnit = await query(
+      `SELECT u.id, u.property_id, u.monthly_rent
+         FROM units u
+         JOIN properties p ON p.id = u.property_id
+        WHERE p.name = 'David J. Hoggard Family Community'
+          AND u.unit_number = 'B-201'
+        LIMIT 1`
+    );
+    if (claimUnit.rows.length === 0) {
+      throw new Error("Seeded applicant: expected unit B-201 on David J. Hoggard Family Community");
+    }
+    const unitId: string = claimUnit.rows[0].id;
+    const propertyId: string = claimUnit.rows[0].property_id;
+    const rent: number = Number(claimUnit.rows[0].monthly_rent);
+
+    // Hold the unit for the seeded applicant (24h claim window keeps it
+    // fresh after long pauses; the e2e harness reseeds each run anyway).
+    await query(
+      `UPDATE units
+          SET status = 'held',
+              claim_expires_at = NOW() + INTERVAL '24 hours',
+              updated_at = NOW()
+        WHERE id = $1`,
+      [unitId]
+    );
+
+    // Application: post-intent + post-claim draft. Intent fields match a
+    // 2-person household at 60% AMI for the Las Vegas MSA ($45,600/yr).
+    const existingApp = await query(
+      `SELECT a.id FROM applications a
+         JOIN user_applications ua ON ua.application_id = a.id
+        WHERE ua.user_id = $1
+        LIMIT 1`,
+      [applicantId]
+    );
+    let applicationId: string;
+    if (existingApp.rows.length > 0) {
+      applicationId = existingApp.rows[0].id;
+      await query(
+        `UPDATE applications
+            SET property_id = $2,
+                claimed_unit_id = $3,
+                claim_expires_at = NOW() + INTERVAL '24 hours',
+                intent_bedrooms = 2,
+                intent_budget_min = 1000,
+                intent_budget_max = 1300,
+                intent_move_in_date = (CURRENT_DATE + INTERVAL '60 days')::date,
+                intent_household_size = 2,
+                gross_annual_income = 45000,
+                qualifying_ami_tier = '60',
+                qualifying_household_size = 2,
+                qualifying_ami_calculated_at = NOW(),
+                requested_rent_amount = $4,
+                household_size = 2,
+                status = 'draft',
+                updated_at = NOW()
+          WHERE id = $1`,
+        [applicationId, propertyId, unitId, rent]
+      );
+    } else {
+      const appRes = await query(
+        `INSERT INTO applications (
+           property_id, first_name, last_name, email,
+           household_size, status,
+           intent_bedrooms, intent_budget_min, intent_budget_max,
+           intent_move_in_date, intent_household_size,
+           gross_annual_income, qualifying_ami_tier,
+           qualifying_household_size, qualifying_ami_calculated_at,
+           claimed_unit_id, claim_expires_at, requested_rent_amount
+         )
+         VALUES (
+           $1, 'Alex', 'Applicant', $2,
+           2, 'draft',
+           2, 1000, 1300,
+           (CURRENT_DATE + INTERVAL '60 days')::date, 2,
+           45000, '60',
+           2, NOW(),
+           $3, NOW() + INTERVAL '24 hours', $4
+         )
+         RETURNING id`,
+        [propertyId, applicantEmail, unitId, rent]
+      );
+      applicationId = appRes.rows[0].id;
+    }
+
+    await query(
+      `INSERT INTO user_applications (user_id, application_id, relationship)
+       VALUES ($1, $2, 'primary')
+       ON CONFLICT (user_id, application_id) DO NOTHING`,
+      [applicantId, applicationId]
+    );
+    console.log(`  Seeded applicant: ${applicantEmail} (post-claim on B-201 @ David J. Hoggard)`);
+
     // Seed known problem addresses
     const problemAddresses = [
       { address: "999 Fraud Lane", city: "Las Vegas", state: "NV", zip: "89101", reason: "Multiple fraudulent applications originating from this address" },

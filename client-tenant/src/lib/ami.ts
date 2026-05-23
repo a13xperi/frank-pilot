@@ -1,20 +1,94 @@
 /**
  * AMI (Area Median Income) qualification — W0 pre-qualifier logic.
  *
- * Returns the lowest LIHTC tier an applicant qualifies for based on
- * household size + gross annual income against a per-MSA HUD income-cap
- * table. "Lowest tier" = most restrictive cap they're at-or-under, which
- * also implies they qualify for every higher tier (a 50% applicant qualifies
- * for 50/60/80% units; not 30%).
+ * Thin layer over the canonical 2026 dataset (`limits-2026.generated.ts`,
+ * ingested from the Novogradac Rent & Income Limit Calculator). Every income
+ * tier derives from the published 50% MTSP base by the standard LIHTC
+ * multiplier (30% = ×0.6, 50% = ×1.0, 60% = ×1.2, 80% = ×1.6); rents scale
+ * from the published 60% rent by tier/60.
  *
- * Coverage v1: Las Vegas–Henderson–Paradise MSA (gpmglv parity target).
+ * `qualifyAmiTier` returns the lowest LIHTC tier an applicant qualifies for —
+ * the most restrictive cap they're at-or-under, which also implies they
+ * qualify for every higher tier (a 50% applicant qualifies for 50/60/80%
+ * units; not 30%). Coverage today: Clark County / Las Vegas MSA; the dataset
+ * is keyed by county so adding more is a data drop, not a code change.
  *
- * Numbers below are stubs approximating HUD 2024 limits. Replace with HUD
- * 2026 published limits before production rollout.
- * Source: https://www.huduser.gov/portal/datasets/il.html
+ * Source: https://rent-income.novoco.com/free/calculator
+ * Novogradac does not guarantee the accuracy of these limits.
  */
+import {
+  LIMITS_2026,
+  type AmiTier,
+  type BedroomKey,
+  type CountyKey,
+} from './limits-2026.generated';
 
-export type AmiTier = '30' | '50' | '60' | '80';
+export type { AmiTier, BedroomKey, CountyKey } from './limits-2026.generated';
+
+/** MSA identifiers exposed to callers (back-compat with the 2024 stub). */
+export type MsaKey = 'LAS_VEGAS_HENDERSON';
+
+/** MSA → county join. Add rows here as more counties are ingested. */
+const MSA_TO_COUNTY: Record<MsaKey, CountyKey> = {
+  LAS_VEGAS_HENDERSON: 'CLARK',
+};
+
+/** Standard MTSP multiplier off the 50% income base, per tier. */
+const TIER_MULTIPLIER: Record<AmiTier, number> = {
+  '30': 0.6,
+  '50': 1.0,
+  '60': 1.2,
+  '80': 1.6,
+};
+
+const TIER_ORDER: ReadonlyArray<AmiTier> = ['30', '50', '60', '80'];
+
+const MIN_HH = 1;
+const MAX_HH = 12;
+
+function clampHouseholdSize(n: number): number {
+  const floored = Math.floor(n);
+  if (!Number.isFinite(floored) || floored < MIN_HH) return MIN_HH;
+  if (floored > MAX_HH) return MAX_HH;
+  return floored;
+}
+
+/**
+ * Official 2026 income cap for a county/tier/household size, in whole dollars.
+ * Derived from the published 50% MTSP base × tier multiplier. The 50% values
+ * are already HUD-rounded, so the product is an integer — Math.round only
+ * clears floating-point dust (52750 × 0.6 = 31649.999…). Household clamped to
+ * 1..12. Verified against the export: the derived 60% column matches the
+ * explicit 60% income column exactly (see limits-2026.test.ts).
+ */
+export function incomeLimit(
+  county: CountyKey,
+  tier: AmiTier,
+  householdSize: number,
+): number {
+  const base =
+    LIMITS_2026[county].mtsp50ByHousehold[clampHouseholdSize(householdSize)];
+  return Math.round(base * TIER_MULTIPLIER[tier]);
+}
+
+/**
+ * Official 2026 max monthly rent for a county/tier/bedroom, in whole dollars,
+ * or null if the export carries no figure for that bedroom. The published 60%
+ * rent is returned verbatim; other tiers scale by tier/60 and round DOWN — a
+ * rent cap is a ceiling you can never charge above.
+ */
+export function maxRent(
+  county: CountyKey,
+  tier: AmiTier,
+  bedroom: BedroomKey,
+): number | null {
+  const rent60 = LIMITS_2026[county].rent60ByBedroom[bedroom];
+  if (rent60 == null) return null;
+  if (tier === '60') return rent60;
+  return Math.floor((rent60 * TIER_MULTIPLIER[tier]) / TIER_MULTIPLIER['60']);
+}
+
+// ── Back-compat surface (the 2024 stub shape, now derived from 2026) ─────────
 
 interface TierCaps {
   '30': number;
@@ -23,46 +97,40 @@ interface TierCaps {
   '80': number;
 }
 
-type HouseholdSizeKey = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-
 interface MsaTable {
   msa: string;
   year: number;
-  limits: Record<HouseholdSizeKey, TierCaps>;
+  limits: Record<number, TierCaps>;
 }
 
-export const AMI_TABLES = {
-  LAS_VEGAS_HENDERSON: {
-    msa: 'Las Vegas-Henderson-Paradise, NV MSA',
-    year: 2024,
-    limits: {
-      1: { '30': 18_150, '50': 30_250, '60': 36_300, '80': 48_400 },
-      2: { '30': 20_750, '50': 34_550, '60': 41_460, '80': 55_300 },
-      3: { '30': 23_350, '50': 38_850, '60': 46_620, '80': 62_200 },
-      4: { '30': 25_900, '50': 43_200, '60': 51_840, '80': 69_100 },
-      5: { '30': 28_000, '50': 46_700, '60': 56_040, '80': 74_650 },
-      6: { '30': 30_100, '50': 50_150, '60': 60_180, '80': 80_200 },
-      7: { '30': 32_150, '50': 53_600, '60': 64_320, '80': 85_700 },
-      8: { '30': 34_250, '50': 57_050, '60': 68_460, '80': 91_250 },
-    },
-  },
-} as const satisfies Record<string, MsaTable>;
-
-export type MsaKey = keyof typeof AMI_TABLES;
-
-const TIER_ORDER: ReadonlyArray<AmiTier> = ['30', '50', '60', '80'];
-
-function clampHouseholdSize(n: number): HouseholdSizeKey {
-  const floored = Math.floor(n);
-  if (!Number.isFinite(floored) || floored < 1) return 1;
-  if (floored > 8) return 8;
-  return floored as HouseholdSizeKey;
+function buildMsaTable(msa: MsaKey): MsaTable {
+  const county = MSA_TO_COUNTY[msa];
+  const src = LIMITS_2026[county];
+  const limits: Record<number, TierCaps> = {};
+  for (let hh = MIN_HH; hh <= MAX_HH; hh++) {
+    limits[hh] = {
+      '30': incomeLimit(county, '30', hh),
+      '50': incomeLimit(county, '50', hh),
+      '60': incomeLimit(county, '60', hh),
+      '80': incomeLimit(county, '80', hh),
+    };
+  }
+  return { msa: src.msa, year: src.year, limits };
 }
 
 /**
- * Given an MSA, household size, and gross annual income, return the lowest
- * AMI tier the applicant qualifies for, or null if over-income for the
- * highest tier (80% AMI).
+ * Per-MSA income caps by household size (1..12) and tier — a derived view of
+ * `LIMITS_2026`, kept for back-compat with existing callers/tests. The numbers
+ * are live (computed from the 2026 dataset), not the old 2024 stub.
+ */
+export const AMI_TABLES: Record<MsaKey, MsaTable> = {
+  LAS_VEGAS_HENDERSON: buildMsaTable('LAS_VEGAS_HENDERSON'),
+};
+
+/**
+ * Given an MSA, household size, and gross annual income, return the lowest AMI
+ * tier the applicant qualifies for, or null if over-income for the highest
+ * tier (80% AMI). Signature unchanged from the 2024 stub.
  */
 export function qualifyAmiTier(
   msa: MsaKey,
@@ -71,12 +139,11 @@ export function qualifyAmiTier(
 ): AmiTier | null {
   if (!Number.isFinite(grossAnnualIncome) || grossAnnualIncome < 0) return null;
 
-  const table = AMI_TABLES[msa];
-  const size = clampHouseholdSize(householdSize);
-  const caps = table.limits[size];
-
+  const county = MSA_TO_COUNTY[msa];
   for (const tier of TIER_ORDER) {
-    if (grossAnnualIncome <= caps[tier]) return tier;
+    if (grossAnnualIncome <= incomeLimit(county, tier, householdSize)) {
+      return tier;
+    }
   }
   return null;
 }
@@ -87,8 +154,8 @@ export function formatAmiTier(tier: AmiTier | null): string {
 }
 
 /**
- * Returns the tiers an applicant qualifies for (inclusive of the minimum
- * tier and all higher tiers). Useful for unit-list filtering.
+ * Returns the tiers an applicant qualifies for (inclusive of the minimum tier
+ * and all higher tiers). Useful for unit-list filtering.
  */
 export function qualifyingTiers(minTier: AmiTier | null): AmiTier[] {
   if (!minTier) return [];

@@ -31,9 +31,14 @@ export const TAPE_STAMP_KINDS = {
   POSITION_LETTER_SENT: "POSITION_LETTER_SENT",
   BP03B_PAYMENT_INITIATED: "bp03b.payment_initiated",
   BP03B_PAYMENT_SUCCEEDED: "bp03b.payment_succeeded",
+  BP08_PAYMENT_INTENT_CREATED: "bp08.payment_intent_created",
+  BP08_PAYMENT_SUCCEEDED: "bp08.payment_succeeded",
+  BP08_PAYMENT_FAILED: "bp08.payment_failed",
+  BP08_PAYMENT_REPLAY_BLOCKED: "bp08.payment_replay_blocked",
 } as const;
 
 export type TapeStampKind = keyof typeof TAPE_STAMP_KINDS;
+export type TapeStampKindValue = (typeof TAPE_STAMP_KINDS)[TapeStampKind];
 
 export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   WELCOME_LETTER_DELIVERED: "HUD 4350.3 Ch. 4-4",
@@ -43,6 +48,10 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   POSITION_LETTER_SENT: "HUD 4350.3 Ch. 4-14 + 4-16",
   BP03B_PAYMENT_INITIATED: "HUD 4350.3 Ch. 4-6",
   BP03B_PAYMENT_SUCCEEDED: "HUD 4350.3 Ch. 4-6",
+  BP08_PAYMENT_INTENT_CREATED: "HUD 4350.3 Ch. 4-6",
+  BP08_PAYMENT_SUCCEEDED: "HUD 4350.3 Ch. 4-6",
+  BP08_PAYMENT_FAILED: "HUD 4350.3 Ch. 4-6",
+  BP08_PAYMENT_REPLAY_BLOCKED: "HUD 4350.3 Ch. 4-6",
 };
 
 export interface TapeStampInput {
@@ -69,7 +78,15 @@ const DEFAULT_LEDGER_PATH = path.resolve(
   "bp03b.ndjson"
 );
 
+const DEFAULT_BP08_LEDGER_PATH = path.resolve(
+  process.cwd(),
+  "server",
+  "tape",
+  "bp08.ndjson"
+);
+
 let ledgerPath = process.env.TAPE_LEDGER_PATH || DEFAULT_LEDGER_PATH;
+let bp08LedgerPath = process.env.BP08_LEDGER_PATH || DEFAULT_BP08_LEDGER_PATH;
 
 /** Idempotency cache: `${kind}:${sessionId}` → true. In-process only. */
 const sessionDedupe = new Set<string>();
@@ -82,17 +99,37 @@ export function getTapeLedgerPath(): string {
   return ledgerPath;
 }
 
+export function configureBp08LedgerPath(p: string): void {
+  bp08LedgerPath = p;
+}
+
+export function getBp08LedgerPath(): string {
+  return bp08LedgerPath;
+}
+
+/**
+ * BP-08 stamps go to their own ledger so the spec §8.1 audit slice stays
+ * uncontaminated by BP-03b's scaffold stamps. Routing is by the kind's string
+ * value, not by caller — any stamp whose value starts with `bp08.` lands in
+ * the BP-08 ledger, everything else stays on the default ledger.
+ */
+function resolveLedgerPath(kindValue: string): string {
+  return kindValue.startsWith("bp08.") ? bp08LedgerPath : ledgerPath;
+}
+
 export function resetTapeStateForTests(): void {
   sessionDedupe.clear();
-  try {
-    if (fsSync.existsSync(ledgerPath)) fsSync.unlinkSync(ledgerPath);
-  } catch {
-    /* ignore */
+  for (const p of [ledgerPath, bp08LedgerPath]) {
+    try {
+      if (fsSync.existsSync(p)) fsSync.unlinkSync(p);
+    } catch {
+      /* ignore */
+    }
   }
 }
 
-async function ensureLedgerDir(): Promise<void> {
-  const dir = path.dirname(ledgerPath);
+async function ensureLedgerDir(targetPath: string): Promise<void> {
+  const dir = path.dirname(targetPath);
   await fs.mkdir(dir, { recursive: true });
 }
 
@@ -113,6 +150,7 @@ export async function stampTape(input: TapeStampInput): Promise<TapeStampRecord 
       sessionDedupe.add(key);
     }
 
+    const kindValue = TAPE_STAMP_KINDS[input.kind];
     const record: TapeStampRecord = {
       timestamp: new Date().toISOString(),
       kind: input.kind,
@@ -122,8 +160,9 @@ export async function stampTape(input: TapeStampInput): Promise<TapeStampRecord 
       ...(input.sessionId ? { session_id: input.sessionId } : {}),
     };
 
-    await ensureLedgerDir();
-    await fs.appendFile(ledgerPath, JSON.stringify(record) + "\n", "utf8");
+    const targetPath = resolveLedgerPath(kindValue);
+    await ensureLedgerDir(targetPath);
+    await fs.appendFile(targetPath, JSON.stringify(record) + "\n", "utf8");
     logger.info("Tape stamp written", { kind: record.kind, citation: record.citation });
     return record;
   } catch (err) {
@@ -136,9 +175,9 @@ export async function stampTape(input: TapeStampInput): Promise<TapeStampRecord 
 }
 
 /** Read every stamp written so far. Test/audit helper — do not call in hot paths. */
-export async function readTapeLedger(): Promise<TapeStampRecord[]> {
+export async function readTapeLedger(targetPath?: string): Promise<TapeStampRecord[]> {
   try {
-    const raw = await fs.readFile(ledgerPath, "utf8");
+    const raw = await fs.readFile(targetPath ?? ledgerPath, "utf8");
     return raw
       .split("\n")
       .filter((l) => l.trim().length > 0)

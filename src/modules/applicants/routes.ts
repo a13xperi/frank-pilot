@@ -7,6 +7,8 @@ import { requireEmailVerified } from "../../middleware/scope";
 import { verifyTurnstile } from "../../middleware/verify-turnstile";
 import { createMagicLink, logMagicLink, sendMagicLink } from "../auth/magic-link-service";
 import { ApplicationService } from "../application/service";
+import { LeaseService } from "../lease/service";
+import { PropertyService } from "../properties/service";
 import { createApplicationSchema } from "../application/validation";
 import { stampTape, TAPE_STAMP_KINDS } from "../tape";
 import {
@@ -18,12 +20,18 @@ import { logger } from "../../utils/logger";
 
 const router: Router = Router();
 const applicationService = new ApplicationService();
+const leaseService = new LeaseService();
+const propertyService = new PropertyService();
 
 const registerSchema = z.object({
   email: z.string().email(),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   phone: z.string().max(20).optional(),
+  // Magic-link delivery channel. Defaults to 'email' so existing clients are
+  // unchanged; 'sms'/'both' route the link through Twilio to the user's phone
+  // of record. SMS delivery is fire-and-forget — it never affects the 202.
+  channel: z.enum(["email", "sms", "both"]).optional(),
   // wedge #13: Cloudflare Turnstile widget response. Optional in the schema
   // because dev/test bypass the middleware entirely (smoke + unit tests run
   // without TURNSTILE_SECRET_KEY); production fails at verify-turnstile with
@@ -128,7 +136,7 @@ router.post(
       return;
     }
 
-    const { email, firstName, lastName, phone } = parsed.data;
+    const { email, firstName, lastName, phone, channel } = parsed.data;
 
     const existing = await query("SELECT id, role, is_active FROM users WHERE email = $1", [email]);
     let userId: string | undefined;
@@ -163,12 +171,14 @@ router.post(
     const link = await createMagicLink(email);
     if (link) {
       logMagicLink(email, link.link);
-      // Fire-and-forget Resend delivery. sendMagicLink() returns synchronously
-      // after scheduling the send so per-branch latency stays constant. The
-      // staff branch (link === null) skips this call but already pays the
+      // Fire-and-forget delivery. sendMagicLink() returns synchronously after
+      // scheduling the send so per-branch latency stays constant. The staff
+      // branch (link === null) skips this call but already pays the
       // createMagicLink SELECT cost, and respondAtFloor() below absorbs the
-      // residual gap.
-      sendMagicLink(email, link.link, { firstName });
+      // residual gap. The channel selects the transport (email / sms / both);
+      // SMS resolves the phone via link.userId and is itself fire-and-forget,
+      // so an SMS failure never changes the 202 response.
+      sendMagicLink(email, link.link, { firstName, channel, userId: link.userId });
     }
 
     // INFO-level payload is deliberately minimal: log-aggregation viewers
@@ -324,6 +334,123 @@ router.post(
 );
 
 // ────────────────────────────────────────────────────────────────────────────
+// Tenant lease e-signature (native). The staff flow generates the lease
+// (status → lease_generated) and onboards (status → onboarded); these two
+// applicant-scoped routes fill the gap in between — the tenant reviews and
+// signs their own lease (status lease_generated → lease_signed). Gated by
+// user_applications ownership rather than RBAC, mirroring submit-draft.
+
+const signLeaseSchema = z.object({
+  // Typed legal name the signer attests to.
+  signatureName: z.string().min(1).max(200),
+  // Signature pad output (data-URL) or typed-name fallback rendering.
+  signatureImage: z.string().min(1),
+  // ESIGN/UETA: must be explicitly true. z.literal(true) → 400 if absent/false.
+  consent: z.literal(true),
+});
+
+// Resolve the user's current lease-stage application (most recent), restricted
+// to the given statuses. Returns the application id or null.
+async function findUserLeaseApplicationId(
+  userId: string,
+  statuses: string[]
+): Promise<string | null> {
+  const result = await query(
+    `SELECT a.id FROM user_applications ua
+       JOIN applications a ON a.id = ua.application_id
+      WHERE ua.user_id = $1 AND a.status = ANY($2::application_status[])
+      ORDER BY a.created_at DESC
+      LIMIT 1`,
+    [userId, statuses]
+  );
+  return result.rows[0]?.id ?? null;
+}
+
+// GET /me/lease — the applicant's current lease: status, signable document
+// URL, and signature state. 404 if no application has reached the lease stage.
+router.get(
+  "/me/lease",
+  authenticate,
+  requireEmailVerified,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+
+      const applicationId = await findUserLeaseApplicationId(req.user.id, [
+        "lease_generated",
+        "lease_signed",
+        "onboarded",
+      ]);
+
+      if (!applicationId) {
+        res.status(404).json({ error: "No lease available" });
+        return;
+      }
+
+      const status = await leaseService.getLeaseStatus(applicationId);
+      res.json(status);
+    } catch (err) {
+      logger.error("Get lease failed", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to load lease" });
+    }
+  }
+);
+
+// POST /me/lease/sign — tenant electronically signs their generated lease.
+// Body: { signatureName, signatureImage, consent: true }. 400 on missing
+// consent/signature or wrong status; 404 if no lease is ready to sign.
+router.post(
+  "/me/lease/sign",
+  authenticate,
+  requireEmailVerified,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+
+      const parsed = signLeaseSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "A signature and electronic-signature consent are required" });
+        return;
+      }
+
+      const applicationId = await findUserLeaseApplicationId(req.user.id, ["lease_generated"]);
+      if (!applicationId) {
+        res.status(404).json({ error: "No lease ready to sign" });
+        return;
+      }
+
+      const result = await leaseService.signLease(
+        applicationId,
+        { userId: req.user.id, role: req.user.role },
+        {
+          signatureName: parsed.data.signatureName,
+          signatureImage: parsed.data.signatureImage,
+          consent: parsed.data.consent,
+          ip: req.ip ?? null,
+        }
+      );
+
+      res.json(result);
+    } catch (err) {
+      const msg = (err as Error).message;
+      // signLease throws on consent/signature/status problems — surface as 400.
+      if (/consent|signature|lease_generated status/.test(msg)) {
+        res.status(400).json({ error: msg });
+        return;
+      }
+      logger.error("Lease sign failed", { error: msg });
+      res.status(500).json({ error: "Failed to sign lease" });
+    }
+  }
+);
+
+// ────────────────────────────────────────────────────────────────────────────
 // Wedge #5 — position-aware waitlist.
 // gpmglv's /join-waitlist is submit-and-disappear. We expose real position
 // math per (property, bedroom tier) so the applicant always knows where they
@@ -336,16 +463,22 @@ router.post(
 // reverse the mapping by normalizing both sides in SQL. Cheap on a 16-row
 // table; if the catalog ever grows we can add a stored slug column.
 async function resolvePropertyIdBySlug(slug: string): Promise<string | null> {
-  // regex_replace mirrors the seed slugify: collapse runs of non-alnum to "-"
-  // and strip leading/trailing dashes, all lowercase. The trim_both replaces
-  // ltrim+rtrim to keep the SQL portable.
+  // Mirrors the frontend slugify (gpmg-fixtures.ts) and the map markers SQL:
+  // lowercase → collapse runs of non-alnum to "-" → strip leading/trailing
+  // dashes. trim(BOTH '-' …) replaces ltrim+rtrim to stay portable.
+  //
+  // NOTE: a prior version wrapped this in `regexp_replace(<slug>, '^$', NULL)`
+  // intending to turn empty-string slugs into NULL — but Postgres'
+  // regexp_replace returns NULL whenever the replacement arg is NULL,
+  // unconditionally, so that wrapper made EVERY slug resolve to NULL and the
+  // lookup 404'd for all properties (including the original GPMG catalog).
+  // The empty-slug guard is unnecessary anyway: the route handlers reject a
+  // blank `slug` param before calling this, and a blank candidate simply won't
+  // equal a non-blank `$1`. Removed.
   const result = await query(
     `SELECT id
        FROM properties
-      WHERE regexp_replace(
-              trim(BOTH '-' FROM regexp_replace(LOWER(name), '[^a-z0-9]+', '-', 'g')),
-              '^$', NULL
-            ) = $1
+      WHERE trim(BOTH '-' FROM regexp_replace(LOWER(name), '[^a-z0-9]+', '-', 'g')) = $1
       LIMIT 1`,
     [slug]
   );
@@ -621,6 +754,24 @@ router.delete(
     }
   }
 );
+
+// Full-unify — public map markers. Anonymous, read-only: returns every
+// property that has geocoordinates in the shape the statewide Nevada housing
+// map consumes ({slug, name, city, type, totalUnits, restrictedUnits, lat,
+// lng}). Mirrors the access pattern of the public `/properties` list below
+// (no auth, no PII, no compliance metadata). Registered before the
+// `/properties/:slug/...` waitlist routes; the segment count differs so
+// there's no capture collision, but keeping it adjacent to the public list
+// keeps the public surface in one place.
+router.get("/properties/map", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const markers = await propertyService.listMapMarkers();
+    res.json(markers);
+  } catch (err) {
+    logger.error("Failed to list property map markers", { error: (err as Error).message });
+    res.status(500).json({ error: "Failed to list property markers" });
+  }
+});
 
 // Public: list of properties an applicant can apply to. Returns minimal
 // public-safe fields only (no compliance metadata, no internal IDs).

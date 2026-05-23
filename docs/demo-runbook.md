@@ -2,7 +2,7 @@
 
 Stakeholder-facing demo of Frank-Pilot CDPC vs. **gpmglv.com** (the affordable-housing operator we benchmark against). Use this when walking through the product live — investor pitch, operator prospect call, HUD/auditor preview.
 
-**Last updated:** 2026-05-22 — main at `b376800` (after gpmglv wedges 1/2/6 shipped: W0 AMI prefill, sitemap env-flip + Step1 CTA portal, i18n EN-ES parity + CI guard).
+**Last updated:** 2026-05-23 — main at `229659c` (statewide map AMI-tier enrichment merged via #155, on top of: W0 AMI prefill, sitemap env-flip + Step1 CTA portal, i18n EN-ES parity + CI guard).
 
 ---
 
@@ -54,6 +54,7 @@ The full applicant journey. Use this for operator demos.
    - Each tile: photo placeholder, name, **rent range** (`Studio $747 · 1BR $995 · 2BR $1,194 · 3BR $1,380`), **`60% AMI` chip**, **availability badge** (`3 available` or `Fully leased`).
    - Talking point: "Their cards have a name and a photo. Ours surface rent and availability publicly — eligibility-disqualified applicants self-select out before they ever call the leasing office."
    - Click into any tile (recommended: **Meacham Cove** or **Decatur Pines** — these have the cleanest 2BR availability for the 60% tier).
+   - **Optional map beat (`/discover?view=map`):** toggle the map view — ~352 clustered pins covering the whole state (335 statewide coverage + 17 live-availability properties). Click a pin → popup shows **AMI set-asides** (e.g. `60% · 50%`) for 271 of the 352 markers, up from zero before the 2026-05-23 enrichment. Talking point: "Even properties we don't have live availability for, we surface their AMI set-aside tiers — statewide coverage, not just our 17 active listings."
 
 3. **PropertyDetail** — the disclosure beat.
    - Above-the-fold: photo gallery placeholder + property metadata.
