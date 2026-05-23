@@ -437,6 +437,9 @@ CREATE TABLE units (
   photo_url TEXT,
   description TEXT,
   available_from DATE,
+  -- QAP acquisitions Phase 3: per-unit AMI designation from a bound award's
+  -- election/unit-mix. NULL = undesignated. See 2026-05-25-acq-awards-and-designations.sql.
+  ami_designation VARCHAR(10) CHECK (ami_designation IN ('30','50','60','market')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (property_id, unit_number)
@@ -1109,9 +1112,31 @@ CREATE TABLE IF NOT EXISTS acq_projects (
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_acq_projects_account ON acq_projects(geographic_account);
+
+-- QAP acquisitions Phase 3 (Compliance Bridge): an acq_project that won a
+-- credit reservation, optionally bound to the managed property it operates as.
+-- One award per project (UNIQUE acq_project_id). The award's election + unit
+-- mix drives per-unit AMI designations on the bound property's units.
+CREATE TABLE IF NOT EXISTS acq_awards (
+  id                         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  acq_project_id             UUID NOT NULL UNIQUE REFERENCES acq_projects(id) ON DELETE CASCADE,
+  property_id                UUID REFERENCES properties(id) ON DELETE SET NULL,
+  status                     TEXT NOT NULL DEFAULT 'reserved'
+                               CHECK (status IN ('reserved','placed_in_service','in_service','closed')),
+  reservation_amount         NUMERIC(14,2) CHECK (reservation_amount IS NULL OR reservation_amount >= 0),
+  award_date                 DATE,
+  placed_in_service_deadline DATE,
+  notes                      TEXT,
+  created_by                 UUID REFERENCES users(id),
+  created_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_acq_awards_project ON acq_awards(acq_project_id);
+CREATE INDEX IF NOT EXISTS idx_acq_awards_property ON acq_awards(property_id);
 `;
 
 export const DROP_SCHEMA_SQL = `
+DROP TABLE IF EXISTS acq_awards CASCADE;
 DROP TABLE IF EXISTS acq_projects CASCADE;
 DROP TABLE IF EXISTS lease_signatures CASCADE;
 DROP TABLE IF EXISTS stripe_webhook_dlq CASCADE;

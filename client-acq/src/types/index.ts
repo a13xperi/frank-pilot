@@ -190,3 +190,80 @@ export interface ScoredProject {
   project: AcqProject;
   score: ProjectScore;
 }
+
+// ── Awards + compliance bridge (Phase 3, mirrors award-service.ts) ────────────
+
+export type AmiDesignation = '30' | '50' | 'market';
+// The persisted designation also allows '60'; kept as a union for the grid.
+export type UnitDesignation = '30' | '50' | '60' | 'market';
+export type AwardStatus = 'reserved' | 'placed_in_service' | 'in_service' | 'closed';
+
+export const AWARD_STATUS_LABELS: Record<AwardStatus, string> = {
+  reserved: 'Reserved',
+  placed_in_service: 'Placed in service',
+  in_service: 'In service',
+  closed: 'Closed',
+};
+
+export const DESIGNATION_LABELS: Record<UnitDesignation, string> = {
+  '30': '30% AMI',
+  '50': '50% AMI',
+  '60': '60% AMI',
+  market: 'Market',
+};
+
+export interface AcqAward {
+  id: string;
+  acqProjectId: string;
+  propertyId: string | null;
+  status: AwardStatus;
+  reservationAmount: number | null;
+  awardDate: string | null;
+  placedInServiceDeadline: string | null;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AwardCreateInput {
+  acqProjectId: string;
+  propertyId?: string | null;
+  status?: AwardStatus;
+  reservationAmount?: number | null;
+  awardDate?: string | null;
+  placedInServiceDeadline?: string | null;
+  notes?: string | null;
+}
+
+export interface DesignationPlanRow {
+  designation: UnitDesignation;
+  ceilingAmiPct: number | null;
+  committed: number;
+  assigned: number;
+  remaining: number;
+}
+
+export interface DesignationPlan {
+  electionLabel: string;
+  committedRestricted: number;
+  assignedRestricted: number;
+  propertyUnits: number;
+  rows: DesignationPlanRow[];
+  meetsCommitment: boolean;
+  note: string;
+}
+
+export interface BoundUnit {
+  id: string;
+  unitNumber: string;
+  bedrooms: number;
+  amiDesignation: UnitDesignation | null;
+}
+
+// Minimal property shape from GET /api/properties (root list).
+export interface PropertyLite {
+  id: string;
+  name: string;
+  city?: string | null;
+}

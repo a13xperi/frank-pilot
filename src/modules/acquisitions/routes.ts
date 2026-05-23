@@ -16,13 +16,15 @@
  *   DELETE /api/acquisitions/projects/:id    — delete
  *   GET    /api/acquisitions/projects/:id/score — score vs QAP subset + demand
  */
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest } from '../../middleware/auth';
 import { requirePermission } from '../../middleware/rbac';
 import { logger } from '../../utils/logger';
 import { DemandService, type DemandFilters, type AmiTier } from './demand-service';
 import { ProjectService, type ProjectInput } from './project-service';
+import { AwardService, AwardInput, AwardStatus, AWARD_STATUSES, BridgeError } from './award-service';
+import type { AmiDesignation } from './compliance-bridge';
 import {
   GEOGRAPHIC_ACCOUNTS,
   SET_ASIDES,
@@ -34,6 +36,7 @@ import {
 const router = Router();
 const service = new DemandService();
 const projects = new ProjectService();
+const awards = new AwardService();
 
 const ACCOUNTS = Object.keys(GEOGRAPHIC_ACCOUNTS) as [GeographicAccount, ...GeographicAccount[]];
 const SET_ASIDE_KEYS = Object.keys(SET_ASIDES) as [string, ...string[]];
@@ -256,6 +259,292 @@ router.get(
     } catch (err) {
       logger.error('acquisitions: score project failed', { err });
       res.status(500).json({ error: 'Failed to score project' });
+    }
+  },
+);
+
+// ── Phase 3: awards + the compliance bridge ──────────────────────────────────
+
+const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+const AWARD_STATUS_KEYS = AWARD_STATUSES as [AwardStatus, ...AwardStatus[]];
+
+const AwardCreateSchema = z.object({
+  acqProjectId: z.string().uuid(),
+  propertyId: z.string().uuid().optional().nullable(),
+  status: z.enum(AWARD_STATUS_KEYS).optional(),
+  reservationAmount: z.coerce.number().min(0).optional().nullable(),
+  awardDate: DATE.optional().nullable(),
+  placedInServiceDeadline: DATE.optional().nullable(),
+  notes: z.string().trim().max(5000).optional().nullable(),
+});
+
+// Update: every field optional, but at least one present (a no-op PUT is a 400).
+const AwardUpdateSchema = z
+  .object({
+    propertyId: z.string().uuid().nullable(),
+    status: z.enum(AWARD_STATUS_KEYS),
+    reservationAmount: z.coerce.number().min(0).nullable(),
+    awardDate: DATE.nullable(),
+    placedInServiceDeadline: DATE.nullable(),
+    notes: z.string().trim().max(5000).nullable(),
+  })
+  .partial()
+  .refine((o) => Object.keys(o).length > 0, { message: 'No fields to update.' });
+
+const BindSchema = z.object({ propertyId: z.string().uuid().nullable() });
+
+const DesignationsSchema = z.object({
+  assignments: z
+    .array(
+      z.object({
+        unitId: z.string().uuid(),
+        designation: z.enum(['30', '50', '60', 'market']),
+      }),
+    )
+    .min(1)
+    .max(2000),
+});
+
+/** Map a BridgeError to its HTTP status; returns true if it handled `err`. */
+function handleBridgeError(err: unknown, res: Response): boolean {
+  if (err instanceof BridgeError) {
+    const status = { NOT_FOUND: 404, NOT_BOUND: 409, VALIDATION: 400, CONFLICT: 409 }[err.code];
+    res.status(status).json({ error: err.message, ...(err.detail ? { details: err.detail } : {}) });
+    return true;
+  }
+  return false;
+}
+
+/** GET /api/acquisitions/awards — list all awards, newest first. */
+router.get(
+  '/awards',
+  authenticate,
+  requirePermission('acquisition:view'),
+  async (_req: AuthRequest, res) => {
+    try {
+      res.json({ awards: await awards.list() });
+    } catch (err) {
+      logger.error('acquisitions: list awards failed', { err });
+      res.status(500).json({ error: 'Failed to list awards' });
+    }
+  },
+);
+
+/** POST /api/acquisitions/awards — record a won reservation for a project. */
+router.post(
+  '/awards',
+  authenticate,
+  requirePermission('acquisition:manage'),
+  async (req: AuthRequest, res) => {
+    const parsed = AwardCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid award', details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const created = await awards.create(parsed.data as AwardInput, req.user?.id ?? null);
+      res.status(201).json({ award: created });
+    } catch (err) {
+      if (handleBridgeError(err, res)) return;
+      logger.error('acquisitions: create award failed', { err });
+      res.status(500).json({ error: 'Failed to create award' });
+    }
+  },
+);
+
+/** GET /api/acquisitions/awards/:id. */
+router.get(
+  '/awards/:id',
+  authenticate,
+  requirePermission('acquisition:view'),
+  async (req: AuthRequest, res) => {
+    try {
+      const award = await awards.get(req.params.id as string);
+      if (!award) {
+        res.status(404).json({ error: 'Award not found' });
+        return;
+      }
+      res.json({ award });
+    } catch (err) {
+      logger.error('acquisitions: get award failed', { err });
+      res.status(500).json({ error: 'Failed to fetch award' });
+    }
+  },
+);
+
+/** PUT /api/acquisitions/awards/:id — update status/dates/amount/notes/binding. */
+router.put(
+  '/awards/:id',
+  authenticate,
+  requirePermission('acquisition:manage'),
+  async (req: AuthRequest, res) => {
+    const parsed = AwardUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid award', details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const updated = await awards.update(req.params.id as string, parsed.data as Partial<AwardInput>);
+      if (!updated) {
+        res.status(404).json({ error: 'Award not found' });
+        return;
+      }
+      res.json({ award: updated });
+    } catch (err) {
+      if (handleBridgeError(err, res)) return;
+      logger.error('acquisitions: update award failed', { err });
+      res.status(500).json({ error: 'Failed to update award' });
+    }
+  },
+);
+
+/** POST /api/acquisitions/awards/:id/bind — bind (or unbind) a managed property. */
+router.post(
+  '/awards/:id/bind',
+  authenticate,
+  requirePermission('acquisition:manage'),
+  async (req: AuthRequest, res) => {
+    const parsed = BindSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid binding', details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const updated = await awards.update(req.params.id as string, { propertyId: parsed.data.propertyId });
+      if (!updated) {
+        res.status(404).json({ error: 'Award not found' });
+        return;
+      }
+      res.json({ award: updated });
+    } catch (err) {
+      if (handleBridgeError(err, res)) return;
+      logger.error('acquisitions: bind award failed', { err });
+      res.status(500).json({ error: 'Failed to bind property' });
+    }
+  },
+);
+
+/** DELETE /api/acquisitions/awards/:id. */
+router.delete(
+  '/awards/:id',
+  authenticate,
+  requirePermission('acquisition:manage'),
+  async (req: AuthRequest, res) => {
+    try {
+      const removed = await awards.remove(req.params.id as string);
+      if (!removed) {
+        res.status(404).json({ error: 'Award not found' });
+        return;
+      }
+      res.status(204).end();
+    } catch (err) {
+      logger.error('acquisitions: delete award failed', { err });
+      res.status(500).json({ error: 'Failed to delete award' });
+    }
+  },
+);
+
+/**
+ * GET /api/acquisitions/awards/:id/plan
+ * The designation plan: committed unit mix vs. the bound property's current
+ * AMI designations. 409 if the award isn't bound to a property yet.
+ */
+router.get(
+  '/awards/:id/plan',
+  authenticate,
+  requirePermission('acquisition:view'),
+  async (req: AuthRequest, res) => {
+    try {
+      const plan = await awards.designationPlan(req.params.id as string);
+      if (!plan) {
+        res.status(404).json({ error: 'Award not found' });
+        return;
+      }
+      res.json({ plan });
+    } catch (err) {
+      if (handleBridgeError(err, res)) return;
+      logger.error('acquisitions: designation plan failed', { err });
+      res.status(500).json({ error: 'Failed to build designation plan' });
+    }
+  },
+);
+
+/**
+ * GET /api/acquisitions/awards/:id/units
+ * The bound property's units with their current AMI designation — the grid the
+ * apply-designations form edits. 409 if the award isn't bound yet.
+ */
+router.get(
+  '/awards/:id/units',
+  authenticate,
+  requirePermission('acquisition:view'),
+  async (req: AuthRequest, res) => {
+    try {
+      const units = await awards.listBoundUnits(req.params.id as string);
+      res.json({ units });
+    } catch (err) {
+      if (handleBridgeError(err, res)) return;
+      logger.error('acquisitions: list bound units failed', { err });
+      res.status(500).json({ error: 'Failed to list units' });
+    }
+  },
+);
+
+/**
+ * POST /api/acquisitions/awards/:id/designations
+ * Apply { unitId → designation } assignments to the bound property's units,
+ * atomically, and stamp the compliance tape. Returns the refreshed plan.
+ */
+router.post(
+  '/awards/:id/designations',
+  authenticate,
+  requirePermission('acquisition:manage'),
+  async (req: AuthRequest, res) => {
+    const parsed = DesignationsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid assignments', details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const result = await awards.applyDesignations(
+        req.params.id as string,
+        parsed.data.assignments as Array<{ unitId: string; designation: AmiDesignation }>,
+        req.user?.id ?? null,
+      );
+      if (!result) {
+        res.status(404).json({ error: 'Award not found' });
+        return;
+      }
+      res.json(result);
+    } catch (err) {
+      if (handleBridgeError(err, res)) return;
+      logger.error('acquisitions: apply designations failed', { err });
+      res.status(500).json({ error: 'Failed to apply designations' });
+    }
+  },
+);
+
+/**
+ * GET /api/acquisitions/awards/:id/compliance
+ * Compliance rollup: the award plus its designation plan (designated vs.
+ * committed restricted units, and whether the LURA commitment is met).
+ */
+router.get(
+  '/awards/:id/compliance',
+  authenticate,
+  requirePermission('acquisition:view'),
+  async (req: AuthRequest, res) => {
+    try {
+      const rollup = await awards.compliance(req.params.id as string);
+      if (!rollup) {
+        res.status(404).json({ error: 'Award not found' });
+        return;
+      }
+      res.json(rollup);
+    } catch (err) {
+      if (handleBridgeError(err, res)) return;
+      logger.error('acquisitions: compliance rollup failed', { err });
+      res.status(500).json({ error: 'Failed to build compliance rollup' });
     }
   },
 );
