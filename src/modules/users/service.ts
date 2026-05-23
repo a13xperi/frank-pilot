@@ -224,6 +224,8 @@ export class UserService {
    * `registered` = everyone who entered via the funnel (applicant or tenant
    * role); `verified` = the subset who have proven their email
    * (email_verified_at stamped). Staff roles are excluded by the role filter.
+   * Demo/usability-test accounts (demo_run_id set) are excluded so a testing
+   * round never inflates the real signup metric.
    */
   async signupStats(): Promise<{ registered: number; verified: number }> {
     const result = await query(
@@ -231,7 +233,8 @@ export class UserService {
          COUNT(*)::int AS registered,
          COUNT(*) FILTER (WHERE email_verified_at IS NOT NULL)::int AS verified
        FROM users
-       WHERE role IN ('applicant', 'tenant')`
+       WHERE role IN ('applicant', 'tenant')
+         AND demo_run_id IS NULL`
     );
     const row = result.rows[0];
     return { registered: row?.registered ?? 0, verified: row?.verified ?? 0 };

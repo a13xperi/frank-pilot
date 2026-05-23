@@ -11,8 +11,14 @@ import {
   clearQaReplay,
   stopQaReplay,
 } from './lib/qaSessionReplay';
+import { initDemoSession } from './lib/demoSession';
 
 installQaBuffer();
+
+// Capture `?demo=<TOKEN>` before React mounts: stashes the token + mints a
+// runId, and scrubs the param from the address bar so an account-takeover-
+// grade link can't be copied out of a tester's URL. No-op without `?demo=`.
+initDemoSession();
 
 // DEV-only window shim — lets the Playwright harness (e2e/qaDrain.ts) read
 // the same buffers the in-app camera button uses, without dynamic-importing

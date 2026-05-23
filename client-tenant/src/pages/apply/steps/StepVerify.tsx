@@ -6,6 +6,7 @@ import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
 import { CTA } from '@/components/primitives';
 import { HF } from '@/styles/tokens';
+import { DemoEmailCard } from '@/components/DemoEmailCard';
 
 export function StepVerify() {
   const s = useApply();
@@ -84,22 +85,17 @@ export function StepVerify() {
         {s.resending ? t('verify.resending') : t('verify.resend')}
       </CTA>
       {/* Show whenever the server emitted a devLink — it only does so when the
-          email isn't really sent (dev / staging), so this stays hidden in prod
-          and unblocks testers on deployed builds where import.meta.env.DEV is
-          false. Mirrors Login.tsx. */}
+          email isn't really sent (dev / demo / staging), so this stays hidden
+          on a closed prod. Rendered as a faithful "email arrived" card so
+          usability testers complete the auth step instead of dead-ending.
+          Mirrors Login.tsx. */}
       {s.devLink && (
-        <a
-          href={s.devLink}
-          className="block px-4 py-2 text-center text-sm font-medium"
-          style={{
-            background: `${HF.warn}14`,
-            color: HF.warn,
-            border: `1px solid ${HF.warn}55`,
-            borderRadius: HF.r.sm,
+        <DemoEmailCard
+          email={s.email}
+          onOpen={() => {
+            window.location.href = s.devLink!;
           }}
-        >
-          {t('verify.devLink')}
-        </a>
+        />
       )}
       <button
         onClick={() => s.setStep(1)}
