@@ -123,10 +123,12 @@ describe("sanitizeObject", () => {
     expect(result.status).toBe("pending");
   });
 
-  it("does not modify arrays (leaves them as-is)", () => {
-    const obj = { tags: ["a", "b"], score: 720 };
+  it("walks array elements, scanning string values for PII (PR #135 follow-up)", () => {
+    const obj = { tags: ["a", "b", "alice@example.com"], score: 720 };
     const result = sanitizeObject(obj);
-    expect(result.tags).toEqual(["a", "b"]);
+    // Plain strings pass through; email-shaped strings are redacted.
+    expect(result.tags).toEqual(["a", "b", "[EMAIL-REDACTED]"]);
+    expect(result.score).toBe(720);
   });
 
   it("redacts keys containing 'token' substring", () => {

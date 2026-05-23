@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { HF } from '@/styles/tokens';
 import { StepCTA } from '@/pages/apply/StepCTA';
-import { useApply } from '@/pages/apply/context/ApplyContext';
+import { useApply, APPLICATION_FEE } from '@/pages/apply/ApplyContext';
 import { PayHeader } from '@/pages/apply/PayHeader';
 import { api, getToken } from '@/api/client';
 
@@ -47,7 +47,7 @@ export function StepPayment() {
   const { t, i18n } = useTranslation('apply');
   const lang = (i18n.language?.startsWith('es') ? 'es' : 'en') as 'en' | 'es';
   const navigate = useNavigate();
-  const { state, setPaymentRef } = useApply();
+  const { adults, setPaymentRef } = useApply();
 
   const [name, setName] = useState('');
   const [number, setNumber] = useState('');
@@ -57,7 +57,9 @@ export function StepPayment() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const total = state.paymentTotal;
+  // Raw amount for the tape beacons (backend expects a "35.95"-style string).
+  // `paymentTotal` is the currency-formatted display string ("$35.95").
+  const total = (APPLICATION_FEE * adults).toFixed(2);
   const sid = useMemo(() => sessionId(), []);
 
   const submit = useCallback(
@@ -65,7 +67,7 @@ export function StepPayment() {
       e.preventDefault();
       setErr(null);
       setBusy(true);
-      const payload = { session_id: sid, adults: state.adults, total };
+      const payload = { session_id: sid, adults, total };
       try {
         const r1 = await fireBeacon('/api/tape/payment-init', payload);
         if (!r1.ok) throw new Error(`init ${r1.status}`);
@@ -91,7 +93,7 @@ export function StepPayment() {
         setBusy(false);
       }
     },
-    [navigate, setPaymentRef, sid, state.adults, t, total],
+    [navigate, setPaymentRef, sid, adults, t, total],
   );
 
   return (

@@ -218,8 +218,13 @@ export class LedgerService {
     applicationId: string,
     amount: number,
     referenceId: string | null,
-    postedBy: string,
-    postedByRole: string,
+    // Nullable: staff-initiated payments pass the actor's UUID + role, but a
+    // Stripe-webhook-initiated payment has no user actor. posted_by is a
+    // nullable UUID and audit_log.actor_id/actor_role are nullable, so the
+    // system path passes null rather than a non-UUID sentinel like
+    // "stripe-webhook" (which fails the uuid cast).
+    postedBy: string | null,
+    postedByRole: string | null,
     notes?: string
   ): Promise<LedgerEntryRecord> {
     const record = await transaction(async (client) => {
@@ -267,8 +272,10 @@ export class LedgerService {
 
     await writeAuditLog({
       action: "ledger_payment_recorded",
-      actorId: postedBy,
-      actorRole: postedByRole,
+      // null (system actor) → undefined: AuditEntry takes optional strings, and
+      // writeAuditLog already coalesces undefined → null for the nullable columns.
+      actorId: postedBy ?? undefined,
+      actorRole: postedByRole ?? undefined,
       applicationId,
       resourceType: "tenant_ledger",
       resourceId: record.id,

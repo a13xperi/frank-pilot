@@ -4,7 +4,7 @@ import type Stripe from "stripe";
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
-import { getStripe } from "../../lib/stripe";
+import { getStripe, expectedLivemode } from "../../lib/stripe";
 import { stampTape } from "../tape";
 import { buildIdempotencyKey, markStatus } from "./idempotency";
 import { LedgerService } from "../ledger/service";
@@ -155,8 +155,11 @@ async function handlePaymentIntentSucceeded(event: Stripe.Event): Promise<void> 
     meta.applicationId,
     amountDollars,
     intent.id,
-    "stripe-webhook",
-    "system",
+    // System-initiated via the Stripe webhook — no user actor. posted_by is a
+    // nullable UUID column, so we pass null; the Stripe identity is preserved
+    // in reference_id (intent.id) and the note below.
+    null,
+    null,
     `Stripe PaymentIntent ${intent.id}`
   );
 
@@ -177,12 +180,13 @@ async function handlePaymentIntentSucceeded(event: Stripe.Event): Promise<void> 
 
   await writeAuditLog({
     action: "payment_intent_succeeded",
-    actorId: "stripe-webhook",
-    actorRole: "system",
+    // System-initiated by the Stripe webhook: actor_id is a nullable UUID and
+    // actor_role a fixed enum (no "system" member), so the textual actor lives
+    // in details rather than those typed columns.
     applicationId: meta.applicationId,
     resourceType: "payment_intent",
-    resourceId: intent.id,
-    details: { amountCents, currency, ledgerEntryId: ledgerEntry.id, idempotencyKey },
+    // resource_id is a UUID column; a Stripe `pi_…` id is not — keep it in details.
+    details: { actor: "stripe-webhook", amountCents, currency, ledgerEntryId: ledgerEntry.id, idempotencyKey, paymentIntentId: intent.id },
   });
 }
 
@@ -215,12 +219,12 @@ async function handlePaymentIntentFailed(event: Stripe.Event): Promise<void> {
 
   await writeAuditLog({
     action: "payment_intent_failed",
-    actorId: "stripe-webhook",
-    actorRole: "system",
+    // System-initiated by the Stripe webhook — see succeeded path. Textual actor
+    // goes in details, not the typed actor_id (uuid) / actor_role (enum) columns.
     applicationId: meta.applicationId,
     resourceType: "payment_intent",
-    resourceId: intent.id,
-    details: { failureCode, failureMessage, idempotencyKey },
+    // resource_id is a UUID column; a Stripe `pi_…` id is not — keep it in details.
+    details: { actor: "stripe-webhook", failureCode, failureMessage, idempotencyKey, paymentIntentId: intent.id },
   });
 }
 
@@ -276,15 +280,18 @@ router.post(
     // at a test-mode deployment (or vice-versa) means the wrong webhook secret
     // / wrong endpoint is wired up. Processing it would post the wrong-mode
     // money to the ledger. Reject with 400 so the misconfiguration surfaces
-    // loudly instead of silently corrupting state. We key off the deployment's
-    // own STRIPE_LIVE_ENABLED flag rather than trusting the event alone.
-    const liveEnabled = process.env.STRIPE_LIVE_ENABLED === "true";
-    if (event.livemode !== liveEnabled) {
+    // loudly instead of silently corrupting state. We derive the expected mode
+    // from the SECRET KEY prefix (sk_live_* ⇒ live) rather than the
+    // STRIPE_LIVE_ENABLED flag: the flag is a route/UI on-off switch and stays
+    // `true` even in test mode, so a test-mode deployment must still accept the
+    // `livemode:false` events its sk_test_ key produces.
+    const expectLive = expectedLivemode();
+    if (event.livemode !== expectLive) {
       logger.error("Stripe webhook livemode mismatch", {
         eventId: event.id,
         type: event.type,
         eventLivemode: event.livemode,
-        stripeLiveEnabled: liveEnabled,
+        expectedLivemode: expectLive,
       });
       res.status(400).json({ error: "Livemode mismatch" });
       return;

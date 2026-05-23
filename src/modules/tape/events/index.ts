@@ -33,3 +33,8 @@ export {
   makePositionLetterSentPayload,
   type PositionLetterSentInput,
 } from "./position-letter-sent";
+
+export {
+  makeLeaseExecutedPayload,
+  type LeaseExecutedInput,
+} from "./lease-executed";

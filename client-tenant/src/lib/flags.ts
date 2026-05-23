@@ -9,10 +9,15 @@
 export type FlagName =
   | 'PROPERTY_DL2_ENABLED'
   | 'MOBILE_APPLY_ENABLED'
-  | 'PAYMENT_WIZARD_ENABLED';
+  | 'PAYMENT_WIZARD_ENABLED'
+  | 'LEASE_ESIGN_ENABLED';
 
 // Flags that default OFF (opt-in via `=true`).
-const DEFAULT_OFF: ReadonlySet<FlagName> = new Set(['PAYMENT_WIZARD_ENABLED']);
+const DEFAULT_OFF: ReadonlySet<FlagName> = new Set([
+  'PAYMENT_WIZARD_ENABLED',
+  // Tenant lease e-signature — off until the flow is verified end-to-end.
+  'LEASE_ESIGN_ENABLED',
+]);
 
 // Static lookup — Vite's `define` plugin can only substitute literal property
 // access on `import.meta.env.VITE_*`. Computed-key access (`env[`VITE_${name}`]`)
@@ -23,6 +28,7 @@ const ENV_RAW: Readonly<Record<FlagName, string | undefined>> = {
   PROPERTY_DL2_ENABLED: import.meta.env.VITE_PROPERTY_DL2_ENABLED,
   MOBILE_APPLY_ENABLED: import.meta.env.VITE_MOBILE_APPLY_ENABLED,
   PAYMENT_WIZARD_ENABLED: import.meta.env.VITE_PAYMENT_WIZARD_ENABLED,
+  LEASE_ESIGN_ENABLED: import.meta.env.VITE_LEASE_ESIGN_ENABLED,
 };
 
 export function useFlag(name: FlagName): boolean {

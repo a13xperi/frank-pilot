@@ -23,6 +23,7 @@ import type { QueryResult } from "pg";
 import { LeaseService } from "../modules/lease/service";
 import { query } from "../config/database";
 import { writeAuditLog } from "../middleware/audit";
+import { stampV2LeaseExecuted } from "../modules/tape/v2-stamp";
 
 /** Wrap rows in a minimal QueryResult shape without casting to `any`. */
 function qr<T extends Record<string, unknown>>(rows: T[]): QueryResult<T> {
@@ -35,6 +36,9 @@ jest.mock("../config/database", () => ({ query: jest.fn() }));
 jest.mock("../middleware/audit", () => ({ writeAuditLog: jest.fn().mockResolvedValue(undefined) }));
 jest.mock("../utils/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
+jest.mock("../modules/tape/v2-stamp", () => ({
+  stampV2LeaseExecuted: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockGenerateLease = jest.fn();
@@ -69,6 +73,7 @@ jest.mock("../modules/integrations/twilio", () => ({
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockWriteAuditLog = writeAuditLog as jest.MockedFunction<typeof writeAuditLog>;
+const mockStampLeaseExecuted = stampV2LeaseExecuted as jest.MockedFunction<typeof stampV2LeaseExecuted>;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -96,11 +101,11 @@ function approvedAppRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** lease_generated application row — ready for onboarding. */
-function leaseGeneratedRow(overrides: Record<string, unknown> = {}) {
+/** lease_signed application row — ready for onboarding (gate now requires a signed lease). */
+function leaseSignedRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "app-001",
-    status: "lease_generated",
+    status: "lease_signed",
     first_name: "Jane",
     last_name: "Doe",
     email: "jane@example.com",
@@ -329,17 +334,17 @@ describe("LeaseService.completeOnboarding()", () => {
     ).rejects.toThrow("Application not found");
   });
 
-  it("throws when application is not in lease_generated status", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ status: "tier1_approved" })]));
+  it("throws when application is not in lease_signed status (incl. lease_generated — must be signed first)", async () => {
+    mockQuery.mockResolvedValue(qr([leaseSignedRow({ status: "lease_generated" })]));
 
     const service = makeService();
     await expect(
       service.completeOnboarding("app-001", "user-001", "senior_manager")
-    ).rejects.toThrow(/lease_generated/i);
+    ).rejects.toThrow(/lease_signed/i);
   });
 
   it("throws when onesite_lease_id is missing", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ onesite_lease_id: null })]));
+    mockQuery.mockResolvedValue(qr([leaseSignedRow({ onesite_lease_id: null })]));
 
     const service = makeService();
     await expect(
@@ -348,7 +353,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("calls LoftService.createTenant with correct args", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow()]));
+    mockQuery.mockResolvedValue(qr([leaseSignedRow()]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_001" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -372,7 +377,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("calls LoftService.setupAutoPay when auto_pay_enrolled=true AND payment method present", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ auto_pay_enrolled: true, stripe_payment_method_id: "pm_test_001" })]));
+    mockQuery.mockResolvedValue(qr([leaseSignedRow({ auto_pay_enrolled: true, stripe_payment_method_id: "pm_test_001" })]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_auto" });
     mockSetupAutoPay.mockResolvedValue({ autoPayId: "ap_001" });
     mockSyncTenant.mockResolvedValue({ synced: true });
@@ -392,7 +397,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("skips LoftService.setupAutoPay when auto_pay_enrolled=false", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ auto_pay_enrolled: false, stripe_payment_method_id: "pm_001" })]));
+    mockQuery.mockResolvedValue(qr([leaseSignedRow({ auto_pay_enrolled: false, stripe_payment_method_id: "pm_001" })]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_no_ap" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -404,7 +409,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("skips LoftService.setupAutoPay when stripe_payment_method_id is null (even if enrolled)", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ auto_pay_enrolled: true, stripe_payment_method_id: null })]));
+    mockQuery.mockResolvedValue(qr([leaseSignedRow({ auto_pay_enrolled: true, stripe_payment_method_id: null })]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_no_pm" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -416,7 +421,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("syncs tenant to OneSite", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow()]));
+    mockQuery.mockResolvedValue(qr([leaseSignedRow()]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_sync" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -432,7 +437,7 @@ describe("LeaseService.completeOnboarding()", () => {
 
   it("updates application status to onboarded and stores loftTenantId", async () => {
     mockQuery
-      .mockResolvedValueOnce(qr([leaseGeneratedRow()])) // SELECT
+      .mockResolvedValueOnce(qr([leaseSignedRow()])) // SELECT
       .mockResolvedValueOnce(qr([]));                   // UPDATE
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_update" });
     mockSyncTenant.mockResolvedValue({ synced: true });
@@ -447,7 +452,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("writes tenant_onboarded audit log", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow()]));
+    mockQuery.mockResolvedValue(qr([leaseSignedRow()]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_audit" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -470,7 +475,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("returns { onboarded: true, loftTenantId } on success", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow()]));
+    mockQuery.mockResolvedValue(qr([leaseSignedRow()]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_return" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockResolvedValue(undefined);
@@ -482,7 +487,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("does NOT throw when Twilio approval notification fails (non-blocking)", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow()]));
+    mockQuery.mockResolvedValue(qr([leaseSignedRow()]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_twilio" });
     mockSyncTenant.mockResolvedValue({ synced: true });
     mockNotifyApproved.mockRejectedValue(new Error("Twilio outage"));
@@ -496,7 +501,7 @@ describe("LeaseService.completeOnboarding()", () => {
   });
 
   it("skips Twilio notification when phone is absent", async () => {
-    mockQuery.mockResolvedValue(qr([leaseGeneratedRow({ phone: null })]));
+    mockQuery.mockResolvedValue(qr([leaseSignedRow({ phone: null })]));
     mockCreateTenant.mockResolvedValue({ loftTenantId: "lft_nophone" });
     mockSyncTenant.mockResolvedValue({ synced: true });
 
@@ -524,7 +529,13 @@ describe("LeaseService.getLeaseStatus()", () => {
   });
 
   it("returns lease status object with correct fields when found", async () => {
-    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "onboarded", onesite_lease_id: "ols_001", loft_tenant_id: "lft_001", auto_pay_enrolled: true }]));
+    mockQuery.mockResolvedValue(qr([{
+      id: "app-001", status: "onboarded", onesite_lease_id: "ols_001",
+      loft_tenant_id: "lft_001", auto_pay_enrolled: true,
+      signed_at: new Date("2026-05-22T10:00:00.000Z"),
+      signer_name: "Jane Doe",
+      signed_document_url: "https://onesite.example.com/leases/ols_001",
+    }]));
 
     const service = makeService();
     const result = await service.getLeaseStatus("app-001");
@@ -535,6 +546,10 @@ describe("LeaseService.getLeaseStatus()", () => {
       onesiteLeaseId: "ols_001",
       loftTenantId: "lft_001",
       autoPayEnrolled: true,
+      documentUrl: "https://onesite.example.com/leases/ols_001",
+      signed: true,
+      signedAt: "2026-05-22T10:00:00.000Z",
+      signerName: "Jane Doe",
     });
   });
 
@@ -556,8 +571,133 @@ describe("LeaseService.getLeaseStatus()", () => {
     await service.getLeaseStatus("app-xyz");
 
     expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining("WHERE id = $1"),
+      expect.stringContaining("WHERE a.id = $1"),
       ["app-xyz"]
+    );
+  });
+});
+
+// ── signLease() ──────────────────────────────────────────────────────────────
+
+/** lease_generated application row — ready for the tenant to sign. */
+function signableAppRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "app-001",
+    status: "lease_generated",
+    onesite_lease_id: "ols_001",
+    first_name: "Jane",
+    last_name: "Doe",
+    phone: "+17025550101",
+    ...overrides,
+  };
+}
+
+const signer = { userId: "user-tenant", role: "applicant" };
+const validInput = {
+  signatureName: "Jane Doe",
+  signatureImage: "data:image/png;base64,AAAA",
+  consent: true as const,
+  ip: "203.0.113.7",
+};
+
+describe("LeaseService.signLease()", () => {
+  beforeEach(() => {
+    mockQuery.mockReset();
+    mockWriteAuditLog.mockReset();
+    mockStampLeaseExecuted.mockReset();
+    mockStampLeaseExecuted.mockResolvedValue(undefined);
+  });
+
+  it("throws when consent is not true (ESIGN/UETA)", async () => {
+    const service = makeService();
+    await expect(
+      service.signLease("app-001", signer, { ...validInput, consent: false as unknown as true })
+    ).rejects.toThrow(/consent/i);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("throws when signature name is blank", async () => {
+    const service = makeService();
+    await expect(
+      service.signLease("app-001", signer, { ...validInput, signatureName: "   " })
+    ).rejects.toThrow(/signature name/i);
+  });
+
+  it("throws when signature image is empty", async () => {
+    const service = makeService();
+    await expect(
+      service.signLease("app-001", signer, { ...validInput, signatureImage: "" })
+    ).rejects.toThrow(/signature is required/i);
+  });
+
+  it("throws when application is not found", async () => {
+    mockQuery.mockResolvedValue(qr([]));
+    const service = makeService();
+    await expect(service.signLease("app-404", signer, validInput)).rejects.toThrow(
+      "Application not found"
+    );
+  });
+
+  it("throws when application is not in lease_generated status", async () => {
+    mockQuery.mockResolvedValue(qr([signableAppRow({ status: "tier1_approved" })]));
+    const service = makeService();
+    await expect(service.signLease("app-001", signer, validInput)).rejects.toThrow(
+      /lease_generated status/i
+    );
+  });
+
+  it("flips status to lease_signed and returns the signed document URL", async () => {
+    mockQuery.mockResolvedValue(qr([signableAppRow()]));
+    const service = makeService();
+    const result = await service.signLease("app-001", signer, validInput);
+
+    expect(result.status).toBe("lease_signed");
+    expect(result.documentUrl).toBe("https://onesite.example.com/leases/ols_001");
+    expect(typeof result.signedAt).toBe("string");
+
+    const updateCall = mockQuery.mock.calls.find((c) =>
+      String(c[0]).includes("status = 'lease_signed'")
+    );
+    expect(updateCall).toBeDefined();
+
+    const insertCall = mockQuery.mock.calls.find((c) =>
+      String(c[0]).includes("INTO lease_signatures")
+    );
+    expect(insertCall).toBeDefined();
+  });
+
+  it("writes a lease_signed audit log", async () => {
+    mockQuery.mockResolvedValue(qr([signableAppRow()]));
+    const service = makeService();
+    await service.signLease("app-001", signer, validInput);
+
+    expect(mockWriteAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "lease_signed",
+        actorId: "user-tenant",
+        applicationId: "app-001",
+        details: expect.objectContaining({ signerName: "Jane Doe", documentHash: expect.any(String) }),
+      })
+    );
+  });
+
+  it("fires the LEASE_EXECUTED compliance-tape stamp with the signature evidence", async () => {
+    mockQuery.mockResolvedValue(qr([signableAppRow()]));
+    const service = makeService();
+    await service.signLease("app-001", signer, { ...validInput, sessionId: "sess-1" });
+
+    // The wrapper is a no-op unless COMPLIANCE_TAPE_V2_ENABLED=true (gating lives
+    // inside v2-stamp); here we assert the touchpoint forwards the full evidence.
+    expect(mockStampLeaseExecuted).toHaveBeenCalledTimes(1);
+    expect(mockStampLeaseExecuted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applicationId: "app-001",
+        signerId: "user-tenant",
+        signerName: "Jane Doe",
+        signerIp: "203.0.113.7",
+        documentHash: expect.any(String),
+        sessionId: "sess-1",
+      })
     );
   });
 });

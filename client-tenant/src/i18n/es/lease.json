@@ -1,0 +1,21 @@
+{
+  "title": "Firme su contrato de arrendamiento",
+  "subtitle": "Revise su contrato y luego fírmelo a continuación para finalizar el proceso de arrendamiento.",
+  "loading": "Cargando su contrato…",
+  "noLease": "Aún no tiene un contrato listo para firmar.",
+  "backToStatus": "Volver al estado",
+  "documentHeading": "Su contrato de arrendamiento",
+  "openDocument": "Abrir el documento del contrato",
+  "previewUnavailable": "Abra el documento en una pestaña nueva para revisarlo antes de firmar.",
+  "signatureHeading": "Su firma",
+  "signatureNameLabel": "Escriba su nombre legal completo",
+  "signatureNamePlaceholder": "p. ej. Jordan A. Rivera",
+  "consentLabel": "Acepto firmar este contrato electrónicamente. Mi firma electrónica es el equivalente legal de mi firma manuscrita (Ley E-SIGN / UETA).",
+  "signCta": "Firmar contrato",
+  "signing": "Firmando…",
+  "signedTitle": "Contrato firmado",
+  "signedBody": "Gracias: su contrato firmado está archivado. Su administrador de la propiedad completará la mudanza.",
+  "errorConsent": "Acepte firmar electrónicamente antes de continuar.",
+  "errorName": "Escriba su nombre legal completo.",
+  "errorGeneric": "No pudimos registrar su firma. Inténtelo de nuevo."
+}
