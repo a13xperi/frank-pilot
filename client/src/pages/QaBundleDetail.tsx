@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Camera, ArrowLeft, Copy, Check, ExternalLink } from 'lucide-react';
+import { Camera, ArrowLeft, Copy, Check } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/api/client';
 import { PageHeader } from '@/components/PageHeader';
 import { hasMinRole } from '@/types';
 import type { QaBundleSummary } from './QaBundles';
@@ -42,12 +43,15 @@ interface Sidecar {
   [k: string]: unknown;
 }
 
+/**
+ * Copy-block intentionally returns the *stem only* — never the bucket URLs.
+ * The public-URL clipboard buttons were removed in the #103 security follow-up:
+ * sharing URLs publicly would re-introduce the very leak that motivated the
+ * server-proxy refactor. Operators paste the stem into chat / tickets and
+ * collaborators look it up via the gated /qa-bundles/:stem viewer.
+ */
 function clipboardBlock(b: QaBundleSummary): string {
-  const lines: string[] = [];
-  if (b.urls.png) lines.push(`Screenshot: ${b.urls.png}`);
-  lines.push(`Debug: ${b.urls.json}`);
-  if (b.urls.replay) lines.push(`Replay: ${b.urls.replay}`);
-  return lines.join('\n');
+  return b.stem;
 }
 
 function Section({
@@ -144,7 +148,7 @@ function ErrorsList({ rows }: { rows: QaBufferError[] }) {
   );
 }
 
-function ReplayPanel({ url }: { url: string }) {
+function ReplayPanel({ stem }: { stem: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -155,11 +159,14 @@ function ReplayPanel({ url }: { url: string }) {
 
     (async () => {
       try {
+        const token = localStorage.getItem('frank_token');
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
         const [{ default: RrwebPlayer }, eventsRes] = await Promise.all([
           import('rrweb-player'),
           // CSS lives next to the JS bundle — import it for side effects.
           import('rrweb-player/dist/style.css'),
-          fetch(url),
+          fetch(`/api/qa/bundles/${encodeURIComponent(stem)}/replay`, { headers }),
         ]).then(async ([mod, _css, res]) => {
           if (!res.ok) throw new Error(`Replay fetch failed (HTTP ${res.status})`);
           const events = await res.json();
@@ -192,7 +199,7 @@ function ReplayPanel({ url }: { url: string }) {
       disposed = true;
       if (cleanup) cleanup();
     };
-  }, [url]);
+  }, [stem]);
 
   return (
     <div>
@@ -216,7 +223,8 @@ export function QaBundleDetail() {
   );
   const bundle = data?.bundle ?? null;
 
-  // Sidecar contents (separate fetch — public URL, no auth)
+  // Sidecar contents — fetched via the auth-gated server proxy so the bucket
+  // can be flipped private. Bearer token attached via the api client style.
   const [sidecar, setSidecar] = useState<Sidecar | null>(null);
   const [sidecarErr, setSidecarErr] = useState<string | null>(null);
   useEffect(() => {
@@ -224,7 +232,13 @@ export function QaBundleDetail() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(bundle.urls.json);
+        const token = localStorage.getItem('frank_token');
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch(
+          `/api/qa/bundles/${encodeURIComponent(bundle.stem)}/sidecar`,
+          { headers },
+        );
         if (!res.ok) throw new Error(`Sidecar fetch failed (HTTP ${res.status})`);
         const json = (await res.json()) as Sidecar;
         if (!cancelled) setSidecar(json);
@@ -235,6 +249,36 @@ export function QaBundleDetail() {
     })();
     return () => {
       cancelled = true;
+    };
+  }, [bundle]);
+
+  // PNG fetched via the auth-gated server proxy → blob URL we can stick into
+  // `<img src>`. Without this dance the bearer token can't ride along.
+  const [pngObjectUrl, setPngObjectUrl] = useState<string | null>(null);
+  const [pngErr, setPngErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!bundle || !bundle.urls.png) {
+      setPngObjectUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let createdUrl: string | null = null;
+    (async () => {
+      try {
+        const url = await api.getBlobUrl(
+          `/api/qa/bundles/${encodeURIComponent(bundle.stem)}/png`,
+        );
+        createdUrl = url;
+        if (!cancelled) setPngObjectUrl(url);
+        else URL.revokeObjectURL(url);
+      } catch (e) {
+        if (!cancelled)
+          setPngErr(e instanceof Error ? e.message : 'Screenshot failed to load');
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
     };
   }, [bundle]);
 
@@ -302,7 +346,7 @@ export function QaBundleDetail() {
               </>
             ) : (
               <>
-                <Copy className="h-4 w-4" /> Copy URLs
+                <Copy className="h-4 w-4" /> Copy stem
               </>
             )}
           </button>
@@ -314,25 +358,21 @@ export function QaBundleDetail() {
         <div className="rounded-xl border border-gray-200 bg-white p-3">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-medium text-gray-700">Screenshot</h2>
-            {bundle.urls.png && (
-              <a
-                href={bundle.urls.png}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:text-emerald-800"
-              >
-                Open full size <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
           </div>
-          {bundle.urls.png ? (
-            <a href={bundle.urls.png} target="_blank" rel="noreferrer">
+          {pngErr ? (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              {pngErr}
+            </div>
+          ) : bundle.urls.png ? (
+            pngObjectUrl ? (
               <img
-                src={bundle.urls.png}
+                src={pngObjectUrl}
                 alt={`${bundle.slug} screenshot`}
                 className="w-full rounded-md border border-gray-200"
               />
-            </a>
+            ) : (
+              <p className="text-xs text-gray-500">Loading screenshot…</p>
+            )
           ) : (
             <p className="text-xs text-gray-500">
               No screenshot in this bundle.
@@ -405,7 +445,7 @@ export function QaBundleDetail() {
       <div>
         <h2 className="mb-2 text-sm font-medium text-gray-700">Session replay</h2>
         {bundle.urls.replay ? (
-          <ReplayPanel url={bundle.urls.replay} />
+          <ReplayPanel stem={bundle.stem} />
         ) : (
           <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
             No replay in this bundle — rrweb wasn't initialised at capture
