@@ -467,7 +467,16 @@ export function PropertyList() {
 
         {viewMode === 'map' ? (
           <iframe
-            src="/nv-housing-map.html"
+            // Forward the active discover filters so the map renders the same
+            // slice the list does (it reads these from its own location.search).
+            // `view` is stripped — it's the parent's tab state, meaningless to
+            // the iframe — so the map URL only carries real filter dimensions.
+            src={(() => {
+              const mapParams = new URLSearchParams(params);
+              mapParams.delete('view');
+              const qs = mapParams.toString();
+              return qs ? `/nv-housing-map.html?${qs}` : '/nv-housing-map.html';
+            })()}
             title="Nevada affordable housing map"
             data-testid="discover-map-iframe"
             className="w-full h-[86vh] md:h-[72vh]"

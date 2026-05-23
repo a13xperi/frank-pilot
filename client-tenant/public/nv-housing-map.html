@@ -174,7 +174,21 @@ const TYPES = ['Family','Senior','Mixed'];
 let CITIES = [...new Set(PROPS.map(p=>p.city).filter(Boolean))].sort();
 let FUNDS  = [...new Set(PROPS.flatMap(p=>p.funding))].sort();
 
-let fType='all', fCity='all', fFund='all';
+let fType='all', fCity='all', fFund='all', fAvail=false;
+
+// Hydrate initial filter state from the URL the parent /discover page forwards
+// into the iframe src (PropertyList passes its active chips through). This is
+// what makes a deep-link like ?availability=available_now&type=family land on
+// the map already filtered — same dimensions the List view applies.
+(function initFiltersFromURL(){
+  const q = new URLSearchParams(location.search);
+  // React uses lowercase GPMGType ('family'|'senior'); the map labels are
+  // capitalized. 'mixed' has no list-side counterpart but we accept it.
+  const t = (q.get('type')||'').toLowerCase();
+  if(t==='family') fType='Family'; else if(t==='senior') fType='Senior'; else if(t==='mixed') fType='Mixed';
+  const c = q.get('city'); if(c) fCity=c;            // city strings match 1:1
+  if(q.get('availability')==='available_now') fAvail=true;
+})();
 
 // ---- Map -------------------------------------------------------------
 const map = L.map('map',{zoomControl:false});
@@ -240,13 +254,17 @@ function cardHTML(p){
 
 // ---- Filters ---------------------------------------------------------
 function matches(p){
+  // availableUnits is present on the GPMG demo dataset; if a live row omits it
+  // (the DB markers endpoint doesn't compute availability yet) we don't hide it.
+  const availOk = !fAvail || !('availableUnits' in p) || (p.availableUnits>0);
   return (fType==='all'||p.type===fType)
       && (fCity==='all'||p.city===fCity)
-      && (fFund==='all'||p.funding.includes(fFund));
+      && (fFund==='all'||p.funding.includes(fFund))
+      && availOk;
 }
 function buildFilters(){
   const el=document.getElementById('filters');
-  const seg=(label,items,cur,grp,set)=>{
+  const seg=(label,items,cur,grp)=>{
     let h=`<div class="filter-label">${label}</div>`;
     h+=`<span class="chip ${grp} ${cur==='all'?'active':''}" data-grp="${grp}" data-val="all">All</span>`;
     items.forEach(it=>{h+=`<span class="chip ${grp} ${cur===it?'active':''}" data-grp="${grp}" data-val="${it}">${it}</span>`;});
@@ -254,10 +272,15 @@ function buildFilters(){
   };
   el.innerHTML = seg('Type',TYPES,fType,'group-accent')
                + seg('City',CITIES,fCity,'group-city')
-               + seg('Funding',FUNDS,fFund,'group-fund');
+               + seg('Funding',FUNDS,fFund,'group-fund')
+               + `<div class="filter-label">Availability</div>`
+               + `<span class="chip group-accent ${fAvail?'active':''}" data-grp="group-avail" data-val="available_now">Available now</span>`;
   el.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
     const g=c.dataset.grp, v=c.dataset.val;
-    if(g==='group-accent') fType=v; else if(g==='group-city') fCity=v; else fFund=v;
+    if(g==='group-accent') fType=v;
+    else if(g==='group-city') fCity=v;
+    else if(g==='group-fund') fFund=v;
+    else if(g==='group-avail') fAvail=!fAvail;   // toggle
     render();
   });
 }
@@ -270,9 +293,9 @@ function render(){
   document.getElementById('cards').innerHTML = shown.map(cardHTML).join('') ||
     '<p style="color:var(--ink3);font-size:14px;">No communities match these filters.</p>';
   document.getElementById('count').innerHTML =
-    `${shown.length} communities <small>of ${PROPS.length} statewide Nevada</small>`;
+    `${shown.length} communities <small>of ${PROPS.length}${fAvail?' available now':''}</small>`;
   document.getElementById('eyebrow').textContent =
-    `Nevada LIHD · ${PROPS.length} affordable communities · statewide`;
+    `${PROPS.length} affordable communities`;
 
   // markers
   cluster.clearLayers();
@@ -360,7 +383,7 @@ function hydrate(rows){
   boot();
 }
 function loadFallback(){
-  return fetch('/nv-housing-props.json')
+  return fetch('/nv-gpmg-map-props.json')
     .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
     .then(hydrate);
 }
