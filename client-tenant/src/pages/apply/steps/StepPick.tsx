@@ -101,7 +101,10 @@ export function StepPick() {
 
   useEffect(() => {
     if (s.intentBedrooms === null || !s.intentMoveInDate) {
-      s.setStep('intent');
+      // INTENTIONAL REGRESSION (gate verify): dropped the s.setStep('intent')
+      // redirect, so a cold deep-link to ?step=pick no longer bounces back to
+      // intent. apply-resume.spec.ts:128 must catch this. (return kept so TS
+      // still narrows intentBedrooms below — keeps the build green.)
       return;
     }
     let cancelled = false;
