@@ -185,6 +185,47 @@ router.post(
   }
 );
 
+// Resolve an open NAU (Next Available Unit Rule) obligation (QAP Phase 3.2):
+// credit a comparable available unit rented to a qualifying household so the
+// over-income unit's set-aside is preserved. Scope-checked via getById so a
+// manager can't resolve recerts outside their portfolio. Validation failures
+// (non-comparable / not-rented / no open obligation) map to 400.
+const NauResolveSchema = z.object({
+  resolvingUnitId: z.string().uuid(),
+  notes: z.string().min(1, "Notes are required"),
+});
+
+router.post(
+  "/:id/nau-resolve",
+  authenticate,
+  requirePermission("recertification:review"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const parsed = NauResolveSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const recert = await service.getById(req.params.id as string, req);
+      if (!recert) {
+        res.status(404).json({ error: "Recertification not found" });
+        return;
+      }
+      const context = await compliance.resolveNau(
+        req.params.id as string,
+        parsed.data.resolvingUnitId,
+        req.user!.id,
+        parsed.data.notes
+      );
+      const updated = await service.getById(req.params.id as string, req);
+      res.json({ success: true, recertification: updated, context });
+    } catch (err: any) {
+      logger.error("Failed to resolve NAU obligation", { error: err.message });
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
 // Manual trigger: process all reminders (system_admin)
 router.post(
   "/process-reminders",
