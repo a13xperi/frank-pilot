@@ -125,19 +125,21 @@ test.describe("Apply — resume / state persistence (seeded applicant)", () => {
     assertSeededDraft(await readApplications(page));
   });
 
-  test("deep-link to an entitled later step (pick) renders", async ({
+  test("deep-link to pick without in-memory intent redirects to intent (sane)", async ({
     seededApplicantPage: page,
   }) => {
-    // The user is past claim, so the `pick` step (unit selection) is one they
-    // are entitled to revisit. Apply.tsx renders <StepPick /> for `?step=pick`
-    // and widens the container (max-w-3xl). Assert it lands and renders without
-    // bouncing back to register.
+    // StepPick has a mount-time guard (StepPick.tsx:102-105): it calls
+    // setStep('intent') when the wizard's in-memory intentBedrooms is null or
+    // intentMoveInDate is unset. On a COLD deep-link to `?step=pick` that guard
+    // fires before the async draft-hydration fetch resolves, so the user is
+    // redirected to `intent` — a sane in-funnel fallback, NOT a crash and NOT a
+    // bounce all the way back to register (step 1). Lock that real behavior.
     await page.goto("/apply?step=pick");
-    await expect(page).toHaveURL(/\/apply\?step=pick/);
-    // Whatever StepPick paints, the page must not have fallen back to step 1
-    // (register identity fields are absent on the pick step).
+    await expect(page).toHaveURL(/\/apply\?step=intent/);
+    // Did NOT fall back to the register step: identity fields are absent on the
+    // intent step (they only appear on Step1Register).
     await expect(page.getByLabel(/first name/i)).toHaveCount(0);
-    // Session + draft remain intact after the deep-link.
+    // Session + draft remain intact after the deep-link + redirect.
     assertSeededDraft(await readApplications(page));
   });
 
