@@ -334,7 +334,10 @@ export interface RecertIncomeCheck {
 }
 
 // GET /api/acquisitions/aur-queue
-export type NauStatus = 'open' | 'resolved' | 'n/a';
+// Backend nau_status column (Lane 1): 'open' once an over_income obligation is
+// triggered, 'satisfied' when a comparable unit resolves it, 'lost' on failure,
+// or null when there is no NAU obligation (e.g. over_income_aur rows).
+export type NauStatus = 'open' | 'satisfied' | 'lost' | null;
 
 export interface AurQueueItem {
   recertId: string;

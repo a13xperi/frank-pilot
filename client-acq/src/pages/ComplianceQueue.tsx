@@ -269,13 +269,21 @@ function NauResolveModal({
 
 function NauStatusPill({ status }: { status: NauStatus }) {
   const tone =
-    status === 'resolved'
+    status === 'satisfied'
       ? 'bg-emerald-50 text-emerald-700'
       : status === 'open'
         ? 'bg-amber-50 text-amber-700'
-        : 'bg-gray-100 text-gray-500';
+        : status === 'lost'
+          ? 'bg-red-50 text-red-700'
+          : 'bg-gray-100 text-gray-500';
   const label =
-    status === 'resolved' ? 'Resolved' : status === 'open' ? 'Open' : 'N/A';
+    status === 'satisfied'
+      ? 'Satisfied'
+      : status === 'open'
+        ? 'Open'
+        : status === 'lost'
+          ? 'Lost'
+          : 'N/A';
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>
       {label}
