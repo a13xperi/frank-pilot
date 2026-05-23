@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
@@ -5,6 +6,18 @@ import { OneSiteService } from "../integrations/onesite";
 import { LoftService } from "../integrations/loft";
 import { TwilioService } from "../integrations/twilio";
 import { RecertificationService } from "../recertification/service";
+import { stampV2LeaseExecuted } from "../tape/v2-stamp";
+
+/** Build the canonical OneSite lease document URL from its lease id. Stub mode
+ *  returns this same shape (see OneSiteService.generateLease). */
+function onesiteDocumentUrl(onesiteLeaseId: string | null): string | null {
+  if (!onesiteLeaseId) return null;
+  // Demo override: OneSite is a stub (onesite.example.com does not serve a real
+  // PDF), so for local walkthroughs point the viewer at a same-origin sample
+  // doc that actually embeds. Unset in real envs → canonical OneSite URL.
+  if (process.env.DEMO_LEASE_PDF_URL) return process.env.DEMO_LEASE_PDF_URL;
+  return `https://onesite.example.com/leases/${onesiteLeaseId}`;
+}
 
 /**
  * Set of application statuses that are eligible for lease generation.
@@ -138,9 +151,9 @@ export class LeaseService {
 
     const app = appResult.rows[0];
 
-    if (app.status !== "lease_generated") {
+    if (app.status !== "lease_signed") {
       throw new Error(
-        `Application must be in lease_generated status to complete onboarding. Current status: ${app.status}`
+        `Application must be in lease_signed status to complete onboarding. Current status: ${app.status}`
       );
     }
 
@@ -232,7 +245,127 @@ export class LeaseService {
   }
 
   /**
-   * Get current lease and onboarding status for an application.
+   * Tenant electronically signs their generated lease.
+   * Transitions application status: lease_generated → lease_signed.
+   *
+   * Requires: application in lease_generated status (route layer enforces that
+   * the caller owns the application). ESIGN/UETA: `consent` must be true and a
+   * typed signature name + signature image are captured. A SHA-256 hash of the
+   * canonical signature evidence is stored for tamper-evidence, and the
+   * LEASE_EXECUTED compliance-tape stamp is the legally-meaningful audit record.
+   *
+   * NOTE: stamping the signature into the actual lease PDF is a flagged
+   * follow-up — OneSite returns a stub document URL locally, so there is no real
+   * PDF to overlay yet. `signed_document_url` records the canonical lease doc.
+   */
+  async signLease(
+    applicationId: string,
+    signer: { userId: string; role: string },
+    input: {
+      signatureName: string;
+      signatureImage: string;
+      consent: boolean;
+      ip?: string | null;
+      sessionId?: string;
+    }
+  ): Promise<{ status: "lease_signed"; signedAt: string; documentUrl: string | null }> {
+    if (input.consent !== true) {
+      throw new Error("Electronic signature consent is required (ESIGN/UETA).");
+    }
+    if (!input.signatureName || !input.signatureName.trim()) {
+      throw new Error("A signature name is required.");
+    }
+    if (!input.signatureImage) {
+      throw new Error("A signature is required.");
+    }
+
+    const appResult = await query(
+      `SELECT id, status, onesite_lease_id, first_name, last_name, phone
+       FROM applications WHERE id = $1`,
+      [applicationId]
+    );
+
+    if (appResult.rows.length === 0) {
+      throw new Error("Application not found");
+    }
+
+    const app = appResult.rows[0];
+
+    if (app.status !== "lease_generated") {
+      throw new Error(
+        `Application must be in lease_generated status to sign. Current status: ${app.status}`
+      );
+    }
+
+    const signedAt = new Date().toISOString();
+    const consentAt = signedAt;
+    const signerName = input.signatureName.trim();
+    const documentUrl = onesiteDocumentUrl(app.onesite_lease_id || null);
+
+    const documentHash = createHash("sha256")
+      .update(
+        JSON.stringify({
+          applicationId,
+          signerId: signer.userId,
+          signerName,
+          signedAt,
+          consentAt,
+          onesiteLeaseId: app.onesite_lease_id || null,
+        })
+      )
+      .digest("hex");
+
+    await query(
+      `INSERT INTO lease_signatures
+         (application_id, signer_user_id, signer_name, signature_image,
+          signed_document_url, document_hash, signer_ip, consent_at, signed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (application_id) DO NOTHING`,
+      [
+        applicationId,
+        signer.userId,
+        signerName,
+        input.signatureImage,
+        documentUrl,
+        documentHash,
+        input.ip || null,
+        consentAt,
+        signedAt,
+      ]
+    );
+
+    await query(`UPDATE applications SET status = 'lease_signed' WHERE id = $1`, [applicationId]);
+
+    await writeAuditLog({
+      action: "lease_signed",
+      actorId: signer.userId,
+      actorRole: signer.role,
+      applicationId,
+      resourceType: "lease",
+      resourceId: applicationId,
+      details: { signerName, documentHash, consentAt },
+    });
+
+    // Legally-meaningful audit record (no-op unless COMPLIANCE_TAPE_V2_ENABLED).
+    await stampV2LeaseExecuted({
+      applicationId,
+      signerId: signer.userId,
+      signerName,
+      signedAt,
+      consentAt,
+      signerIp: input.ip || null,
+      documentHash,
+      sessionId: input.sessionId,
+    });
+
+    logger.info("Lease signed by tenant", { applicationId, signerId: signer.userId });
+
+    return { status: "lease_signed", signedAt, documentUrl };
+  }
+
+  /**
+   * Get current lease and onboarding status for an application, including the
+   * signable document URL and the tenant's signature state.
    */
   async getLeaseStatus(applicationId: string): Promise<{
     applicationId: string;
@@ -240,10 +373,17 @@ export class LeaseService {
     onesiteLeaseId: string | null;
     loftTenantId: string | null;
     autoPayEnrolled: boolean;
+    documentUrl: string | null;
+    signed: boolean;
+    signedAt: string | null;
+    signerName: string | null;
   } | null> {
     const result = await query(
-      `SELECT id, status, onesite_lease_id, loft_tenant_id, auto_pay_enrolled
-       FROM applications WHERE id = $1`,
+      `SELECT a.id, a.status, a.onesite_lease_id, a.loft_tenant_id, a.auto_pay_enrolled,
+              ls.signed_at, ls.signer_name, ls.signed_document_url
+       FROM applications a
+       LEFT JOIN lease_signatures ls ON ls.application_id = a.id
+       WHERE a.id = $1`,
       [applicationId]
     );
 
@@ -256,6 +396,10 @@ export class LeaseService {
       onesiteLeaseId: row.onesite_lease_id || null,
       loftTenantId: row.loft_tenant_id || null,
       autoPayEnrolled: row.auto_pay_enrolled || false,
+      documentUrl: row.signed_document_url || onesiteDocumentUrl(row.onesite_lease_id || null),
+      signed: !!row.signed_at,
+      signedAt: row.signed_at ? new Date(row.signed_at).toISOString() : null,
+      signerName: row.signer_name || null,
     };
   }
 }

@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import axe from 'axe-core';
 import { StepPayment } from '../StepPayment';
-import { ApplyProvider } from '@/pages/apply/context/ApplyContext';
+import { TestApplyProvider } from './applyTestUtils';
 
 const navigateSpy = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -12,14 +12,14 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => navigateSpy };
 });
 
-function renderWithProviders() {
+function renderWithProviders(adults = 1) {
   return render(
     <MemoryRouter initialEntries={[`/apply?step=payment`]}>
-      <ApplyProvider>
+      <TestApplyProvider adults={adults}>
         <Routes>
           <Route path="/apply" element={<StepPayment />} />
         </Routes>
-      </ApplyProvider>
+      </TestApplyProvider>
     </MemoryRouter>,
   );
 }
@@ -31,6 +31,7 @@ function fillForm() {
 
 describe('StepPayment — beacons fire on submit', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     navigateSpy.mockReset();
     sessionStorage.clear();
   });
@@ -64,6 +65,30 @@ describe('StepPayment — beacons fire on submit', () => {
     expect(successBody.paymentRef).toMatch(/^pay_/);
 
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('?step=2'));
+  });
+
+  // Regression: the amount must track the real `adults` count (from the
+  // canonical ApplyContext), not the old hardcoded `adults: 1` from the dead
+  // stub provider. 2 adults → $35.95 × 2 = $71.90 in both the display and the
+  // beacon payload.
+  it('amount reflects household size, not a hardcoded 1', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch' as never)
+      .mockResolvedValue({ ok: true, status: 200, json: async () => ({}) } as Response);
+
+    renderWithProviders(2);
+
+    // CTA + summary both show the multiplied total.
+    expect(screen.getByRole('button', { name: /\$71\.90/ })).toBeInTheDocument();
+    expect(screen.getByText('$71.90')).toBeInTheDocument();
+
+    fillForm();
+    fireEvent.click(screen.getByRole('button', { name: /pay \$/i }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    const [initCall] = fetchSpy.mock.calls as unknown as Array<[string, RequestInit]>;
+    const initBody = JSON.parse(String(initCall[1].body));
+    expect(initBody).toMatchObject({ adults: 2, total: '71.90' });
   });
 
   it('shows retry on 5xx', async () => {

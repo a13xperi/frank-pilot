@@ -37,6 +37,7 @@ import messagesRoutes from "./modules/messages/routes";
 import tapeRoutes from "./modules/tape/routes";
 import { createTapeViewerRoutes } from "./modules/tape/routes-viewer";
 import { qaRouter } from "./modules/qa/routes";
+import acquisitionRoutes from "./modules/acquisitions/routes";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -207,6 +208,9 @@ app.use("/api/users", userRoutes);
 
 // Property management (asset_manager+: create/update; all roles: view)
 app.use("/api/properties", propertyRoutes);
+
+// QAP acquisitions — Demand-Evidence Engine (asset_manager+ / acquisition:view)
+app.use("/api/acquisitions", acquisitionRoutes);
 
 // Compliance reports (Fair Housing Act — audit:view / Regional Manager+)
 app.use("/api/compliance", complianceRoutes);

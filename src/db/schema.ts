@@ -38,6 +38,7 @@ CREATE TYPE application_status AS ENUM (
   'tier3_approved',
   'tier3_denied',
   'lease_generated',
+  'lease_signed',
   'onboarded',
   'cancelled'
 );
@@ -70,6 +71,7 @@ CREATE TYPE audit_action AS ENUM (
   'tier3_approved',
   'tier3_denied',
   'lease_generated',
+  'lease_signed',
   'payment_setup',
   'auto_pay_enrolled',
   'tenant_onboarded',
@@ -282,6 +284,13 @@ CREATE TABLE properties (
   rent_schedule JSONB DEFAULT '{}',
   total_vacancy INTEGER DEFAULT 0,
   waiting_list_enabled BOOLEAN DEFAULT false,
+
+  -- QAP acquisitions layer (2026-05-22): location scoring (§7.3.1) and the
+  -- 30% basis boost (§11) for HUD Qualified Census Tracts / Difficult
+  -- Development Areas. See migration 2026-05-22-property-qct.sql.
+  census_tract VARCHAR(20),
+  is_qct BOOLEAN NOT NULL DEFAULT false,
+  is_dda BOOLEAN NOT NULL DEFAULT false,
 
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -1055,9 +1064,28 @@ CREATE TABLE IF NOT EXISTS stripe_webhook_dlq (
   first_failed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_failed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Lease e-signature (native). One tenant signature row per application; the
+-- executed PDF + a sha256 hash give tamper-evidence, and the compliance tape
+-- (LEASE_EXECUTED stamp) is the legally-meaningful audit record. ESIGN/UETA:
+-- consent_at captures the "agree to sign electronically" affirmation.
+CREATE TABLE IF NOT EXISTS lease_signatures (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id      UUID NOT NULL UNIQUE REFERENCES applications(id) ON DELETE CASCADE,
+  signer_user_id      UUID NOT NULL REFERENCES users(id),
+  signer_name         TEXT NOT NULL,
+  signature_image     TEXT NOT NULL,
+  signed_document_url TEXT,
+  document_hash       TEXT,
+  signer_ip           INET,
+  consent_at          TIMESTAMPTZ NOT NULL,
+  signed_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 `;
 
 export const DROP_SCHEMA_SQL = `
+DROP TABLE IF EXISTS lease_signatures CASCADE;
 DROP TABLE IF EXISTS stripe_webhook_dlq CASCADE;
 DROP TABLE IF EXISTS stripe_processed_events CASCADE;
 DROP TABLE IF EXISTS payment_idempotency CASCADE;

@@ -24,7 +24,9 @@ export type TapeStampKind =
   | "auth.email_verified"
   | "application.submitted"
   | "application.advanced"
-  | "unit.claimed";
+  | "unit.claimed"
+  // Lease e-signature (native) — tenant executes the lease
+  | "LEASE_EXECUTED";
 
 /** A JSON-LD payload. Lane C provides one `make<Event>Payload` per kind.
  *  The `@context` URL is stubbed in v1 (see docs/bp-02-contracts.md §5). */
@@ -131,6 +133,7 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   "application.submitted": "HUD 4350.3 Ch. 4-6",
   "application.advanced": "HUD 4350.3 Ch. 4-14",
   "unit.claimed": "HUD 4350.3 Ch. 4-14",
+  LEASE_EXECUTED: "HUD 4350.3 Ch. 6-5 + 15 U.S.C. 7001 (ESIGN)",
 };
 
 /** Feature flag controlling dual-write during cutover. When false, the new
