@@ -3,6 +3,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { Loader2, AlertCircle, FileText, Check, ArrowRight } from 'lucide-react';
 import { HF } from '@/styles/tokens';
 import { Card, CTA } from '@/components/primitives';
+import { useFlag } from '@/lib/flags';
 
 interface ApplicationItem {
   id: string;
@@ -75,6 +76,10 @@ function stageFor(status: string): StageState {
     return { current: 'lease', done: new Set(['submitted', 'docs', 'pm']) };
   }
 
+  if (status === 'lease_signed') {
+    return { current: 'movein', done: new Set(['submitted', 'docs', 'pm', 'lease']) };
+  }
+
   if (status === 'onboarded') {
     return { current: 'movein', done: new Set(['submitted', 'docs', 'pm', 'lease']) };
   }
@@ -94,6 +99,7 @@ const STATUS_BADGE: Record<string, { label: string; bg: string; fg: string }> = 
   tier3_review: { label: 'Final review', bg: HF.accentLo, fg: HF.accentInk },
   tier3_approved: { label: 'Approved', bg: HF.okLo, fg: HF.ok },
   lease_generated: { label: 'Lease ready', bg: HF.okLo, fg: HF.ok },
+  lease_signed: { label: 'Lease signed', bg: HF.okLo, fg: HF.ok },
   onboarded: { label: 'Moved in', bg: HF.okLo, fg: HF.ok },
 };
 
@@ -106,6 +112,7 @@ const SUBTITLE: Partial<Record<string, string>> = {
   tier2_review: 'Final review in progress.',
   tier3_review: 'Final review in progress.',
   lease_generated: "Your lease is ready to sign.",
+  lease_signed: 'Signed — awaiting move-in.',
   onboarded: 'Welcome home — you’re moved in.',
 };
 
@@ -246,6 +253,7 @@ function DeniedBanner({ status }: { status: string }) {
 
 export function Status() {
   const { data, loading, error } = useApiQuery<ApplicationsResponse>('/applicants/me/applications');
+  const leaseEsignEnabled = useFlag('LEASE_ESIGN_ENABLED');
 
   if (loading) {
     return (
@@ -410,6 +418,14 @@ export function Status() {
                   <Link to="/apply" style={{ textDecoration: 'none', marginTop: 12, display: 'block' }}>
                     <CTA tone="primary" block>
                       Finish application <ArrowRight size={16} />
+                    </CTA>
+                  </Link>
+                )}
+
+                {app.status === 'lease_generated' && leaseEsignEnabled && (
+                  <Link to="/lease" style={{ textDecoration: 'none', marginTop: 12, display: 'block' }}>
+                    <CTA tone="primary" block>
+                      Sign your lease <ArrowRight size={16} />
                     </CTA>
                   </Link>
                 )}

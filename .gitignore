@@ -15,3 +15,8 @@ server/tape/*.ndjson
 
 # Intel raw snapshots (re-fetchable via scripts/scrape-gpmglv.mjs)
 docs/intel/raw/
+
+# Local scratch: statewide-housing map generator (depends on a local NHD LIHD
+# xlsx not in the repo) + its superseded standalone HTML build. The production
+# map lives in client-tenant/public/.
+demo/

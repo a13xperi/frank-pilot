@@ -30,16 +30,18 @@ export function StepIndicator() {
       {/* Mobile: top progress bar */}
       <div className="lg:hidden" aria-label={stepLabel}>
         <div
-          className="mb-1 flex justify-between text-xs"
+          className="mb-2 flex items-baseline justify-between text-xs"
           style={{ color: HF.ink3, fontFamily: HF.body }}
         >
-          <span>{t(LABEL_KEYS[stepKey])}</span>
+          <span style={{ fontWeight: 600, color: HF.ink2 }}>
+            {t(LABEL_KEYS[stepKey])}
+          </span>
           <span>
             {current}/{total}
           </span>
         </div>
         <div
-          className="h-1.5 w-full"
+          className="h-2 w-full"
           style={{
             background: HF.border,
             borderRadius: HF.r.pill,

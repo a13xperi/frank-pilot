@@ -9,6 +9,8 @@ import enApply from './en/apply.json';
 import enWaitlist from './en/waitlist.json';
 import enDiscover from './en/discover.json';
 import enLegal from './en/legal.json';
+import enSettings from './en/settings.json';
+import enLease from './en/lease.json';
 
 import esCommon from './es/common.json';
 import esWelcome from './es/welcome.json';
@@ -16,8 +18,10 @@ import esApply from './es/apply.json';
 import esWaitlist from './es/waitlist.json';
 import esDiscover from './es/discover.json';
 import esLegal from './es/legal.json';
+import esSettings from './es/settings.json';
+import esLease from './es/lease.json';
 
-export const NS = ['common', 'welcome', 'apply', 'waitlist', 'discover', 'legal'] as const;
+export const NS = ['common', 'welcome', 'apply', 'waitlist', 'discover', 'legal', 'settings', 'lease'] as const;
 
 const resources = {
   en: {
@@ -27,6 +31,8 @@ const resources = {
     waitlist: enWaitlist,
     discover: enDiscover,
     legal: enLegal,
+    settings: enSettings,
+    lease: enLease,
   },
   es: {
     common: esCommon,
@@ -35,6 +41,8 @@ const resources = {
     waitlist: esWaitlist,
     discover: esDiscover,
     legal: esLegal,
+    settings: esSettings,
+    lease: esLease,
   },
 };
 

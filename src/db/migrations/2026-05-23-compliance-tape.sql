@@ -49,6 +49,15 @@ CREATE INDEX IF NOT EXISTS idx_compliance_tape_applicant_sequence
   ON compliance_tape (applicant_id, sequence)
   WHERE applicant_id IS NOT NULL;
 
+-- Backs the repository's `ON CONFLICT (kind, session_id) DO NOTHING` idempotency
+-- clause (src/modules/tape/repository.ts). Without this index every INSERT raises
+-- "no unique or exclusion constraint matching the ON CONFLICT specification" — and
+-- because stamps are best-effort (stampSafe swallows), the failure is silent and
+-- the tape records nothing. Non-partial: NULL session_ids stay distinct so stamps
+-- without a session remain insertable as separate rows. Mirrors schema.ts.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_compliance_tape_kind_session
+  ON compliance_tape (kind, session_id);
+
 -- Append-only enforcement.
 CREATE OR REPLACE FUNCTION compliance_tape_reject_mutation()
   RETURNS trigger

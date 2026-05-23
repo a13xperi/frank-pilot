@@ -219,6 +219,24 @@ export class UserService {
     logger.info("Password reset", { userId, actorId });
   }
 
+  /**
+   * Top-of-funnel signup counts from the tenant onboarding app.
+   * `registered` = everyone who entered via the funnel (applicant or tenant
+   * role); `verified` = the subset who have proven their email
+   * (email_verified_at stamped). Staff roles are excluded by the role filter.
+   */
+  async signupStats(): Promise<{ registered: number; verified: number }> {
+    const result = await query(
+      `SELECT
+         COUNT(*)::int AS registered,
+         COUNT(*) FILTER (WHERE email_verified_at IS NOT NULL)::int AS verified
+       FROM users
+       WHERE role IN ('applicant', 'tenant')`
+    );
+    const row = result.rows[0];
+    return { registered: row?.registered ?? 0, verified: row?.verified ?? 0 };
+  }
+
   private rowToRecord(row: any): UserRecord {
     return {
       id: row.id,

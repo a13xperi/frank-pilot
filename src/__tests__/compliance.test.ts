@@ -8,6 +8,7 @@
  * Area Median Income. Assets >$5,000 trigger additional documentation.
  */
 
+import type { QueryResult } from "pg";
 import { ComplianceService } from "../modules/screening/compliance";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
@@ -24,17 +25,22 @@ import { query } from "../config/database";
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 
+/** Wrap rows in a minimal QueryResult shape without casting to `any`. */
+function qr<T extends Record<string, unknown>>(rows: T[]): QueryResult<T> {
+  return { rows } as unknown as QueryResult<T>;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function makePropertyRows(amiArea = "Boston-MA") {
-  return { rows: [{ ami_area: amiArea }] };
+function makePropertyRows(amiArea = "Boston-MA"): QueryResult<{ ami_area: string }> {
+  return qr([{ ami_area: amiArea }]);
 }
 
-function makeAmiRows(ami60Pct: number) {
-  return { rows: [{ ami_60_percent: String(ami60Pct) }] };
+function makeAmiRows(ami60Pct: number): QueryResult<{ ami_60_percent: string }> {
+  return qr([{ ami_60_percent: String(ami60Pct) }]);
 }
 
-const emptyRows = { rows: [] };
+const emptyRows: QueryResult<never> = qr([]);
 
 // ── Test Suite ────────────────────────────────────────────────────────────────
 
@@ -49,7 +55,7 @@ describe("ComplianceService.runCheck", () => {
   // ── Property not found ────────────────────────────────────────────────────
 
   it("returns review_required when property is not in the system", async () => {
-    mockQuery.mockResolvedValueOnce(emptyRows as any); // property lookup
+    mockQuery.mockResolvedValueOnce(emptyRows); // property lookup
 
     const result = await service.runCheck({
       propertyId: "non-existent",
@@ -65,8 +71,8 @@ describe("ComplianceService.runCheck", () => {
 
   it("returns pass when income is within the 60% AMI limit", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any)   // property
-      .mockResolvedValueOnce(makeAmiRows(50000) as any);  // AMI current year
+      .mockResolvedValueOnce(makePropertyRows())   // property
+      .mockResolvedValueOnce(makeAmiRows(50000));  // AMI current year
 
     const result = await service.runCheck({
       propertyId: "prop-1",
@@ -80,8 +86,8 @@ describe("ComplianceService.runCheck", () => {
 
   it("returns pass at the exact AMI boundary (income === limit)", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any)
-      .mockResolvedValueOnce(makeAmiRows(40000) as any);
+      .mockResolvedValueOnce(makePropertyRows())
+      .mockResolvedValueOnce(makeAmiRows(40000));
 
     const result = await service.runCheck({
       propertyId: "prop-1",
@@ -96,8 +102,8 @@ describe("ComplianceService.runCheck", () => {
 
   it("returns fail when income exceeds the 60% AMI limit", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any)
-      .mockResolvedValueOnce(makeAmiRows(40000) as any);
+      .mockResolvedValueOnce(makePropertyRows())
+      .mockResolvedValueOnce(makeAmiRows(40000));
 
     const result = await service.runCheck({
       propertyId: "prop-1",
@@ -114,8 +120,8 @@ describe("ComplianceService.runCheck", () => {
 
   it("returns review_required when assets exceed $5,000 (even if income passes)", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any)
-      .mockResolvedValueOnce(makeAmiRows(50000) as any);
+      .mockResolvedValueOnce(makePropertyRows())
+      .mockResolvedValueOnce(makeAmiRows(50000));
 
     const result = await service.runCheck({
       propertyId: "prop-1",
@@ -131,8 +137,8 @@ describe("ComplianceService.runCheck", () => {
 
   it("returns pass when assets are exactly at the $5,000 threshold", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any)
-      .mockResolvedValueOnce(makeAmiRows(50000) as any);
+      .mockResolvedValueOnce(makePropertyRows())
+      .mockResolvedValueOnce(makeAmiRows(50000));
 
     const result = await service.runCheck({
       propertyId: "prop-1",
@@ -146,8 +152,8 @@ describe("ComplianceService.runCheck", () => {
 
   it("asset verification is not_provided when assets param is omitted", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any)
-      .mockResolvedValueOnce(makeAmiRows(50000) as any);
+      .mockResolvedValueOnce(makePropertyRows())
+      .mockResolvedValueOnce(makeAmiRows(50000));
 
     const result = await service.runCheck({
       propertyId: "prop-1",
@@ -161,9 +167,9 @@ describe("ComplianceService.runCheck", () => {
 
   it("uses previous-year AMI data when current year has no record", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any) // property
-      .mockResolvedValueOnce(emptyRows as any)          // current year → miss
-      .mockResolvedValueOnce(makeAmiRows(48000) as any); // previous year → hit
+      .mockResolvedValueOnce(makePropertyRows()) // property
+      .mockResolvedValueOnce(emptyRows)          // current year → miss
+      .mockResolvedValueOnce(makeAmiRows(48000)); // previous year → hit
 
     const result = await service.runCheck({
       propertyId: "prop-1",
@@ -185,9 +191,9 @@ describe("ComplianceService.runCheck", () => {
 
   it("returns review_required when both current and previous year AMI are missing", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any) // property
-      .mockResolvedValueOnce(emptyRows as any)          // current year → miss
-      .mockResolvedValueOnce(emptyRows as any);         // previous year → miss
+      .mockResolvedValueOnce(makePropertyRows()) // property
+      .mockResolvedValueOnce(emptyRows)          // current year → miss
+      .mockResolvedValueOnce(emptyRows);         // previous year → miss
 
     const result = await service.runCheck({
       propertyId: "prop-1",
@@ -204,8 +210,8 @@ describe("ComplianceService.runCheck", () => {
 
   it("calculates amiPercentage as (income / limit) * 100", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any)
-      .mockResolvedValueOnce(makeAmiRows(50000) as any);
+      .mockResolvedValueOnce(makePropertyRows())
+      .mockResolvedValueOnce(makeAmiRows(50000));
 
     const result = await service.runCheck({
       propertyId: "prop-1",
@@ -219,8 +225,8 @@ describe("ComplianceService.runCheck", () => {
 
   it("always includes IRS Form 8609 and TIC notes on a successful check", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any)
-      .mockResolvedValueOnce(makeAmiRows(50000) as any);
+      .mockResolvedValueOnce(makePropertyRows())
+      .mockResolvedValueOnce(makeAmiRows(50000));
 
     const result = await service.runCheck({
       propertyId: "prop-1",
@@ -236,8 +242,8 @@ describe("ComplianceService.runCheck", () => {
 
   it("defaults householdSize to 1 when not provided", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows() as any)
-      .mockResolvedValueOnce(makeAmiRows(50000) as any);
+      .mockResolvedValueOnce(makePropertyRows())
+      .mockResolvedValueOnce(makeAmiRows(50000));
 
     await service.runCheck({ propertyId: "prop-1", annualIncome: 40000 });
 
@@ -255,8 +261,8 @@ describe("ComplianceService.runCheck", () => {
 
   it("passes householdSize=4 as the third AMI query parameter", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV") as any)
-      .mockResolvedValueOnce(makeAmiRows(62000) as any); // 4-person 60% AMI
+      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV"))
+      .mockResolvedValueOnce(makeAmiRows(62000)); // 4-person 60% AMI
 
     await service.runCheck({
       propertyId: "prop-lv",
@@ -272,8 +278,8 @@ describe("ComplianceService.runCheck", () => {
   it("returns pass for householdSize=4 using the 4-person AMI limit", async () => {
     // 4-person limit: $62,000 — income $55,000 → pass
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV") as any)
-      .mockResolvedValueOnce(makeAmiRows(62000) as any);
+      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV"))
+      .mockResolvedValueOnce(makeAmiRows(62000));
 
     const result = await service.runCheck({
       propertyId: "prop-lv",
@@ -289,8 +295,8 @@ describe("ComplianceService.runCheck", () => {
   it("would fail the same income under householdSize=1 (demonstrates fix value)", async () => {
     // 1-person limit: $38,000 — income $55,000 → fail
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV") as any)
-      .mockResolvedValueOnce(makeAmiRows(38000) as any);
+      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV"))
+      .mockResolvedValueOnce(makeAmiRows(38000));
 
     const result = await service.runCheck({
       propertyId: "prop-lv",
@@ -304,9 +310,9 @@ describe("ComplianceService.runCheck", () => {
 
   it("passes householdSize through the previous-year fallback query when current year is missing", async () => {
     mockQuery
-      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV") as any)
-      .mockResolvedValueOnce({ rows: [] } as any)        // current year miss
-      .mockResolvedValueOnce(makeAmiRows(60000) as any); // prev year hit
+      .mockResolvedValueOnce(makePropertyRows("Las Vegas-NV"))
+      .mockResolvedValueOnce(emptyRows)                  // current year miss
+      .mockResolvedValueOnce(makeAmiRows(60000)); // prev year hit
 
     await service.runCheck({
       propertyId: "prop-lv",

@@ -3,6 +3,23 @@ import { query } from "../../config/database";
 import { generateToken, AuthUser } from "../../middleware/auth";
 import { logger } from "../../utils/logger";
 import { getEmailService } from "../integrations/email";
+import { TwilioService } from "../integrations/twilio";
+
+// Delivery channels for a magic link. Default stays 'email' so existing
+// callers (and the /register contract) are unchanged; 'sms' / 'both' opt in
+// to the Twilio transport added here.
+export type MagicLinkChannel = "email" | "sms" | "both";
+
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+
+// Single shared Twilio client — mirrors the email service's lazy singleton
+// pattern. Construction is cheap (it only reads env), so this is just to keep
+// one client across requests.
+let twilioService: TwilioService | null = null;
+function getTwilioService(): TwilioService {
+  if (!twilioService) twilioService = new TwilioService();
+  return twilioService;
+}
 
 const TOKEN_TTL_MINUTES = 15;
 
@@ -99,13 +116,72 @@ export function logMagicLink(email: string, link: string): void {
 export function sendMagicLink(
   email: string,
   link: string,
-  options?: { firstName?: string }
+  options?: { firstName?: string; channel?: MagicLinkChannel; userId?: string }
 ): void {
-  void getEmailService()
-    .sendMagicLink(email, link, options)
+  const channel: MagicLinkChannel = options?.channel ?? "email";
+
+  if (channel === "email" || channel === "both") {
+    void getEmailService()
+      .sendMagicLink(email, link, { firstName: options?.firstName })
+      .catch((err: unknown) => {
+        logger.error("magic-link send failed", {
+          error: (err as Error)?.message ?? String(err),
+        });
+      });
+  }
+
+  if (channel === "sms" || channel === "both") {
+    // Prefer userId (so we look up the phone of record); fall back to email
+    // is meaningless for SMS, so without a userId we have nothing to send to.
+    if (options?.userId) {
+      sendMagicLinkSms(options.userId, link);
+    } else {
+      logger.warn("magic-link sms requested without userId — no phone to resolve");
+    }
+  }
+}
+
+/**
+ * Fire-and-forget magic-link SMS delivery via Twilio.
+ *
+ * Accepts either a user id (UUID — phone is resolved from the users table) or
+ * a raw phone number. Returns synchronously after scheduling the send so the
+ * /register handler stays constant-time (mirrors sendMagicLink's contract and
+ * lease/service.ts's non-blocking Twilio pattern).
+ *
+ * A missing phone, an unconfigured Twilio client, or a Twilio outage is
+ * swallowed and logged — an SMS failure must never crash the server or change
+ * the response. The raw token is never logged here.
+ */
+export function sendMagicLinkSms(userIdOrPhone: string, link: string): void {
+  void resolvePhone(userIdOrPhone)
+    .then((phone) => {
+      if (!phone) {
+        // No phone on file (or user not found). Nothing to send — not an error.
+        logger.info("magic-link sms skipped — no phone on file");
+        return;
+      }
+      const body = `Your sign-in link for CDPC Nevada: ${link} (expires in ${TOKEN_TTL_MINUTES} minutes). If you didn't request this, ignore this message.`;
+      return getTwilioService()
+        .sendSMS(phone, body)
+        .then(() => undefined);
+    })
     .catch((err: unknown) => {
-      logger.error("magic-link send failed", {
+      logger.error("magic-link sms send failed", {
         error: (err as Error)?.message ?? String(err),
       });
     });
+}
+
+// Resolve a phone number from either a UUID (look up users.phone) or a raw
+// phone string passed directly. Returns null when nothing usable is found.
+async function resolvePhone(userIdOrPhone: string): Promise<string | null> {
+  if (UUID_RE.test(userIdOrPhone)) {
+    const res = await query("SELECT phone FROM users WHERE id = $1", [userIdOrPhone]);
+    const phone = res.rows[0]?.phone;
+    return phone ? String(phone) : null;
+  }
+  // Not a UUID — treat as a literal phone number.
+  const trimmed = userIdOrPhone.trim();
+  return trimmed ? trimmed : null;
 }
