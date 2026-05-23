@@ -1082,9 +1082,37 @@ CREATE TABLE IF NOT EXISTS lease_signatures (
   signed_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- QAP acquisitions layer — candidate projects (Phase 2). A prospective LIHTC
+-- development being evaluated for a 9%/4% credit application. Scored against
+-- the focused, funnel-relevant QAP subset (§7.4.1 low-rent, §7.4.2 low-income,
+-- §7.4.3 resident services, §7.3.1 location/basis-boost) with the unit mix and
+-- election the project commits to. Demand evidence is joined at score time from
+-- the funnel (see demand-service.ts), not stored here.
+CREATE TABLE IF NOT EXISTS acq_projects (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name                TEXT NOT NULL,
+  geographic_account  TEXT NOT NULL CHECK (geographic_account IN ('CLARK','WASHOE','OTHER')),
+  city                TEXT,
+  set_aside           TEXT CHECK (set_aside IN ('NONPROFIT','USDA_RD','TRIBAL','ADDITIONAL')),
+  election_kind       TEXT NOT NULL CHECK (election_kind IN ('STD_40_60','STD_20_50','AVERAGE_INCOME')),
+  total_units         INTEGER NOT NULL DEFAULT 0 CHECK (total_units >= 0),
+  units_30_ami        INTEGER NOT NULL DEFAULT 0 CHECK (units_30_ami >= 0),
+  units_50_ami        INTEGER NOT NULL DEFAULT 0 CHECK (units_50_ami >= 0),
+  units_60_ami        INTEGER NOT NULL DEFAULT 0 CHECK (units_60_ami >= 0),
+  is_qct              BOOLEAN NOT NULL DEFAULT false,
+  is_dda              BOOLEAN NOT NULL DEFAULT false,
+  resident_services   TEXT[] NOT NULL DEFAULT '{}',
+  notes               TEXT,
+  created_by          UUID REFERENCES users(id),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_acq_projects_account ON acq_projects(geographic_account);
 `;
 
 export const DROP_SCHEMA_SQL = `
+DROP TABLE IF EXISTS acq_projects CASCADE;
 DROP TABLE IF EXISTS lease_signatures CASCADE;
 DROP TABLE IF EXISTS stripe_webhook_dlq CASCADE;
 DROP TABLE IF EXISTS stripe_processed_events CASCADE;

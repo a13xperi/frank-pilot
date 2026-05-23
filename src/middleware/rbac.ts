@@ -89,6 +89,7 @@ const PERMISSIONS: Record<string, string[]> = {
   // QAP acquisitions layer — credit-acquisition side (Demand-Evidence Engine,
   // project scoring, award). Asset managers and admins only.
   "acquisition:view": ["asset_manager", "system_admin"],
+  "acquisition:manage": ["asset_manager", "system_admin"],
 };
 
 export function requireRole(...roles: string[]) {
