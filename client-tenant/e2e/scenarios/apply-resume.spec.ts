@@ -71,7 +71,7 @@ test.describe("Apply — resume / state persistence (seeded applicant)", () => {
   }) => {
     // Pre-reload: on the checklist, UI title present.
     await expect(page).toHaveURL(/\/apply\?step=checklist/);
-    await expect(page.getByText(CHECKLIST_TITLE)).toBeVisible();
+    await expect(page.getByRole("heading", { name: CHECKLIST_TITLE })).toBeVisible();
 
     // Pre-reload: API still has the seeded draft.
     assertSeededDraft(await readApplications(page));
@@ -81,7 +81,7 @@ test.describe("Apply — resume / state persistence (seeded applicant)", () => {
     await page.reload();
 
     await expect(page).toHaveURL(/\/apply\?step=checklist/);
-    await expect(page.getByText(CHECKLIST_TITLE)).toBeVisible();
+    await expect(page.getByRole("heading", { name: CHECKLIST_TITLE })).toBeVisible();
 
     // Post-reload: same draft (intent + claimed Hoggard unit + rent) intact.
     assertSeededDraft(await readApplications(page));
@@ -97,7 +97,7 @@ test.describe("Apply — resume / state persistence (seeded applicant)", () => {
     assertSeededDraft(await readApplications(page));
 
     await page.reload();
-    await expect(page.getByText(CHECKLIST_TITLE)).toBeVisible();
+    await expect(page.getByRole("heading", { name: CHECKLIST_TITLE })).toBeVisible();
 
     // After reload — identity + draft unchanged.
     const meAfter = await readMe(page);
@@ -153,7 +153,7 @@ test.describe("Apply — resume / state persistence (seeded applicant)", () => {
     await page.setViewportSize({ width: 393, height: 851 });
     await page.goto("/apply?step=checklist");
 
-    const title = page.getByText(CHECKLIST_TITLE);
+    const title = page.getByRole("heading", { name: CHECKLIST_TITLE });
     await expect(title).toBeVisible();
 
     // Not horizontally clipped: the document's scroll width should not exceed
