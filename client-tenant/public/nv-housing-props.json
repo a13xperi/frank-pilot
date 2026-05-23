@@ -39,7 +39,10 @@
     "totalUnits": 198,
     "restrictedUnits": 198,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "Tax-Exempt Bond",
@@ -56,7 +59,9 @@
     "totalUnits": 70,
     "restrictedUnits": 70,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -87,7 +92,9 @@
     "totalUnits": 100,
     "restrictedUnits": 100,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -117,7 +124,9 @@
     "totalUnits": 22,
     "restrictedUnits": 22,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -133,7 +142,9 @@
     "totalUnits": 92,
     "restrictedUnits": 92,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -164,7 +175,9 @@
     "totalUnits": 12,
     "restrictedUnits": 12,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -194,7 +207,9 @@
     "totalUnits": 360,
     "restrictedUnits": 245,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -209,7 +224,10 @@
     "totalUnits": 144,
     "restrictedUnits": 143,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -225,7 +243,9 @@
     "totalUnits": 22,
     "restrictedUnits": 21,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -240,7 +260,10 @@
     "totalUnits": 238,
     "restrictedUnits": 238,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -270,7 +293,10 @@
     "totalUnits": 180,
     "restrictedUnits": 178,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -285,7 +311,10 @@
     "totalUnits": 42,
     "restrictedUnits": 42,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "55%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -300,7 +329,11 @@
     "totalUnits": 42,
     "restrictedUnits": 42,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -315,7 +348,9 @@
     "totalUnits": 120,
     "restrictedUnits": 120,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -330,7 +365,9 @@
     "totalUnits": 33,
     "restrictedUnits": 32,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -345,7 +382,12 @@
     "totalUnits": 120,
     "restrictedUnits": 119,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%",
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -360,7 +402,9 @@
     "totalUnits": 24,
     "restrictedUnits": 24,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -375,7 +419,11 @@
     "totalUnits": 32,
     "restrictedUnits": 32,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -391,7 +439,11 @@
     "totalUnits": 24,
     "restrictedUnits": 24,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -406,7 +458,12 @@
     "totalUnits": 30,
     "restrictedUnits": 30,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "50%",
+      "55%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -436,7 +493,10 @@
     "totalUnits": 49,
     "restrictedUnits": 48,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -466,7 +526,10 @@
     "totalUnits": 300,
     "restrictedUnits": 298,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -482,7 +545,9 @@
     "totalUnits": 60,
     "restrictedUnits": 59,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -513,7 +578,9 @@
     "totalUnits": 126,
     "restrictedUnits": 126,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -528,7 +595,10 @@
     "totalUnits": 232,
     "restrictedUnits": 232,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -559,7 +629,10 @@
     "totalUnits": 48,
     "restrictedUnits": 47,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -589,7 +662,11 @@
     "totalUnits": 72,
     "restrictedUnits": 71,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -604,7 +681,11 @@
     "totalUnits": 36,
     "restrictedUnits": 36,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -619,7 +700,11 @@
     "totalUnits": 60,
     "restrictedUnits": 60,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -634,7 +719,9 @@
     "totalUnits": 70,
     "restrictedUnits": 70,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -649,7 +736,10 @@
     "totalUnits": 64,
     "restrictedUnits": 63,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -664,7 +754,9 @@
     "totalUnits": 348,
     "restrictedUnits": 348,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -680,7 +772,9 @@
     "totalUnits": 100,
     "restrictedUnits": 100,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "55%"
+    ],
     "funding": [
       "LIHTC",
       "Tax-Exempt Bond",
@@ -697,7 +791,10 @@
     "totalUnits": 192,
     "restrictedUnits": 189,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -713,7 +810,9 @@
     "totalUnits": 30,
     "restrictedUnits": 30,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -728,7 +827,11 @@
     "totalUnits": 84,
     "restrictedUnits": 83,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -743,7 +846,11 @@
     "totalUnits": 36,
     "restrictedUnits": 36,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -804,7 +911,11 @@
     "totalUnits": 40,
     "restrictedUnits": 30,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -819,7 +930,10 @@
     "totalUnits": 60,
     "restrictedUnits": 60,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -834,7 +948,10 @@
     "totalUnits": 40,
     "restrictedUnits": 39,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "45%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -867,7 +984,9 @@
     "totalUnits": 316,
     "restrictedUnits": 316,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "Tax-Exempt Bond"
@@ -915,7 +1034,10 @@
     "totalUnits": 28,
     "restrictedUnits": 28,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -931,7 +1053,10 @@
     "totalUnits": 96,
     "restrictedUnits": 95,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -946,7 +1071,9 @@
     "totalUnits": 100,
     "restrictedUnits": 100,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "55%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -961,7 +1088,12 @@
     "totalUnits": 110,
     "restrictedUnits": 110,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -991,7 +1123,10 @@
     "totalUnits": 90,
     "restrictedUnits": 90,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1006,7 +1141,9 @@
     "totalUnits": 90,
     "restrictedUnits": 90,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1022,7 +1159,9 @@
     "totalUnits": 20,
     "restrictedUnits": 20,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1038,7 +1177,11 @@
     "totalUnits": 24,
     "restrictedUnits": 18,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1083,7 +1226,10 @@
     "totalUnits": 29,
     "restrictedUnits": 28,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1114,7 +1260,10 @@
     "totalUnits": 120,
     "restrictedUnits": 120,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1130,7 +1279,12 @@
     "totalUnits": 89,
     "restrictedUnits": 89,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1145,7 +1299,10 @@
     "totalUnits": 38,
     "restrictedUnits": 38,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1161,7 +1318,10 @@
     "totalUnits": 186,
     "restrictedUnits": 186,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1177,7 +1337,10 @@
     "totalUnits": 89,
     "restrictedUnits": 88,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1192,7 +1355,9 @@
     "totalUnits": 20,
     "restrictedUnits": 20,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1223,7 +1388,10 @@
     "totalUnits": 20,
     "restrictedUnits": 20,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "30%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1285,7 +1453,12 @@
     "totalUnits": 244,
     "restrictedUnits": 244,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%",
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1300,7 +1473,10 @@
     "totalUnits": 55,
     "restrictedUnits": 55,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1315,7 +1491,10 @@
     "totalUnits": 104,
     "restrictedUnits": 104,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1331,7 +1510,12 @@
     "totalUnits": 50,
     "restrictedUnits": 50,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1362,7 +1546,12 @@
     "totalUnits": 72,
     "restrictedUnits": 72,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%",
+      "45%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1377,7 +1566,11 @@
     "totalUnits": 216,
     "restrictedUnits": 216,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1393,7 +1586,9 @@
     "totalUnits": 155,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1408,7 +1603,9 @@
     "totalUnits": 20,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1438,7 +1635,9 @@
     "totalUnits": 66,
     "restrictedUnits": 66,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1453,7 +1652,10 @@
     "totalUnits": 24,
     "restrictedUnits": 24,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1468,7 +1670,10 @@
     "totalUnits": 200,
     "restrictedUnits": 198,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1483,7 +1688,9 @@
     "totalUnits": 44,
     "restrictedUnits": 44,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1498,7 +1705,10 @@
     "totalUnits": 32,
     "restrictedUnits": 31,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1514,7 +1724,9 @@
     "totalUnits": 268,
     "restrictedUnits": 266,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "80%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1529,7 +1741,12 @@
     "totalUnits": 108,
     "restrictedUnits": 108,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "35%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1544,7 +1761,10 @@
     "totalUnits": 106,
     "restrictedUnits": 104,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1559,7 +1779,12 @@
     "totalUnits": 50,
     "restrictedUnits": 50,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1574,7 +1799,10 @@
     "totalUnits": 272,
     "restrictedUnits": 272,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1589,7 +1817,9 @@
     "totalUnits": 51,
     "restrictedUnits": 51,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1604,7 +1834,11 @@
     "totalUnits": 115,
     "restrictedUnits": 113,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%",
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1619,7 +1853,11 @@
     "totalUnits": 21,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1634,7 +1872,11 @@
     "totalUnits": 20,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1649,7 +1891,9 @@
     "totalUnits": 36,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1664,7 +1908,9 @@
     "totalUnits": 24,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1679,7 +1925,11 @@
     "totalUnits": 19,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1694,7 +1944,9 @@
     "totalUnits": 16,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1709,7 +1961,10 @@
     "totalUnits": 36,
     "restrictedUnits": 36,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1724,7 +1979,10 @@
     "totalUnits": 72,
     "restrictedUnits": 72,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1739,7 +1997,10 @@
     "totalUnits": 56,
     "restrictedUnits": 56,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1754,7 +2015,9 @@
     "totalUnits": 36,
     "restrictedUnits": 35,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1770,7 +2033,9 @@
     "totalUnits": 54,
     "restrictedUnits": 54,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1800,7 +2065,9 @@
     "totalUnits": 184,
     "restrictedUnits": 183,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1830,7 +2097,9 @@
     "totalUnits": 528,
     "restrictedUnits": 528,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "80%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1845,7 +2114,10 @@
     "totalUnits": 108,
     "restrictedUnits": 108,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1861,7 +2133,10 @@
     "totalUnits": 62,
     "restrictedUnits": 61,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "40%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1877,7 +2152,10 @@
     "totalUnits": 48,
     "restrictedUnits": 48,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1893,7 +2171,11 @@
     "totalUnits": 20,
     "restrictedUnits": 20,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%",
+      "40%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1909,7 +2191,9 @@
     "totalUnits": 75,
     "restrictedUnits": 75,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -1925,7 +2209,10 @@
     "totalUnits": 46,
     "restrictedUnits": 46,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1940,7 +2227,12 @@
     "totalUnits": 40,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "45%",
+      "50%",
+      "Market"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -1955,7 +2247,11 @@
     "totalUnits": 80,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "50%",
+      "Market"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2030,7 +2326,10 @@
     "totalUnits": 42,
     "restrictedUnits": 41,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "30%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2046,7 +2345,10 @@
     "totalUnits": 24,
     "restrictedUnits": 24,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2076,7 +2378,10 @@
     "totalUnits": 40,
     "restrictedUnits": 40,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2137,7 +2442,11 @@
     "totalUnits": 90,
     "restrictedUnits": 90,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2153,7 +2462,11 @@
     "totalUnits": 84,
     "restrictedUnits": 84,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2169,7 +2482,11 @@
     "totalUnits": 78,
     "restrictedUnits": 78,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%",
+      "Market"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2185,7 +2502,10 @@
     "totalUnits": 47,
     "restrictedUnits": 46,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2200,7 +2520,10 @@
     "totalUnits": 62,
     "restrictedUnits": 62,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2215,7 +2538,11 @@
     "totalUnits": 84,
     "restrictedUnits": 84,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2230,7 +2557,9 @@
     "totalUnits": 75,
     "restrictedUnits": 75,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2260,7 +2589,9 @@
     "totalUnits": 9,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2275,7 +2606,9 @@
     "totalUnits": 160,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2290,7 +2623,9 @@
     "totalUnits": 20,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2305,7 +2640,9 @@
     "totalUnits": 39,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2350,7 +2687,10 @@
     "totalUnits": 48,
     "restrictedUnits": 48,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2380,7 +2720,10 @@
     "totalUnits": 35,
     "restrictedUnits": 35,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2395,7 +2738,10 @@
     "totalUnits": 25,
     "restrictedUnits": 24,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2426,7 +2772,10 @@
     "totalUnits": 274,
     "restrictedUnits": 272,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2442,7 +2791,9 @@
     "totalUnits": 128,
     "restrictedUnits": 128,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2457,7 +2808,10 @@
     "totalUnits": 332,
     "restrictedUnits": 331,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2472,7 +2826,10 @@
     "totalUnits": 41,
     "restrictedUnits": 41,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2488,7 +2845,9 @@
     "totalUnits": 176,
     "restrictedUnits": 176,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2503,7 +2862,11 @@
     "totalUnits": 60,
     "restrictedUnits": 60,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2518,7 +2881,9 @@
     "totalUnits": 28,
     "restrictedUnits": 27,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2534,7 +2899,9 @@
     "totalUnits": 40,
     "restrictedUnits": 40,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2595,7 +2962,9 @@
     "totalUnits": 36,
     "restrictedUnits": 36,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2640,7 +3009,12 @@
     "totalUnits": 36,
     "restrictedUnits": 35,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2655,7 +3029,10 @@
     "totalUnits": 20,
     "restrictedUnits": 20,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "30%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2671,7 +3048,9 @@
     "totalUnits": 52,
     "restrictedUnits": 52,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2687,7 +3066,10 @@
     "totalUnits": 72,
     "restrictedUnits": 71,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2702,7 +3084,9 @@
     "totalUnits": 272,
     "restrictedUnits": 271,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2732,7 +3116,10 @@
     "totalUnits": 184,
     "restrictedUnits": 184,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2763,7 +3150,11 @@
     "totalUnits": 51,
     "restrictedUnits": 51,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2778,7 +3169,11 @@
     "totalUnits": 51,
     "restrictedUnits": 50,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2793,7 +3188,9 @@
     "totalUnits": 60,
     "restrictedUnits": 60,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -2824,7 +3221,11 @@
     "totalUnits": 41,
     "restrictedUnits": 41,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2839,7 +3240,9 @@
     "totalUnits": 28,
     "restrictedUnits": 28,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2854,7 +3257,9 @@
     "totalUnits": 208,
     "restrictedUnits": 208,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2869,7 +3274,9 @@
     "totalUnits": 10,
     "restrictedUnits": 10,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2884,7 +3291,9 @@
     "totalUnits": 26,
     "restrictedUnits": 26,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2899,7 +3308,9 @@
     "totalUnits": 36,
     "restrictedUnits": 35,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2914,7 +3325,11 @@
     "totalUnits": 24,
     "restrictedUnits": 24,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "50%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2929,7 +3344,12 @@
     "totalUnits": 36,
     "restrictedUnits": 36,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2944,7 +3364,9 @@
     "totalUnits": 60,
     "restrictedUnits": 60,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2959,7 +3381,10 @@
     "totalUnits": 24,
     "restrictedUnits": 23,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -2989,7 +3414,10 @@
     "totalUnits": 60,
     "restrictedUnits": 60,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3004,7 +3432,11 @@
     "totalUnits": 58,
     "restrictedUnits": 58,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3034,7 +3466,9 @@
     "totalUnits": 63,
     "restrictedUnits": 62,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3049,7 +3483,12 @@
     "totalUnits": 24,
     "restrictedUnits": 24,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "45%",
+      "50%",
+      "Market"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -3065,7 +3504,9 @@
     "totalUnits": 258,
     "restrictedUnits": 258,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "80%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3080,7 +3521,10 @@
     "totalUnits": 159,
     "restrictedUnits": 159,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3095,7 +3539,10 @@
     "totalUnits": 50,
     "restrictedUnits": 50,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3110,7 +3557,9 @@
     "totalUnits": 108,
     "restrictedUnits": 108,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3125,7 +3574,12 @@
     "totalUnits": 99,
     "restrictedUnits": 98,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3140,7 +3594,11 @@
     "totalUnits": 39,
     "restrictedUnits": 39,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3155,7 +3613,11 @@
     "totalUnits": 105,
     "restrictedUnits": 70,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "Market"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3170,7 +3632,9 @@
     "totalUnits": 100,
     "restrictedUnits": 100,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3230,7 +3694,9 @@
     "totalUnits": 100,
     "restrictedUnits": 80,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3245,7 +3711,9 @@
     "totalUnits": 100,
     "restrictedUnits": 55,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3275,7 +3743,10 @@
     "totalUnits": 90,
     "restrictedUnits": 89,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -3291,7 +3762,10 @@
     "totalUnits": 22,
     "restrictedUnits": 22,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3306,7 +3780,9 @@
     "totalUnits": 208,
     "restrictedUnits": 208,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -3322,7 +3798,9 @@
     "totalUnits": 75,
     "restrictedUnits": 75,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3337,7 +3815,11 @@
     "totalUnits": 152,
     "restrictedUnits": 152,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "Tax-Exempt Bond"
@@ -3353,7 +3835,10 @@
     "totalUnits": 20,
     "restrictedUnits": 20,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3368,7 +3853,10 @@
     "totalUnits": 30,
     "restrictedUnits": 30,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3383,7 +3871,9 @@
     "totalUnits": 40,
     "restrictedUnits": 40,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "Tax-Exempt Bond"
@@ -3399,7 +3889,9 @@
     "totalUnits": 19,
     "restrictedUnits": 19,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3414,7 +3906,13 @@
     "totalUnits": 205,
     "restrictedUnits": 205,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "55%",
+      "50%",
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3475,7 +3973,11 @@
     "totalUnits": 152,
     "restrictedUnits": 151,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3505,7 +4007,9 @@
     "totalUnits": 40,
     "restrictedUnits": 40,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -3521,7 +4025,10 @@
     "totalUnits": 156,
     "restrictedUnits": 155,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3536,7 +4043,12 @@
     "totalUnits": 228,
     "restrictedUnits": 228,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3551,7 +4063,10 @@
     "totalUnits": 342,
     "restrictedUnits": 338,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -3567,7 +4082,10 @@
     "totalUnits": 100,
     "restrictedUnits": 100,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3582,7 +4100,10 @@
     "totalUnits": 154,
     "restrictedUnits": 152,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3627,7 +4148,9 @@
     "totalUnits": 18,
     "restrictedUnits": 18,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "39%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3642,7 +4165,11 @@
     "totalUnits": 58,
     "restrictedUnits": 58,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3657,7 +4184,11 @@
     "totalUnits": 144,
     "restrictedUnits": 129,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%",
+      "Market"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3672,7 +4203,9 @@
     "totalUnits": 115,
     "restrictedUnits": 115,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3687,7 +4220,9 @@
     "totalUnits": 36,
     "restrictedUnits": 35,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3702,7 +4237,9 @@
     "totalUnits": 24,
     "restrictedUnits": 24,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3717,7 +4254,11 @@
     "totalUnits": 30,
     "restrictedUnits": 30,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -3733,7 +4274,11 @@
     "totalUnits": 62,
     "restrictedUnits": 62,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -3749,7 +4294,13 @@
     "totalUnits": 72,
     "restrictedUnits": 63,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%",
+      "55%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3764,7 +4315,11 @@
     "totalUnits": 142,
     "restrictedUnits": 124,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "50%",
+      "Market"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3779,7 +4334,9 @@
     "totalUnits": 226,
     "restrictedUnits": 224,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -3795,7 +4352,10 @@
     "totalUnits": 24,
     "restrictedUnits": 24,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -3811,7 +4371,13 @@
     "totalUnits": 40,
     "restrictedUnits": 36,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "45%",
+      "50%",
+      "55%",
+      "Market"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3826,7 +4392,11 @@
     "totalUnits": 75,
     "restrictedUnits": 75,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3841,7 +4411,10 @@
     "totalUnits": 66,
     "restrictedUnits": 66,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3871,7 +4444,11 @@
     "totalUnits": 75,
     "restrictedUnits": 65,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "40%",
+      "Market"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3886,7 +4463,10 @@
     "totalUnits": 24,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3901,7 +4481,9 @@
     "totalUnits": 48,
     "restrictedUnits": 48,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3931,7 +4513,9 @@
     "totalUnits": 55,
     "restrictedUnits": 55,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -3947,7 +4531,13 @@
     "totalUnits": 42,
     "restrictedUnits": 35,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%",
+      "55%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3962,7 +4552,9 @@
     "totalUnits": 155,
     "restrictedUnits": 155,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3977,7 +4569,10 @@
     "totalUnits": 57,
     "restrictedUnits": 48,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "Market"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -3992,7 +4587,10 @@
     "totalUnits": 60,
     "restrictedUnits": 60,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -4008,7 +4606,10 @@
     "totalUnits": 48,
     "restrictedUnits": 48,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -4040,7 +4641,9 @@
     "totalUnits": 83,
     "restrictedUnits": 83,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4070,7 +4673,10 @@
     "totalUnits": 101,
     "restrictedUnits": 100,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4085,7 +4691,10 @@
     "totalUnits": 80,
     "restrictedUnits": 80,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -4101,7 +4710,10 @@
     "totalUnits": 40,
     "restrictedUnits": 40,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "30%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4116,7 +4728,10 @@
     "totalUnits": 182,
     "restrictedUnits": 182,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4131,7 +4746,10 @@
     "totalUnits": 65,
     "restrictedUnits": 65,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4146,7 +4764,12 @@
     "totalUnits": 210,
     "restrictedUnits": 210,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4161,7 +4784,10 @@
     "totalUnits": 44,
     "restrictedUnits": 44,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4176,7 +4802,11 @@
     "totalUnits": 80,
     "restrictedUnits": 50,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4191,7 +4821,12 @@
     "totalUnits": 40,
     "restrictedUnits": 30,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "45%",
+      "50%",
+      "Market"
+    ],
     "funding": [
       "LIHTC",
       "HOME"
@@ -4223,7 +4858,11 @@
     "totalUnits": 52,
     "restrictedUnits": 52,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4238,7 +4877,11 @@
     "totalUnits": 36,
     "restrictedUnits": 36,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4253,7 +4896,11 @@
     "totalUnits": 30,
     "restrictedUnits": 30,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "45%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4268,7 +4915,11 @@
     "totalUnits": 45,
     "restrictedUnits": 45,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4283,7 +4934,11 @@
     "totalUnits": 32,
     "restrictedUnits": 32,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4298,7 +4953,11 @@
     "totalUnits": 140,
     "restrictedUnits": 140,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4313,7 +4972,11 @@
     "totalUnits": 112,
     "restrictedUnits": 112,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "Market"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4328,7 +4991,10 @@
     "totalUnits": 25,
     "restrictedUnits": 25,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4343,7 +5009,9 @@
     "totalUnits": 221,
     "restrictedUnits": 221,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4373,7 +5041,9 @@
     "totalUnits": 201,
     "restrictedUnits": 201,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4388,7 +5058,9 @@
     "totalUnits": 181,
     "restrictedUnits": 181,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4403,7 +5075,11 @@
     "totalUnits": 60,
     "restrictedUnits": 54,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "Market"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4418,7 +5094,9 @@
     "totalUnits": 114,
     "restrictedUnits": 114,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4433,7 +5111,11 @@
     "totalUnits": 28,
     "restrictedUnits": 28,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4448,7 +5130,10 @@
     "totalUnits": 105,
     "restrictedUnits": 83,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4463,7 +5148,9 @@
     "totalUnits": 175,
     "restrictedUnits": 175,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4493,7 +5180,11 @@
     "totalUnits": 24,
     "restrictedUnits": 24,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4523,7 +5214,11 @@
     "totalUnits": 20,
     "restrictedUnits": 20,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4538,7 +5233,13 @@
     "totalUnits": 66,
     "restrictedUnits": 65,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4568,7 +5269,10 @@
     "totalUnits": 66,
     "restrictedUnits": 53,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4598,7 +5302,13 @@
     "totalUnits": 54,
     "restrictedUnits": 54,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4613,7 +5323,13 @@
     "totalUnits": 73,
     "restrictedUnits": 73,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4658,7 +5374,14 @@
     "totalUnits": 26,
     "restrictedUnits": 26,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%",
+      "55%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4673,7 +5396,10 @@
     "totalUnits": 272,
     "restrictedUnits": 272,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4688,7 +5414,10 @@
     "totalUnits": 68,
     "restrictedUnits": 65,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4718,7 +5447,10 @@
     "totalUnits": 66,
     "restrictedUnits": 53,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4748,7 +5480,11 @@
     "totalUnits": 288,
     "restrictedUnits": 288,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4763,7 +5499,11 @@
     "totalUnits": 360,
     "restrictedUnits": 360,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4778,7 +5518,11 @@
     "totalUnits": 44,
     "restrictedUnits": 44,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4793,7 +5537,12 @@
     "totalUnits": 48,
     "restrictedUnits": 48,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4808,7 +5557,9 @@
     "totalUnits": 82,
     "restrictedUnits": 82,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "49%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4823,7 +5574,9 @@
     "totalUnits": 145,
     "restrictedUnits": 143,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4838,7 +5591,12 @@
     "totalUnits": 48,
     "restrictedUnits": 48,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4853,7 +5611,10 @@
     "totalUnits": 43,
     "restrictedUnits": 43,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4868,7 +5629,11 @@
     "totalUnits": 75,
     "restrictedUnits": 75,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4883,7 +5648,10 @@
     "totalUnits": 99,
     "restrictedUnits": null,
     "type": "Mixed",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4898,7 +5666,12 @@
     "totalUnits": 78,
     "restrictedUnits": 66,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4928,7 +5701,10 @@
     "totalUnits": 150,
     "restrictedUnits": 149,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "40%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4958,7 +5734,11 @@
     "totalUnits": 40,
     "restrictedUnits": 40,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -4988,7 +5768,10 @@
     "totalUnits": 100,
     "restrictedUnits": 99,
     "type": "Family",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -5003,7 +5786,9 @@
     "totalUnits": 28,
     "restrictedUnits": 28,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -5033,7 +5818,10 @@
     "totalUnits": 60,
     "restrictedUnits": 59,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "50%",
+      "60%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -5048,7 +5836,12 @@
     "totalUnits": 24,
     "restrictedUnits": 20,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "40%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -5063,7 +5856,11 @@
     "totalUnits": 55,
     "restrictedUnits": 55,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "45%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -5078,7 +5875,12 @@
     "totalUnits": 42,
     "restrictedUnits": 41,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "35%",
+      "45%",
+      "50%",
+      "55%"
+    ],
     "funding": [
       "LIHTC"
     ]
@@ -5093,7 +5895,11 @@
     "totalUnits": 90,
     "restrictedUnits": 90,
     "type": "Senior",
-    "amiTiers": [],
+    "amiTiers": [
+      "30%",
+      "40%",
+      "50%"
+    ],
     "funding": [
       "LIHTC"
     ]
