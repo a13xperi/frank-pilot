@@ -470,9 +470,8 @@ export function PropertyList() {
             src="/nv-housing-map.html"
             title="Nevada affordable housing map"
             data-testid="discover-map-iframe"
+            className="w-full h-[86vh] md:h-[72vh]"
             style={{
-              width: '100%',
-              height: '70vh',
               border: 'none',
               borderRadius: HF.r.md,
               boxShadow: '0 1px 3px rgba(31,26,18,.10)',

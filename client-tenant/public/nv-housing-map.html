@@ -25,14 +25,15 @@
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;height:100%;}
   body{background:var(--cream);font-family:var(--body);color:var(--ink);
-       -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+       -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+       display:flex;flex-direction:column;}
   ::-webkit-scrollbar{width:10px;height:10px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:#D9CFB8;border-radius:999px;}
   ::-webkit-scrollbar-thumb:hover{background:#B0A892;}
 
   /* Header */
-  header.app{display:flex;align-items:center;gap:14px;padding:14px 24px;
+  header.app{display:flex;align-items:center;gap:14px;padding:14px 24px;flex:none;
     background:var(--paper);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1000;}
   .logo{width:32px;height:32px;border-radius:8px;background:var(--accent);color:#fff;
     display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:18px;}
@@ -41,8 +42,8 @@
   .eyebrow{margin-left:auto;font-family:var(--display);font-weight:700;font-size:12px;
     letter-spacing:.04em;text-transform:uppercase;color:var(--accent);}
 
-  /* Layout */
-  .body{display:grid;grid-template-columns:minmax(360px,440px) 1fr;height:calc(100vh - 61px);}
+  /* Layout — header-height-agnostic: body is a flex column, .body fills the rest */
+  .body{display:grid;grid-template-columns:minmax(360px,440px) 1fr;flex:1 1 auto;min-height:0;}
   .list-col{overflow-y:auto;padding:18px 18px 40px;border-right:1px solid var(--border);}
   .map-col{position:relative;}
   #map{position:absolute;inset:0;}
@@ -117,6 +118,22 @@
     border-radius:999px;box-shadow:var(--sh-sm);padding:8px 14px;font-size:12px;font-weight:500;
     color:var(--ink2);display:flex;gap:14px;align-items:center;}
   .legend i{width:9px;height:9px;border-radius:99px;display:inline-block;margin-right:5px;vertical-align:middle;}
+
+  /* Mobile: stack the 2-col layout so the map gets full width instead of a
+     crushed sliver. Map on top (bounded height), filters + cards scroll below.
+     The 360px min-width on the desktop grid is what squeezed the map at narrow
+     widths; below 768px we drop the grid entirely. */
+  @media (max-width:768px){
+    header.app{padding:11px 16px;gap:10px;}
+    header.app .brand{font-size:15px;}
+    header.app .eyebrow{display:none;} /* the "335 statewide" count lives in .count below */
+    .body{display:flex;flex-direction:column;}
+    .map-col{order:-1;flex:none;height:46vh;min-height:280px;}
+    .list-col{flex:1 1 auto;min-height:0;border-right:none;border-top:1px solid var(--border);
+      padding:14px 14px 28px;}
+    .legend{bottom:12px;left:12px;gap:11px;padding:7px 12px;font-size:11.5px;}
+    .count{font-size:18px;}
+  }
 </style>
 </head>
 <body>
@@ -170,6 +187,13 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 // Leaflet map renders blank/grey. render() calls fitBounds() to reframe once
 // properties hydrate, so this only governs the pre-data (and no-data) state.
 map.setView([38.8, -116.5], 6);
+// Mobile stacks the layout and orientation changes resize the map container;
+// Leaflet must be told to recompute its size or tiles leave grey gaps.
+let _resizeT;
+window.addEventListener('resize', ()=>{
+  clearTimeout(_resizeT);
+  _resizeT = setTimeout(()=>map.invalidateSize(), 150);
+});
 
 const pinSVG = `<svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 0C7 0 3 4 3 9c0 6 9 15 9 15s9-9 9-15c0-5-4-9-9-9z"/><circle cx="12" cy="9" r="3.4" fill="#fff"/></svg>`;
 function icon(type,hot){
@@ -300,6 +324,9 @@ function boot(){
   }
   buildFilters();
   render();
+  // Container may have just been laid out (esp. the mobile stacked map-col);
+  // recompute size so the basemap fills it and fitBounds frames correctly.
+  setTimeout(()=>map.invalidateSize(), 60);
 }
 
 // ---- Load data: live DB first, bundled snapshot as offline fallback ---
