@@ -267,3 +267,103 @@ export interface PropertyLite {
   name: string;
   city?: string | null;
 }
+
+// ── Recertifications (Phase 3.1 — income ceiling enforcement) ────────────────
+
+export type RecertStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'waived'
+  | 'overdue';
+
+export const RECERT_STATUS_LABELS: Record<RecertStatus, string> = {
+  pending: 'Pending',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  waived: 'Waived',
+  overdue: 'Overdue',
+};
+
+export interface Recertification {
+  id: string;
+  tenantId: string;
+  tenantName: string | null;
+  propertyId: string | null;
+  propertyName: string | null;
+  unitId: string | null;
+  unitNumber: string | null;
+  designation: UnitDesignation | null;
+  status: RecertStatus;
+  dueDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// GET /api/recertifications/:id/income-check
+export type IncomeVerdict =
+  | 'not_restricted'
+  | 'qualified'
+  | 'over_income_aur'
+  | 'over_income'
+  | 'indeterminate';
+
+export interface RecertIncomeCheckContext {
+  recertId: string;
+  tenantName?: string | null;
+  unitNumber: string | null;
+  designation: UnitDesignation | null;
+  amiArea: string | null;
+  limitYear: number | null;
+  [key: string]: unknown;
+}
+
+export interface RecertIncomeCheckResult {
+  verdict: IncomeVerdict;
+  ceilingAmiPct: number | null;
+  applicableLimit: number | null;
+  aurThreshold: number | null;
+  householdIncome: number | null;
+  pctOfLimit: number | null;
+  note: string | null;
+}
+
+export interface RecertIncomeCheck {
+  context: RecertIncomeCheckContext;
+  check: RecertIncomeCheckResult;
+}
+
+// GET /api/acquisitions/aur-queue
+// Backend nau_status column (Lane 1): 'open' once an over_income obligation is
+// triggered, 'satisfied' when a comparable unit resolves it, 'lost' on failure,
+// or null when there is no NAU obligation (e.g. over_income_aur rows).
+export type NauStatus = 'open' | 'satisfied' | 'lost' | null;
+
+export interface AurQueueItem {
+  recertId: string;
+  tenantName: string | null;
+  propertyName: string | null;
+  unitNumber: string | null;
+  designation: UnitDesignation | null;
+  verdict: IncomeVerdict;
+  householdIncome: number | null;
+  applicableLimit: number | null;
+  aurThreshold: number | null;
+  nauStatus: NauStatus;
+}
+
+export interface AurQueueResponse {
+  queue: AurQueueItem[];
+  total: number;
+}
+
+// POST /api/recertifications/:id/nau-resolve
+export interface NauResolveInput {
+  resolvingUnitId: string;
+  notes?: string | null;
+}
+
+export interface NauResolveResponse {
+  id: string;
+  [key: string]: unknown;
+}

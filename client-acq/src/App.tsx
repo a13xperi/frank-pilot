@@ -6,6 +6,8 @@ import { Login } from '@/pages/Login';
 import { Demand } from '@/pages/Demand';
 import { Projects } from '@/pages/Projects';
 import { Awards } from '@/pages/Awards';
+import { Recertifications } from '@/pages/Recertifications';
+import { ComplianceQueue } from '@/pages/ComplianceQueue';
 
 export default function App() {
   return (
@@ -18,6 +20,8 @@ export default function App() {
               <Route index element={<Demand />} />
               <Route path="projects" element={<Projects />} />
               <Route path="awards" element={<Awards />} />
+              <Route path="recertifications" element={<Recertifications />} />
+              <Route path="compliance-queue" element={<ComplianceQueue />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Route>

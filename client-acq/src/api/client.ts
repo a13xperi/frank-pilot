@@ -39,4 +39,32 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+
+  // ── Recertifications ─────────────────────────────────────────────────────
+
+  /** List all recertifications. */
+  getRecertifications: <T>() => request<T>('/api/recertifications'),
+
+  /** Fetch the income-check verdict for one recertification. */
+  getRecertIncomeCheck: <T>(id: string) =>
+    request<T>(`/api/recertifications/${id}/income-check`),
+
+  /** Resolve NAU (Non-Arm's-Length Unit) for a recertification. */
+  resolveNau: <T>(id: string, body: { resolvingUnitId: string; notes?: string | null }) =>
+    request<T>(`/api/recertifications/${id}/nau-resolve`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  // ── AUR compliance queue ─────────────────────────────────────────────────
+
+  /** List over-income / AUR households queue. */
+  getAurQueue: <T>(params: { propertyId?: string; limit?: number; offset?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.propertyId) qs.set('propertyId', params.propertyId);
+    if (params.limit != null) qs.set('limit', String(params.limit));
+    if (params.offset != null) qs.set('offset', String(params.offset));
+    const query = qs.toString();
+    return request<T>(`/api/acquisitions/aur-queue${query ? `?${query}` : ''}`);
+  },
 };
