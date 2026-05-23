@@ -199,8 +199,9 @@ router.post(
         actorRole: req.user.role,
         applicationId,
         resourceType: "payment_intent",
-        resourceId: intent.id,
-        details: { attemptN, amountCents, currency, idempotencyKey },
+        // NB: resource_id is a UUID column; a Stripe `pi_…` id is not a UUID,
+        // so the intent id lives in details, not resourceId.
+        details: { attemptN, amountCents, currency, idempotencyKey, paymentIntentId: intent.id },
       });
 
       res.status(201).json({

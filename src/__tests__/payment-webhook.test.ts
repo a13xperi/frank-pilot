@@ -53,8 +53,12 @@ const stripe = new Stripe(FAKE_KEY, { apiVersion: "2025-02-24.acacia" as Stripe.
 jest.mock("../lib/stripe", () => {
   // The router imports getStripe() lazily; we return the real instance built
   // above so `stripe.webhooks.constructEvent` does the real HMAC check.
+  // expectedLivemode mirrors the real impl (key-prefix based) so the livemode
+  // guard can be driven by STRIPE_SECRET_KEY in tests.
   return {
     getStripe: () => stripe,
+    expectedLivemode: () =>
+      (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_live_"),
   };
 });
 
@@ -257,8 +261,11 @@ describe("POST /webhook — payment_intent.succeeded", () => {
       APP_ID,
       125, // 12500 cents → $125.00
       "pi_test_001",
-      "stripe-webhook",
-      "system",
+      // System actor (webhook): postedBy/postedByRole are null — they land as
+      // NULL in the nullable posted_by (uuid) / audit actor columns. The textual
+      // "stripe-webhook" actor lives in audit details, not a typed column.
+      null,
+      null,
       expect.stringContaining("pi_test_001")
     );
     expect(mockStampTape).toHaveBeenCalledWith(
@@ -476,10 +483,13 @@ describe("POST /webhook — dispatch failure → DLQ", () => {
 // ── Livemode mismatch guard ────────────────────────────────────────────────
 
 describe("POST /webhook — livemode mismatch", () => {
-  const savedFlag = process.env.STRIPE_LIVE_ENABLED;
+  // The guard derives expected mode from the SECRET KEY prefix (sk_live_* ⇒
+  // live), NOT from STRIPE_LIVE_ENABLED — so test-mode keys can complete the
+  // loop while the flag stays on for the route/UI.
+  const savedKey = process.env.STRIPE_SECRET_KEY;
   afterEach(() => {
-    if (savedFlag === undefined) delete process.env.STRIPE_LIVE_ENABLED;
-    else process.env.STRIPE_LIVE_ENABLED = savedFlag;
+    if (savedKey === undefined) delete process.env.STRIPE_SECRET_KEY;
+    else process.env.STRIPE_SECRET_KEY = savedKey;
   });
 
   function liveSucceededEvent() {
@@ -487,10 +497,9 @@ describe("POST /webhook — livemode mismatch", () => {
     return { ...e, livemode: true };
   }
 
-  it("returns 400 when a live event hits a test-mode deployment (flag off)", async () => {
-    // Audit L1.1 fix 3.
-    delete process.env.STRIPE_LIVE_ENABLED; // flag off → test mode
-    const payload = JSON.stringify(liveSucceededEvent());
+  it("returns 400 when a live event hits a test-mode deployment (sk_test_ key)", async () => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_abc123"; // test key ⇒ expect livemode:false
+    const payload = JSON.stringify(liveSucceededEvent()); // livemode:true
     const sig = signedHeader(payload);
 
     const res = await request(app)
@@ -506,8 +515,8 @@ describe("POST /webhook — livemode mismatch", () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when a test event hits a live-mode deployment (flag on)", async () => {
-    process.env.STRIPE_LIVE_ENABLED = "true"; // live mode
+  it("returns 400 when a test event hits a live-mode deployment (sk_live_ key)", async () => {
+    process.env.STRIPE_SECRET_KEY = "sk_live_abc123"; // live key ⇒ expect livemode:true
     const payload = JSON.stringify(paymentIntentSucceededEvent({ id: "evt_test_at_live_001" })); // livemode:false
     const sig = signedHeader(payload);
 
@@ -523,10 +532,10 @@ describe("POST /webhook — livemode mismatch", () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  it("processes normally when livemode matches the flag (test event, flag off)", async () => {
-    delete process.env.STRIPE_LIVE_ENABLED;
+  it("processes a test-mode event under a sk_test_ key (the loop we want to test)", async () => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_abc123"; // test key ⇒ expect livemode:false
     const event = paymentIntentSucceededEvent({ id: "evt_match_001" });
-    const payload = JSON.stringify(event); // livemode:false, flag off → match
+    const payload = JSON.stringify(event); // livemode:false → match
     const sig = signedHeader(payload);
 
     mockQuery.mockResolvedValueOnce({ rows: [] } as any); // alreadyProcessed
