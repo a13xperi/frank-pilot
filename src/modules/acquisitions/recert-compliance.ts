@@ -219,7 +219,7 @@ export class RecertComplianceService {
           '@context': 'https://schema.org',
           '@type': 'AcquisitionComplianceEvent',
           actorId,
-          subjectId: context.recertId,
+          subjectId: null, // global-scope admin event — subjectId is FK'd to users(id); the recert id lives in evidence
           ruleCitation: 'IRC §42(g)(2)(D)(ii) (Available Unit Rule) + 26 CFR 1.42-5',
           evidence: {
             recertId: context.recertId,
