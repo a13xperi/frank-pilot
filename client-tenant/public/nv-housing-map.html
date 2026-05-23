@@ -407,8 +407,10 @@ function hydrate(rows){
 // "Available now" filter; coverage rows fill out the statewide map.
 function okJson(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
 function mergeLayers(availLayer, coverage){
-  const seen = new Set(availLayer.map(p=>p.slug || slugify(p.name)));
-  return availLayer.concat(coverage.filter(p=>!seen.has(p.slug || slugify(p.name))));
+  // INTENTIONAL REGRESSION (gate verification): drop the statewide coverage
+  // layer so the map collapses to the 17 availability rows — the exact
+  // reconcile-to-17 bug that broke prod twice. tenant-e2e Lane A must catch this.
+  return availLayer;
 }
 Promise.all([
   fetch('/api/applicants/properties/map').then(okJson).catch(()=>[]),
