@@ -29,8 +29,18 @@ export default defineConfig({
   },
   projects: [
     {
+      // Desktop runs the whole suite EXCEPT layout-only mobile checks.
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      grepInvert: /@mobile/,
+    },
+    {
+      // Mobile project runs ONLY @mobile-tagged tests — responsive layout
+      // assertions that are meaningless at desktop width (e.g. the /discover
+      // map stacking map-col above list-col below 768px).
+      name: "mobile-chrome",
+      use: { ...devices["Pixel 5"] },
+      grep: /@mobile/,
     },
   ],
   webServer: {

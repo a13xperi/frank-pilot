@@ -171,6 +171,106 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  tenant-e2e:
+    name: tenant-e2e (Playwright harness — map + apply)
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: frank_pilot_tenant_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/frank_pilot_tenant_e2e
+      NODE_ENV: development
+      PORT: '3002'
+      JWT_SECRET: ci-tenant-e2e-secret-do-not-reuse
+      TENANT_PORTAL_URL: http://127.0.0.1:5174
+      CORS_ORIGIN: http://127.0.0.1:5174
+      # Point Playwright at the manually-started Vite below so playwright.config
+      # reuses it (reuseExistingServer) instead of booting `npm run e2e:up`,
+      # which assumes a local Docker/Postgres.
+      E2E_BASE_URL: http://127.0.0.1:5174
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install root deps (backend)
+        run: npm ci
+
+      - name: Install client-tenant deps
+        working-directory: client-tenant
+        run: npm install --no-audit --no-fund
+
+      - name: Install Playwright chromium
+        working-directory: client-tenant
+        run: npx playwright install --with-deps chromium
+
+      - name: Migrate database
+        run: npm run migrate
+
+      - name: Seed database
+        run: npm run seed
+
+      - name: Start backend
+        run: |
+          mkdir -p /tmp/tenant-e2e-logs
+          nohup npm run dev > /tmp/tenant-e2e-logs/backend.log 2>&1 &
+          echo $! > /tmp/tenant-e2e-logs/backend.pid
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3002/health > /dev/null 2>&1; then
+              echo "backend ready after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "backend failed to come up"; tail -200 /tmp/tenant-e2e-logs/backend.log; exit 1
+
+      - name: Start Vite dev server (tenant portal)
+        working-directory: client-tenant
+        run: |
+          nohup npx vite --host 127.0.0.1 --port 5174 > /tmp/tenant-e2e-logs/vite.log 2>&1 &
+          echo $! > /tmp/tenant-e2e-logs/vite.pid
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5174 > /dev/null 2>&1; then
+              echo "vite ready after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "vite failed to come up"; tail -200 /tmp/tenant-e2e-logs/vite.log; exit 1
+
+      - name: Run tenant e2e (chromium + mobile-chrome)
+        working-directory: client-tenant
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tenant-e2e-report
+          path: |
+            client-tenant/playwright-report
+            client-tenant/test-results
+            /tmp/tenant-e2e-logs
+          if-no-files-found: warn
+          retention-days: 7
+
   smoke-apply:
     name: smoke-apply (Welcome → Claim e2e)
     runs-on: ubuntu-latest
