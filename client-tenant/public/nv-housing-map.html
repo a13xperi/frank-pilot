@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Universal Housing — Nevada affordable housing map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<style>
+  :root{
+    --cream:#FBF7F0; --paper:#FFFFFF; --border:#EBE3D2; --borderHi:#D9CFB8;
+    --ink:#1F1A12; --ink2:#4A4338; --ink3:#807866;
+    --accent:#C9492A; --accentHi:#E15C3B; --accentLo:#FDF1EC; --accentInk:#7A2A18;
+    --sage:#5C7A4F; --sageLo:#EEF3EA; --ok:#3F7A3A; --warn:#9C6A18; --warnLo:#FAF1DB;
+    --display:"Manrope",-apple-system,system-ui,sans-serif;
+    --body:"Inter",-apple-system,system-ui,sans-serif;
+    --sh-xs:0 1px 2px rgba(31,26,18,.06);
+    --sh-sm:0 1px 3px rgba(31,26,18,.10),0 1px 2px rgba(31,26,18,.06);
+    --sh-md:0 4px 14px rgba(31,26,18,.10);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{background:var(--cream);font-family:var(--body);color:var(--ink);
+       -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+       display:flex;flex-direction:column;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#D9CFB8;border-radius:999px;}
+  ::-webkit-scrollbar-thumb:hover{background:#B0A892;}
+
+  /* Header */
+  header.app{display:flex;align-items:center;gap:14px;padding:14px 24px;flex:none;
+    background:var(--paper);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1000;}
+  .logo{width:32px;height:32px;border-radius:8px;background:var(--accent);color:#fff;
+    display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:18px;}
+  .brand{font-family:var(--display);font-weight:800;font-size:17px;color:var(--ink);}
+  .brand span{color:var(--ink3);font-weight:600;}
+  .eyebrow{margin-left:auto;font-family:var(--display);font-weight:700;font-size:12px;
+    letter-spacing:.04em;text-transform:uppercase;color:var(--accent);}
+
+  /* Layout — header-height-agnostic: body is a flex column, .body fills the rest */
+  .body{display:grid;grid-template-columns:minmax(360px,440px) 1fr;flex:1 1 auto;min-height:0;}
+  .list-col{overflow-y:auto;padding:18px 18px 40px;border-right:1px solid var(--border);}
+  .map-col{position:relative;}
+  #map{position:absolute;inset:0;}
+  /* warm the OSM tiles toward cream */
+  .leaflet-tile-pane{filter:sepia(.18) saturate(.85) brightness(1.04) contrast(.96);}
+  .leaflet-container{background:#e6ddc8;font-family:var(--body);}
+
+  /* Filter chips */
+  .filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:999px;
+    font-family:var(--body);font-weight:600;font-size:12.5px;cursor:pointer;
+    background:var(--paper);color:var(--ink2);border:1px solid var(--border);
+    box-shadow:var(--sh-xs);transition:all .12s;white-space:nowrap;}
+  .chip:hover{border-color:var(--borderHi);}
+  .chip.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .chip.group-accent.active{background:var(--accent);border-color:var(--accent);}
+  .filter-label{font-family:var(--display);font-weight:700;font-size:10.5px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--ink3);width:100%;margin:6px 0 -4px;}
+
+  .count{font-family:var(--display);font-weight:800;font-size:20px;margin:2px 0 14px;}
+  .count small{font-family:var(--body);font-weight:500;font-size:13px;color:var(--ink3);}
+
+  /* Cards */
+  .card{background:var(--paper);border:1px solid var(--border);border-radius:14px;
+    box-shadow:var(--sh-xs);padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:all .12s;}
+  .card:hover,.card.hot{border-color:var(--accentHi);box-shadow:var(--sh-md);transform:translateY(-1px);}
+  .card h3{font-family:var(--display);font-weight:700;font-size:15.5px;margin:0;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .card .addr{font-size:12.5px;color:var(--ink3);margin:3px 0 0;}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+  .tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:7px;
+    font-size:11.5px;font-weight:600;border:1px solid;}
+  .tag.neutral{background:var(--cream);color:var(--ink2);border-color:var(--border);}
+  .tag.accent{background:var(--accentLo);color:var(--accentInk);border-color:#F3D7CB;}
+  .tag.sage{background:var(--sageLo);color:#3D5535;border-color:#D2DDC9;}
+  .tag.warn{background:var(--warnLo);color:#6B4A11;border-color:#E8D6A8;}
+  .card .meta{margin-top:11px;padding-top:11px;border-top:1px solid var(--border);
+    display:flex;justify-content:space-between;align-items:baseline;}
+  .card .units{font-family:var(--display);font-weight:700;font-size:16px;color:var(--ink);}
+  .card .units small{font-family:var(--body);font-weight:500;font-size:11.5px;color:var(--ink3);margin-left:3px;}
+  .card .restricted{font-size:11.5px;color:var(--ink3);}
+
+  /* Pins */
+  .pin{width:26px;height:26px;}
+  .pin svg{display:block;filter:drop-shadow(0 2px 3px rgba(31,26,18,.35));}
+  .pin.senior svg path{fill:var(--sage);}
+  .pin.family svg path{fill:var(--accent);}
+  .pin.mixed  svg path{fill:var(--warn);}
+  .pin.hot{z-index:1000 !important;}
+  .pin.hot svg{transform:scale(1.35);transform-origin:bottom center;
+    filter:drop-shadow(0 4px 6px rgba(201,73,42,.5));}
+
+  /* Cluster bubbles */
+  .marker-cluster div{background:var(--accent);color:#fff;font-family:var(--display);
+    font-weight:800;border:3px solid rgba(255,255,255,.85);box-shadow:var(--sh-md);}
+  .marker-cluster{background:rgba(201,73,42,.25);}
+
+  /* Popup */
+  .leaflet-popup-content-wrapper{border-radius:14px;box-shadow:var(--sh-md);}
+  .leaflet-popup-content{margin:14px 16px;font-family:var(--body);min-width:210px;}
+  .pop h4{font-family:var(--display);font-weight:800;font-size:15px;margin:0 0 2px;color:var(--ink);}
+  .pop .addr{font-size:12px;color:var(--ink3);margin:0 0 9px;}
+  .pop .row{font-size:12.5px;color:var(--ink2);margin:3px 0;}
+  .pop .row b{color:var(--ink);}
+  .pop .pop-cta{display:inline-block;margin-top:10px;padding:7px 14px;border-radius:999px;
+    background:var(--accent);color:#fff;font-family:var(--display);font-weight:700;
+    font-size:12.5px;text-decoration:none;box-shadow:var(--sh-xs);transition:background .12s;}
+  .pop .pop-cta:hover{background:var(--accentHi);}
+
+  /* Legend */
+  .legend{position:absolute;bottom:16px;left:16px;z-index:600;background:var(--paper);
+    border-radius:999px;box-shadow:var(--sh-sm);padding:8px 14px;font-size:12px;font-weight:500;
+    color:var(--ink2);display:flex;gap:14px;align-items:center;}
+  .legend i{width:9px;height:9px;border-radius:99px;display:inline-block;margin-right:5px;vertical-align:middle;}
+
+  /* Mobile: stack the 2-col layout so the map gets full width instead of a
+     crushed sliver. Map on top (bounded height), filters + cards scroll below.
+     The 360px min-width on the desktop grid is what squeezed the map at narrow
+     widths; below 768px we drop the grid entirely. */
+  @media (max-width:768px){
+    header.app{padding:11px 16px;gap:10px;}
+    header.app .brand{font-size:15px;}
+    header.app .eyebrow{display:none;} /* the "335 statewide" count lives in .count below */
+    .body{display:flex;flex-direction:column;}
+    .map-col{order:-1;flex:none;height:46vh;min-height:280px;}
+    .list-col{flex:1 1 auto;min-height:0;border-right:none;border-top:1px solid var(--border);
+      padding:14px 14px 28px;}
+    .legend{bottom:12px;left:12px;gap:11px;padding:7px 12px;font-size:11.5px;}
+    .count{font-size:18px;}
+  }
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="logo">U</div>
+  <div class="brand">Universal Housing<span> · Nevada</span></div>
+  <div class="eyebrow" id="eyebrow">Nevada LIHD · loading…</div>
+</header>
+
+<div class="body">
+  <aside class="list-col">
+    <div class="filters" id="filters"></div>
+    <div class="count" id="count"></div>
+    <div id="cards"></div>
+  </aside>
+  <div class="map-col">
+    <div id="map"></div>
+    <div class="legend">
+      <span><i style="background:#C9492A"></i>Family</span>
+      <span><i style="background:#5C7A4F"></i>Senior</span>
+      <span><i style="background:#9C6A18"></i>Mixed</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+// kebab-case a property name into a URL slug (matches gpmg-fixtures.ts slugify).
+function slugify(name){
+  return String(name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+// Populated live from /api/applicants/properties/map at boot.
+let PROPS = [];
+PROPS.forEach((p,i)=>p._id=i);
+
+const TYPES = ['Family','Senior','Mixed'];
+let CITIES = [...new Set(PROPS.map(p=>p.city).filter(Boolean))].sort();
+let FUNDS  = [...new Set(PROPS.flatMap(p=>p.funding))].sort();
+
+let fType='all', fCity='all', fFund='all';
+
+// ---- Map -------------------------------------------------------------
+const map = L.map('map',{zoomControl:false});
+L.control.zoom({position:'topright'}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19, attribution:'&copy; OpenStreetMap'
+}).addTo(map);
+// Default statewide Nevada view so the basemap paints immediately — before
+// markers load and even if data never arrives. Without an initial view a
+// Leaflet map renders blank/grey. render() calls fitBounds() to reframe once
+// properties hydrate, so this only governs the pre-data (and no-data) state.
+map.setView([38.8, -116.5], 6);
+// Mobile stacks the layout and orientation changes resize the map container;
+// Leaflet must be told to recompute its size or tiles leave grey gaps.
+let _resizeT;
+window.addEventListener('resize', ()=>{
+  clearTimeout(_resizeT);
+  _resizeT = setTimeout(()=>map.invalidateSize(), 150);
+});
+
+const pinSVG = `<svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 0C7 0 3 4 3 9c0 6 9 15 9 15s9-9 9-15c0-5-4-9-9-9z"/><circle cx="12" cy="9" r="3.4" fill="#fff"/></svg>`;
+function icon(type,hot){
+  return L.divIcon({html:pinSVG, className:`pin ${type.toLowerCase()}${hot?' hot':''}`,
+    iconSize:[26,26], iconAnchor:[13,26], popupAnchor:[0,-24]});
+}
+
+const cluster = L.markerClusterGroup({
+  maxClusterRadius:48, spiderfyOnMaxZoom:true, showCoverageOnHover:false,
+});
+map.addLayer(cluster);
+
+const markers = {};   // _id -> marker
+function popupHTML(p){
+  const ami = p.amiTiers.length ? p.amiTiers.join(' · ') : '—';
+  const fund = p.funding.length ? p.funding.join(', ') : 'Not specified';
+  return `<div class="pop"><h4>${p.name}</h4>`
+    + (p.aka?`<div class="addr">aka ${p.aka}</div>`:'')
+    + `<div class="addr">${p.address}</div>`
+    + `<div class="row"><b>${p.totalUnits??'—'}</b> total units`
+    + (p.restrictedUnits!=null?` · <b>${p.restrictedUnits}</b> restricted`:'') + `</div>`
+    + `<div class="row">Type: <b>${p.type}</b></div>`
+    + `<div class="row">AMI set-asides: <b>${ami}</b></div>`
+    + `<div class="row">Funding: ${fund}</div>`
+    + `<a class="pop-cta" href="/property/${slugify(p.name)}" target="_top">View / Apply &rarr;</a></div>`;
+}
+
+// ---- Cards -----------------------------------------------------------
+function tag(cls,txt){return `<span class="tag ${cls}">${txt}</span>`;}
+function cardHTML(p){
+  const typeCls = p.type==='Senior'?'sage':p.type==='Mixed'?'warn':'accent';
+  const amiTags = p.amiTiers.slice(0,3).map(t=>tag('neutral',t)).join('');
+  const fundTags = p.funding.slice(0,2).map(f=>tag('neutral',f)).join('');
+  return `<div class="card" data-id="${p._id}">
+    <h3>${p.name}</h3>
+    <div class="addr">${p.address}</div>
+    <div class="tags">${tag(typeCls,p.type)}${amiTags}${fundTags}</div>
+    <div class="meta">
+      <div class="units">${p.totalUnits??'—'}<small>units</small></div>
+      <div class="restricted">${p.restrictedUnits!=null?p.restrictedUnits+' restricted':''}</div>
+    </div>
+  </div>`;
+}
+
+// ---- Filters ---------------------------------------------------------
+function matches(p){
+  return (fType==='all'||p.type===fType)
+      && (fCity==='all'||p.city===fCity)
+      && (fFund==='all'||p.funding.includes(fFund));
+}
+function buildFilters(){
+  const el=document.getElementById('filters');
+  const seg=(label,items,cur,grp,set)=>{
+    let h=`<div class="filter-label">${label}</div>`;
+    h+=`<span class="chip ${grp} ${cur==='all'?'active':''}" data-grp="${grp}" data-val="all">All</span>`;
+    items.forEach(it=>{h+=`<span class="chip ${grp} ${cur===it?'active':''}" data-grp="${grp}" data-val="${it}">${it}</span>`;});
+    return h;
+  };
+  el.innerHTML = seg('Type',TYPES,fType,'group-accent')
+               + seg('City',CITIES,fCity,'group-city')
+               + seg('Funding',FUNDS,fFund,'group-fund');
+  el.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+    const g=c.dataset.grp, v=c.dataset.val;
+    if(g==='group-accent') fType=v; else if(g==='group-city') fCity=v; else fFund=v;
+    render();
+  });
+}
+
+// ---- Render ----------------------------------------------------------
+function render(){
+  const shown = PROPS.filter(matches);
+
+  // cards
+  document.getElementById('cards').innerHTML = shown.map(cardHTML).join('') ||
+    '<p style="color:var(--ink3);font-size:14px;">No communities match these filters.</p>';
+  document.getElementById('count').innerHTML =
+    `${shown.length} communities <small>of ${PROPS.length} statewide Nevada</small>`;
+  document.getElementById('eyebrow').textContent =
+    `Nevada LIHD · ${PROPS.length} affordable communities · statewide`;
+
+  // markers
+  cluster.clearLayers();
+  const shownIds = new Set(shown.map(p=>p._id));
+  Object.keys(markers).forEach(k=>delete markers[k]);
+  shown.forEach(p=>{
+    const m = L.marker([p.lat,p.lng],{icon:icon(p.type,false)});
+    m.bindPopup(popupHTML(p));
+    m.on('mouseover',()=>hotCard(p._id,true));
+    m.on('mouseout',()=>hotCard(p._id,false));
+    markers[p._id]=m;
+    cluster.addLayer(m);
+  });
+
+  // card interactions
+  document.querySelectorAll('.card').forEach(card=>{
+    const id=+card.dataset.id;
+    card.onmouseenter=()=>hotPin(id,true);
+    card.onmouseleave=()=>hotPin(id,false);
+    card.onclick=()=>{
+      const p=PROPS[id], m=markers[id];
+      if(!m) return;
+      map.flyTo([p.lat,p.lng], Math.max(map.getZoom(),15), {duration:.6});
+      cluster.zoomToShowLayer(m, ()=>m.openPopup());
+    };
+  });
+
+  // fit bounds on first/filtered render
+  if(shown.length){
+    const b=L.latLngBounds(shown.map(p=>[p.lat,p.lng]));
+    map.fitBounds(b,{padding:[40,40], maxZoom:14});
+  }
+}
+function hotCard(id,on){
+  const c=document.querySelector(`.card[data-id="${id}"]`);
+  if(c){c.classList.toggle('hot',on); if(on) c.scrollIntoView({block:'nearest',behavior:'smooth'});}
+}
+function hotPin(id,on){
+  const m=markers[id];
+  if(m && m._icon){m._icon.classList.toggle('hot',on);}
+}
+
+function boot(){
+  if(!PROPS.length){
+    document.getElementById('cards').innerHTML =
+      '<p style="color:var(--ink3);font-size:14px;">No communities to show yet.</p>';
+    document.getElementById('count').innerHTML = '0 communities <small>statewide Nevada</small>';
+    return;
+  }
+  buildFilters();
+  render();
+  // Container may have just been laid out (esp. the mobile stacked map-col);
+  // recompute size so the basemap fills it and fitBounds frames correctly.
+  setTimeout(()=>map.invalidateSize(), 60);
+}
+
+// ---- Load data: live DB first, bundled snapshot as offline fallback ---
+// Primary source is the live, DB-backed markers endpoint. When it's
+// unreachable (local dev with no backend, a stale backend missing the route,
+// a network outage, or an empty result), we fall back to
+// /nv-housing-props.json — a committed statewide snapshot served as a static
+// asset. This mirrors the List view's GPMG_FIXTURES fallback and preserves the
+// gpmglv demo's offline guarantee: the map always renders. Rows from both
+// sources share one shape; the snapshot additionally carries amiTiers +
+// funding (the live route omits those today), so the fallback is a superset.
+// type is one of 'Family' | 'Senior' | 'Mixed'.
+function hydrate(rows){
+  PROPS = (Array.isArray(rows)?rows:[]).map((p,i)=>({
+    name: p.name,
+    slug: p.slug || slugify(p.name),
+    aka: p.aka || '',
+    city: p.city,
+    address: p.address || p.city || '',
+    lat: p.lat,
+    lng: p.lng,
+    totalUnits: p.totalUnits,
+    restrictedUnits: p.restrictedUnits,
+    type: p.type,
+    amiTiers: Array.isArray(p.amiTiers) ? p.amiTiers : [],
+    funding: Array.isArray(p.funding) ? p.funding : [],
+    _id: i,
+  })).filter(p=>Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  CITIES = [...new Set(PROPS.map(p=>p.city).filter(Boolean))].sort();
+  FUNDS  = [...new Set(PROPS.flatMap(p=>p.funding))].sort();
+  boot();
+}
+function loadFallback(){
+  return fetch('/nv-housing-props.json')
+    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(hydrate);
+}
+fetch('/api/applicants/properties/map')
+  .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(rows=>{
+    if(!Array.isArray(rows) || !rows.length) return loadFallback();
+    hydrate(rows);
+  })
+  .catch(()=> loadFallback().catch(()=>{
+    document.getElementById('cards').innerHTML =
+      '<p style="color:var(--accentInk);font-size:14px;">Could not load properties. Please try again later.</p>';
+    document.getElementById('count').innerHTML = '— <small>could not load</small>';
+  }));
+</script>
+</body>
+</html>
