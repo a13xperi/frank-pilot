@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" integrity="sha256-YU3qCpj/P06tdPBJGPax0bm6Q1wltfwjsho5TR4+TYc=" crossorigin="" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" integrity="sha256-YSWCMtmNZNwqex4CEw1nQhvFub2lmU7vcCKP+XVwwXA=" crossorigin="" />
 <style>
   :root{
     --cream:#FBF7F0; --paper:#FFFFFF; --border:#EBE3D2; --borderHi:#D9CFB8;
@@ -140,7 +140,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" integrity="sha256-Hk4dIpcqOSb0hZjgyvFOP+cEmDXUKKNE/tT542ZbNQg=" crossorigin=""></script>
 <script>
 // kebab-case a property name into a URL slug (matches gpmg-fixtures.ts slugify).
 function slugify(name){
@@ -277,6 +277,22 @@ window.addEventListener('message', (event)=>{
   applyFilters(d.filters);
 });
 
+// ---- Markers: build once, toggle on filter ---------------------------
+// Phase 3 perf: markers (and their popups) are constructed a single time after
+// hydrate, keyed by _id. render() then only swaps which subset is in the
+// cluster — no per-filter L.marker/divIcon churn, and (via the lazy popup
+// below) no popup-HTML serialization for markers that are never opened.
+function buildAllMarkers(){
+  Object.keys(markers).forEach(k=>delete markers[k]);
+  PROPS.forEach(p=>{
+    const m = L.marker([p.lat,p.lng],{icon:icon(p.type,false)});
+    // Lazy popup: Leaflet defers a content *function* until the popup opens, so
+    // popupHTML(p) runs once-on-click instead of ~352× up front.
+    m.bindPopup(()=>popupHTML(p));
+    markers[p._id]=m;
+  });
+}
+
 // ---- Render ----------------------------------------------------------
 function render(){
   const shown = PROPS.filter(matches);
@@ -287,15 +303,12 @@ function render(){
   document.getElementById('eyebrow').textContent =
     `${PROPS.length} affordable communities`;
 
-  // markers
+  // Toggle the visible subset: clear the cluster and bulk-add the *reused*
+  // marker objects for the matching rows. addLayers (plural) is markercluster's
+  // optimized batch insert — far cheaper than per-marker addLayer in a loop,
+  // and no markers are reconstructed.
   cluster.clearLayers();
-  Object.keys(markers).forEach(k=>delete markers[k]);
-  shown.forEach(p=>{
-    const m = L.marker([p.lat,p.lng],{icon:icon(p.type,false)});
-    m.bindPopup(popupHTML(p));
-    markers[p._id]=m;
-    cluster.addLayer(m);
-  });
+  cluster.addLayers(shown.map(p=>markers[p._id]));
 
   // fit bounds on first/filtered render
   if(shown.length){
@@ -342,6 +355,7 @@ function hydrate(rows){
     funding: Array.isArray(p.funding) ? p.funding : [],
     _id: i,
   })).filter(p=>Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  buildAllMarkers();   // construct the full marker set once; render() toggles subsets
   boot();
   // Handshake: tell the parent /discover page we're listening so it can push
   // the current filter state down. Guarded to our own origin.
@@ -356,6 +370,22 @@ function mergeLayers(availLayer, coverage){
   const seen = new Set(availLayer.map(p=>p.slug || slugify(p.name)));
   return availLayer.concat(coverage.filter(p=>!seen.has(p.slug || slugify(p.name))));
 }
+
+// Phase 3 perf: cache the merged snapshot in sessionStorage so a repeat
+// /discover visit in the same tab paints markers before the network resolves.
+// We still always refresh from the network and re-hydrate only when the payload
+// actually changed — a background refresh never rebuilds markers needlessly.
+// sessionStorage (not local) self-clears on tab close, keeping the demo fresh.
+const CACHE_KEY = 'frank:map:merged:v1';
+
+// Instant first paint from the cached snapshot, if any.
+let cachedStr = null;
+try{ cachedStr = sessionStorage.getItem(CACHE_KEY); }catch(e){}
+if(cachedStr){
+  try{ hydrate(JSON.parse(cachedStr)); }catch(e){ cachedStr = null; }
+}
+
+// Always refresh from the network; re-hydrate only when the payload changed.
 Promise.all([
   fetch('/api/applicants/properties/map').then(okJson).catch(()=>[]),
   fetch('/nv-gpmg-map-props.json').then(okJson).catch(()=>[]),
@@ -366,9 +396,14 @@ Promise.all([
   const coverage = Array.isArray(statewide) ? statewide : [];
   const merged = mergeLayers(availLayer, coverage);
   if(!merged.length) throw new Error('no data');
-  hydrate(merged);
+  const freshStr = JSON.stringify(merged);
+  if(freshStr !== cachedStr){
+    hydrate(merged);                                  // changed (or no cache) → rebuild once
+    try{ sessionStorage.setItem(CACHE_KEY, freshStr); }catch(e){}
+  }
 }).catch(()=>{
-  document.getElementById('count').innerHTML = '— <small>could not load</small>';
+  // Network failed: keep the cached paint if we had one; otherwise surface error.
+  if(!cachedStr) document.getElementById('count').innerHTML = '— <small>could not load</small>';
 });
 </script>
 </body>
