@@ -7,6 +7,7 @@ import { param } from "../../utils/params";
 import { z } from "zod";
 import intentsRouter from "./intents";
 import configRouter from "./config";
+import refundsRouter from "./refunds";
 
 const router = Router();
 const service = new PaymentService();
@@ -15,6 +16,7 @@ const service = new PaymentService();
 // over any `:applicationId`-bound paths below.
 router.use("/intents", intentsRouter);
 router.use("/config", configRouter);
+router.use("/refunds", refundsRouter);
 
 const setupPaymentSchema = z.object({
   paymentMethodId: z.string().min(1),

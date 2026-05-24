@@ -35,6 +35,8 @@ export const TAPE_STAMP_KINDS = {
   BP08_PAYMENT_SUCCEEDED: "bp08.payment_succeeded",
   BP08_PAYMENT_FAILED: "bp08.payment_failed",
   BP08_PAYMENT_REPLAY_BLOCKED: "bp08.payment_replay_blocked",
+  BP08_PAYMENT_REFUND_REQUESTED: "bp08.payment_refund_requested",
+  BP08_PAYMENT_REFUNDED: "bp08.payment_refunded",
 } as const;
 
 export type TapeStampKind = keyof typeof TAPE_STAMP_KINDS;
@@ -52,6 +54,8 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   BP08_PAYMENT_SUCCEEDED: "HUD 4350.3 Ch. 4-6",
   BP08_PAYMENT_FAILED: "HUD 4350.3 Ch. 4-6",
   BP08_PAYMENT_REPLAY_BLOCKED: "HUD 4350.3 Ch. 4-6",
+  BP08_PAYMENT_REFUND_REQUESTED: "HUD 4350.3 Ch. 4-6",
+  BP08_PAYMENT_REFUNDED: "HUD 4350.3 Ch. 4-6",
 };
 
 export interface TapeStampInput {
