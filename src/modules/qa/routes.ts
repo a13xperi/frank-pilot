@@ -376,8 +376,9 @@ export function qaRouter(): Router {
           actorId: req.user?.id,
           actorRole: req.user?.role,
           resourceType: "qa_bundle",
-          resourceId: stem,
-          details: { artifact: kind },
+          // resource_id is a UUID column; the bundle stem isn't one, so carry
+          // the identifier in details (JSONB) instead of resourceId.
+          details: { artifact: kind, bundle: stem },
           ipAddress: (req.ip || req.socket.remoteAddress) as string | undefined,
           userAgent: req.headers["user-agent"] as string | undefined,
         });
@@ -553,8 +554,9 @@ export function qaRouter(): Router {
           actorId: req.user?.id,
           actorRole: req.user?.role,
           resourceType: "qa_bundle",
-          resourceId: `demo/${runId}`,
-          details: { artifact: name },
+          // resource_id is a UUID column; the runId isn't one, so carry the
+          // identifier in details (JSONB) instead of resourceId.
+          details: { artifact: name, runId },
           ipAddress: (req.ip || req.socket.remoteAddress) as string | undefined,
           userAgent: req.headers["user-agent"] as string | undefined,
         });
