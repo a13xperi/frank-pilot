@@ -50,12 +50,13 @@ The full applicant journey. Use this for operator demos.
 ### Setup
 
 - Browser at 1280×900 (matches CI smoke baseline). Fresh incognito session so the cookie banner fires.
-- Have `https://frank-pilot-tenant.vercel.app/` loaded in tab 1, `https://gpmglv.com/` loaded in tab 2.
+- Have `https://frank-pilot-tenant.vercel.app/welcome` loaded in tab 1, `https://gpmglv.com/` loaded in tab 2.
+  - ⚠️ Start on **`/welcome`**, NOT bare `/`. The root path is an auth gate — a cold (logged-out) visitor on `/` is redirected to `/login`. The AMI-calculator welcome lives at `/welcome`.
 - One real email you can receive — the magic-link is real (Resend wired in PR #53).
 
 ### The click path
 
-1. **Land on `/`** — Welcome page with the AMI calculator above-the-fold.
+1. **Land on `/welcome`** — Welcome page with the AMI calculator above-the-fold. (Bare `/` redirects logged-out visitors to `/login` — always open `/welcome` directly.)
    - Talking point: "Affordable housing applicants traditionally waste 20+ minutes filling out applications to find out at the end they're income-disqualified. We tell them in 10 seconds."
    - Punch in: household size `2`, gross annual income `$36,000`.
    - Output: `60% AMI` tier with green confirmation.
@@ -66,7 +67,7 @@ The full applicant journey. Use this for operator demos.
    - Sticky chip bar: `Type` (Family / Senior / Workforce), `City` (Las Vegas / etc.), `Studio`, `1BR`, `2BR`, `3BR`, `Available now`.
    - Each tile: photo placeholder, name, **rent range** (`Studio $747 · 1BR $995 · 2BR $1,194 · 3BR $1,380`), **`60% AMI` chip**, **availability badge** (`3 available` or `Fully leased`).
    - Talking point: "Their cards have a name and a photo. Ours surface rent and availability publicly — eligibility-disqualified applicants self-select out before they ever call the leasing office."
-   - Click into any tile (recommended: **Meacham Cove** or **Decatur Pines** — these have the cleanest 2BR availability for the 60% tier).
+   - Click into any tile (recommended: **Dr. Paul Meacham Senior Community** or **David J. Hoggard Family Community** — real GPMG fixture names; the prior "Meacham Cove"/"Decatur Pines" labels do not exist in the dataset).
    - **Optional map beat (`/discover?view=map`):** toggle the map view — ~352 clustered pins covering the whole state (335 statewide coverage + 17 live-availability properties). Click a pin → popup shows **AMI set-asides as chips** (e.g. `60%` `50%`) for 271 of the 352 markers, up from zero before the 2026-05-23 enrichment. On the 17 live-availability pins the popup also shows a green **`● N available now` badge** and the CTA flips to **`Apply now →`** (coverage-only pins stay `View / Apply →`); the CTA carries your active map filters through into the property page. Talking point: "Even properties we don't have live availability for, we surface their AMI set-aside tiers — statewide coverage, not just our 17 active listings."
 
 3. **PropertyDetail** — the disclosure beat.
