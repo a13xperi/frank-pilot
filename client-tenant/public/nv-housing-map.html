@@ -64,7 +64,7 @@
   .count small{font-family:var(--body);font-weight:500;font-size:12px;color:var(--ink3);}
 
   /* Pins */
-  .pin{width:34px;height:34px;}
+  .pin{width:34px;height:34px;position:relative;}
   .pin svg{display:block;width:100%;height:100%;
     filter:drop-shadow(0 3px 5px rgba(31,26,18,.5));}
   .pin svg path{stroke:#fff;stroke-width:1.3;paint-order:stroke fill;}
@@ -74,6 +74,15 @@
   .pin.hot{z-index:1000 !important;}
   .pin.hot svg{transform:scale(1.35);transform-origin:bottom center;
     filter:drop-shadow(0 4px 6px rgba(201,73,42,.5));}
+  /* Touch tap-target (Apple HIG ≥44×44). On coarse pointers the divIcon is
+     built at 44×44 with a matching iconAnchor (see icon() in JS) so the pin
+     tip still lands exactly on the coordinate. This `.pin.touch` rule sizes
+     the box and keeps the visible teardrop SVG pinned to the bottom-center so
+     the desktop look is preserved — only the clickable box grows. */
+  .pin.touch{width:44px;height:44px;}
+  .pin.touch svg{position:absolute;left:50%;bottom:0;width:34px;height:34px;
+    transform:translateX(-50%);}
+  .pin.touch.hot svg{transform:translateX(-50%) scale(1.35);}
 
   /* Cluster bubbles */
   .marker-cluster{background:rgba(201,73,42,.3);width:46px !important;height:46px !important;}
@@ -88,9 +97,13 @@
   .pop .addr{font-size:12px;color:var(--ink3);margin:0 0 9px;}
   .pop .row{font-size:12.5px;color:var(--ink2);margin:3px 0;}
   .pop .row b{color:var(--ink);}
-  .pop .pop-cta{display:inline-block;margin-top:10px;padding:7px 14px;border-radius:999px;
+  /* Apply-now CTA — comfortably tappable on mobile: >=44px min-height with
+     centered label (Apple HIG). Content/verb unchanged from Phase 1. */
+  .pop .pop-cta{display:inline-flex;align-items:center;justify-content:center;
+    min-height:44px;margin-top:10px;padding:9px 18px;border-radius:999px;
     background:var(--accent);color:#fff;font-family:var(--display);font-weight:700;
-    font-size:12.5px;text-decoration:none;box-shadow:var(--sh-xs);transition:background .12s;}
+    font-size:13px;line-height:1.1;text-decoration:none;box-shadow:var(--sh-xs);
+    transition:background .12s;}
   .pop .pop-cta:hover{background:var(--accentHi);}
   /* Availability urgency badge — sage/ok green, sits under the title */
   .pop .pop-avail{display:inline-flex;align-items:center;gap:5px;margin:0 0 8px;
@@ -173,6 +186,9 @@ let fType='all', fCity='all', fFund='all', fAvail=false;
 
 // ---- Map -------------------------------------------------------------
 const map = L.map('map',{zoomControl:false});
+// Expose the Leaflet instance for e2e harnesses (Phase 4 @mobile tap-target
+// tests drive map.setZoom to decluster pins). Harmless in prod — read-only handle.
+window.map = map;
 L.control.zoom({position:'topright'}).addTo(map);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   maxZoom:19, attribution:'&copy; OpenStreetMap'
@@ -191,15 +207,24 @@ window.addEventListener('resize', ()=>{
 });
 
 const pinSVG = `<svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 0C7 0 3 4 3 9c0 6 9 15 9 15s9-9 9-15c0-5-4-9-9-9z"/><circle cx="12" cy="9" r="3.4" fill="#fff"/></svg>`;
+// Coarse-pointer (touch) devices get a 44×44 tap target per Apple HIG; the
+// teardrop SVG stays 34px and bottom-anchored (see `.pin.touch` CSS) so the
+// desktop appearance is unchanged. iconAnchor scales with the box so the pin
+// tip still lands exactly on the geographic coordinate (no marker drift).
+const COARSE = typeof window!=='undefined' && window.matchMedia
+  && window.matchMedia('(pointer:coarse)').matches;
+const PIN_SIZE = COARSE ? 44 : 34;
 function icon(type,hot){
-  return L.divIcon({html:pinSVG, className:`pin ${type.toLowerCase()}${hot?' hot':''}`,
-    iconSize:[34,34], iconAnchor:[17,34], popupAnchor:[0,-32]});
+  return L.divIcon({html:pinSVG,
+    className:`pin ${type.toLowerCase()}${COARSE?' touch':''}${hot?' hot':''}`,
+    iconSize:[PIN_SIZE,PIN_SIZE], iconAnchor:[PIN_SIZE/2,PIN_SIZE], popupAnchor:[0,-(PIN_SIZE-2)]});
 }
 
 const cluster = L.markerClusterGroup({
   maxClusterRadius:30, spiderfyOnMaxZoom:true, showCoverageOnHover:false,
 });
 map.addLayer(cluster);
+window.cluster = cluster; // e2e handle (Phase 4 tap-target tests decluster via zoomToShowLayer)
 
 const markers = {};   // _id -> marker
 // Normalize an AMI tier label to the compact "60%" form. The two snapshots

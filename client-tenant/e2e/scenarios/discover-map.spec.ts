@@ -22,6 +22,33 @@ async function leadingCount(page: import("@playwright/test").Page): Promise<numb
   return Number(text.match(/^(\d+)/)?.[1] ?? "0");
 }
 
+/**
+ * Decluster the markercluster group so an individual `.pin` divIcon renders.
+ * Uses the e2e-exposed Leaflet handles (window.map / window.cluster) to zoom
+ * to and spider out the first marker — deterministic, viewport-independent.
+ */
+async function declusterFirstPin(page: import("@playwright/test").Page): Promise<void> {
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      map?: { setView: (ll: unknown, z: number) => void };
+      cluster?: {
+        getLayers: () => Array<{ getLatLng: () => unknown }>;
+        zoomToShowLayer: (m: unknown, cb: () => void) => void;
+      };
+    };
+    const cluster = w.cluster;
+    const map = w.map;
+    if (!cluster || !map) return;
+    const layers = cluster.getLayers();
+    if (!layers.length) return;
+    const first = layers[0];
+    map.setView(first.getLatLng(), 19);
+    cluster.zoomToShowLayer(first, () => {});
+  });
+  // Give Leaflet a beat to render the declustered marker(s).
+  await page.waitForTimeout(600);
+}
+
 test.describe("nv-housing-map.html — hybrid map regression lock", () => {
   // ── Default view (no filter) ─────────────────────────────────────────────
 
@@ -91,6 +118,85 @@ test.describe("nv-housing-map.html — hybrid map regression lock", () => {
     expect(mapBox).not.toBeNull();
     // Full-bleed: the map column spans (nearly) the full 393px viewport width.
     expect(mapBox!.width).toBeGreaterThanOrEqual(380);
+  });
+
+  // ── Phase 4: touch tap targets ≥ 44×44 (Apple HIG) @mobile ────────────────
+  // On a coarse-pointer (touch) device the map pin must be ≥44px and the
+  // popup Apply-now CTA must be a ≥44px-tall tappable target. We open a
+  // dedicated touch+mobile context (isMobile/hasTouch ⇒ pointer:coarse) so the
+  // map's `(pointer:coarse)` branch (44px divIcon + .pin.touch) is exercised —
+  // without adding a new Playwright project. The single-pin assertion zooms in
+  // so a cluster declusters into individual `.leaflet-marker-icon.pin` markers.
+  const TOUCH_TARGET_MIN = 44;
+
+  test("map pin is a ≥44px tap target on touch devices @mobile", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext({
+      viewport: { width: 390, height: 844 }, // iPhone 12/13/14 logical size
+      isMobile: true,
+      hasTouch: true,
+    });
+    const tp = await ctx.newPage();
+    try {
+      // available_now view = 17 markers; zoom in so they decluster into pins.
+      await tp.goto("/nv-housing-map.html?availability=available_now");
+      await expect
+        .poll(() => leadingCount(tp), { timeout: 15_000 })
+        .toBeGreaterThan(0);
+
+      // Confirm the coarse-pointer branch is actually active in this context.
+      const coarse = await tp.evaluate(
+        () => window.matchMedia("(pointer:coarse)").matches,
+      );
+      expect(coarse).toBe(true);
+
+      // Decluster the first marker so an individual .pin divIcon renders.
+      await declusterFirstPin(tp);
+
+      const pin = tp.locator(".leaflet-marker-icon.pin").first();
+      await expect(pin).toBeVisible({ timeout: 10_000 });
+      const box = await pin.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.width).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN);
+      expect(box!.height).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN);
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  test("popup Apply-now CTA is a ≥44px-tall tap target on touch devices @mobile", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    const tp = await ctx.newPage();
+    try {
+      await tp.goto("/nv-housing-map.html?availability=available_now");
+      await expect
+        .poll(() => leadingCount(tp), { timeout: 15_000 })
+        .toBeGreaterThan(0);
+
+      await declusterFirstPin(tp);
+
+      const pin = tp.locator(".leaflet-marker-icon.pin").first();
+      await expect(pin).toBeVisible({ timeout: 10_000 });
+      await pin.click();
+
+      // Phase 1 content lock: the CTA verb on an available property is
+      // "Apply now". We only assert its tappable size here.
+      const cta = tp.locator(".pop .pop-cta").first();
+      await expect(cta).toBeVisible({ timeout: 10_000 });
+      await expect(cta).toContainText("Apply now");
+      const box = await cta.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.height).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN);
+    } finally {
+      await ctx.close();
+    }
   });
 });
 
