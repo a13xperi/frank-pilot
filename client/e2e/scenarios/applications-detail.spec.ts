@@ -28,7 +28,16 @@ test.describe("Application detail — rendering", () => {
   test("opening a row from the list renders the detail shell", async ({ adminPage }) => {
     await adminPage.goto("/applications");
     const main = adminPage.getByRole("main");
-    await main.getByRole("button", { name: "View details" }).first().click();
+    // The list is seeded async — wait for the row's trigger to actually render
+    // before clicking, so `.first()` doesn't resolve against a not-yet-painted list.
+    const viewDetails = main.getByRole("button", { name: "View details" }).first();
+    await expect(viewDetails).toBeVisible();
+    await viewDetails.click();
+
+    // The list→detail transition is a client-side route change followed by a
+    // data fetch. Gate on the URL flipping to /applications/:id first — asserting
+    // on the detail tree before the route changed was the flake source.
+    await adminPage.waitForURL(/\/applications\/[^/]+$/);
 
     await expect(adminPage.getByRole("button", { name: /Back to Applications/i })).toBeVisible();
     await expect(adminPage.getByRole("heading", { name: /Applicant Information/i })).toBeVisible();
