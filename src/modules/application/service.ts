@@ -245,7 +245,11 @@ export class ApplicationService {
     // Strip encrypted fields from response
     delete app.ssn_encrypted;
     delete app.date_of_birth_encrypted;
-    app.ssn_masked = maskSSN("***-**-" + app.ssn_hash.substring(0, 4));
+    // Applications created without an SSN (e.g. the unit-claim FTU flow) carry a
+    // null ssn_hash — leave the masked value null rather than crashing the detail fetch.
+    app.ssn_masked = app.ssn_hash
+      ? maskSSN("***-**-" + app.ssn_hash.substring(0, 4))
+      : null;
 
     return app;
   }

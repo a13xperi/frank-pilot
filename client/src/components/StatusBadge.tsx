@@ -38,9 +38,12 @@ const STATUS_COLORS: Record<string, string> = {
   denied: 'bg-red-100 text-red-700',
 };
 
-export function StatusBadge({ status }: { status: string }) {
-  const colors = STATUS_COLORS[status] || 'bg-gray-100 text-gray-600';
-  const label = status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+export function StatusBadge({ status }: { status: string | null | undefined }) {
+  // Some rows carry a null status (e.g. a screening check that never ran on a
+  // cancelled application). Render a neutral dash rather than crashing the page.
+  const safe = status ?? '';
+  const colors = STATUS_COLORS[safe] || 'bg-gray-100 text-gray-600';
+  const label = safe ? safe.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '—';
   return (
     <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${colors}`}>
       {label}
