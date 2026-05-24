@@ -20,3 +20,5 @@ docs/intel/raw/
 # xlsx not in the repo) + its superseded standalone HTML build. The production
 # map lives in client-tenant/public/.
 demo/
+.claude/
+.playwright-mcp/

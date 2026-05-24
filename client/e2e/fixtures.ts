@@ -8,20 +8,34 @@
 // browser context so `page.request.*` calls in tests are authenticated.
 //
 // Pre-authenticated page handles, one per seeded role:
-//   seniorPage — senior@cdpc.test (senior_manager — sees most pages)
-//   adminPage  — admin@cdpc.test  (system_admin — sees everything)
-//   agentPage  — agent@cdpc.test  (leasing_agent — most restricted)
+//   agentPage    — agent@cdpc.test    (leasing_agent    — most restricted)
+//   seniorPage   — senior@cdpc.test   (senior_manager   — lifecycle pages)
+//   regionalPage — regional@cdpc.test (regional_manager — tier2 + compliance)
+//   assetPage    — asset@cdpc.test    (asset_manager    — tier3 + properties)
+//   adminPage    — admin@cdpc.test    (system_admin     — sees everything)
+//
+// Each role fixture wraps the same underlying `page`, so a single test should
+// use exactly one role. Tests that need seeded data first call `seedDemo` in a
+// `beforeEach` — it seeds through a throwaway admin context, independent of the
+// role page under test, so the role page stays the only thing touching `page`.
 
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Browser, type Page } from "@playwright/test";
 
 const PASSWORD = "password123";
 const TOKEN_KEY = "frank_token";
 const USER_KEY = "frank_user";
 
+// True when the suite is pointed at a deployed environment (E2E_BASE_URL).
+// Mutating specs import this and `test.skip(SKIP_WRITES, …)` so prod-targeted
+// runs stay strictly read-only — no seeding, no status transitions on a live DB.
+export const SKIP_WRITES = !!process.env.E2E_BASE_URL;
+
 type Fixtures = {
   seniorPage: Page;
   adminPage: Page;
   agentPage: Page;
+  regionalPage: Page;
+  assetPage: Page;
 };
 
 interface LoginResult {
@@ -65,8 +79,8 @@ export async function signIn(page: Page, email: string): Promise<LoginResult> {
 
 /**
  * Idempotently load the rich demo dataset (applications across every pipeline
- * stage) via the admin-only seed endpoint. Used by tests that need populated
- * tables — the base seed only creates a single application.
+ * stage + work orders) via the admin-only seed endpoint. Used by tests that
+ * need populated tables — the base seed only creates a single application.
  */
 export async function seedDemoData(page: Page): Promise<void> {
   const res = await page.request.post("/api/demo/seed");
@@ -74,6 +88,23 @@ export async function seedDemoData(page: Page): Promise<void> {
     res.ok(),
     `demo seed failed (${res.status()}) — must be authenticated as system_admin`
   ).toBeTruthy();
+}
+
+/**
+ * Seed the demo dataset through a throwaway system_admin context, isolated from
+ * whatever role page the test uses. No-ops when SKIP_WRITES is set so prod runs
+ * never mutate a live DB. Call from `beforeEach`.
+ */
+export async function seedDemo(browser: Browser, baseURL?: string): Promise<void> {
+  if (SKIP_WRITES) return;
+  const ctx = await browser.newContext({ baseURL });
+  try {
+    const page = await ctx.newPage();
+    await signIn(page, "admin@cdpc.test");
+    await seedDemoData(page);
+  } finally {
+    await ctx.close();
+  }
 }
 
 export const test = base.extend<Fixtures>({
@@ -87,6 +118,14 @@ export const test = base.extend<Fixtures>({
   },
   agentPage: async ({ page }, use) => {
     await signIn(page, "agent@cdpc.test");
+    await use(page);
+  },
+  regionalPage: async ({ page }, use) => {
+    await signIn(page, "regional@cdpc.test");
+    await use(page);
+  },
+  assetPage: async ({ page }, use) => {
+    await signIn(page, "asset@cdpc.test");
     await use(page);
   },
 });
