@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
@@ -80,7 +81,9 @@ export function PropertyDetail() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { t } = useTranslation('discover');
-  const prop = findGPMGBySlug(slug);
+  // Fixture lookup is an array scan — memoize on slug so i18n-namespace loads
+  // and searchParams churn don't re-scan the catalog on every render.
+  const prop = useMemo(() => findGPMGBySlug(slug), [slug]);
 
   // Preserve a deep-linked amiTier when bouncing to /apply so the W0 funnel
   // continues to know the applicant's tier. Validated against the same set
@@ -90,6 +93,34 @@ export function PropertyDetail() {
     amiTierRaw && VALID_AMI_TIERS.has(amiTierRaw as AmiTier)
       ? (amiTierRaw as AmiTier)
       : null;
+
+  // All per-property derivations are pure functions of `prop`. Memoizing the
+  // whole block on the fixture identity means the availability/pricing/AMI
+  // rollups (small loops, but several of them) run once per navigation rather
+  // than on every render (i18n suspense resolve, searchParams update, etc.).
+  // Computed before the early return to keep hook order stable when `prop` is
+  // undefined; the values are simply unused in the not-found branch.
+  const derived = useMemo(() => {
+    if (!prop) return null;
+    // Wedge #9 — rent range + AMI disclosure. `rentBuckets` drives the per-
+    // bedroom table; `propertySetAside` is "60% AMI" for every GPMG fixture
+    // today. Distinct from the URL `amiTier` deep-link (applicant's tier).
+    const rentRange = propertyRentRange(prop.name);
+    const rentBuckets = populatedBuckets(rentRange);
+    const propertySetAside = propertyAmiTier(prop.name);
+    const countyKey = cityToCountyKey(prop.city);
+    const setAsideTier = parseSetAsideTier(propertySetAside);
+    return {
+      est: rentEstimate(prop),
+      availability: getPropertyAvailability(prop.name),
+      rentBuckets,
+      propertySetAside,
+      countyKey,
+      setAsideTier,
+      countyMsa: countyKey ? LIMITS_2026[countyKey].msa : '',
+      showAmiDisclosure: !!propertySetAside && rentBuckets.length > 0,
+    };
+  }, [prop]);
 
   if (!prop) {
     return (
@@ -119,25 +150,19 @@ export function PropertyDetail() {
     );
   }
 
-  const est = rentEstimate(prop);
-  const availability = getPropertyAvailability(prop.name);
+  // `derived` is non-null here: it returns null only when `prop` is falsy,
+  // and that path already returned above.
+  const {
+    est,
+    availability,
+    rentBuckets,
+    propertySetAside,
+    countyKey,
+    setAsideTier,
+    countyMsa,
+    showAmiDisclosure,
+  } = derived!;
   const hasAvailability = availability.availableCount > 0;
-
-  // Wedge #9 — rent range + AMI disclosure. `rentBuckets` drives the per-
-  // bedroom table; `propertySetAside` is "60% AMI" for every GPMG fixture
-  // today (the mirror in utils/pricing.ts returns null for non-fixture
-  // properties so the section is suppressed for any future off-catalog case).
-  // Distinct from the URL `amiTier` deep-link (applicant's tier from W0).
-  const rentRange = propertyRentRange(prop.name);
-  const rentBuckets = populatedBuckets(rentRange);
-  const propertySetAside = propertyAmiTier(prop.name);
-  // County-aware official 2026 limits. Resolve the property's county from its
-  // city; a null county = not-yet-ingested → "coming soon" rather than stale
-  // numbers. setAsideTier is the numeric tier ("60") parsed from "60% AMI".
-  const countyKey = cityToCountyKey(prop.city);
-  const setAsideTier = parseSetAsideTier(propertySetAside);
-  const countyMsa = countyKey ? LIMITS_2026[countyKey].msa : '';
-  const showAmiDisclosure = !!propertySetAside && rentBuckets.length > 0;
 
   const onApply = () => {
     // Apply requires auth; bounce unauthed users through /login with a return.
@@ -663,6 +688,10 @@ export function PropertyDetail() {
               borderRadius: HF.r.md,
               padding: 16,
               boxShadow: HF.shadow.xs,
+              // Below-fold: skip render/layout work until scrolled near.
+              // containIntrinsicSize reserves the box so there's no shift.
+              contentVisibility: 'auto',
+              containIntrinsicSize: '0 200px',
             }}
           >
             <h2
@@ -705,7 +734,14 @@ export function PropertyDetail() {
             </dl>
           </section>
 
-          <section style={{ marginTop: 24 }}>
+          <section
+            style={{
+              marginTop: 24,
+              // Always below the fold — defer its paint to keep first paint cheap.
+              contentVisibility: 'auto',
+              containIntrinsicSize: '0 180px',
+            }}
+          >
             <h2
               style={{
                 fontFamily: HF.display,
