@@ -25,10 +25,26 @@ const PASSWORD = "password123";
 const TOKEN_KEY = "frank_token";
 const USER_KEY = "frank_user";
 
-// True when the suite is pointed at a deployed environment (E2E_BASE_URL).
+// True only when the suite is pointed at a *remote* deployed environment.
 // Mutating specs import this and `test.skip(SKIP_WRITES, …)` so prod-targeted
 // runs stay strictly read-only — no seeding, no status transitions on a live DB.
-export const SKIP_WRITES = !!process.env.E2E_BASE_URL;
+//
+// E2E_BASE_URL pulls double duty: CI also sets it (to a localhost Vite) purely so
+// playwright.config skips its own `e2e:up` webServer boot. A localhost target is
+// always an ephemeral CI/local DB, so writes are safe there; only a non-localhost
+// host (e.g. *.vercel.app) flips read-only. This keeps the safety property — any
+// real deployment is read-only — without disabling write coverage in CI.
+function isRemoteTarget(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const { hostname } = new URL(url);
+    return !["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(hostname);
+  } catch {
+    return false;
+  }
+}
+
+export const SKIP_WRITES = isRemoteTarget(process.env.E2E_BASE_URL);
 
 type Fixtures = {
   seniorPage: Page;

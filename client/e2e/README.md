@@ -59,10 +59,12 @@ ledger entries. Write specs seed via `seedDemo(browser, baseURL)` in a
 test's own role page.
 
 Mutating tests (create / lifecycle transitions) assert real status changes, but
-they run **only against an ephemeral CI or local Postgres — never a deployed
-environment**. The `SKIP_WRITES` flag (`= !!process.env.E2E_BASE_URL`) guards
-every write `describe` with `test.skip(SKIP_WRITES, …)` and short-circuits
-`seedDemo`, so an `E2E_BASE_URL` run is strictly read-only.
+they run **only against an ephemeral CI or local Postgres — never a remote
+deployment**. The `SKIP_WRITES` flag is true only when `E2E_BASE_URL` points at a
+non-localhost host (e.g. `*.vercel.app`); it guards every write `describe` with
+`test.skip(SKIP_WRITES, …)` and short-circuits `seedDemo`, so a prod-targeted run
+is strictly read-only. CI sets `E2E_BASE_URL` to a localhost Vite (just to skip
+the `e2e:up` boot), so writes still run there against the ephemeral DB.
 
 ## Layout
 
