@@ -75,6 +75,17 @@ describe("EmailService", () => {
       expect(result).toEqual({ sent: false });
       expect(mockSend).not.toHaveBeenCalled();
     });
+
+    it("sendPaymentReceipt is a no-op without an API key", async () => {
+      const svc = new EmailService();
+      const result = await svc.sendPaymentReceipt("a@b.com", {
+        amountCents: 12500,
+        currency: "usd",
+        paymentIntentId: "pi_test_001",
+      });
+      expect(result).toEqual({ sent: false });
+      expect(mockSend).not.toHaveBeenCalled();
+    });
   });
 
   describe("when RESEND_API_KEY is set", () => {
@@ -169,6 +180,54 @@ describe("EmailService", () => {
       const svc = new EmailService();
       const result = await svc.sendMagicLink("a@b.com", "https://x/auth/callback?token=t");
       expect(result).toEqual({ sent: false });
+    });
+
+    it("sendPaymentReceipt sends with the formatted amount in the subject + body", async () => {
+      mockSend.mockResolvedValueOnce({ data: { id: "msg_rcpt" }, error: null });
+      const svc = new EmailService();
+      const result = await svc.sendPaymentReceipt("applicant@example.com", {
+        firstName: "Alex",
+        amountCents: 12500,
+        currency: "usd",
+        paymentIntentId: "pi_test_001",
+        receiptUrl: "https://pay.stripe.com/receipts/abc",
+        newBalanceCents: 0,
+      });
+
+      expect(result).toEqual({ sent: true, messageId: "msg_rcpt" });
+      const args = mockSend.mock.calls[0]![0];
+      expect(args).toEqual(
+        expect.objectContaining({
+          to: "applicant@example.com",
+          subject: "Payment received — $125.00",
+          html: expect.any(String),
+          text: expect.any(String),
+        })
+      );
+      // Personalization, confirmation id, balance, and the receipt link all land.
+      expect(args.html).toMatch(/Hi Alex,/);
+      expect(args.html).toContain("pi_test_001");
+      expect(args.html).toContain("$125.00");
+      expect(args.html).toContain("https://pay.stripe.com/receipts/abc");
+      expect(args.text).toContain("Amount paid: $125.00");
+    });
+
+    it("sendRefundConfirmation sends with the refund reference + 'Refund issued' subject", async () => {
+      mockSend.mockResolvedValueOnce({ data: { id: "msg_refund" }, error: null });
+      const svc = new EmailService();
+      const result = await svc.sendRefundConfirmation("applicant@example.com", {
+        firstName: "Alex",
+        amountCents: 5000,
+        currency: "usd",
+        refundId: "re_test_001",
+        newBalanceCents: 7500,
+      });
+
+      expect(result).toEqual({ sent: true, messageId: "msg_refund" });
+      const args = mockSend.mock.calls[0]![0];
+      expect(args.subject).toBe("Refund issued — $50.00");
+      expect(args.html).toContain("re_test_001");
+      expect(args.text).toContain("Refund amount: $50.00");
     });
   });
 });

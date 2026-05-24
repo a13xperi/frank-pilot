@@ -286,6 +286,82 @@ export class LedgerService {
   }
 
   /**
+   * Record a Stripe refund as an offsetting ledger entry.
+   *
+   * The mirror image of recordPayment: a refund returns money to the tenant, so
+   * it ADDS the amount back to the balance (entry stored as a positive amount,
+   * `entry_type='refund'`). System-initiated from the `charge.refunded` webhook,
+   * so postedBy/postedByRole are null (same UUID/enum reasoning as recordPayment).
+   *
+   * Idempotency: the caller dedups on the Stripe event id
+   * (`stripe_processed_events`) AND on the refund id, so this never double-posts.
+   * Transactional + advisory-locked per application_id.
+   */
+  async recordRefund(
+    applicationId: string,
+    amount: number,
+    referenceId: string | null,
+    postedBy: string | null,
+    postedByRole: string | null,
+    notes?: string
+  ): Promise<LedgerEntryRecord> {
+    const record = await transaction(async (client) => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        `ledger:${applicationId}`,
+      ]);
+
+      const app = await client.query(
+        `SELECT property_id FROM applications WHERE id = $1`,
+        [applicationId]
+      );
+      if (app.rows.length === 0) throw new Error("Application not found");
+
+      const balRes = await client.query(
+        `SELECT COALESCE(SUM(amount), 0) as balance FROM tenant_ledger
+         WHERE application_id = $1 AND status = 'posted'`,
+        [applicationId]
+      );
+      const currentBalance = parseFloat(balRes.rows[0].balance);
+      const newBalance = currentBalance + amount;
+      const now = new Date();
+      const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+      const insert = await client.query(
+        `INSERT INTO tenant_ledger
+           (application_id, property_id, entry_type, description, amount, balance_after,
+            billing_period, reference_id, posted_by, notes)
+         VALUES ($1, $2, 'refund', $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [
+          applicationId,
+          app.rows[0].property_id,
+          `Refund issued`,
+          amount, // Positive = restores balance the prior payment reduced
+          newBalance,
+          billingPeriod,
+          referenceId || null,
+          postedBy,
+          notes || null,
+        ]
+      );
+
+      return insert.rows[0];
+    });
+
+    await writeAuditLog({
+      action: "ledger_refund_recorded",
+      actorId: postedBy ?? undefined,
+      actorRole: postedByRole ?? undefined,
+      applicationId,
+      resourceType: "tenant_ledger",
+      resourceId: record.id,
+      details: { amount, referenceId },
+    });
+
+    return this.rowToRecord(record);
+  }
+
+  /**
    * Apply a credit (concession, adjustment, auto-pay discount).
    *
    * Transactional + advisory-locked per application_id (see recordPayment).

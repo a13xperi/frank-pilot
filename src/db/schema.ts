@@ -128,7 +128,11 @@ CREATE TYPE audit_action AS ENUM (
   'payment_intent_replay',
   'payment_intent_replay_blocked',
   'payment_intent_succeeded',
-  'payment_intent_failed'
+  'payment_intent_failed',
+  -- BP-08 hardening: refund lifecycle (refunds.ts + webhook.ts charge.refunded)
+  'payment_refund_requested',
+  'payment_refunded',
+  'ledger_refund_recorded'
 );
 
 CREATE TYPE fraud_flag_type AS ENUM (
@@ -154,7 +158,7 @@ CREATE TYPE recertification_type AS ENUM ('annual', 'interim');
 CREATE TYPE ledger_entry_type AS ENUM (
   'rent_charge', 'late_fee', 'nsf_fee', 'payment', 'credit',
   'concession', 'adjustment', 'pro_rated_rent', 'extended_guest_fee',
-  'early_termination_fee'
+  'early_termination_fee', 'refund'
 );
 
 CREATE TYPE ledger_entry_status AS ENUM ('posted', 'reversed', 'pending');
@@ -1078,11 +1082,19 @@ CREATE TABLE IF NOT EXISTS payment_idempotency (
   amount_cents      INT,
   currency          CHAR(3),
   last_event_at     TIMESTAMPTZ,
+  -- BP-08 hardening: refund tracking. Set when a refund is requested
+  -- (refunds.ts) and finalized when charge.refunded posts the offsetting entry.
+  refund_id              TEXT,
+  refunded_amount_cents  INT,
+  refund_status          TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_idempotency_app_attempt
   ON payment_idempotency (application_id, attempt_n);
+
+CREATE INDEX IF NOT EXISTS idx_payment_idempotency_intent
+  ON payment_idempotency (payment_intent_id);
 
 CREATE TABLE IF NOT EXISTS stripe_processed_events (
   event_id       TEXT PRIMARY KEY,

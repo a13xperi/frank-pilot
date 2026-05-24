@@ -37,11 +37,28 @@ jest.mock("../modules/tape", () => {
 });
 
 const mockRecordPayment = jest.fn();
+const mockRecordRefund = jest.fn();
 jest.mock("../modules/ledger/service", () => ({
   LedgerService: jest.fn().mockImplementation(() => ({
     recordPayment: mockRecordPayment,
+    recordRefund: mockRecordRefund,
   })),
 }));
+
+// EmailService is fire-and-forget from the webhook; mock it so we can assert
+// the receipt/refund sends without touching Resend.
+const mockSendPaymentReceipt = jest.fn().mockResolvedValue({ sent: false });
+const mockSendRefundConfirmation = jest.fn().mockResolvedValue({ sent: false });
+jest.mock("../modules/integrations/email", () => ({
+  getEmailService: () => ({
+    sendPaymentReceipt: mockSendPaymentReceipt,
+    sendRefundConfirmation: mockSendRefundConfirmation,
+  }),
+}));
+
+// Flush pending microtasks so fire-and-forget IIFEs (receipt/refund email)
+// settle before we assert on them.
+const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 // Real Stripe SDK for signature signing + verification round-trip. We pin a
 // fake-but-non-placeholder key so getStripe() inside the router doesn't throw,
@@ -127,6 +144,45 @@ function paymentIntentFailedEvent() {
         status: "requires_payment_method",
         last_payment_error: { code: "card_declined", message: "Your card was declined." },
         metadata: { applicationId: APP_ID, attemptN: "1", actorId: "user-applicant-001" },
+      },
+    },
+  };
+}
+
+function chargeRefundedEvent(opts: {
+  id?: string;
+  chargeId?: string;
+  intentId?: string;
+  refundId?: string;
+  amountRefunded?: number;
+  withMetadata?: boolean;
+} = {}) {
+  const amount = opts.amountRefunded ?? 12500;
+  const refund: Record<string, unknown> = {
+    id: opts.refundId ?? "re_test_001",
+    object: "refund",
+    amount,
+    currency: "usd",
+    ...(opts.withMetadata === false ? {} : { metadata: { applicationId: APP_ID } }),
+  };
+  return {
+    id: opts.id ?? "evt_refund_001",
+    object: "event",
+    api_version: "2025-02-24.acacia",
+    created: Math.floor(Date.now() / 1000),
+    type: "charge.refunded",
+    livemode: false,
+    pending_webhooks: 1,
+    request: { id: null, idempotency_key: null },
+    data: {
+      object: {
+        id: opts.chargeId ?? "ch_test_001",
+        object: "charge",
+        payment_intent: opts.intentId ?? "pi_test_001",
+        amount,
+        amount_refunded: amount,
+        currency: "usd",
+        refunds: { object: "list", data: [refund] },
       },
     },
   };
@@ -239,12 +295,15 @@ describe("POST /webhook — payment_intent.succeeded", () => {
 
     // alreadyProcessed: SELECT 1 → no row.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
-    // recordPayment is mocked; returns a synthetic ledger entry.
-    mockRecordPayment.mockResolvedValue({ id: "led-001", applicationId: APP_ID });
+    // recordPayment is mocked; returns a synthetic ledger entry (balanceAfter
+    // drives the receipt's newBalanceCents).
+    mockRecordPayment.mockResolvedValue({ id: "led-001", applicationId: APP_ID, balanceAfter: 0 });
     // markStatus: UPDATE payment_idempotency.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
     // writeAuditLog: INSERT audit_log.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // receipt lookup: SELECT email, first_name FROM applications (fire-and-forget).
+    mockQuery.mockResolvedValueOnce({ rows: [{ email: "tenant@example.com", first_name: "Sam" }] } as any);
     // markProcessed: INSERT stripe_processed_events.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
 
@@ -274,8 +333,21 @@ describe("POST /webhook — payment_intent.succeeded", () => {
         sessionId: `pi:${APP_ID}:1`,
       })
     );
-    // 4 DB calls: alreadyProcessed, markStatus, audit, markProcessed.
-    expect(mockQuery).toHaveBeenCalledTimes(4);
+    // 5 DB calls: alreadyProcessed, markStatus, audit, receipt-lookup, markProcessed.
+    expect(mockQuery).toHaveBeenCalledTimes(5);
+
+    // The receipt is fire-and-forget (void IIFE); flush microtasks, then assert
+    // the tenant got a receipt for the right amount.
+    await flush();
+    expect(mockSendPaymentReceipt).toHaveBeenCalledWith(
+      "tenant@example.com",
+      expect.objectContaining({
+        firstName: "Sam",
+        amountCents: 12500,
+        currency: "usd",
+        paymentIntentId: "pi_test_001",
+      })
+    );
   });
 
   it("short-circuits to 200 with no side effects when event_id was already processed", async () => {
@@ -542,6 +614,7 @@ describe("POST /webhook — livemode mismatch", () => {
     mockRecordPayment.mockResolvedValue({ id: "led-002", applicationId: APP_ID });
     mockQuery.mockResolvedValueOnce({ rows: [] } as any); // markStatus
     mockQuery.mockResolvedValueOnce({ rows: [] } as any); // audit
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // receipt lookup
     mockQuery.mockResolvedValueOnce({ rows: [] } as any); // markProcessed
 
     const res = await request(app)
@@ -552,5 +625,109 @@ describe("POST /webhook — livemode mismatch", () => {
 
     expect(res.status).toBe(200);
     expect(mockRecordPayment).toHaveBeenCalled();
+  });
+});
+
+// ── charge.refunded ────────────────────────────────────────────────────────
+
+describe("POST /webhook — charge.refunded", () => {
+  it("posts exactly one offsetting refund ledger entry, marks idempotency, returns 200", async () => {
+    const event = chargeRefundedEvent();
+    const payload = JSON.stringify(event);
+    const sig = signedHeader(payload);
+
+    // recordRefund is mocked; balanceAfter drives the refund email.
+    mockRecordRefund.mockResolvedValue({ id: "led-refund-001", applicationId: APP_ID, balanceAfter: 0 });
+
+    // alreadyProcessed: no. (applicationId comes from refund.metadata → no lookup query.)
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // UPDATE payment_idempotency (refund columns).
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // writeAuditLog: INSERT audit_log.
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // refund-confirmation lookup: SELECT email, first_name FROM applications.
+    mockQuery.mockResolvedValueOnce({ rows: [{ email: "tenant@example.com", first_name: "Sam" }] } as any);
+    // markProcessed: INSERT stripe_processed_events.
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+
+    const res = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("Stripe-Signature", sig)
+      .send(payload);
+
+    expect(res.status).toBe(200);
+
+    // Exactly one offsetting entry: positive dollar amount, refund id as reference,
+    // null system-actor columns, description carrying the Stripe refund id.
+    expect(mockRecordRefund).toHaveBeenCalledTimes(1);
+    expect(mockRecordRefund).toHaveBeenCalledWith(
+      APP_ID,
+      125, // 12500 cents → $125.00, added back
+      "re_test_001",
+      null,
+      null,
+      expect.stringContaining("re_test_001")
+    );
+    expect(mockStampTape).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "BP08_PAYMENT_REFUNDED", sessionId: "re_test_001" })
+    );
+
+    await flush();
+    expect(mockSendRefundConfirmation).toHaveBeenCalledWith(
+      "tenant@example.com",
+      expect.objectContaining({ amountCents: 12500, refundId: "re_test_001" })
+    );
+  });
+
+  it("falls back to a payment_idempotency lookup when the refund carries no metadata", async () => {
+    const event = chargeRefundedEvent({ id: "evt_refund_nometa", withMetadata: false });
+    const payload = JSON.stringify(event);
+    const sig = signedHeader(payload);
+
+    mockRecordRefund.mockResolvedValue({ id: "led-refund-002", applicationId: APP_ID, balanceAfter: 0 });
+
+    // alreadyProcessed: no.
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // resolveRefundApplication: SELECT application_id FROM payment_idempotency.
+    mockQuery.mockResolvedValueOnce({ rows: [{ application_id: APP_ID }] } as any);
+    // UPDATE payment_idempotency.
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // writeAuditLog.
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // refund-confirmation lookup.
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // markProcessed.
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+
+    const res = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("Stripe-Signature", sig)
+      .send(payload);
+
+    expect(res.status).toBe(200);
+    expect(mockRecordRefund).toHaveBeenCalledTimes(1);
+    expect(mockRecordRefund).toHaveBeenCalledWith(APP_ID, 125, "re_test_001", null, null, expect.any(String));
+  });
+
+  it("is a no-op when the event_id was already processed (dedup)", async () => {
+    const event = chargeRefundedEvent({ id: "evt_refund_dup" });
+    const payload = JSON.stringify(event);
+    const sig = signedHeader(payload);
+
+    // alreadyProcessed: row exists.
+    mockQuery.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] } as any);
+
+    const res = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("Stripe-Signature", sig)
+      .send(payload);
+
+    expect(res.status).toBe(200);
+    expect(res.body.duplicate).toBe(true);
+    expect(mockRecordRefund).not.toHaveBeenCalled();
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });

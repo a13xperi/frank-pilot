@@ -8,6 +8,7 @@ import { getStripe, expectedLivemode } from "../../lib/stripe";
 import { stampTape } from "../tape";
 import { buildIdempotencyKey, markStatus } from "./idempotency";
 import { LedgerService } from "../ledger/service";
+import { getEmailService } from "../integrations/email";
 
 /**
  * Stripe webhook receiver.
@@ -51,6 +52,43 @@ function parseMetadata(intent: Stripe.PaymentIntent): PaymentIntentMetadata {
     attemptN: md.attemptN,
     actorId: md.actorId,
   };
+}
+
+interface ApplicantContact {
+  email: string;
+  firstName: string | null;
+}
+
+/**
+ * Resolve the applicant's email + first name for a receipt/notice. The
+ * `applications` table carries `email`/`first_name` directly (no join). Returns
+ * null when the row or email is missing so callers can skip the send cleanly.
+ */
+async function lookupApplicantContact(
+  applicationId: string
+): Promise<ApplicantContact | null> {
+  const result = await query(
+    `SELECT email, first_name FROM applications WHERE id = $1`,
+    [applicationId]
+  );
+  const row = result.rows[0];
+  if (!row?.email) return null;
+  return { email: row.email as string, firstName: (row.first_name as string) ?? null };
+}
+
+/**
+ * Stripe's hosted itemized-receipt URL, when the charge happens to be expanded
+ * on the event. `payment_intent.succeeded` carries `latest_charge` as a bare id
+ * string by default, so this is usually null — the receipt still sends with the
+ * PaymentIntent id as the confirmation number. We deliberately do NOT issue a
+ * charge-retrieve API call here: the webhook stays lean and failure-free.
+ */
+function extractReceiptUrl(intent: Stripe.PaymentIntent): string | null {
+  const charge = intent.latest_charge;
+  if (charge && typeof charge === "object" && "receipt_url" in charge) {
+    return (charge as Stripe.Charge).receipt_url ?? null;
+  }
+  return null;
 }
 
 async function alreadyProcessed(eventId: string): Promise<boolean> {
@@ -188,6 +226,37 @@ async function handlePaymentIntentSucceeded(event: Stripe.Event): Promise<void> 
     // resource_id is a UUID column; a Stripe `pi_…` id is not — keep it in details.
     details: { actor: "stripe-webhook", amountCents, currency, ledgerEntryId: ledgerEntry.id, idempotencyKey, paymentIntentId: intent.id },
   });
+
+  // Fire-and-forget the tenant receipt (matches the void stampTape style above).
+  // EmailService no-ops without RESEND_API_KEY, so this is safe in CI and in the
+  // current test-mode prod. `balanceAfter` is the post-payment running balance in
+  // dollars (positive = owed, negative = credit).
+  void (async () => {
+    try {
+      const contact = await lookupApplicantContact(meta.applicationId!);
+      if (!contact) {
+        logger.warn("payment receipt skipped — no applicant email", {
+          applicationId: meta.applicationId,
+          paymentIntentId: intent.id,
+        });
+        return;
+      }
+      await getEmailService().sendPaymentReceipt(contact.email, {
+        firstName: contact.firstName ?? undefined,
+        amountCents,
+        currency,
+        paymentIntentId: intent.id,
+        receiptUrl: extractReceiptUrl(intent),
+        newBalanceCents: Math.round(ledgerEntry.balanceAfter * 100),
+      });
+    } catch (err) {
+      logger.error("payment receipt send failed", {
+        applicationId: meta.applicationId,
+        paymentIntentId: intent.id,
+        error: (err as Error).message,
+      });
+    }
+  })();
 }
 
 async function handlePaymentIntentFailed(event: Stripe.Event): Promise<void> {
@@ -228,6 +297,116 @@ async function handlePaymentIntentFailed(event: Stripe.Event): Promise<void> {
   });
 }
 
+/**
+ * Resolve the applicationId for a refunded charge: prefer the refund's own
+ * metadata (set by our refunds route), else fall back to the originating
+ * PaymentIntent via payment_idempotency. Returns null when neither resolves.
+ */
+async function resolveRefundApplication(
+  refund: Stripe.Refund | undefined,
+  paymentIntentId: string | null
+): Promise<string | null> {
+  const fromMeta = refund?.metadata?.applicationId;
+  if (fromMeta) return fromMeta;
+  if (!paymentIntentId) return null;
+  const result = await query(
+    `SELECT application_id FROM payment_idempotency
+      WHERE payment_intent_id = $1
+      ORDER BY created_at DESC LIMIT 1`,
+    [paymentIntentId]
+  );
+  return (result.rows[0]?.application_id as string) ?? null;
+}
+
+async function handleChargeRefunded(event: Stripe.Event): Promise<void> {
+  const charge = event.data.object as Stripe.Charge;
+  const paymentIntentId =
+    typeof charge.payment_intent === "string"
+      ? charge.payment_intent
+      : (charge.payment_intent?.id ?? null);
+
+  // The refund that triggered this event is the newest in the sublist; fall
+  // back to the charge's cumulative refunded amount for a dashboard refund
+  // where the sublist isn't expanded.
+  const latestRefund = charge.refunds?.data?.[0];
+  const refundId = latestRefund?.id ?? `${charge.id}:refund`;
+  const amountCents = latestRefund?.amount ?? charge.amount_refunded ?? 0;
+  const currency = (latestRefund?.currency ?? charge.currency) || "usd";
+
+  if (amountCents <= 0) {
+    logger.warn("charge.refunded with zero amount — skipping", { chargeId: charge.id });
+    return;
+  }
+
+  const applicationId = await resolveRefundApplication(latestRefund, paymentIntentId);
+  if (!applicationId) {
+    logger.warn("charge.refunded could not resolve application", {
+      chargeId: charge.id,
+      paymentIntentId,
+      refundId,
+    });
+    return;
+  }
+
+  // Per-event dedup is handled upstream by stripe_processed_events (event.id),
+  // so each distinct refund posts exactly once.
+  const ledgerEntry = await ledgerService.recordRefund(
+    applicationId,
+    Math.round(amountCents) / 100,
+    refundId,
+    null,
+    null,
+    `Refund — Stripe ${refundId}`
+  );
+
+  if (paymentIntentId) {
+    await query(
+      `UPDATE payment_idempotency
+          SET refund_id = COALESCE(refund_id, $2),
+              refunded_amount_cents = $3,
+              refund_status = 'succeeded'
+        WHERE payment_intent_id = $1`,
+      [paymentIntentId, refundId, Math.round(amountCents)]
+    );
+  }
+
+  void stampTape({
+    kind: "BP08_PAYMENT_REFUNDED",
+    actor: "stripe-webhook",
+    sessionId: refundId,
+    payload: { applicationId, paymentIntentId, refundId, amountCents, currency, ledgerEntryId: ledgerEntry.id },
+  });
+
+  await writeAuditLog({
+    action: "payment_refunded",
+    applicationId,
+    resourceType: "payment_intent",
+    // resource_id is a UUID column; Stripe `re_`/`pi_` ids are not — details only.
+    details: { actor: "stripe-webhook", paymentIntentId, refundId, amountCents, currency, ledgerEntryId: ledgerEntry.id },
+  });
+
+  // Fire-and-forget refund confirmation (no-ops without RESEND_API_KEY).
+  void (async () => {
+    try {
+      const contact = await lookupApplicantContact(applicationId);
+      if (!contact) return;
+      await getEmailService().sendRefundConfirmation(contact.email, {
+        firstName: contact.firstName ?? undefined,
+        amountCents,
+        currency,
+        refundId,
+        newBalanceCents: Math.round(ledgerEntry.balanceAfter * 100),
+      });
+    } catch (err) {
+      logger.error("refund confirmation send failed", {
+        applicationId,
+        refundId,
+        error: (err as Error).message,
+      });
+    }
+  })();
+}
+
 async function dispatch(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "payment_intent.succeeded":
@@ -235,6 +414,9 @@ async function dispatch(event: Stripe.Event): Promise<void> {
       return;
     case "payment_intent.payment_failed":
       await handlePaymentIntentFailed(event);
+      return;
+    case "charge.refunded":
+      await handleChargeRefunded(event);
       return;
     default:
       logger.info("Stripe webhook event ignored", { type: event.type, id: event.id });

@@ -193,6 +193,114 @@ export class EmailService {
     return this.send({ to, subject, html, text });
   }
 
+  /**
+   * Payment receipt. Fired (fire-and-forget) from the Stripe
+   * `payment_intent.succeeded` webhook after the ledger entry posts. The
+   * Stripe PaymentIntent id is the customer-facing confirmation number; the
+   * hosted Stripe `receipt_url`, when present, is linked as the canonical
+   * itemized receipt.
+   */
+  async sendPaymentReceipt(
+    to: string,
+    opts: {
+      firstName?: string;
+      amountCents: number;
+      currency: string;
+      paymentIntentId: string;
+      receiptUrl?: string | null;
+      newBalanceCents?: number | null;
+      paidAt?: Date;
+    }
+  ): Promise<EmailSendResult> {
+    const greeting = opts.firstName ? `Hi ${opts.firstName},` : "Hi,";
+    const amount = formatAmount(opts.amountCents, opts.currency);
+    const paidAt = (opts.paidAt ?? new Date()).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const balanceLine =
+      opts.newBalanceCents != null
+        ? `<p style="margin:0 0 8px;">Remaining balance: <strong>${formatAmount(opts.newBalanceCents, opts.currency)}</strong></p>`
+        : "";
+    const receiptLine = opts.receiptUrl
+      ? `<p style="margin:16px 0 0;"><a href="${opts.receiptUrl}" style="color:${BRAND_COLOR};">View your itemized receipt</a></p>`
+      : "";
+
+    const subject = `Payment received — ${amount}`;
+    const html = templateNotice({
+      heading: "Payment received",
+      body: `${greeting}<br/><br/>
+        <p style="margin:0 0 8px;">We've received your rent payment. Thank you.</p>
+        <p style="margin:0 0 8px;">Amount paid: <strong>${amount}</strong></p>
+        <p style="margin:0 0 8px;">Date: ${paidAt}</p>
+        <p style="margin:0 0 8px;">Confirmation: ${escapeHtml(opts.paymentIntentId)}</p>
+        ${balanceLine}${receiptLine}`,
+    });
+    const text = [
+      greeting,
+      "",
+      "We've received your rent payment. Thank you.",
+      `Amount paid: ${amount}`,
+      `Date: ${paidAt}`,
+      `Confirmation: ${opts.paymentIntentId}`,
+      ...(opts.newBalanceCents != null
+        ? [`Remaining balance: ${formatAmount(opts.newBalanceCents, opts.currency)}`]
+        : []),
+      ...(opts.receiptUrl ? ["", `Itemized receipt: ${opts.receiptUrl}`] : []),
+      "",
+      COMPANY_NAME,
+    ].join("\n");
+
+    return this.send({ to, subject, html, text });
+  }
+
+  /**
+   * Refund confirmation. Fired (fire-and-forget) from the Stripe
+   * `charge.refunded` webhook after the offsetting ledger entry posts.
+   */
+  async sendRefundConfirmation(
+    to: string,
+    opts: {
+      firstName?: string;
+      amountCents: number;
+      currency: string;
+      refundId: string;
+      newBalanceCents?: number | null;
+    }
+  ): Promise<EmailSendResult> {
+    const greeting = opts.firstName ? `Hi ${opts.firstName},` : "Hi,";
+    const amount = formatAmount(opts.amountCents, opts.currency);
+    const balanceLine =
+      opts.newBalanceCents != null
+        ? `<p style="margin:0 0 8px;">Updated balance: <strong>${formatAmount(opts.newBalanceCents, opts.currency)}</strong></p>`
+        : "";
+
+    const subject = `Refund issued — ${amount}`;
+    const html = templateNotice({
+      heading: "Refund issued",
+      body: `${greeting}<br/><br/>
+        <p style="margin:0 0 8px;">We've issued a refund to your original payment method. It may take 5–10 business days to appear.</p>
+        <p style="margin:0 0 8px;">Refund amount: <strong>${amount}</strong></p>
+        <p style="margin:0 0 8px;">Reference: ${escapeHtml(opts.refundId)}</p>
+        ${balanceLine}`,
+    });
+    const text = [
+      greeting,
+      "",
+      "We've issued a refund to your original payment method. It may take 5–10 business days to appear.",
+      `Refund amount: ${amount}`,
+      `Reference: ${opts.refundId}`,
+      ...(opts.newBalanceCents != null
+        ? [`Updated balance: ${formatAmount(opts.newBalanceCents, opts.currency)}`]
+        : []),
+      "",
+      COMPANY_NAME,
+    ].join("\n");
+
+    return this.send({ to, subject, html, text });
+  }
+
   async sendDenied(to: string, applicantName: string): Promise<EmailSendResult> {
     const subject = "Update on your application";
     const html = templateNotice({
@@ -207,6 +315,23 @@ export class EmailService {
       COMPANY_NAME,
     ].join("\n");
     return this.send({ to, subject, html, text });
+  }
+}
+
+/**
+ * Format a minor-unit (cents) integer as a localized currency string, e.g.
+ * (123456, "usd") -> "$1,234.56". Falls back to a plain decimal + uppercased
+ * code if Intl doesn't recognize the currency.
+ */
+function formatAmount(cents: number, currency: string): string {
+  const major = cents / 100;
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency.toUpperCase(),
+    }).format(major);
+  } catch {
+    return `${major.toFixed(2)} ${currency.toUpperCase()}`;
   }
 }
 
