@@ -8,6 +8,7 @@ import { HF } from '@/styles/tokens';
 import { useTranslation } from 'react-i18next';
 import { useFlag } from '@/lib/flags';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { logDemoEvent } from '@/lib/demoCapture';
 import {
   ApplyProvider,
   useWizState,
@@ -131,6 +132,13 @@ export function Apply() {
     const next = parseStep(search.get('step'));
     setStepState((prev) => (prev === next ? prev : next));
   }, [search]);
+
+  // Funnel drop-off: stamp each step the tester reaches into the demo event
+  // log. No-op outside a `?demo=` session. The timeline of `step-entered`
+  // events is what surfaces where people stall or abandon the application.
+  useEffect(() => {
+    logDemoEvent('step-entered', { step: String(step) });
+  }, [step]);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

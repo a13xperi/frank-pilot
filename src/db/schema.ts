@@ -244,6 +244,10 @@ CREATE TABLE users (
   is_active BOOLEAN DEFAULT true,
   last_login TIMESTAMPTZ,
   email_verified_at TIMESTAMPTZ,
+  -- Non-null only for accounts created during a usability/demo walkthrough
+  -- (register tags it from the x-demo-token run). Lets PM metrics exclude
+  -- demo signups and lets scripts/purge-demo-data.mjs reap them by run.
+  demo_run_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

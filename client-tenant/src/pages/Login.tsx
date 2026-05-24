@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, ArrowRight } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { requestMagicLink } from '@/api/auth';
 import { HF } from '@/styles/tokens';
 import { CTA, Card } from '@/components/primitives';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
+import { DemoEmailCard } from '@/components/DemoEmailCard';
 
 export function Login() {
   const navigate = useNavigate();
@@ -145,9 +146,9 @@ export function Login() {
               </p>
             </div>
             {devLink && (
-              <CTA onClick={handleDevLink} tone="sage">
-                Continue (dev) <ArrowRight className="h-4 w-4" />
-              </CTA>
+              <div style={{ marginTop: 12 }}>
+                <DemoEmailCard email={email} onOpen={handleDevLink} />
+              </div>
             )}
           </div>
         )}

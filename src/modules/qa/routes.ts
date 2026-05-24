@@ -149,6 +149,53 @@ export function groupBundles(
 }
 
 // ---------------------------------------------------------------------------
+// Demo/usability sessions
+//
+// The tenant app's demo harness (client-tenant/src/lib/demoCapture.ts) uploads
+// full-session artifacts under `demo/{runId}/`:
+//   - replay-{seq:000}.json  — ordered rrweb segments (concatenate in seq order)
+//   - events.json            — funnel "step-entered" + "stuck" markers
+//   - manifest.json          — run metadata (start time, ua, route, counts)
+// runId is minted client-side (lib/demoSession): `r{base36-time}-{rand}`.
+// ---------------------------------------------------------------------------
+
+export const DEMO_PREFIX = "demo/";
+
+/** runId shape — `r{base36}-{base36}`. Anchored to reject path-traversal. */
+export const RUN_ID_RE = /^r[a-z0-9]+-[a-z0-9]+$/i;
+
+/** The only filenames the proxy will serve out of a demo run folder. */
+export const DEMO_FILE_RE = /^(replay-\d{1,6}\.json|events\.json|manifest\.json)$/;
+
+export interface DemoRunDetail {
+  runId: string;
+  segments: string[]; // object names (relative to the run folder), seq-ascending
+  events: string | null;
+  manifest: string | null;
+}
+
+function segOf(name: string): number {
+  const m = name.match(/^replay-(\d+)\.json$/);
+  return m ? parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * Classify the files found directly under one `demo/{runId}/` folder. `names`
+ * are the leaf filenames (no folder prefix). Replay segments are returned in
+ * ascending sequence order so the viewer can concatenate them into one timeline.
+ */
+export function classifyDemoFiles(names: string[]): Omit<DemoRunDetail, "runId"> {
+  const segments = names
+    .filter((n) => /^replay-\d+\.json$/.test(n))
+    .sort((a, b) => segOf(a) - segOf(b));
+  return {
+    segments,
+    events: names.includes("events.json") ? "events.json" : null,
+    manifest: names.includes("manifest.json") ? "manifest.json" : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Storage fetch (server → Supabase REST)
 // ---------------------------------------------------------------------------
 
@@ -169,7 +216,8 @@ function readStorageEnv(): StorageEnv | null {
 }
 
 async function listStorage(
-  env: StorageEnv
+  env: StorageEnv,
+  opts: { prefix?: string; limit?: number } = {}
 ): Promise<StorageObject[]> {
   const res = await fetch(
     `${env.url}/storage/v1/object/list/${env.bucket}`,
@@ -181,7 +229,8 @@ async function listStorage(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        limit: STORAGE_LIST_LIMIT,
+        limit: opts.limit ?? STORAGE_LIST_LIMIT,
+        prefix: opts.prefix ?? "",
         sortBy: { column: "created_at", order: "desc" },
       }),
     }
@@ -390,6 +439,138 @@ export function qaRouter(): Router {
       res.status(500).json({ error: "Failed to fetch QA bundle" });
     }
   });
+
+  // -------------------------------------------------------------------------
+  // Demo/usability sessions
+  // -------------------------------------------------------------------------
+
+  /**
+   * List demo runs. One storage call enumerates the `demo/` folder (Supabase
+   * returns each `{runId}` as a folder pseudo-entry); we keep only well-formed
+   * runIds. Cheap by design — segment counts and timelines are loaded lazily
+   * by the detail endpoint.
+   */
+  router.get("/demo", async (_req: Request, res: Response) => {
+    const env = readStorageEnv();
+    if (!env) {
+      res.json({
+        runs: [],
+        hint:
+          "Supabase Storage is not configured on this server — set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to enable the demo viewer.",
+      });
+      return;
+    }
+    try {
+      const items = await listStorage(env, { prefix: DEMO_PREFIX });
+      const runs = items
+        .map((it) => it.name)
+        .filter((name) => RUN_ID_RE.test(name))
+        .slice(0, MAX_BUNDLES)
+        .map((runId) => ({ runId }));
+      res.json({ runs });
+    } catch (err) {
+      logger.error("Demo run list failed", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to list demo runs" });
+    }
+  });
+
+  /** Detail for one run: ordered replay segments + events + manifest names. */
+  router.get("/demo/:runId", async (req: Request, res: Response) => {
+    const env = readStorageEnv();
+    if (!env) {
+      res.status(503).json({
+        error:
+          "Supabase Storage is not configured on this server — set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+      });
+      return;
+    }
+    const raw = req.params.runId;
+    const runId = Array.isArray(raw) ? raw[0] : raw;
+    if (typeof runId !== "string" || !RUN_ID_RE.test(runId)) {
+      res.status(400).json({ error: "Malformed run id" });
+      return;
+    }
+    try {
+      const items = await listStorage(env, { prefix: `${DEMO_PREFIX}${runId}/` });
+      const detail: DemoRunDetail = {
+        runId,
+        ...classifyDemoFiles(items.map((it) => it.name)),
+      };
+      if (detail.segments.length === 0 && !detail.events && !detail.manifest) {
+        res.status(404).json({ error: "Demo run not found" });
+        return;
+      }
+      res.json({ run: detail });
+    } catch (err) {
+      logger.error("Demo run fetch failed", {
+        runId,
+        error: (err as Error).message,
+      });
+      res.status(500).json({ error: "Failed to fetch demo run" });
+    }
+  });
+
+  /**
+   * Stream one artifact (`replay-NNN.json` | `events.json` | `manifest.json`)
+   * out of a run folder via the service-role key, so the bucket can be
+   * private. Both path segments are regex-validated to block traversal, and a
+   * `qa_bundle_read` audit entry is written before any bytes are returned.
+   */
+  router.get(
+    "/demo/:runId/file/:name",
+    async (req: AuthRequest, res: Response): Promise<void> => {
+      const env = readStorageEnv();
+      if (!env) {
+        res.status(503).json({
+          error:
+            "Supabase Storage is not configured on this server — set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+        });
+        return;
+      }
+      const rawRun = req.params.runId;
+      const rawName = req.params.name;
+      const runId = Array.isArray(rawRun) ? rawRun[0] : rawRun;
+      const name = Array.isArray(rawName) ? rawName[0] : rawName;
+      if (
+        typeof runId !== "string" ||
+        !RUN_ID_RE.test(runId) ||
+        typeof name !== "string" ||
+        !DEMO_FILE_RE.test(name)
+      ) {
+        res.status(400).json({ error: "Malformed demo artifact path" });
+        return;
+      }
+      const objectName = `${DEMO_PREFIX}${runId}/${name}`;
+      try {
+        const obj = await fetchStorageObject(env, objectName);
+        if (!obj) {
+          res.status(404).json({ error: "Demo artifact not found" });
+          return;
+        }
+        // Audit FIRST — never leak bytes if the audit write fails.
+        await writeAuditLog({
+          action: "qa_bundle_read",
+          actorId: req.user?.id,
+          actorRole: req.user?.role,
+          resourceType: "qa_bundle",
+          resourceId: `demo/${runId}`,
+          details: { artifact: name },
+          ipAddress: (req.ip || req.socket.remoteAddress) as string | undefined,
+          userAgent: req.headers["user-agent"] as string | undefined,
+        });
+        res.setHeader("Content-Type", obj.contentType ?? "application/json");
+        res.setHeader("Cache-Control", "private, no-store");
+        res.status(200).send(Buffer.from(obj.body));
+      } catch (err) {
+        logger.error("Demo artifact proxy failed", {
+          runId,
+          name,
+          error: (err as Error).message,
+        });
+        res.status(500).json({ error: "Failed to fetch demo artifact" });
+      }
+    }
+  );
 
   return router;
 }

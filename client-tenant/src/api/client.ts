@@ -1,3 +1,5 @@
+import { getDemoToken, getRunId } from '../lib/demoSession';
+
 const TOKEN_KEY = 'frank_tenant_token';
 
 export function getToken(): string | null {
@@ -23,6 +25,17 @@ async function request<T>(
   };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+  // Demo/usability sessions carry the shared secret so the backend echoes the
+  // magic-link in the response (register + magic-link/request). No-op outside
+  // a `?demo=<TOKEN>` walkthrough. See lib/demoSession + src/utils/demo-link.
+  const demoToken = getDemoToken();
+  if (demoToken) {
+    headers['x-demo-token'] = demoToken;
+    const runId = getRunId();
+    // Lets the backend tag demo signups (users.demo_run_id) for metric
+    // exclusion + teardown. Only meaningful alongside a valid x-demo-token.
+    if (runId) headers['x-demo-run'] = runId;
   }
 
   const relativePath = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? path : `/${path}`}`;

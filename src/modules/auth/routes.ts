@@ -5,6 +5,7 @@ import { createMagicLink, verifyMagicLink, logMagicLink } from "./magic-link-ser
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { verifyTurnstile } from "../../middleware/verify-turnstile";
 import { logger } from "../../utils/logger";
+import { shouldReturnDevLink } from "../../utils/demo-link";
 
 const router: Router = Router();
 
@@ -58,10 +59,12 @@ router.post(
       // Always respond with success — don't leak which emails exist.
       if (result) {
         logMagicLink(parsed.data.email, result.link);
-        // In dev, surface the link in the response so it's clickable for demos.
-        // Fail-closed: only leak when NODE_ENV is explicitly "development".
-        // If the env var is unset on Railway, this stays redacted (WARN #3).
-        if (process.env.NODE_ENV === "development") {
+        // Surface the link in the response only when the demo-link gate opens
+        // (dev, or a matching x-demo-token under DEMO_LINK_SECRET). This is the
+        // returning-user counterpart to /applicants/register's devLink echo, so
+        // usability testers can log back in without a working inbox. Closed by
+        // default on a tenant-facing deploy (WARN #3 stays satisfied).
+        if (shouldReturnDevLink(req)) {
           res.json({ ok: true, devLink: result.link });
           return;
         }

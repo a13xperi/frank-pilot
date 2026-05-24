@@ -17,6 +17,7 @@ import {
   stampV2PositionLetterSent,
 } from "../tape/v2-stamp";
 import { logger } from "../../utils/logger";
+import { shouldReturnDevLink } from "../../utils/demo-link";
 
 const router: Router = Router();
 const applicationService = new ApplicationService();
@@ -138,6 +139,12 @@ router.post(
 
     const { email, firstName, lastName, phone, channel } = parsed.data;
 
+    // Demo/usability harness: tag accounts born of a `?demo=<TOKEN>` walkthrough
+    // so PM signup metrics can exclude them and scripts/purge-demo-data.mjs can
+    // reap them by run. Only honored when the demo-link gate opens (a matching
+    // x-demo-token), so anonymous traffic can't poison the column.
+    const demoRunId = shouldReturnDevLink(req) ? req.header("x-demo-run") ?? null : null;
+
     const existing = await query("SELECT id, role, is_active FROM users WHERE email = $1", [email]);
     let userId: string | undefined;
     let isNew = false;
@@ -155,10 +162,10 @@ router.post(
       }
     } else {
       const insertRes = await query(
-        `INSERT INTO users (email, first_name, last_name, phone, role, is_active, password_hash)
-         VALUES ($1, $2, $3, $4, 'applicant', true, NULL)
+        `INSERT INTO users (email, first_name, last_name, phone, role, is_active, password_hash, demo_run_id)
+         VALUES ($1, $2, $3, $4, 'applicant', true, NULL, $5)
          RETURNING id`,
-        [email, firstName, lastName, phone || null]
+        [email, firstName, lastName, phone || null, demoRunId]
       );
       userId = insertRes.rows[0].id;
       isNew = true;
@@ -199,15 +206,12 @@ router.post(
       message: "If this email is registered, a verification link has been sent.",
     };
     // In dev we always return the magic link so the post-register "check your
-    // email" banner can surface it. In prod we keep that gate closed (INFO-3:
-    // prevent devLink from leaking in production) UNLESS the operator has
-    // explicitly opted-in via DEMO_LINK_IN_RESPONSE=true. The demo-mode flag
-    // exists to let us walk a stakeholder through the funnel before real
-    // email/SMS delivery is wired; never set it on a tenant-facing deploy.
-    const includeDevLink =
-      process.env.NODE_ENV === "development" ||
-      process.env.DEMO_LINK_IN_RESPONSE === "true";
-    if (link && includeDevLink) {
+    // email" card can surface it. In prod the gate stays closed (INFO-3) unless
+    // the request carries a matching x-demo-token (DEMO_LINK_SECRET) — i.e. the
+    // tester arrived via the `?demo=<TOKEN>` deep link. The legacy fully-open
+    // DEMO_LINK_IN_RESPONSE switch is still honored as a transitional fallback.
+    // See utils/demo-link.ts.
+    if (link && shouldReturnDevLink(req)) {
       payload.devLink = link.link;
     }
     await respondAtFloor(res, t0, 202, payload);
