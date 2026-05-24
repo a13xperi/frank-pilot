@@ -220,8 +220,7 @@ describe("GET /api/qa/bundles/:stem/png — streaming proxy", () => {
         actorId: regionalManager.id,
         actorRole: regionalManager.role,
         resourceType: "qa_bundle",
-        resourceId: STEM,
-        details: { artifact: "png" },
+        details: { artifact: "png", bundle: STEM },
       })
     );
   });
@@ -255,7 +254,7 @@ describe("GET /api/qa/bundles/:stem/sidecar — streaming proxy", () => {
     expect(mockWriteAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "qa_bundle_read",
-        details: { artifact: "sidecar" },
+        details: { artifact: "sidecar", bundle: STEM },
       })
     );
   });
@@ -293,7 +292,7 @@ describe("GET /api/qa/bundles/:stem/replay — streaming proxy", () => {
     expect(mockWriteAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "qa_bundle_read",
-        details: { artifact: "replay" },
+        details: { artifact: "replay", bundle: STEM },
       })
     );
   });
