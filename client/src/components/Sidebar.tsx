@@ -47,50 +47,63 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'QA Bundles', path: '/qa-bundles', icon: Camera, minRole: 'regional_manager' },
 ];
 
-export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
+interface SidebarProps {
+  /** Desktop-only width collapse (icons-only rail). Ignored below `md`. */
+  collapsed?: boolean;
+  /** Whether the off-canvas drawer is open (below `md`). */
+  mobileOpen?: boolean;
+  /** Close the mobile drawer (overlay click, nav, Escape). */
+  onClose?: () => void;
+}
+
+export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: SidebarProps) {
   const { user } = useAuth();
   if (!user) return null;
 
   const visible = NAV_ITEMS.filter((item) => hasMinRole(user.role, item.minRole));
 
+  // `collapsed` is a desktop affordance only (md+). On mobile the drawer is
+  // always full-width when open, so collapse-driven label hiding / icon
+  // centering is gated behind `md:`.
+  const collapseRail = collapsed ? 'md:w-16' : 'md:w-64';
+  const collapseLabel = collapsed ? 'md:hidden' : '';
+  const collapseItemPad = collapsed ? 'md:justify-center md:px-0' : 'md:px-3';
+  const collapseHeaderPad = collapsed ? 'md:justify-center md:px-0' : 'md:px-6';
+
   return (
     <aside
-      className={`flex h-full flex-col border-r border-gray-200 bg-white transition-[width] duration-200 ${
-        collapsed ? 'w-16' : 'w-64'
+      aria-hidden={!mobileOpen}
+      className={`fixed inset-y-0 left-0 z-40 flex w-64 transform flex-col border-r border-gray-200 bg-white transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${collapseRail} ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div
-        className={`flex h-16 items-center gap-2 border-b border-gray-200 ${
-          collapsed ? 'justify-center px-0' : 'px-6'
-        }`}
-      >
-        <Building2 className="h-6 w-6 shrink-0 text-emerald-600" />
-        {!collapsed && <span className="text-lg font-semibold text-gray-900">CDPC Hub</span>}
+      <div className={`flex h-16 items-center gap-2 border-b border-gray-200 px-6 ${collapseHeaderPad}`}>
+        <Building2 className="h-6 w-6 shrink-0 text-brand-600" />
+        <span className={`text-lg font-semibold text-gray-900 ${collapseLabel}`}>CDPC Hub</span>
       </div>
-      <nav aria-label="Primary" className="flex-1 space-y-1 p-3">
+      <nav aria-label="Primary" className="flex-1 space-y-1 overflow-y-auto p-3">
         {visible.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             end={item.path === '/'}
             title={collapsed ? item.label : undefined}
+            onClick={onClose}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-colors ${
-                collapsed ? 'justify-center px-0' : 'px-3'
-              } ${
+              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${collapseItemPad} ${
                 isActive
-                  ? 'bg-emerald-50 text-emerald-700'
+                  ? 'bg-brand-50 text-brand-700'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`
             }
           >
             <item.icon className="h-5 w-5 shrink-0" />
-            {!collapsed && item.label}
+            <span className={collapseLabel}>{item.label}</span>
           </NavLink>
         ))}
       </nav>
       <div className="border-t border-gray-200 p-4">
-        {!collapsed && <p className="text-xs text-gray-400">CDPC Nevada</p>}
+        <p className={`text-xs text-gray-400 ${collapseLabel}`}>CDPC Nevada</p>
       </div>
     </aside>
   );
