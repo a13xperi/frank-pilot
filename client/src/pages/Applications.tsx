@@ -5,6 +5,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Button } from '@/components/Button';
 import type { Application, ApplicationListResponse } from '@/types';
 
 const STATUS_TABS = [
@@ -85,12 +86,9 @@ export function Applications() {
         title="Applications"
         description="Manage tenant applications - create, review, submit for screening"
         action={
-          <button
-            onClick={() => navigate('/applications/new')}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-          >
+          <Button onClick={() => navigate('/applications/new')}>
             <Plus className="h-4 w-4" /> New Application
-          </button>
+          </Button>
         }
       />
 
@@ -99,7 +97,7 @@ export function Applications() {
           <button
             key={t.value}
             onClick={() => setTab(t.value)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
               tab === t.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
 import { api } from '@/api/client';
 import type { PropertyListResponse } from '@/types';
 
@@ -38,6 +40,7 @@ const INITIAL = {
 
 export function ApplicationForm() {
   const navigate = useNavigate();
+  const toast = useToast();
   const props = useApiQuery<PropertyListResponse>('/api/properties');
   const [values, setValues] = useState(INITIAL);
   const [submitting, setSubmitting] = useState(false);
@@ -75,6 +78,7 @@ export function ApplicationForm() {
         requestedMoveInDate: values.requestedMoveInDate || undefined,
       };
       const res = await api.post<{ id: string }>('/api/applications', payload);
+      toast.success('Application created');
       navigate(`/applications/${res.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create application');
@@ -205,12 +209,12 @@ export function ApplicationForm() {
         {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
 
         <div className="flex justify-end gap-3 border-t border-gray-200 pt-6">
-          <button type="button" onClick={() => navigate('/applications')} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+          <Button variant="ghost" type="button" onClick={() => navigate('/applications')}>
             Cancel
-          </button>
-          <button type="submit" disabled={submitting} className="rounded-lg bg-emerald-600 px-6 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-            {submitting ? 'Creating...' : 'Create Application (Draft)'}
-          </button>
+          </Button>
+          <Button type="submit" loading={submitting}>
+            Create Application (Draft)
+          </Button>
         </div>
       </form>
     </div>

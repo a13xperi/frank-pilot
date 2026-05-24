@@ -4,6 +4,8 @@ import { ArrowLeft, Send, XCircle, CheckCircle, FileText, Home, AlertTriangle, R
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
+import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
 import { ApplicationMessages } from '@/components/ApplicationMessages';
 import { api } from '@/api/client';
 import type { Application, ApprovalStatus, ScreeningResult, LeaseStatus, AdverseActionNotice } from '@/types';
@@ -17,6 +19,7 @@ const POST_SCREENING_STATUSES = new Set([
 export function ApplicationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
   const { data: app, loading, error, refetch } = useApiQuery<Application>(id ? `/api/applications/${id}` : null);
   const { data: approvalStatus } = useApiQuery<ApprovalStatus>(id ? `/api/approvals/${id}/status` : null);
   const { data: screening } = useApiQuery<ScreeningResult>(
@@ -76,7 +79,7 @@ export function ApplicationDetail() {
       <div className="flex gap-2">
         {app.status === 'draft' && (
           <button
-            onClick={() => doAction('submit', async () => { await api.post(`/api/applications/${id}/submit`); })}
+            onClick={() => doAction('submit', async () => { await api.post(`/api/applications/${id}/submit`); toast.success('Submitted for screening'); })}
             disabled={!!actionLoading}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
@@ -84,13 +87,13 @@ export function ApplicationDetail() {
           </button>
         )}
         {['draft', 'submitted'].includes(app.status) && (
-          <button
-            onClick={() => doAction('cancel', async () => { await api.patch(`/api/applications/${id}/cancel`, { reason: 'Cancelled by staff' }); })}
+          <Button
+            variant="danger"
+            onClick={() => doAction('cancel', async () => { await api.patch(`/api/applications/${id}/cancel`, { reason: 'Cancelled by staff' }); toast.success('Application cancelled'); })}
             disabled={!!actionLoading}
-            className="flex items-center gap-1.5 rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
           >
             <XCircle className="h-4 w-4" /> Cancel
-          </button>
+          </Button>
         )}
       </div>
 
@@ -142,16 +145,17 @@ export function ApplicationDetail() {
                 <p>Household size: <strong>{app.household_size}</strong></p>
               </div>
               <RoleGate minRole="senior_manager">
-                <button
+                <Button
                   onClick={() => doAction('verify', async () => {
                     await api.patch(`/api/applications/${id}/verify-income`, {});
                     setActionMessage({ type: 'success', text: 'Income verified successfully' });
+                    toast.success('Income verified successfully');
                   })}
+                  loading={actionLoading === 'verify'}
                   disabled={!!actionLoading}
-                  className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  <CheckCircle className="h-4 w-4" /> {actionLoading === 'verify' ? 'Verifying...' : 'Verify Income'}
-                </button>
+                  <CheckCircle className="h-4 w-4" /> Verify Income
+                </Button>
               </RoleGate>
             </div>
           )}
@@ -184,6 +188,7 @@ export function ApplicationDetail() {
                       onClick={() => doAction('lease', async () => {
                         const res = await api.post<{ leaseId: string; documentUrl: string }>(`/api/leases/${id}/generate`);
                         setActionMessage({ type: 'success', text: `Lease generated (ID: ${res.leaseId})` });
+                        toast.success('Lease generated');
                       })}
                       disabled={!!actionLoading}
                       className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
@@ -217,6 +222,7 @@ export function ApplicationDetail() {
                   onClick={() => doAction('onboard', async () => {
                     const res = await api.post<{ onboarded: boolean; loftTenantId: string }>(`/api/leases/${id}/onboard`);
                     setActionMessage({ type: 'success', text: `Tenant onboarded (Loft ID: ${res.loftTenantId})` });
+                    toast.success('Tenant onboarded');
                   })}
                   disabled={!!actionLoading}
                   className="flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
@@ -258,17 +264,20 @@ export function ApplicationDetail() {
                 <p><span className="font-medium">Via:</span> {adverseAction.sentVia.toUpperCase()}</p>
               </div>
               <RoleGate minRole="senior_manager">
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => doAction('resend', async () => {
                     await api.post(`/api/applications/${id}/adverse-action/resend`);
                     refetchNotice();
                     setActionMessage({ type: 'success', text: 'Adverse action notice resent' });
+                    toast.success('Adverse action notice resent');
                   })}
+                  loading={actionLoading === 'resend'}
                   disabled={!!actionLoading}
-                  className="flex items-center gap-1.5 rounded-lg bg-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-300 disabled:opacity-50"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" /> {actionLoading === 'resend' ? 'Sending...' : 'Resend Notice'}
-                </button>
+                  <RefreshCw className="h-3.5 w-3.5" /> Resend Notice
+                </Button>
               </RoleGate>
             </div>
           ) : (

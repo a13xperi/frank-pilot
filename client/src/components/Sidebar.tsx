@@ -72,7 +72,6 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
 
   return (
     <aside
-      aria-hidden={!mobileOpen}
       className={`fixed inset-y-0 left-0 z-40 flex w-64 transform flex-col border-r border-gray-200 bg-white transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${collapseRail} ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
