@@ -22,6 +22,7 @@ import { WaitlistFasterList } from '@/pages/waitlist/FasterList';
 import { MagicLinkSent } from '@/pages/apply/MagicLinkSent';
 import { ScreenshotButton } from '@/components/dev/ScreenshotButton';
 import { DemoStuckButton } from '@/components/dev/DemoStuckButton';
+import { HousingChatWidget } from '@/components/HousingChatWidget';
 import { CookieBanner } from '@/components/CookieBanner';
 import { SiteFooter } from '@/components/SiteFooter';
 import { PrivacyPolicy } from '@/pages/legal/PrivacyPolicy';
@@ -85,6 +86,7 @@ export default function App() {
     <CookieBanner />
     <ScreenshotButton />
     <DemoStuckButton />
+    <HousingChatWidget />
     </>
   );
 }
