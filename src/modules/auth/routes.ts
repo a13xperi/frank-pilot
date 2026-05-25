@@ -6,8 +6,22 @@ import { authenticate, AuthRequest } from "../../middleware/auth";
 import { verifyTurnstile } from "../../middleware/verify-turnstile";
 import { logger } from "../../utils/logger";
 import { shouldReturnDevLink } from "../../utils/demo-link";
+import { GUEST_COOKIE_NAME, migrateGuestSavesToUser } from "../saved/service";
 
 const router: Router = Router();
+
+/** Read a single cookie value from the raw Cookie header (no cookie-parser). */
+function readCookie(cookieHeader: string | undefined, name: string): string | null {
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    }
+  }
+  return null;
+}
 
 const requestSchema = z.object({
   email: z.string().email(),
@@ -94,6 +108,28 @@ router.post("/magic-link/verify", async (req, res) => {
       res.status(401).json({ error: "Invalid or expired link" });
       return;
     }
+
+    // Conversion hook: if this browser carried a guest shortlist (uh_guest
+    // cookie), migrate those saves onto the now-verified user. Idempotent and
+    // best-effort — a migration failure must never block the login, so any
+    // error is logged and swallowed. "Your spot is already saved."
+    try {
+      const guestToken = readCookie(req.headers.cookie, GUEST_COOKIE_NAME);
+      if (guestToken && result.user?.id) {
+        const migrated = await migrateGuestSavesToUser(guestToken, result.user.id);
+        if (migrated > 0) {
+          logger.info("Migrated guest shortlist on conversion", {
+            userId: result.user.id,
+            migrated,
+          });
+        }
+      }
+    } catch (migrateErr) {
+      logger.error("Guest shortlist migration failed (non-fatal)", {
+        error: (migrateErr as Error).message,
+      });
+    }
+
     res.json(result);
   } catch (err) {
     logger.error("Magic-link verify failed", { error: (err as Error).message });

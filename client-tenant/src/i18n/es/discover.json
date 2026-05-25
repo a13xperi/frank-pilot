@@ -101,5 +101,18 @@
   "amenities.item.ac": "Aire acondicionado",
   "amenities.item.courtyard": "Patio",
   "amenities.item.playground": "Área de juegos",
-  "amenities.item.pool": "Piscina"
+  "amenities.item.pool": "Piscina",
+  "saved.title": "Tu lista de favoritos",
+  "saved.viewShortlist": "Ver tus viviendas guardadas ({{count}})",
+  "saved.count_one": "{{count}} vivienda guardada",
+  "saved.count_other": "{{count}} viviendas guardadas",
+  "saved.loading": "Cargando tu lista…",
+  "saved.empty.heading": "Aún no tienes viviendas guardadas",
+  "saved.empty.body": "Toca ♥ en cualquier propiedad para guardarla aquí.",
+  "saved.empty.cta": "Explorar viviendas",
+  "saved.remove": "Quitar {{name}} de tu lista",
+  "saved.removeShort": "Quitar de la lista",
+  "saved.alertOn": "Alertas de disponibilidad activadas",
+  "saved.alertOff": "Recibir alertas de disponibilidad",
+  "saved.apply": "Solicitar"
 }

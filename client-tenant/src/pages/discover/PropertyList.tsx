@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Heart } from 'lucide-react';
 import { fetchUnits } from '@/api/units';
 import { getToken } from '@/api/client';
 import {
@@ -18,6 +19,8 @@ import {
   type GPMGType,
 } from '@/api/gpmg-fixtures';
 import { Card } from '@/components/primitives';
+import { SaveButton } from '@/components/SaveButton';
+import { useShortlist } from '@/state/shortlist';
 import { placeholderFor } from '@/utils/unitPlaceholder';
 import { HF } from '@/styles/tokens';
 import {
@@ -311,6 +314,7 @@ function tileFromFixture(p: GPMGProperty): TileSource {
 
 export function PropertyList() {
   const { t } = useTranslation('discover');
+  const { count: savedCount } = useShortlist();
   const [params, setParams] = useSearchParams();
 
   // Single source of truth for filters: URL params. This is what lets the
@@ -536,21 +540,79 @@ export function PropertyList() {
       style={{ background: HF.cream, minHeight: '100vh', fontFamily: HF.body, color: HF.ink }}
     >
       <div className="mx-auto max-w-5xl p-4 sm:p-6">
-        <header className="mb-4">
-          <h1
+        <header className="mb-4 flex items-start justify-between" style={{ gap: 12 }}>
+          <div>
+            <h1
+              style={{
+                fontFamily: HF.display,
+                fontWeight: 800,
+                fontSize: 22,
+                color: HF.ink,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Find your home
+            </h1>
+            <p style={{ marginTop: 4, fontSize: 14, color: HF.ink3 }}>
+              Affordable communities across Nevada
+            </p>
+          </div>
+          {/* Saved-shortlist entry point — heart + live count badge. */}
+          <Link
+            to="/saved"
+            aria-label={t('saved.viewShortlist', { count: savedCount })}
+            data-testid="saved-shortlist-link"
             style={{
-              fontFamily: HF.display,
-              fontWeight: 800,
-              fontSize: 22,
-              color: HF.ink,
-              letterSpacing: '-0.01em',
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 40,
+              width: 40,
+              flexShrink: 0,
+              borderRadius: HF.r.pill,
+              border: `1px solid ${HF.border}`,
+              background: HF.paper,
+              boxShadow: HF.shadow.xs,
+              color: savedCount > 0 ? HF.accent : HF.ink3,
+              textDecoration: 'none',
             }}
           >
-            Find your home
-          </h1>
-          <p style={{ marginTop: 4, fontSize: 14, color: HF.ink3 }}>
-            Affordable communities across Nevada
-          </p>
+            <Heart
+              width={20}
+              height={20}
+              style={{
+                color: savedCount > 0 ? HF.accent : HF.ink3,
+                fill: savedCount > 0 ? HF.accent : 'none',
+              }}
+              aria-hidden="true"
+            />
+            {savedCount > 0 && (
+              <span
+                data-testid="saved-count-badge"
+                style={{
+                  position: 'absolute',
+                  top: -6,
+                  right: -6,
+                  minWidth: 18,
+                  height: 18,
+                  padding: '0 5px',
+                  borderRadius: HF.r.pill,
+                  background: HF.accent,
+                  color: HF.paper,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  fontFamily: HF.body,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                }}
+              >
+                {savedCount}
+              </span>
+            )}
+          </Link>
         </header>
 
         <div
@@ -869,16 +931,26 @@ function PropertyTile({
         }}
       >
         <Card variant="mobile" padding={0} elevation="sm" style={{ overflow: 'hidden' }}>
-          <div
-            className="aspect-[16/9] w-full"
-            style={{
-              background: `${HF.sageLo}`,
-              backgroundImage: `url(${placeholderFor(slug, prop.name)})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-            aria-hidden="true"
-          />
+          <div className="relative">
+            <div
+              className="aspect-[16/9] w-full"
+              style={{
+                background: `${HF.sageLo}`,
+                backgroundImage: `url(${placeholderFor(slug, prop.name)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+              aria-hidden="true"
+            />
+            {/* ♥ shortlist toggle — corner of the card photo. Stops propagation
+                so tapping the heart never follows the card's <Link>. */}
+            <div style={{ position: 'absolute', top: 8, right: 8 }}>
+              {/* No propertyName here on purpose: a name-bearing aria-label
+                  would collide with the card link in name-based queries
+                  (the card context already associates the heart). */}
+              <SaveButton slug={slug} size={36} />
+            </div>
+          </div>
           {coords && (
             <iframe
               title={`Map — ${prop.name}`}

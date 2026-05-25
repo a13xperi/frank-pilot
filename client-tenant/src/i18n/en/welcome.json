@@ -23,6 +23,10 @@
   "help": "Help",
   "topMatch": "Top match",
   "savedShortlist": "Saved to your shortlist",
+  "save": {
+    "add": "Save to shortlist",
+    "remove": "Remove from shortlist"
+  },
   "vacancy": {
     "open": "Available now",
     "waitlist": "Waitlist open",

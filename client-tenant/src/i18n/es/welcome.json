@@ -23,6 +23,10 @@
   "help": "Ayuda",
   "topMatch": "Tu favorita",
   "savedShortlist": "Guardada en tu lista",
+  "save": {
+    "add": "Guardar en tu lista",
+    "remove": "Quitar de tu lista"
+  },
   "vacancy": {
     "open": "Disponible ahora",
     "waitlist": "Lista de espera abierta",
