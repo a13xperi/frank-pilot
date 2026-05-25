@@ -37,10 +37,40 @@ describe('PropertyDetail (GPMG fixture)', () => {
     expect(cta).toHaveTextContent(/Apply now/i);
   });
 
-  it('renders amenities grid', () => {
+  it('renders amenities grid with the core representative amenities', () => {
     renderAt('/property/owens-senior-housing');
-    expect(screen.getByText('Affordable rents')).toBeInTheDocument();
+    expect(screen.getByTestId('amenities-grid')).toBeInTheDocument();
+    // Core amenities are present for every community.
+    expect(screen.getByText('On-site laundry')).toBeInTheDocument();
     expect(screen.getByText('Smoke-free')).toBeInTheDocument();
+    expect(screen.getByText('Near transit')).toBeInTheDocument();
+    // Honest disclosure that these are representative.
+    expect(
+      screen.getByText(/Representative amenities/i)
+    ).toBeInTheDocument();
+  });
+
+  it('renders floor plans driven by real rent + availability', () => {
+    renderAt('/property/david-j-hoggard-family-community');
+    const grid = screen.getByTestId('floor-plan-grid');
+    expect(grid).toBeInTheDocument();
+    // Hoggard offers 1BR/2BR/3BR — at least three plan cards.
+    expect(grid.querySelectorAll('li').length).toBeGreaterThanOrEqual(3);
+    // Real seeded rent surfaces on the plan card.
+    expect(screen.getByTestId('floor-plan-br1').textContent).toMatch(/\$995/);
+    // Representative-size footnote is shown.
+    expect(screen.getByText(/Unit sizes are representative/i)).toBeInTheDocument();
+  });
+
+  it('renders neighborhood scores and nearby places, labelled representative', () => {
+    renderAt('/property/owens-senior-housing');
+    expect(screen.getByTestId('neighborhood')).toBeInTheDocument();
+    expect(screen.getByTestId('neighborhood-scores')).toBeInTheDocument();
+    expect(screen.getByTestId('neighborhood-nearby')).toBeInTheDocument();
+    expect(screen.getByText('Walkability')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Representative neighborhood estimates/i)
+    ).toBeInTheDocument();
   });
 
   it('shows not-found for unknown slug', () => {
