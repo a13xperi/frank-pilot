@@ -6,6 +6,7 @@ import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { api } from '@/api/client';
 import { hasMinRole, type Application, type ApplicationListResponse } from '@/types';
 
@@ -134,13 +135,13 @@ export function Approvals() {
               >
                 <ThumbsDown className="h-4 w-4" /> Deny
               </button>
-              <button
+              <Button
+                variant="primary"
                 onClick={() => decide('pass')}
-                disabled={actionLoading}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                loading={actionLoading}
               >
                 <ThumbsUp className="h-4 w-4" /> Approve
-              </button>
+              </Button>
             </div>
           </div>
         )}

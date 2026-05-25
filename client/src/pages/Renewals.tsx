@@ -4,6 +4,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
@@ -94,21 +95,18 @@ export function Renewals() {
               <div className="flex gap-2 border-t border-gray-200 pt-3">
                 {selected.status === 'offered' && (
                   <>
-                    <button onClick={() => doAction('Renewal accepted', () => api.post(`/api/renewals/${selected.id}/respond`, { response: 'accept' }))}
-                      className="flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
+                    <Button variant="primary" onClick={() => doAction('Renewal accepted', () => api.post(`/api/renewals/${selected.id}/respond`, { response: 'accept' }))}>
                       <Check className="h-4 w-4" /> Accept
-                    </button>
-                    <button onClick={() => doAction('Renewal declined', () => api.post(`/api/renewals/${selected.id}/respond`, { response: 'decline' }))}
-                      className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+                    </Button>
+                    <Button variant="danger" onClick={() => doAction('Renewal declined', () => api.post(`/api/renewals/${selected.id}/respond`, { response: 'decline' }))}>
                       <X className="h-4 w-4" /> Decline
-                    </button>
+                    </Button>
                   </>
                 )}
                 {(selected.status === 'accepted' || selected.status === 'counter_offered') && (
-                  <button onClick={() => doAction('Renewal approved — lease extended', () => api.post(`/api/renewals/${selected.id}/approve`))}
-                    className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+                  <Button variant="primary" onClick={() => doAction('Renewal approved — lease extended', () => api.post(`/api/renewals/${selected.id}/approve`))}>
                     <ArrowRightLeft className="h-4 w-4" /> Approve & Extend Lease
-                  </button>
+                  </Button>
                 )}
               </div>
             </RoleGate>

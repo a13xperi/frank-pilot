@@ -6,6 +6,7 @@ import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { api } from '@/api/client';
 import { hasMinRole, type Application, type ApplicationListResponse, type ScreeningResult, type FraudFlag } from '@/types';
 
@@ -92,13 +93,14 @@ export function Screening() {
               key: 'actions',
               header: '',
               render: (r) => (
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={(e) => { e.stopPropagation(); runScreening(r); }}
-                  disabled={actionLoading}
-                  className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  loading={actionLoading}
                 >
                   <Play className="h-3 w-3" /> Screen
-                </button>
+                </Button>
               ),
             },
           ]}
@@ -152,12 +154,13 @@ export function Screening() {
                           onChange={(e) => setResolveNotes(e.target.value)}
                           className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
                         />
-                        <button
+                        <Button
+                          variant="primary"
+                          size="sm"
                           onClick={() => resolveFlag(f.id)}
-                          className="rounded bg-emerald-600 px-3 py-1 text-xs text-white hover:bg-emerald-700"
                         >
                           Resolve
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>

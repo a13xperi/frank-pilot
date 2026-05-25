@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, XCircle, CheckCircle, FileText, Home, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Button } from '@/components/Button';
 import { RoleGate } from '@/components/RoleGate';
 import { ApplicationMessages } from '@/components/ApplicationMessages';
 import { api } from '@/api/client';
@@ -142,16 +143,17 @@ export function ApplicationDetail() {
                 <p>Household size: <strong>{app.household_size}</strong></p>
               </div>
               <RoleGate minRole="senior_manager">
-                <button
+                <Button
+                  variant="primary"
                   onClick={() => doAction('verify', async () => {
                     await api.patch(`/api/applications/${id}/verify-income`, {});
                     setActionMessage({ type: 'success', text: 'Income verified successfully' });
                   })}
                   disabled={!!actionLoading}
-                  className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  loading={actionLoading === 'verify'}
                 >
                   <CheckCircle className="h-4 w-4" /> {actionLoading === 'verify' ? 'Verifying...' : 'Verify Income'}
-                </button>
+                </Button>
               </RoleGate>
             </div>
           )}
@@ -213,16 +215,17 @@ export function ApplicationDetail() {
             {/* Onboarding */}
             {app.status === 'lease_generated' && (
               <RoleGate minRole="senior_manager">
-                <button
+                <Button
                   onClick={() => doAction('onboard', async () => {
                     const res = await api.post<{ onboarded: boolean; loftTenantId: string }>(`/api/leases/${id}/onboard`);
                     setActionMessage({ type: 'success', text: `Tenant onboarded (Loft ID: ${res.loftTenantId})` });
                   })}
                   disabled={!!actionLoading}
-                  className="flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                  loading={actionLoading === 'onboard'}
+                  variant="primary"
                 >
                   <Home className="h-4 w-4" /> {actionLoading === 'onboard' ? 'Onboarding...' : 'Complete Onboarding'}
-                </button>
+                </Button>
               </RoleGate>
             )}
 

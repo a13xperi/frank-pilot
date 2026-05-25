@@ -4,6 +4,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
@@ -69,9 +70,9 @@ export function MoveOuts() {
         description="Tenant vacate notices, inspections, and deposit disposition"
         action={
           <RoleGate minRole="senior_manager">
-            <button onClick={() => setShowInitiate(true)} className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+            <Button variant="danger" onClick={() => setShowInitiate(true)}>
               <Plus className="h-4 w-4" /> Initiate Move-Out
-            </button>
+            </Button>
           </RoleGate>
         }
       />
@@ -97,15 +98,15 @@ export function MoveOuts() {
           <div><label className="label">Notice Date</label><input type="date" value={initDate} onChange={(e) => setInitDate(e.target.value)} className="input" /></div>
           <div><label className="label">Forwarding Address (required)</label><input value={initAddr} onChange={(e) => setInitAddr(e.target.value)} className="input" placeholder="New address for deposit refund" /></div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowInitiate(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button disabled={!initAppId || !initAddr} onClick={async () => {
+            <Button variant="ghost" onClick={() => setShowInitiate(false)}>Cancel</Button>
+            <Button variant="danger" disabled={!initAppId || !initAddr} onClick={async () => {
               try {
                 await api.post('/api/moveouts', { applicationId: initAppId, noticeDate: initDate, forwardingAddress: initAddr });
                 setActionMsg({ type: 'success', text: 'Move-out initiated' });
                 setShowInitiate(false); setInitAppId(''); setInitAddr('');
                 refetch();
               } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-            }} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">Initiate</button>
+            }}>Initiate</Button>
           </div>
         </div>
       </Modal>
@@ -207,13 +208,13 @@ export function MoveOuts() {
 
                 {/* Send Refund */}
                 {selected.status === 'deposit_calculated' && (
-                  <button onClick={async () => {
+                  <Button variant="primary" onClick={async () => {
                     try {
                       await api.post(`/api/moveouts/${selected.id}/refund`);
                       setActionMsg({ type: 'success', text: 'Deposit refund sent' });
                       setSelected(null); refetch();
                     } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-                  }} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">Send Deposit Refund</button>
+                  }}>Send Deposit Refund</Button>
                 )}
               </div>
             </RoleGate>

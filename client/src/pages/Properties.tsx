@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
 import { getPropertyPhoto } from '@/utils/propertyPhoto';
@@ -107,12 +108,9 @@ export function Properties() {
         description="Manage rental properties, AMI areas, and integration IDs"
         action={
           <RoleGate minRole="asset_manager">
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-            >
+            <Button variant="primary" onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" /> Add Property
-            </button>
+            </Button>
           </RoleGate>
         }
       />
@@ -146,10 +144,10 @@ export function Properties() {
           </div>
           {createForm.error && <p className="text-sm text-red-600">{createForm.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button type="submit" disabled={createForm.submitting} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+            <Button type="button" variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={createForm.submitting}>
               {createForm.submitting ? 'Creating...' : 'Create Property'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
@@ -171,10 +169,10 @@ export function Properties() {
           )}
           {editForm.error && <p className="text-sm text-red-600">{editForm.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setEditProp(null)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button type="submit" disabled={editForm.submitting} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+            <Button type="button" variant="ghost" onClick={() => setEditProp(null)}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={editForm.submitting}>
               {editForm.submitting ? 'Saving...' : 'Save Changes'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

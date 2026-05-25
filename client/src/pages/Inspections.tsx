@@ -4,6 +4,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
@@ -52,9 +53,9 @@ export function InspectionsPage() {
         description="Unit inspections, smoke detector compliance, and HQS/UPCS records"
         action={
           <RoleGate minRole="senior_manager">
-            <button onClick={() => setShowSchedule(true)} className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+            <Button variant="primary" onClick={() => setShowSchedule(true)}>
               <Plus className="h-4 w-4" /> Schedule Inspection
-            </button>
+            </Button>
           </RoleGate>
         }
       />
@@ -97,15 +98,15 @@ export function InspectionsPage() {
           </div>
           <div><label className="label">Unit (optional)</label><input value={schedUnit} onChange={(e) => setSchedUnit(e.target.value)} className="input" placeholder="e.g. A-102" /></div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowSchedule(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button disabled={!schedPropId || !schedDate} onClick={async () => {
+            <Button variant="ghost" onClick={() => setShowSchedule(false)}>Cancel</Button>
+            <Button variant="primary" disabled={!schedPropId || !schedDate} onClick={async () => {
               try {
                 await api.post('/api/inspections', { propertyId: schedPropId, inspectionType: schedType, scheduledDate: schedDate, unitNumber: schedUnit || undefined });
                 setActionMsg({ type: 'success', text: 'Inspection scheduled' });
                 setShowSchedule(false); setSchedPropId(''); setSchedDate(''); setSchedUnit('');
                 refetch();
               } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-            }} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">Schedule</button>
+            }}>Schedule</Button>
           </div>
         </div>
       </Modal>
@@ -136,13 +137,13 @@ export function InspectionsPage() {
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={hqsOk} onChange={(e) => setHqsOk(e.target.checked)} /> HQS Compliant</label>
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={followUp} onChange={(e) => setFollowUp(e.target.checked)} /> Follow-Up Required</label>
                   </div>
-                  <button disabled={!completeNotes.trim()} onClick={async () => {
+                  <Button variant="primary" disabled={!completeNotes.trim()} onClick={async () => {
                     try {
                       await api.post(`/api/inspections/${selected.id}/complete`, { notes: completeNotes, smokeDetectorOk: smokeOk, hqsCompliant: hqsOk, followUpRequired: followUp });
                       setActionMsg({ type: 'success', text: 'Inspection completed' });
                       setSelected(null); setCompleteNotes(''); refetch();
                     } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-                  }} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">Complete Inspection</button>
+                  }}>Complete Inspection</Button>
                 </div>
               </RoleGate>
             )}

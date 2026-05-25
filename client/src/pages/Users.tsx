@@ -8,6 +8,8 @@ import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
+import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
 import { api } from '@/api/client';
 import { hasMinRole, formatRole, type StaffUser, type UserListResponse, type UserRole } from '@/types';
 
@@ -28,6 +30,7 @@ const EMPTY_FORM = {
 
 export function UsersPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const { data, loading, refetch } = useApiQuery<UserListResponse>('/api/users');
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<StaffUser | null>(null);
@@ -70,7 +73,7 @@ export function UsersPage() {
     setActionLoading(true);
     try {
       await api.post(`/api/users/${u.id}/reset-password`, { newPassword: pw });
-      alert('Password reset successfully');
+      toast.success('Password reset successfully');
     } finally {
       setActionLoading(false);
       setSelected(null);
@@ -85,12 +88,9 @@ export function UsersPage() {
         description="Manage staff accounts, roles, and access"
         action={
           <RoleGate minRole="system_admin">
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-            >
+            <Button onClick={() => setShowCreate(true)} variant="primary">
               <Plus className="h-4 w-4" /> Add User
-            </button>
+            </Button>
           </RoleGate>
         }
       />
@@ -160,10 +160,10 @@ export function UsersPage() {
           </div>
           {form.error && <p className="text-sm text-red-600">{form.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button type="submit" disabled={form.submitting} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-              {form.submitting ? 'Creating...' : 'Create User'}
-            </button>
+            <Button type="button" onClick={() => setShowCreate(false)} variant="ghost">Cancel</Button>
+            <Button type="submit" variant="primary" loading={form.submitting}>
+              Create User
+            </Button>
           </div>
         </form>
       </Modal>
@@ -180,22 +180,22 @@ export function UsersPage() {
             </div>
             <RoleGate minRole="system_admin">
               <div className="flex gap-2 border-t border-gray-200 pt-4">
-                <button
+                <Button
                   onClick={() => toggleActive(selected)}
-                  disabled={actionLoading}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                    selected.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                  } disabled:opacity-50`}
+                  variant={selected.isActive ? 'danger' : 'primary'}
+                  size="sm"
+                  loading={actionLoading}
                 >
                   {selected.isActive ? 'Deactivate' : 'Activate'}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => resetPassword(selected)}
-                  disabled={actionLoading}
-                  className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                  variant="secondary"
+                  size="sm"
+                  loading={actionLoading}
                 >
                   <RotateCcw className="h-3.5 w-3.5" /> Reset Password
-                </button>
+                </Button>
               </div>
             </RoleGate>
           </div>

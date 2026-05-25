@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Wrench, Plus, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
+import { ResponsiveCards } from '@/components/ResponsiveCards';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
@@ -67,9 +69,9 @@ export function MaintenancePage() {
         title="Maintenance"
         description="Work orders, emergency requests, and repair tracking"
         action={
-          <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+          <Button variant="primary" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" /> New Work Order
-          </button>
+          </Button>
         }
       />
 
@@ -81,7 +83,11 @@ export function MaintenancePage() {
 
       {actionMsg && <div className={`rounded-lg px-4 py-3 text-sm ${actionMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{actionMsg.text}</div>}
 
-      <DataTable columns={columns} data={workOrders} loading={loading} error={error} onRowClick={setSelected} emptyMessage="No work orders" />
+      {/* Table at md+, stacked cards below md (same columns + data + handler). */}
+      <div className="hidden md:block">
+        <DataTable columns={columns} data={workOrders} loading={loading} error={error} onRowClick={setSelected} emptyMessage="No work orders" />
+      </div>
+      <ResponsiveCards className="md:hidden" columns={columns} data={workOrders} loading={loading} error={error} onRowClick={setSelected} emptyMessage="No work orders" />
 
       {/* Create Modal */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Work Order" wide>
@@ -115,8 +121,8 @@ export function MaintenancePage() {
             <div><label className="label">Unit</label><input value={createUnit} onChange={(e) => setCreateUnit(e.target.value)} className="input" placeholder="A-102" /></div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowCreate(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button disabled={!createPropId || !createTitle || !createDesc} onClick={async () => {
+            <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button variant="primary" disabled={!createPropId || !createTitle || !createDesc} onClick={async () => {
               try {
                 await api.post('/api/maintenance', {
                   propertyId: createPropId, title: createTitle, description: createDesc,
@@ -126,7 +132,7 @@ export function MaintenancePage() {
                 setShowCreate(false); setCreatePropId(''); setCreateTitle(''); setCreateDesc(''); setCreateUnit('');
                 refetch();
               } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-            }} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">Create</button>
+            }}>Create</Button>
           </div>
         </div>
       </Modal>
@@ -186,7 +192,7 @@ export function MaintenancePage() {
                     <textarea value={completeNotes} onChange={(e) => setCompleteNotes(e.target.value)} rows={2} className="input" placeholder="Completion notes (required)" />
                     <div className="flex gap-2">
                       <input type="number" step="0.01" min="0" value={completeCost} onChange={(e) => setCompleteCost(e.target.value)} className="input w-40" placeholder="Actual cost" />
-                      <button disabled={!completeNotes.trim()} onClick={async () => {
+                      <Button variant="primary" disabled={!completeNotes.trim()} onClick={async () => {
                         try {
                           await api.post(`/api/maintenance/${selected.id}/complete`, {
                             notes: completeNotes, actualCost: completeCost ? parseFloat(completeCost) : undefined,
@@ -194,7 +200,7 @@ export function MaintenancePage() {
                           setActionMsg({ type: 'success', text: 'Work order completed' });
                           setSelected(null); setCompleteNotes(''); setCompleteCost(''); refetch();
                         } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-                      }} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">Complete</button>
+                      }}>Complete</Button>
                     </div>
                   </div>
                 )}

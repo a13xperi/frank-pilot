@@ -36,7 +36,10 @@ export function hasMinRole(userRole: UserRole, minRole: UserRole): boolean {
   return ROLE_LEVEL[userRole] >= ROLE_LEVEL[minRole];
 }
 
-export function formatRole(role: UserRole): string {
+export function formatRole(role: UserRole | null | undefined): string {
+  // System-generated audit events (payment webhooks, ledger postings) carry a
+  // null actor_role — render those as "System" rather than crashing on .split().
+  if (!role) return 'System';
   return role
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))

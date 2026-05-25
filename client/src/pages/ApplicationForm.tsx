@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { api } from '@/api/client';
+import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
 import type { PropertyListResponse } from '@/types';
 
 const INITIAL = {
@@ -39,9 +41,9 @@ const INITIAL = {
 export function ApplicationForm() {
   const navigate = useNavigate();
   const props = useApiQuery<PropertyListResponse>('/api/properties');
+  const toast = useToast();
   const [values, setValues] = useState(INITIAL);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
 
   function onChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     setValues((v) => ({ ...v, [e.target.name]: e.target.value }));
@@ -49,7 +51,6 @@ export function ApplicationForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
     setSubmitting(true);
     try {
       const payload = {
@@ -77,7 +78,7 @@ export function ApplicationForm() {
       const res = await api.post<{ id: string }>('/api/applications', payload);
       navigate(`/applications/${res.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create application');
+      toast.error(err instanceof Error ? err.message : 'Failed to create application');
     } finally {
       setSubmitting(false);
     }
@@ -87,9 +88,9 @@ export function ApplicationForm() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <button onClick={() => navigate('/applications')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+      <Button onClick={() => navigate('/applications')} variant="ghost" size="sm">
         <ArrowLeft className="h-4 w-4" /> Back to Applications
-      </button>
+      </Button>
 
       <h1 className="text-2xl font-semibold text-gray-900">New Application</h1>
 
@@ -202,15 +203,13 @@ export function ApplicationForm() {
           </div>
         </Section>
 
-        {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
-
         <div className="flex justify-end gap-3 border-t border-gray-200 pt-6">
-          <button type="button" onClick={() => navigate('/applications')} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+          <Button type="button" onClick={() => navigate('/applications')} variant="ghost">
             Cancel
-          </button>
-          <button type="submit" disabled={submitting} className="rounded-lg bg-emerald-600 px-6 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-            {submitting ? 'Creating...' : 'Create Application (Draft)'}
-          </button>
+          </Button>
+          <Button type="submit" variant="primary" loading={submitting}>
+            Create Application (Draft)
+          </Button>
         </div>
       </form>
     </div>
