@@ -132,16 +132,10 @@ export const DL2_FIXTURE: PropertyDetail = {
   neighborhood: 'East Las Vegas',
   description:
     'Family-oriented community in East Las Vegas, walking distance to Garcia Elementary and Sunrise Hospital. Three-story building with elevator, on-site laundry, gated parking, and a courtyard with playground equipment. Section 8 vouchers welcome.',
-  // Representative placeholder gallery — seeded per index so the carousel shows
-  // variety rather than five identical frames. Labeled "Representative photo" in
-  // the UI; not images of the actual building.
-  photos: [
-    placeholderFor('donna-louise-2-0'),
-    placeholderFor('donna-louise-2-1'),
-    placeholderFor('donna-louise-2-2'),
-    placeholderFor('donna-louise-2-3'),
-    placeholderFor('donna-louise-2-4'),
-  ],
+  // Single neutral brand placeholder (no real photos for this building). A
+  // multi-frame carousel of near-identical placeholder panels adds nothing, so
+  // we show one; PhotoCarousel hides its dots/arrows at count === 1.
+  photos: [placeholderFor('donna-louise-2', 'Donna Louise 2')],
   amenities: [
     'Pool',
     'Elevator',
