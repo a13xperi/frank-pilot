@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { CalendarClock, AlertTriangle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
+import { ResponsiveCards } from '@/components/ResponsiveCards';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
@@ -139,7 +141,18 @@ export function Recertifications() {
         ))}
       </div>
 
-      <DataTable
+      {/* Table at md+, stacked cards below md (same columns + data + handler). */}
+      <div className="hidden md:block">
+        <DataTable
+          columns={columns}
+          data={data?.recertifications || []}
+          loading={loading}
+          onRowClick={(r) => setSelected(r)}
+          emptyMessage="No recertifications found"
+        />
+      </div>
+      <ResponsiveCards
+        className="md:hidden"
         columns={columns}
         data={data?.recertifications || []}
         loading={loading}
@@ -183,20 +196,24 @@ export function Recertifications() {
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                   <div className="flex gap-2">
-                    <button
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onClick={() => doReview('pass')}
-                      disabled={actionLoading || !reviewNotes.trim()}
-                      className="flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                      disabled={!reviewNotes.trim()}
+                      loading={actionLoading}
                     >
                       <CheckCircle className="h-4 w-4" /> Approve
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onClick={() => doReview('fail')}
-                      disabled={actionLoading || !reviewNotes.trim()}
-                      className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      disabled={!reviewNotes.trim()}
+                      loading={actionLoading}
                     >
                       <XCircle className="h-4 w-4" /> Deny
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </RoleGate>

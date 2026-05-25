@@ -70,7 +70,7 @@ export function Dashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={FileText} label="Active Applications" value={activeCount} loading={apps.loading} to="/applications" />
         <RoleGate minRole="senior_manager">
-          <StatCard icon={UserPlus} label="Signups" value={signups.data?.registered ?? '—'} loading={signups.loading} to="/applications" />
+          <StatCard icon={UserPlus} label="Signups" value={signups.data?.registered ?? '--'} loading={signups.loading} to="/applications" />
         </RoleGate>
         <RoleGate minRole="senior_manager">
           <StatCard icon={Search} label="Pending Screening" value={screeningCount} loading={apps.loading} to="/screening" />
@@ -78,7 +78,7 @@ export function Dashboard() {
         <RoleGate minRole="senior_manager">
           <StatCard icon={CheckCircle} label="Pending Approvals" value={approvalCount} loading={apps.loading} to="/approvals" />
         </RoleGate>
-        <StatCard icon={Building2} label="Properties" value={props.data?.total ?? '—'} loading={props.loading} to="/properties" />
+        <StatCard icon={Building2} label="Properties" value={props.data?.total ?? '--'} loading={props.loading} to="/properties" />
       </div>
 
       <RoleGate minRole="regional_manager">

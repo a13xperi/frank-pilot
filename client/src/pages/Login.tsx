@@ -3,16 +3,18 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { Building2, Database } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/api/client';
+import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
 
 export function Login() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
-  const [demoResult, setDemoResult] = useState('');
 
   if (user) return <Navigate to="/" replace />;
 
@@ -32,19 +34,17 @@ export function Login() {
 
   async function loadDemo() {
     setDemoLoading(true);
-    setDemoResult('');
-    setError('');
     try {
       // Login as admin to seed
       await login('admin@cdpc.test', 'password123');
       const res = await api.post<{ created: number }>('/api/demo/seed');
-      setDemoResult(`Demo loaded! ${res.created} applications across all stages.`);
+      toast.success(`Demo loaded! ${res.created} applications across all stages.`);
       // Logout so user can pick a role to explore
       localStorage.removeItem('frank_token');
       localStorage.removeItem('frank_user');
       window.location.reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load demo data');
+      toast.error(err instanceof Error ? err.message : 'Failed to load demo data');
     } finally {
       setDemoLoading(false);
     }
@@ -94,13 +94,9 @@ export function Login() {
               <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
             )}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {submitting ? 'Signing in...' : 'Sign In'}
-            </button>
+            <Button type="submit" variant="primary" loading={submitting} className="w-full">
+              Sign In
+            </Button>
           </form>
         </div>
 
@@ -111,18 +107,11 @@ export function Login() {
               <p className="text-sm font-medium text-gray-700">Demo Mode</p>
               <p className="text-xs text-gray-400">Load sample applications at every pipeline stage</p>
             </div>
-            <button
-              onClick={loadDemo}
-              disabled={demoLoading}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-            >
+            <Button onClick={loadDemo} variant="secondary" size="sm" loading={demoLoading}>
               <Database className="h-4 w-4" />
-              {demoLoading ? 'Loading...' : 'Load Demo'}
-            </button>
+              Load Demo
+            </Button>
           </div>
-          {demoResult && (
-            <p className="mt-2 rounded bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">{demoResult}</p>
-          )}
           <div className="mt-3 space-y-1">
             <p className="text-xs text-gray-400">Demo accounts (password: password123):</p>
             <div className="grid grid-cols-2 gap-x-4 text-xs text-gray-500">

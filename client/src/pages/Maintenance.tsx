@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Wrench, Plus, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
+import { ResponsiveCards } from '@/components/ResponsiveCards';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
-import { Button } from '@/components/Button';
-import { useToast } from '@/components/Toast';
 import { api } from '@/api/client';
 import type { WorkOrder, PropertyListResponse, UserListResponse } from '@/types';
 
@@ -18,7 +18,6 @@ const CATEGORIES = [
 ];
 
 export function MaintenancePage() {
-  const toast = useToast();
   const { data, loading, error, refetch } = useApiQuery<{ workOrders: WorkOrder[]; total: number }>('/api/maintenance?limit=100');
   const { data: propsData } = useApiQuery<PropertyListResponse>('/api/properties');
   const { data: usersData } = useApiQuery<UserListResponse>('/api/users');
@@ -70,7 +69,7 @@ export function MaintenancePage() {
         title="Maintenance"
         description="Work orders, emergency requests, and repair tracking"
         action={
-          <Button onClick={() => setShowCreate(true)}>
+          <Button variant="primary" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" /> New Work Order
           </Button>
         }
@@ -84,7 +83,11 @@ export function MaintenancePage() {
 
       {actionMsg && <div className={`rounded-lg px-4 py-3 text-sm ${actionMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{actionMsg.text}</div>}
 
-      <DataTable columns={columns} data={workOrders} loading={loading} error={error} onRowClick={setSelected} emptyMessage="No work orders" />
+      {/* Table at md+, stacked cards below md (same columns + data + handler). */}
+      <div className="hidden md:block">
+        <DataTable columns={columns} data={workOrders} loading={loading} error={error} onRowClick={setSelected} emptyMessage="No work orders" />
+      </div>
+      <ResponsiveCards className="md:hidden" columns={columns} data={workOrders} loading={loading} error={error} onRowClick={setSelected} emptyMessage="No work orders" />
 
       {/* Create Modal */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Work Order" wide>
@@ -118,18 +121,17 @@ export function MaintenancePage() {
             <div><label className="label">Unit</label><input value={createUnit} onChange={(e) => setCreateUnit(e.target.value)} className="input" placeholder="A-102" /></div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" type="button" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button disabled={!createPropId || !createTitle || !createDesc} onClick={async () => {
+            <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button variant="primary" disabled={!createPropId || !createTitle || !createDesc} onClick={async () => {
               try {
                 await api.post('/api/maintenance', {
                   propertyId: createPropId, title: createTitle, description: createDesc,
                   priority: createPriority, category: createCategory || undefined, unitNumber: createUnit || undefined,
                 });
                 setActionMsg({ type: 'success', text: 'Work order created' });
-                toast.success('Work order created');
                 setShowCreate(false); setCreatePropId(''); setCreateTitle(''); setCreateDesc(''); setCreateUnit('');
                 refetch();
-              } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); toast.error(err?.message || 'Failed to create work order'); }
+              } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
             }}>Create</Button>
           </div>
         </div>
@@ -167,9 +169,8 @@ export function MaintenancePage() {
                       try {
                         await api.post(`/api/maintenance/${selected.id}/assign`, { assignedTo: assignTo });
                         setActionMsg({ type: 'success', text: 'Work order assigned' });
-                        toast.success('Work order assigned');
                         setSelected(null); setAssignTo(''); refetch();
-                      } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); toast.error(err?.message || 'Failed to assign work order'); }
+                      } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
                     }} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">Assign</button>
                   </div>
                 )}
@@ -180,9 +181,8 @@ export function MaintenancePage() {
                     try {
                       await api.post(`/api/maintenance/${selected.id}/start`);
                       setActionMsg({ type: 'success', text: 'Work started' });
-                      toast.success('Work started');
                       setSelected(null); refetch();
-                    } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); toast.error(err?.message || 'Failed to start work'); }
+                    } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
                   }} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">Start Work</button>
                 )}
 
@@ -192,16 +192,15 @@ export function MaintenancePage() {
                     <textarea value={completeNotes} onChange={(e) => setCompleteNotes(e.target.value)} rows={2} className="input" placeholder="Completion notes (required)" />
                     <div className="flex gap-2">
                       <input type="number" step="0.01" min="0" value={completeCost} onChange={(e) => setCompleteCost(e.target.value)} className="input w-40" placeholder="Actual cost" />
-                      <button disabled={!completeNotes.trim()} onClick={async () => {
+                      <Button variant="primary" disabled={!completeNotes.trim()} onClick={async () => {
                         try {
                           await api.post(`/api/maintenance/${selected.id}/complete`, {
                             notes: completeNotes, actualCost: completeCost ? parseFloat(completeCost) : undefined,
                           });
                           setActionMsg({ type: 'success', text: 'Work order completed' });
-                          toast.success('Work order completed');
                           setSelected(null); setCompleteNotes(''); setCompleteCost(''); refetch();
-                        } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); toast.error(err?.message || 'Failed to complete work order'); }
-                      }} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">Complete</button>
+                        } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
+                      }}>Complete</Button>
                     </div>
                   </div>
                 )}

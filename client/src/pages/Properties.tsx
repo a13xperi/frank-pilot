@@ -6,9 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
-import { RoleGate } from '@/components/RoleGate';
 import { Button } from '@/components/Button';
-import { useToast } from '@/components/Toast';
+import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
 import { getPropertyPhoto } from '@/utils/propertyPhoto';
 import type { Property, PropertyListResponse } from '@/types';
@@ -60,7 +59,6 @@ const EMPTY_FORM = {
 
 export function Properties() {
   const { user } = useAuth();
-  const toast = useToast();
   const { data, loading, refetch } = useApiQuery<PropertyListResponse>('/api/properties');
   const [showCreate, setShowCreate] = useState(false);
   const [editProp, setEditProp] = useState<Property | null>(null);
@@ -73,7 +71,6 @@ export function Properties() {
       onesitePropertyId: values.onesitePropertyId || undefined,
       loftPropertyId: values.loftPropertyId || undefined,
     });
-    toast.success('Property created');
     setShowCreate(false);
     createForm.reset();
     refetch();
@@ -96,7 +93,6 @@ export function Properties() {
         onesitePropertyId: values.onesitePropertyId || undefined,
         loftPropertyId: values.loftPropertyId || undefined,
       });
-      toast.success('Property updated');
       setEditProp(null);
       refetch();
     }
@@ -112,7 +108,7 @@ export function Properties() {
         description="Manage rental properties, AMI areas, and integration IDs"
         action={
           <RoleGate minRole="asset_manager">
-            <Button onClick={() => setShowCreate(true)}>
+            <Button variant="primary" onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" /> Add Property
             </Button>
           </RoleGate>
@@ -148,9 +144,9 @@ export function Properties() {
           </div>
           {createForm.error && <p className="text-sm text-red-600">{createForm.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" type="button" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button type="submit" loading={createForm.submitting}>
-              Create Property
+            <Button type="button" variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={createForm.submitting}>
+              {createForm.submitting ? 'Creating...' : 'Create Property'}
             </Button>
           </div>
         </form>
@@ -173,9 +169,9 @@ export function Properties() {
           )}
           {editForm.error && <p className="text-sm text-red-600">{editForm.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" type="button" onClick={() => setEditProp(null)}>Cancel</Button>
-            <Button type="submit" loading={editForm.submitting}>
-              Save Changes
+            <Button type="button" variant="ghost" onClick={() => setEditProp(null)}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={editForm.submitting}>
+              {editForm.submitting ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </form>

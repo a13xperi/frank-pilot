@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { api } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
 
 interface Message {
   id: string;
@@ -39,6 +41,7 @@ function fmtTime(d: string): string {
 
 export function ApplicationMessages({ applicationId }: { applicationId: string }) {
   const { user } = useAuth();
+  const toast = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,7 +132,7 @@ export function ApplicationMessages({ applicationId }: { applicationId: string }
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       setDraft(trimmed);
-      setError(err instanceof Error ? err.message : 'Failed to send');
+      toast.error(err instanceof Error ? err.message : 'Failed to send');
     } finally {
       setSending(false);
     }
@@ -188,14 +191,10 @@ export function ApplicationMessages({ applicationId }: { applicationId: string }
             }
           }}
         />
-        <button
-          type="submit"
-          disabled={sending || draft.trim().length === 0}
-          className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-        >
+        <Button type="submit" variant="primary" loading={sending} disabled={draft.trim().length === 0}>
           <Send className="h-4 w-4" />
-          {sending ? 'Sending…' : 'Send'}
-        </button>
+          Send
+        </Button>
       </form>
     </div>
   );

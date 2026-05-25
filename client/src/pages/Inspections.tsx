@@ -4,15 +4,13 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
-import { Button } from '@/components/Button';
-import { useToast } from '@/components/Toast';
 import { api } from '@/api/client';
 import type { Inspection, PropertyListResponse } from '@/types';
 
 export function InspectionsPage() {
-  const toast = useToast();
   const { data, loading, refetch } = useApiQuery<{ inspections: Inspection[]; total: number }>('/api/inspections?limit=100');
   const { data: propsData } = useApiQuery<PropertyListResponse>('/api/properties');
   const [selected, setSelected] = useState<Inspection | null>(null);
@@ -55,7 +53,7 @@ export function InspectionsPage() {
         description="Unit inspections, smoke detector compliance, and HQS/UPCS records"
         action={
           <RoleGate minRole="senior_manager">
-            <Button onClick={() => setShowSchedule(true)}>
+            <Button variant="primary" onClick={() => setShowSchedule(true)}>
               <Plus className="h-4 w-4" /> Schedule Inspection
             </Button>
           </RoleGate>
@@ -100,15 +98,14 @@ export function InspectionsPage() {
           </div>
           <div><label className="label">Unit (optional)</label><input value={schedUnit} onChange={(e) => setSchedUnit(e.target.value)} className="input" placeholder="e.g. A-102" /></div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" type="button" onClick={() => setShowSchedule(false)}>Cancel</Button>
-            <Button disabled={!schedPropId || !schedDate} onClick={async () => {
+            <Button variant="ghost" onClick={() => setShowSchedule(false)}>Cancel</Button>
+            <Button variant="primary" disabled={!schedPropId || !schedDate} onClick={async () => {
               try {
                 await api.post('/api/inspections', { propertyId: schedPropId, inspectionType: schedType, scheduledDate: schedDate, unitNumber: schedUnit || undefined });
                 setActionMsg({ type: 'success', text: 'Inspection scheduled' });
-                toast.success('Inspection scheduled');
                 setShowSchedule(false); setSchedPropId(''); setSchedDate(''); setSchedUnit('');
                 refetch();
-              } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); toast.error(err?.message || 'Failed to schedule inspection'); }
+              } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
             }}>Schedule</Button>
           </div>
         </div>
@@ -140,14 +137,13 @@ export function InspectionsPage() {
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={hqsOk} onChange={(e) => setHqsOk(e.target.checked)} /> HQS Compliant</label>
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={followUp} onChange={(e) => setFollowUp(e.target.checked)} /> Follow-Up Required</label>
                   </div>
-                  <button disabled={!completeNotes.trim()} onClick={async () => {
+                  <Button variant="primary" disabled={!completeNotes.trim()} onClick={async () => {
                     try {
                       await api.post(`/api/inspections/${selected.id}/complete`, { notes: completeNotes, smokeDetectorOk: smokeOk, hqsCompliant: hqsOk, followUpRequired: followUp });
                       setActionMsg({ type: 'success', text: 'Inspection completed' });
-                      toast.success('Inspection completed');
                       setSelected(null); setCompleteNotes(''); refetch();
-                    } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); toast.error(err?.message || 'Failed to complete inspection'); }
-                  }} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">Complete Inspection</button>
+                    } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
+                  }}>Complete Inspection</Button>
                 </div>
               </RoleGate>
             )}

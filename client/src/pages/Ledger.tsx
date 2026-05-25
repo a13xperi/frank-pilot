@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { DollarSign, ArrowLeft, Plus, CreditCard } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
+import { ResponsiveCards } from '@/components/ResponsiveCards';
 import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
 import type { LedgerEntry, LedgerResponse, LedgerBalanceResponse, DelinquencyRecord, DelinquencyResponse } from '@/types';
@@ -106,7 +108,18 @@ export function LedgerOverview() {
         <StatCard label="Eviction Flags" value={String(evictionFlags)} color={evictionFlags > 0 ? 'red' : 'gray'} />
       </div>
 
-      <DataTable
+      {/* Table at md+, stacked cards below md (same columns + data + handler). */}
+      <div className="hidden md:block">
+        <DataTable
+          columns={columns}
+          data={delinquencies}
+          loading={loading}
+          onRowClick={(r) => navigate(`/ledger/${r.applicationId}`)}
+          emptyMessage="No delinquent accounts"
+        />
+      </div>
+      <ResponsiveCards
+        className="md:hidden"
         columns={columns}
         data={delinquencies}
         loading={loading}
@@ -172,9 +185,9 @@ export function LedgerDetail() {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => navigate('/ledger')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+      <Button variant="ghost" size="sm" onClick={() => navigate('/ledger')} className="self-start">
         <ArrowLeft className="h-4 w-4" /> Back to Delinquencies
-      </button>
+      </Button>
 
       {/* Balance card */}
       <div className={`rounded-xl border p-5 ${bal > 0 ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
@@ -191,12 +204,12 @@ export function LedgerDetail() {
           </div>
           <RoleGate minRole="senior_manager">
             <div className="flex gap-2">
-              <button onClick={() => setShowPayment(true)} className="flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
+              <Button variant="primary" onClick={() => setShowPayment(true)}>
                 <CreditCard className="h-4 w-4" /> Record Payment
-              </button>
-              <button onClick={() => setShowCredit(true)} className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              </Button>
+              <Button variant="primary" onClick={() => setShowCredit(true)}>
                 <Plus className="h-4 w-4" /> Apply Credit
-              </button>
+              </Button>
             </div>
           </RoleGate>
         </div>
@@ -208,7 +221,17 @@ export function LedgerDetail() {
         </div>
       )}
 
-      <DataTable
+      {/* Table at md+, stacked cards below md (same columns + data). */}
+      <div className="hidden md:block">
+        <DataTable
+          columns={columns}
+          data={ledger?.entries || []}
+          loading={loading}
+          emptyMessage="No ledger entries"
+        />
+      </div>
+      <ResponsiveCards
+        className="md:hidden"
         columns={columns}
         data={ledger?.entries || []}
         loading={loading}
@@ -227,8 +250,9 @@ export function LedgerDetail() {
             <input value={payRef} onChange={(e) => setPayRef(e.target.value)} className="input" placeholder="Check #, Stripe PI, etc." />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowPayment(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button
+            <Button variant="ghost" onClick={() => setShowPayment(false)}>Cancel</Button>
+            <Button
+              variant="primary"
               disabled={!payAmount || parseFloat(payAmount) <= 0}
               onClick={async () => {
                 try {
@@ -243,10 +267,9 @@ export function LedgerDetail() {
                   refetch();
                 } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
               }}
-              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
             >
               Record Payment
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
@@ -263,8 +286,9 @@ export function LedgerDetail() {
             <input value={creditDesc} onChange={(e) => setCreditDesc(e.target.value)} className="input" placeholder="Reason for credit" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowCredit(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button
+            <Button variant="ghost" onClick={() => setShowCredit(false)}>Cancel</Button>
+            <Button
+              variant="primary"
               disabled={!creditAmount || !creditDesc || parseFloat(creditAmount) <= 0}
               onClick={async () => {
                 try {
@@ -279,10 +303,9 @@ export function LedgerDetail() {
                   refetch();
                 } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
               }}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
               Apply Credit
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
