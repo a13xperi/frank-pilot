@@ -142,7 +142,7 @@ function TypeCityAvailabilityFilters({
 }) {
   return (
     <>
-      <div className="flex items-center gap-2 overflow-x-auto">
+      <div className="flex flex-wrap items-center gap-2">
         <FilterRowLabel>{t('filter.type')}</FilterRowLabel>
         {(Object.keys(TYPE_LABELS) as TypeFilter[]).map((k) => (
           <ChipButton
@@ -154,7 +154,7 @@ function TypeCityAvailabilityFilters({
           </ChipButton>
         ))}
       </div>
-      <div className="flex items-center gap-2 overflow-x-auto">
+      <div className="flex flex-wrap items-center gap-2">
         <FilterRowLabel>{t('filter.city')}</FilterRowLabel>
         {(Object.keys(CITY_LABELS) as CityFilter[]).map((k) => (
           <ChipButton
@@ -166,7 +166,7 @@ function TypeCityAvailabilityFilters({
           </ChipButton>
         ))}
       </div>
-      <div className="flex items-center gap-2 overflow-x-auto">
+      <div className="flex flex-wrap items-center gap-2">
         <FilterRowLabel>{t('filter.availability')}</FilterRowLabel>
         <ChipButton
           active={availableNow}
@@ -683,7 +683,7 @@ export function PropertyList() {
           style={{ background: HF.cream, borderBottom: `1px solid ${HF.border}` }}
         >
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 overflow-x-auto">
+            <div className="flex flex-wrap items-center gap-2">
               <span
                 style={{
                   fontSize: 12,
@@ -706,7 +706,7 @@ export function PropertyList() {
                 </ChipButton>
               ))}
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto">
+            <div className="flex flex-wrap items-center gap-2">
               <span
                 style={{
                   fontSize: 12,
@@ -730,7 +730,7 @@ export function PropertyList() {
               ))}
             </div>
             <div
-              className="flex items-center gap-2 overflow-x-auto"
+              className="flex flex-wrap items-center gap-2"
               data-testid="bedroom-filter-row"
             >
               <span
@@ -756,7 +756,7 @@ export function PropertyList() {
                 </ChipButton>
               ))}
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto">
+            <div className="flex flex-wrap items-center gap-2">
               <span
                 style={{
                   fontSize: 12,
