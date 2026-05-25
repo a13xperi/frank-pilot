@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
-import { findGPMGBySlug, rentEstimate } from '@/api/gpmg-fixtures';
+import { findGPMGBySlug, rentEstimate, slugify } from '@/api/gpmg-fixtures';
 import { CTA } from '@/components/primitives';
 import { getToken } from '@/api/client';
 import { placeholderFor } from '@/utils/unitPlaceholder';
@@ -84,6 +84,35 @@ export function PropertyDetail() {
   // Fixture lookup is an array scan — memoize on slug so i18n-namespace loads
   // and searchParams churn don't re-scan the catalog on every render.
   const prop = useMemo(() => findGPMGBySlug(slug), [slug]);
+
+  // Coordinates for the location mini-map. The GPMG fixtures don't carry
+  // lat/lng — coords live in nv-gpmg-map-props.json, the same dataset the
+  // /discover map uses (single source of truth), keyed by slug. Fetched once
+  // per slug; the map section only renders when a match is found.
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+    fetch('/nv-gpmg-map-props.json')
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((rows: Array<{ slug?: string; name?: string; lat?: number; lng?: number }>) => {
+        if (cancelled) return;
+        const hit = rows.find(
+          (r) => r.slug === slug || (r.name != null && slugify(r.name) === slug),
+        );
+        if (hit && typeof hit.lat === 'number' && typeof hit.lng === 'number') {
+          setCoords({ lat: hit.lat, lng: hit.lng });
+        } else {
+          setCoords(null);
+        }
+      })
+      .catch(() => {
+        /* dataset unavailable → no map, no error surfaced */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   // Preserve a deep-linked amiTier when bouncing to /apply so the W0 funnel
   // continues to know the applicant's tier. Validated against the same set
@@ -297,6 +326,84 @@ export function PropertyDetail() {
               </span>
             </div>
           </header>
+
+          {/* Location mini-map. Renders only when we have coords for this slug
+              (from nv-gpmg-map-props.json). Embedded as an iframe — same Leaflet
+              + warmed-OSM stack as the /discover map, no map dep in the bundle.
+              "Approximate location" + a directions link keep it honest. */}
+          {coords && (
+            <section
+              data-testid="property-minimap"
+              style={{
+                marginTop: 24,
+                background: HF.paper,
+                border: `1px solid ${HF.border}`,
+                borderRadius: HF.r.md,
+                overflow: 'hidden',
+                boxShadow: HF.shadow.xs,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  padding: '14px 16px 10px',
+                }}
+              >
+                <h2
+                  style={{
+                    fontFamily: HF.display,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    color: HF.ink2,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    margin: 0,
+                  }}
+                >
+                  Location
+                </h2>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: HF.accent,
+                    textDecoration: 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Directions ↗
+                </a>
+              </div>
+              <iframe
+                title={`Map of ${prop.name}`}
+                src={`/property-minimap.html?lat=${coords.lat}&lng=${coords.lng}&type=${prop.type}&label=${encodeURIComponent(prop.name)}`}
+                loading="lazy"
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  height: 200,
+                  border: 'none',
+                }}
+              />
+              <p
+                style={{
+                  margin: 0,
+                  padding: '8px 16px 12px',
+                  fontSize: 12,
+                  color: HF.ink3,
+                  fontFamily: HF.body,
+                }}
+              >
+                {prop.addr} · {prop.city}, NV {prop.zip} · approximate location
+              </p>
+            </section>
+          )}
 
           {/* Wedge #9 — Rent & AMI disclosure (the gpmglv differentiator).
               Honest, public, per-bedroom rent figures + the 60% AMI set-
