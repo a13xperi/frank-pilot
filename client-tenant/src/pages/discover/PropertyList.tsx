@@ -886,7 +886,7 @@ function PropertyTile({
               src={`/property-minimap.html?lat=${coords.lat}&lng=${coords.lng}&type=${prop.type}&label=${encodeURIComponent(
                 prop.name,
               )}&ui=min`}
-              data-testid={`property-tile-minimap-${slug}`}
+              data-testid={`minimap-${slug}`}
               style={{
                 display: 'block',
                 width: '100%',
