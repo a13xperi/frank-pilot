@@ -42,7 +42,11 @@ async function request<T>(
   const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
   const fullPath = baseUrl ? `${baseUrl}${relativePath}` : relativePath;
 
-  const res = await fetch(fullPath, { ...options, headers });
+  // credentials:'include' so the httpOnly `uh_guest` cookie (guest shortlist)
+  // round-trips on every request — set by the backend on a guest's first save
+  // and read back on subsequent saves/reads + magic-link conversion. Harmless
+  // for the JWT-authed endpoints (they ignore the cookie).
+  const res = await fetch(fullPath, { ...options, headers, credentials: 'include' });
 
   // /auth/me is the probe endpoint — callers (AuthCallback, VerifyPending,
   // the Apply step='verify' poll) use it to discover auth state and handle
@@ -51,8 +55,29 @@ async function request<T>(
   const isAuthProbe =
     fullPath.includes('/auth/magic-link') || fullPath.includes('/auth/me');
   if (res.status === 401 && !isAuthProbe) {
+    // A stale/expired token in localStorage makes guest-allowed pages issue
+    // authed calls (e.g. discover warm-fetching /applicants/units) that 401.
+    // On a PUBLIC page that just means "treat me as a guest" — clear the dead
+    // token and let the caller fall back (discover renders from fixtures, the
+    // saved shortlist reads the guest cookie). Only hard-redirect to /login
+    // from auth-gated routes, where a 401 is a genuine session expiry.
+    const PUBLIC_PREFIXES = [
+      '/discover',
+      '/property',
+      '/saved',
+      '/welcome',
+      '/apply',
+      '/waitlist',
+      '/privacy',
+      '/cookies',
+    ];
+    const path = typeof window !== 'undefined' ? window.location.pathname : '';
+    const onPublicPage =
+      path === '/' || PUBLIC_PREFIXES.some((p) => path.startsWith(p));
     clearToken();
-    window.location.href = '/login';
+    if (!onPublicPage) {
+      window.location.href = '/login';
+    }
     throw new Error('Session expired');
   }
 

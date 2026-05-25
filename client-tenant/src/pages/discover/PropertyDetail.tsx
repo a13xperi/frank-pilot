@@ -16,6 +16,7 @@ import {
   type NearbyKind,
 } from '@/utils/propertyProfile';
 import { CTA } from '@/components/primitives';
+import { SaveButton } from '@/components/SaveButton';
 import { getToken } from '@/api/client';
 import { placeholderFor } from '@/utils/unitPlaceholder';
 import { HF } from '@/styles/tokens';
@@ -306,6 +307,10 @@ export function PropertyDetail() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
+          {/* ♥ shortlist toggle — mirrors the back button on the hero's right. */}
+          <div style={{ position: 'absolute', right: 12, top: 12 }}>
+            <SaveButton slug={slug} propertyName={prop.name} size={40} floating />
+          </div>
         </div>
 
         <div className="px-4 pb-32 pt-5 sm:px-6">

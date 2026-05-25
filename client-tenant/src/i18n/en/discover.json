@@ -101,5 +101,18 @@
   "amenities.item.ac": "Air conditioning",
   "amenities.item.courtyard": "Courtyard",
   "amenities.item.playground": "Playground",
-  "amenities.item.pool": "Pool"
+  "amenities.item.pool": "Pool",
+  "saved.title": "Your shortlist",
+  "saved.viewShortlist": "View your saved homes ({{count}})",
+  "saved.count_one": "{{count}} saved home",
+  "saved.count_other": "{{count}} saved homes",
+  "saved.loading": "Loading your shortlist…",
+  "saved.empty.heading": "No saved homes yet",
+  "saved.empty.body": "Tap ♥ on any property to save it here.",
+  "saved.empty.cta": "Browse homes",
+  "saved.remove": "Remove {{name}} from your shortlist",
+  "saved.removeShort": "Remove from shortlist",
+  "saved.alertOn": "Vacancy alerts on",
+  "saved.alertOff": "Get vacancy alerts",
+  "saved.apply": "Apply"
 }

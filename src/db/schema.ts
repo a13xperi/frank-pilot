@@ -496,6 +496,49 @@ CREATE INDEX idx_waitlist_entries_lane_created
 CREATE INDEX idx_waitlist_entries_user
   ON waitlist_entries(applicant_user_id);
 
+-- Saved-property shortlist + server-side guest sessions (2026-05-24).
+-- See migration 2026-05-24-saved-properties-guest-shortlist.sql. Guests can't
+-- live in the users table (NOT NULL email/name + UNIQUE email), so an anonymous
+-- saver gets a guest_sessions row keyed by an opaque httpOnly cookie; on magic-link
+-- account creation their saved list re-points onto the real user.
+CREATE TABLE guest_sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  token_hash VARCHAR(64) UNIQUE NOT NULL,
+  converted_user_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+  demo_run_id TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_guest_sessions_converted_user
+  ON guest_sessions(converted_user_id);
+
+-- A saved row belongs to EXACTLY ONE owner (guest session OR user) — CHECK
+-- below. On conversion we flip guest_session_id → user_id so the row migrates
+-- in place. Partial-unique indexes block double-saving a property per owner+list.
+CREATE TABLE saved_properties (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  guest_session_id UUID NULL REFERENCES guest_sessions(id) ON DELETE CASCADE,
+  user_id UUID NULL REFERENCES users(id) ON DELETE CASCADE,
+  property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  list_name TEXT NOT NULL DEFAULT 'My list',
+  alert_enabled BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT saved_properties_exactly_one_owner CHECK (
+    (guest_session_id IS NOT NULL AND user_id IS NULL)
+    OR (guest_session_id IS NULL AND user_id IS NOT NULL)
+  )
+);
+CREATE UNIQUE INDEX uq_saved_properties_guest
+  ON saved_properties(guest_session_id, property_id, list_name)
+  WHERE guest_session_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_saved_properties_user
+  ON saved_properties(user_id, property_id, list_name)
+  WHERE user_id IS NOT NULL;
+CREATE INDEX idx_saved_properties_guest
+  ON saved_properties(guest_session_id) WHERE guest_session_id IS NOT NULL;
+CREATE INDEX idx_saved_properties_user
+  ON saved_properties(user_id) WHERE user_id IS NOT NULL;
+
 -- BP-02 Compliance Tape — append-only hash-chained audit ledger.
 -- One row per regulated event; UPDATE/DELETE/TRUNCATE rejected by trigger.
 -- Sequence is monotonic per scope (applicant_id, or global when NULL).

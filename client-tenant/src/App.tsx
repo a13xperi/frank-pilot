@@ -17,6 +17,7 @@ import { Application } from '@/pages/Application';
 import { WelcomeShell } from '@/pages/welcome/WelcomeShell';
 import { PropertyList } from '@/pages/discover/PropertyList';
 import { PropertyDetail } from '@/pages/discover/PropertyDetail';
+import { Shortlist } from '@/pages/saved/Shortlist';
 import { WaitlistPosition } from '@/pages/waitlist/Position';
 import { WaitlistFasterList } from '@/pages/waitlist/FasterList';
 import { MagicLinkSent } from '@/pages/apply/MagicLinkSent';
@@ -55,6 +56,8 @@ export default function App() {
       <Route path="/apply/magic-link-sent" element={<MagicLinkSent />} />
       <Route path="/discover" element={<PropertyList />} />
       <Route path="/property/:slug" element={<PropertyDetail />} />
+      {/* feat/saved-shortlist — guest wishlist; public, NOT behind AuthGuard */}
+      <Route path="/saved" element={<Shortlist />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/verify-pending" element={<VerifyPending />} />
 

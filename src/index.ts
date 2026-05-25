@@ -39,6 +39,7 @@ import { createTapeViewerRoutes } from "./modules/tape/routes-viewer";
 import { qaRouter } from "./modules/qa/routes";
 import { housingQaRouter } from "./modules/housing-qa/routes";
 import acquisitionRoutes from "./modules/acquisitions/routes";
+import savedRoutes from "./modules/saved/routes";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -73,7 +74,13 @@ try {
   console.error((err as Error).message);
   process.exit(1);
 }
-app.use(cors({ origin: corsOrigins }));
+// credentials:true so the httpOnly `uh_guest` guest-shortlist cookie is
+// accepted on cross-origin XHR (Access-Control-Allow-Credentials). In prod the
+// client reaches the API through a same-origin Vercel rewrite, so the cookie is
+// first-party there; this keeps direct cross-origin calls working too. Note the
+// origin allow-list above is explicit (never "*"), which credentialed CORS
+// requires.
+app.use(cors({ origin: corsOrigins, credentials: true }));
 
 // BP-08 Stripe webhook — MUST be mounted before `express.json()` so the raw
 // request body survives intact for `stripe.webhooks.constructEvent`. Moving
@@ -135,6 +142,11 @@ app.use("/api/applicants", applicantRoutes);
 // process; answers are grounded strictly in injected data). Degrades to 503
 // when ANTHROPIC_API_KEY is absent.
 app.use("/api/housing-qa", housingQaRouter());
+
+// Saved-property shortlist (public — guests via uh_guest cookie OR authed users).
+// Guests save without an account; on magic-link conversion the saves migrate
+// onto the real user. See src/modules/saved/.
+app.use("/api/saved", savedRoutes);
 
 // BP-03b compliance tape beacons (HUD-928.1 page-view, welcome-accept).
 // Stub module — see src/modules/tape/index.ts. Replace with canonical BP-02
