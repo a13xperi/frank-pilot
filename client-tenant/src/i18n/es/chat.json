@@ -1,0 +1,15 @@
+{
+  "bubble.label": "Pregunta sobre vivienda",
+  "panel.title": "Asistente de vivienda",
+  "panel.greeting": "Pregunta sobre vivienda asequible en NV y cómo solicitarla. Respondo según nuestros datos más recientes; confirma los detalles en la solicitud.",
+  "panel.close": "Cerrar el chat",
+  "message.you": "Tú",
+  "message.assistant": "Asistente",
+  "input.placeholder": "Escribe tu pregunta…",
+  "input.send": "Enviar",
+  "input.sendLabel": "Enviar mensaje",
+  "status.typing": "El asistente está escribiendo…",
+  "error.generic": "Algo salió mal. Inténtalo de nuevo.",
+  "error.retry": "Reintentar",
+  "empty.hint": "Prueba: «¿Qué documentos necesito?» o «Vivienda para personas mayores en Henderson»."
+}

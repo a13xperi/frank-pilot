@@ -1,0 +1,15 @@
+{
+  "bubble.label": "Ask about housing",
+  "panel.title": "Housing assistant",
+  "panel.greeting": "Ask about NV affordable housing & applying. I answer from our latest data — confirm details in the application.",
+  "panel.close": "Close chat",
+  "message.you": "You",
+  "message.assistant": "Assistant",
+  "input.placeholder": "Ask a question…",
+  "input.send": "Send",
+  "input.sendLabel": "Send message",
+  "status.typing": "Assistant is typing…",
+  "error.generic": "Something went wrong. Please try again.",
+  "error.retry": "Try again",
+  "empty.hint": "Try: “What documents do I need?” or “Senior housing in Henderson”."
+}

@@ -11,6 +11,7 @@ import enDiscover from './en/discover.json';
 import enLegal from './en/legal.json';
 import enSettings from './en/settings.json';
 import enLease from './en/lease.json';
+import enChat from './en/chat.json';
 
 import esCommon from './es/common.json';
 import esWelcome from './es/welcome.json';
@@ -20,8 +21,9 @@ import esDiscover from './es/discover.json';
 import esLegal from './es/legal.json';
 import esSettings from './es/settings.json';
 import esLease from './es/lease.json';
+import esChat from './es/chat.json';
 
-export const NS = ['common', 'welcome', 'apply', 'waitlist', 'discover', 'legal', 'settings', 'lease'] as const;
+export const NS = ['common', 'welcome', 'apply', 'waitlist', 'discover', 'legal', 'settings', 'lease', 'chat'] as const;
 
 const resources = {
   en: {
@@ -33,6 +35,7 @@ const resources = {
     legal: enLegal,
     settings: enSettings,
     lease: enLease,
+    chat: enChat,
   },
   es: {
     common: esCommon,
@@ -43,6 +46,7 @@ const resources = {
     legal: esLegal,
     settings: esSettings,
     lease: esLease,
+    chat: esChat,
   },
 };
 

@@ -95,3 +95,14 @@ export const api = {
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };
+
+/**
+ * Ask the grounded housing Q&A assistant a question. Public endpoint — no auth
+ * required (the chat widget is shown to pre-registration visitors). Routes
+ * through the shared request() wrapper so demo-token / base-URL handling stays
+ * consistent. Backend: POST /api/housing-qa (non-streaming, returns the full
+ * answer in one response).
+ */
+export function askHousingQa(question: string): Promise<{ answer: string }> {
+  return api.post<{ answer: string }>('/housing-qa', { question });
+}

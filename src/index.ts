@@ -37,6 +37,7 @@ import messagesRoutes from "./modules/messages/routes";
 import tapeRoutes from "./modules/tape/routes";
 import { createTapeViewerRoutes } from "./modules/tape/routes-viewer";
 import { qaRouter } from "./modules/qa/routes";
+import { housingQaRouter } from "./modules/housing-qa/routes";
 import acquisitionRoutes from "./modules/acquisitions/routes";
 import { startScheduler } from "./scheduler";
 
@@ -128,6 +129,12 @@ app.use("/api/auth", authRoutes);
 
 // Applicant self-service (public register + auth'd apply)
 app.use("/api/applicants", applicantRoutes);
+
+// Grounded housing Q&A chat (PUBLIC, per-IP rate-limited — pre-registration
+// applicants ask about NV affordable-housing properties + the application
+// process; answers are grounded strictly in injected data). Degrades to 503
+// when ANTHROPIC_API_KEY is absent.
+app.use("/api/housing-qa", housingQaRouter());
 
 // BP-03b compliance tape beacons (HUD-928.1 page-view, welcome-accept).
 // Stub module — see src/modules/tape/index.ts. Replace with canonical BP-02
