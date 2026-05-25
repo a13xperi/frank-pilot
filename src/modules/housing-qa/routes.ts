@@ -63,13 +63,21 @@ function cliFallbackEnabled(): boolean {
   return process.env.HOUSING_QA_CLI_FALLBACK === "1";
 }
 
+// Bound concurrent subprocesses process-wide. The per-IP rate limit doesn't
+// cap fan-out across many IPs, so cap the CLI path here and 503 when saturated.
+const MAX_CONCURRENT_CLI = 3;
+let activeCliCalls = 0;
+
+// Cap captured output so a runaway / injection-induced huge response can't
+// balloon node's heap (the CLI path has no MAX_TOKENS equivalent).
+const MAX_CLI_OUTPUT_BYTES = 256 * 1024;
+
 function callViaCli(system: string, question: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       "claude",
       [
         "-p",
-        question,
         "--system-prompt",
         system,
         "--model",
@@ -78,17 +86,40 @@ function callViaCli(system: string, question: string): Promise<string> {
         "",
         "--output-format",
         "text",
+        // `--` ends option parsing: the attacker-controlled question is the
+        // final positional and can never be interpreted as a CLI flag (e.g.
+        // `--dangerously-skip-permissions`). Required — `-p` is a boolean flag,
+        // not an option that consumes the next token.
+        "--",
+        question,
       ],
-      { cwd: os.tmpdir(), timeout: 60_000 }
+      { cwd: os.tmpdir(), timeout: 60_000, killSignal: "SIGKILL" }
     );
     let out = "";
     let err = "";
-    child.stdout.on("data", (d) => (out += d.toString()));
-    child.stderr.on("data", (d) => (err += d.toString()));
-    child.on("error", reject);
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+    child.stdout.on("data", (d) => {
+      out += d.toString();
+      if (out.length > MAX_CLI_OUTPUT_BYTES) {
+        child.kill("SIGKILL");
+        finish(() => reject(new Error("claude CLI output exceeded cap")));
+      }
+    });
+    child.stderr.on("data", (d) => {
+      // Keep only the tail; full stderr is never returned to the client.
+      err = (err + d.toString()).slice(-200);
+    });
+    child.on("error", (e) => finish(() => reject(e)));
     child.on("close", (code) => {
-      if (code === 0) resolve(out.trim());
-      else reject(new Error(`claude CLI exited ${code}: ${err.slice(0, 200)}`));
+      finish(() => {
+        if (code === 0) resolve(out.trim());
+        else reject(new Error(`claude CLI exited ${code}: ${err}`));
+      });
     });
   });
 }
@@ -137,8 +168,21 @@ export function housingQaRouter(): Router {
           .join("")
           .trim();
       } else {
-        // CLI fallback (local, keyless) — see callViaCli.
-        answer = await callViaCli(system, question);
+        // CLI fallback (local, keyless) — see callViaCli. Bound concurrency so
+        // many IPs can't fan out into unbounded subprocesses.
+        if (activeCliCalls >= MAX_CONCURRENT_CLI) {
+          res.status(503).json({
+            error:
+              "The housing assistant is busy right now. Please try again in a moment.",
+          });
+          return;
+        }
+        activeCliCalls++;
+        try {
+          answer = await callViaCli(system, question);
+        } finally {
+          activeCliCalls--;
+        }
       }
 
       if (!answer) {
