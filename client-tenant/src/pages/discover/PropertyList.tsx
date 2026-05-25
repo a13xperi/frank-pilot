@@ -873,7 +873,7 @@ function PropertyTile({
             className="aspect-[16/9] w-full"
             style={{
               background: `${HF.sageLo}`,
-              backgroundImage: `url(${placeholderFor(slug)})`,
+              backgroundImage: `url(${placeholderFor(slug, prop.name)})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}

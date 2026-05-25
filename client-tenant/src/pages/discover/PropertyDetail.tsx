@@ -277,32 +277,14 @@ export function PropertyDetail() {
             className="aspect-[16/9] w-full"
             style={{
               background: HF.sageLo,
-              backgroundImage: `url(${placeholderFor(slug)})`,
+              backgroundImage: `url(${placeholderFor(slug, prop.name)})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
             aria-hidden="true"
           />
-          {/* The hero uses a generic stock exterior, not a photo of this building.
-              Label it so the listing can't be read as misrepresenting the property
-              (fair-housing / advertising hygiene). */}
-          <span
-            style={{
-              position: 'absolute',
-              right: 12,
-              bottom: 12,
-              padding: '3px 8px',
-              borderRadius: HF.r.pill,
-              background: 'rgba(0,0,0,0.55)',
-              color: '#fff',
-              fontFamily: HF.body,
-              fontSize: 11,
-              lineHeight: 1.2,
-              backdropFilter: 'blur(2px)',
-            }}
-          >
-            Representative photo
-          </span>
+          {/* Hero is a generated neutral brand placeholder (gradient + glyph +
+              property name), not a photo — so no "photo" label is needed. */}
           <Link
             to="/discover"
             aria-label="Back"
