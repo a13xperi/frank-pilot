@@ -1,8 +1,20 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import {
+  ArrowLeft, WashingMachine, UserCheck, CigaretteOff, Bus, ArrowUpDown,
+  Accessibility, Users, Car, Snowflake, Trees, Baby, Waves, TreePine,
+  GraduationCap, ShoppingCart, Cross, Footprints, Volume1,
+  type LucideIcon,
+} from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
 import { findGPMGBySlug, rentEstimate, slugify } from '@/api/gpmg-fixtures';
+import {
+  representativeSqft,
+  representativeAmenities,
+  representativeNeighborhood,
+  type AmenityKey,
+  type NearbyKind,
+} from '@/utils/propertyProfile';
 import { CTA } from '@/components/primitives';
 import { getToken } from '@/api/client';
 import { placeholderFor } from '@/utils/unitPlaceholder';
@@ -39,14 +51,30 @@ function formatUSD(n: number): string {
   return `$${n.toLocaleString('en-US')}`;
 }
 
-const AMENITIES = [
-  'Affordable rents',
-  'On-site laundry',
-  'Manager on-site',
-  'Senior-friendly',
-  'Near transit',
-  'Smoke-free',
-];
+// Icon per representative amenity. Labels come from i18n (`amenities.item.*`).
+const AMENITY_ICONS: Record<AmenityKey, LucideIcon> = {
+  laundry: WashingMachine,
+  manager: UserCheck,
+  smokefree: CigaretteOff,
+  transit: Bus,
+  elevator: ArrowUpDown,
+  accessible: Accessibility,
+  community: Users,
+  parking: Car,
+  ac: Snowflake,
+  courtyard: Trees,
+  playground: Baby,
+  pool: Waves,
+};
+
+// Icon per nearby place kind. Labels come from i18n (`neighborhood.place.*`).
+const NEARBY_ICONS: Record<NearbyKind, LucideIcon> = {
+  park: TreePine,
+  school: GraduationCap,
+  grocery: ShoppingCart,
+  transit: Bus,
+  pharmacy: Cross,
+};
 
 const VALID_AMI_TIERS = new Set(['30', '50', '60', '80'] as const);
 type AmiTier = '30' | '50' | '60' | '80';
@@ -139,17 +167,30 @@ export function PropertyDetail() {
     const propertySetAside = propertyAmiTier(prop.name);
     const countyKey = cityToCountyKey(prop.city);
     const setAsideTier = parseSetAsideTier(propertySetAside);
+    const availability = getPropertyAvailability(prop.name);
+    // Floor plans = REAL rent (rentBuckets) + REAL availability (per-bucket
+    // counts) + a representative unit size. One card per bedroom bucket the
+    // property actually offers (drives off the rent schedule).
+    const floorPlans = rentBuckets.map(({ key, bucket }) => ({
+      key,
+      bucket,
+      sqft: representativeSqft(slug, key),
+      available: availability.bedroomBreakdown[key],
+    }));
     return {
       est: rentEstimate(prop),
-      availability: getPropertyAvailability(prop.name),
+      availability,
       rentBuckets,
+      floorPlans,
+      amenities: representativeAmenities(slug, prop.type),
+      neighborhood: representativeNeighborhood(slug),
       propertySetAside,
       countyKey,
       setAsideTier,
       countyMsa: countyKey ? LIMITS_2026[countyKey].msa : '',
       showAmiDisclosure: !!propertySetAside && rentBuckets.length > 0,
     };
-  }, [prop]);
+  }, [prop, slug]);
 
   if (!prop) {
     return (
@@ -185,6 +226,9 @@ export function PropertyDetail() {
     est,
     availability,
     rentBuckets,
+    floorPlans,
+    amenities,
+    neighborhood,
     propertySetAside,
     countyKey,
     setAsideTier,
@@ -807,6 +851,192 @@ export function PropertyDetail() {
             </section>
           )}
 
+          {/* Floor plans — one card per bedroom bucket the community offers.
+              Rent and availability are REAL (seeded rollups); unit sizes are
+              representative, called out in the footnote. */}
+          {floorPlans.length > 0 && (
+            <section
+              data-testid="floor-plans"
+              style={{
+                marginTop: 24,
+                background: HF.paper,
+                border: `1px solid ${HF.border}`,
+                borderRadius: HF.r.md,
+                padding: 16,
+                boxShadow: HF.shadow.xs,
+                contentVisibility: 'auto',
+                containIntrinsicSize: '0 240px',
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: HF.display,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: HF.ink2,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  margin: 0,
+                }}
+              >
+                {t('floorPlans.title')}
+              </h2>
+              <ul
+                style={{ margin: '12px 0 0', padding: 0, listStyle: 'none', display: 'grid', gap: 8 }}
+                data-testid="floor-plan-grid"
+              >
+                {floorPlans.map(({ key, bucket, sqft, available }) => (
+                  <li
+                    key={key}
+                    data-testid={`floor-plan-${key}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      background: HF.cream,
+                      border: `1px solid ${HF.border}`,
+                      borderRadius: HF.r.sm,
+                      padding: '12px 14px',
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: HF.ink }}>
+                        {t(`pricing.label.${key}`)}
+                      </div>
+                      <div style={{ fontSize: 12, color: HF.ink3, marginTop: 2 }}>
+                        {t('floorPlans.approxSqft', { sqft: sqft.toLocaleString('en-US') })}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: HF.ink }}>
+                        {formatRentBucket(bucket)}
+                        <span style={{ fontWeight: 400, fontSize: 12, color: HF.ink3 }}>
+                          {t('pricing.suffix')}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          marginTop: 2,
+                          fontWeight: 700,
+                          color: available > 0 ? HF.accentInk : HF.ink3,
+                        }}
+                      >
+                        {available > 0
+                          ? t('availability.unit', { count: available })
+                          : t('floorPlans.waitlist')}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <p style={{ margin: '12px 0 0', fontSize: 12, color: HF.ink3 }}>
+                {t('floorPlans.note')}
+              </p>
+            </section>
+          )}
+
+          {/* Neighborhood ("what's around") — representative walkability /
+              transit / quiet estimates + nearby places. Neutral framing, not
+              the trademarked Walk Score®; labelled representative. */}
+          <section
+            data-testid="neighborhood"
+            style={{
+              marginTop: 24,
+              background: HF.paper,
+              border: `1px solid ${HF.border}`,
+              borderRadius: HF.r.md,
+              padding: 16,
+              boxShadow: HF.shadow.xs,
+              contentVisibility: 'auto',
+              containIntrinsicSize: '0 240px',
+            }}
+          >
+            <h2
+              style={{
+                fontFamily: HF.display,
+                fontWeight: 700,
+                fontSize: 14,
+                color: HF.ink2,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                margin: 0,
+              }}
+            >
+              {t('neighborhood.title')}
+            </h2>
+            <div
+              className="grid grid-cols-3 gap-2"
+              style={{ margin: '12px 0 0' }}
+              data-testid="neighborhood-scores"
+            >
+              {([
+                { label: t('neighborhood.walk'), score: neighborhood.walk, Icon: Footprints },
+                { label: t('neighborhood.transit'), score: neighborhood.transit, Icon: Bus },
+                { label: t('neighborhood.quiet'), score: neighborhood.quiet, Icon: Volume1 },
+              ] as const).map(({ label, score, Icon }) => (
+                <div
+                  key={label}
+                  style={{
+                    background: HF.cream,
+                    border: `1px solid ${HF.border}`,
+                    borderRadius: HF.r.sm,
+                    padding: '12px 8px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Icon className="h-5 w-5" style={{ color: HF.accent, margin: '0 auto' }} aria-hidden="true" />
+                  <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 22, color: HF.ink, marginTop: 4 }}>
+                    {score}
+                  </div>
+                  <div style={{ fontSize: 11, color: HF.ink3, marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <h3
+              style={{
+                fontFamily: HF.display,
+                fontWeight: 700,
+                fontSize: 13,
+                color: HF.ink2,
+                margin: '16px 0 0',
+              }}
+            >
+              {t('neighborhood.nearbyTitle')}
+            </h3>
+            <ul
+              className="grid grid-cols-2 gap-2"
+              style={{ margin: '8px 0 0', padding: 0, listStyle: 'none' }}
+              data-testid="neighborhood-nearby"
+            >
+              {neighborhood.nearby.map(({ kind, miles }) => {
+                const Icon = NEARBY_ICONS[kind];
+                return (
+                  <li
+                    key={kind}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 13,
+                      color: HF.ink2,
+                    }}
+                  >
+                    <Icon className="h-4 w-4" style={{ color: HF.ink3, flexShrink: 0 }} aria-hidden="true" />
+                    <span style={{ color: HF.ink }}>{t(`neighborhood.place.${kind}`)}</span>
+                    <span style={{ color: HF.ink3, marginLeft: 'auto' }}>
+                      {t('neighborhood.miles', { mi: miles.toFixed(1) })}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p style={{ margin: '12px 0 0', fontSize: 12, color: HF.ink3 }}>
+              {t('neighborhood.note')}
+            </p>
+          </section>
+
           <section
             style={{
               marginTop: 24,
@@ -883,23 +1113,35 @@ export function PropertyDetail() {
             <ul
               className="grid grid-cols-2 gap-2"
               style={{ margin: '12px 0 0', padding: 0, listStyle: 'none' }}
+              data-testid="amenities-grid"
             >
-              {AMENITIES.map((a) => (
-                <li
-                  key={a}
-                  style={{
-                    background: HF.paper,
-                    border: `1px solid ${HF.border}`,
-                    borderRadius: HF.r.sm,
-                    padding: '10px 12px',
-                    fontSize: 13,
-                    color: HF.ink2,
-                  }}
-                >
-                  {a}
-                </li>
-              ))}
+              {amenities.map((a) => {
+                const Icon = AMENITY_ICONS[a];
+                return (
+                  <li
+                    key={a}
+                    data-testid={`amenity-${a}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      background: HF.paper,
+                      border: `1px solid ${HF.border}`,
+                      borderRadius: HF.r.sm,
+                      padding: '10px 12px',
+                      fontSize: 13,
+                      color: HF.ink2,
+                    }}
+                  >
+                    <Icon className="h-4 w-4" style={{ color: HF.accent, flexShrink: 0 }} aria-hidden="true" />
+                    {t(`amenities.item.${a}`)}
+                  </li>
+                );
+              })}
             </ul>
+            <p style={{ margin: '12px 0 0', fontSize: 12, color: HF.ink3 }}>
+              {t('amenities.note')}
+            </p>
           </section>
         </div>
 
