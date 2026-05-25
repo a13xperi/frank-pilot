@@ -47,16 +47,26 @@
   var lng = parseFloat(q.get('lng'));
   var label = q.get('label') || '';
   var type = (q.get('type') || 'family').toLowerCase();
+  // ui=min: a static, non-interactive thumbnail for the /discover cards. All
+  // gestures + the zoom control are off so the surrounding card stays a single
+  // tap-target (the card also sets pointer-events:none on the iframe). OSM
+  // attribution stays on — it's required by the tile usage policy.
+  var minimal = (q.get('ui') || '').toLowerCase() === 'min';
 
   if (!isFinite(lat) || !isFinite(lng)) {
     // No coords — leave the iframe blank; React only mounts it when coords exist.
     document.getElementById('map').style.display = 'none';
   } else {
     var map = L.map('map', {
-      zoomControl: true,
+      zoomControl: !minimal,
       scrollWheelZoom: false,   // don't hijack page scroll
       attributionControl: true,
-    }).setView([lat, lng], 15);
+      dragging: !minimal,
+      doubleClickZoom: !minimal,
+      boxZoom: !minimal,
+      keyboard: !minimal,
+      touchZoom: !minimal,
+    }).setView([lat, lng], minimal ? 14 : 15);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19, attribution: '&copy; OpenStreetMap'
@@ -68,7 +78,7 @@
       iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -32],
     });
     var marker = L.marker([lat, lng], { icon: icon }).addTo(map);
-    if (label) {
+    if (label && !minimal) {
       marker.bindPopup('<b>' + label.replace(/</g, '&lt;') + '</b>Approximate location', { closeButton: false });
     }
   }

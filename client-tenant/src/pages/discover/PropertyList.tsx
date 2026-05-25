@@ -401,6 +401,36 @@ export function PropertyList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, typeFilter, cityFilter, availableNow]);
 
+  // Card mini-maps: a single fetch of the committed coords snapshot (the same
+  // /nv-gpmg-map-props.json the map iframe reads), keyed by slug, so each list
+  // card can render a small non-interactive locator without a per-card request.
+  // Cards whose slug has no coords simply omit the map.
+  const [coordsBySlug, setCoordsBySlug] = useState<
+    Record<string, { lat: number; lng: number }>
+  >({});
+  useEffect(() => {
+    let alive = true;
+    fetch('/nv-gpmg-map-props.json')
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then(
+        (rows: Array<{ slug?: string; name?: string; lat?: number; lng?: number }>) => {
+          if (!alive) return;
+          const m: Record<string, { lat: number; lng: number }> = {};
+          for (const row of rows) {
+            if (typeof row.lat !== 'number' || typeof row.lng !== 'number') continue;
+            const coords = { lat: row.lat, lng: row.lng };
+            if (row.slug) m[row.slug] = coords;
+            if (row.name) m[slugify(row.name)] = coords;
+          }
+          setCoordsBySlug(m);
+        },
+      )
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useEffect(() => {
     // Authed users still get the live catalog warm-fetched so cached
     // responses are ready for downstream pages (intent/pick).
@@ -758,7 +788,7 @@ export function PropertyList() {
 
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="property-grid">
           {filtered.map((p) => (
-            <PropertyTile key={p.name} prop={p} />
+            <PropertyTile key={p.name} prop={p} coords={coordsBySlug[p.slug]} />
           ))}
         </ul>
           </>
@@ -810,7 +840,13 @@ function AvailabilityBadge({ availableCount }: { availableCount: number }) {
   );
 }
 
-function PropertyTile({ prop }: { prop: TileSource }) {
+function PropertyTile({
+  prop,
+  coords,
+}: {
+  prop: TileSource;
+  coords?: { lat: number; lng: number };
+}) {
   const { t } = useTranslation('discover');
   const { slug, availability, rentRange, amiTier } = prop;
 
@@ -843,6 +879,27 @@ function PropertyTile({ prop }: { prop: TileSource }) {
             }}
             aria-hidden="true"
           />
+          {coords && (
+            <iframe
+              title={`Map — ${prop.name}`}
+              loading="lazy"
+              src={`/property-minimap.html?lat=${coords.lat}&lng=${coords.lng}&type=${prop.type}&label=${encodeURIComponent(
+                prop.name,
+              )}&ui=min`}
+              data-testid={`property-tile-minimap-${slug}`}
+              style={{
+                display: 'block',
+                width: '100%',
+                height: 116,
+                border: 'none',
+                borderTop: `1px solid ${HF.border}`,
+                // Non-interactive: clicks/drags fall through to the card Link so
+                // the whole tile stays one tap-target (map is a locator only).
+                pointerEvents: 'none',
+              }}
+              aria-hidden="true"
+            />
+          )}
           <div style={{ padding: 16 }}>
             <h2
               style={{
