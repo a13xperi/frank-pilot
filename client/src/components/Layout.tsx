@@ -53,6 +53,8 @@ export function Layout() {
           <button
             onClick={() => setMobileOpen(true)}
             aria-label="Open navigation menu"
+            aria-expanded={mobileOpen}
+            aria-controls="primary-nav-drawer"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 md:hidden"
           >
             <Menu className="h-5 w-5" />

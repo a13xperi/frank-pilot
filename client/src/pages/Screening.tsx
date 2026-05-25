@@ -7,7 +7,6 @@ import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
-import { useToast } from '@/components/Toast';
 import { api } from '@/api/client';
 import { hasMinRole, type Application, type ApplicationListResponse, type ScreeningResult, type FraudFlag } from '@/types';
 
@@ -21,7 +20,6 @@ const columns: Column<Application>[] = [
 
 export function Screening() {
   const { user } = useAuth();
-  const toast = useToast();
   const { data, loading, refetch } = useApiQuery<ApplicationListResponse>('/api/applications');
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [results, setResults] = useState<ScreeningResult | null>(null);
@@ -43,10 +41,7 @@ export function Screening() {
     try {
       const res = await api.post<ScreeningResult>(`/api/screening/${app.id}/screen`);
       setResults(res);
-      toast.success('Screening completed');
       refetch();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Screening failed');
     } finally {
       setActionLoading(false);
     }
@@ -72,14 +67,9 @@ export function Screening() {
 
   async function resolveFlag(flagId: string) {
     if (!resolveNotes.trim()) return;
-    try {
-      await api.post(`/api/screening/fraud-flags/${flagId}/resolve`, { notes: resolveNotes });
-      toast.success('Fraud flag resolved');
-      setResolveNotes('');
-      if (selectedApp) viewResults(selectedApp);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to resolve fraud flag');
-    }
+    await api.post(`/api/screening/fraud-flags/${flagId}/resolve`, { notes: resolveNotes });
+    setResolveNotes('');
+    if (selectedApp) viewResults(selectedApp);
   }
 
   return (
@@ -104,9 +94,10 @@ export function Screening() {
               header: '',
               render: (r) => (
                 <Button
+                  variant="primary"
                   size="sm"
-                  loading={actionLoading}
                   onClick={(e) => { e.stopPropagation(); runScreening(r); }}
+                  loading={actionLoading}
                 >
                   <Play className="h-3 w-3" /> Screen
                 </Button>
@@ -164,6 +155,7 @@ export function Screening() {
                           className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
                         />
                         <Button
+                          variant="primary"
                           size="sm"
                           onClick={() => resolveFlag(f.id)}
                         >

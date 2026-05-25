@@ -43,7 +43,6 @@ export function UsersPage() {
     setShowCreate(false);
     form.reset();
     refetch();
-    toast.success('Staff user created');
   });
 
   if (!user || !hasMinRole(user.role, 'senior_manager')) {
@@ -62,9 +61,6 @@ export function UsersPage() {
     try {
       await api.patch(`/api/users/${u.id}/${u.isActive ? 'deactivate' : 'activate'}`, {});
       refetch();
-      toast.success(`${u.firstName} ${u.lastName} ${u.isActive ? 'deactivated' : 'activated'}`);
-    } catch {
-      toast.error('Could not update user status');
     } finally {
       setActionLoading(false);
       setSelected(null);
@@ -78,8 +74,6 @@ export function UsersPage() {
     try {
       await api.post(`/api/users/${u.id}/reset-password`, { newPassword: pw });
       toast.success('Password reset successfully');
-    } catch {
-      toast.error('Could not reset password');
     } finally {
       setActionLoading(false);
       setSelected(null);
@@ -94,7 +88,7 @@ export function UsersPage() {
         description="Manage staff accounts, roles, and access"
         action={
           <RoleGate minRole="system_admin">
-            <Button onClick={() => setShowCreate(true)}>
+            <Button onClick={() => setShowCreate(true)} variant="primary">
               <Plus className="h-4 w-4" /> Add User
             </Button>
           </RoleGate>
@@ -166,8 +160,10 @@ export function UsersPage() {
           </div>
           {form.error && <p className="text-sm text-red-600">{form.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button type="submit" loading={form.submitting}>Create User</Button>
+            <Button type="button" onClick={() => setShowCreate(false)} variant="ghost">Cancel</Button>
+            <Button type="submit" variant="primary" loading={form.submitting}>
+              Create User
+            </Button>
           </div>
         </form>
       </Modal>
@@ -185,18 +181,18 @@ export function UsersPage() {
             <RoleGate minRole="system_admin">
               <div className="flex gap-2 border-t border-gray-200 pt-4">
                 <Button
+                  onClick={() => toggleActive(selected)}
                   variant={selected.isActive ? 'danger' : 'primary'}
                   size="sm"
                   loading={actionLoading}
-                  onClick={() => toggleActive(selected)}
                 >
                   {selected.isActive ? 'Deactivate' : 'Activate'}
                 </Button>
                 <Button
+                  onClick={() => resetPassword(selected)}
                   variant="secondary"
                   size="sm"
                   loading={actionLoading}
-                  onClick={() => resetPassword(selected)}
                 >
                   <RotateCcw className="h-3.5 w-3.5" /> Reset Password
                 </Button>

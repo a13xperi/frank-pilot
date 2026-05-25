@@ -214,6 +214,7 @@ function ComplianceTapePanel() {
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm w-80 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         />
         <Button
+          variant="primary"
           onClick={handleSearch}
           disabled={!inputValue.trim()}
         >
@@ -236,10 +237,10 @@ function ComplianceTapePanel() {
                 variant="secondary"
                 size="sm"
                 onClick={handleVerify}
-                loading={verifyLoading}
                 disabled={verifyLoading || tapeLoading}
+                loading={verifyLoading}
               >
-                Verify Chain
+                {verifyLoading ? 'Verifying…' : 'Verify Chain'}
               </Button>
               {verifyResult && verifyResult.ok && (
                 <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
@@ -433,20 +434,22 @@ export function AuditLog() {
           Showing {page * limit + 1}–{page * limit + (data?.logs?.length || 0)}
         </p>
         <div className="flex gap-2">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50"
           >
             Previous
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setPage((p) => p + 1)}
             disabled={(data?.logs?.length || 0) < limit}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50"
           >
             Next
-          </button>
+          </Button>
         </div>
       </div>
 

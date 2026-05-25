@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -58,6 +59,62 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: SidebarProps) {
   const { user } = useAuth();
+  const asideRef = useRef<HTMLElement>(null);
+  // Remember what had focus before the drawer opened so we can restore it on close.
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+
+  // Focus management + trap — mobile drawer only (below `md`). The desktop rail
+  // is a static, always-visible `md:` element; we never trap focus there. We
+  // gate on a `(max-width)` media query so a stray `mobileOpen` at desktop width
+  // can't hijack focus.
+  useEffect(() => {
+    const aside = asideRef.current;
+    if (!mobileOpen || !aside) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
+      return;
+    }
+
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const focusableSelector =
+      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+    const getFocusable = () =>
+      Array.from(aside.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+        (el) => el.offsetParent !== null || el === document.activeElement
+      );
+
+    // Move focus into the drawer.
+    const first = getFocusable()[0];
+    first?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const firstEl = focusable[0];
+      const lastEl = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === firstEl || !aside.contains(active)) {
+          e.preventDefault();
+          lastEl.focus();
+        }
+      } else if (active === lastEl || !aside.contains(active)) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    };
+
+    aside.addEventListener('keydown', handleKeyDown);
+    return () => {
+      aside.removeEventListener('keydown', handleKeyDown);
+      // Restore focus to whatever opened the drawer (the hamburger trigger).
+      restoreFocusRef.current?.focus();
+      restoreFocusRef.current = null;
+    };
+  }, [mobileOpen]);
+
   if (!user) return null;
 
   const visible = NAV_ITEMS.filter((item) => hasMinRole(user.role, item.minRole));
@@ -72,6 +129,8 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
 
   return (
     <aside
+      ref={asideRef}
+      id="primary-nav-drawer"
       className={`fixed inset-y-0 left-0 z-40 flex w-64 transform flex-col border-r border-gray-200 bg-white transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${collapseRail} ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}

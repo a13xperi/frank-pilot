@@ -7,7 +7,6 @@ import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
-import { useToast } from '@/components/Toast';
 import { api } from '@/api/client';
 import { hasMinRole, type Application, type ApplicationListResponse } from '@/types';
 
@@ -27,7 +26,6 @@ const columns: Column<Application>[] = [
 
 export function Approvals() {
   const { user } = useAuth();
-  const toast = useToast();
   const { data, loading, refetch } = useApiQuery<ApplicationListResponse>('/api/applications');
   const [activeTier, setActiveTier] = useState('tier1');
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
@@ -52,7 +50,6 @@ export function Approvals() {
     setActionError('');
     try {
       await api.post(`/api/approvals/${selectedApp.id}/${tier.endpoint}`, { decision, notes });
-      toast.success(decision === 'pass' ? 'Application approved' : 'Application denied');
       setSelectedApp(null);
       setNotes('');
       refetch();
@@ -80,7 +77,7 @@ export function Approvals() {
             <button
               key={t.key}
               onClick={() => setActiveTier(t.key)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 activeTier === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -131,10 +128,18 @@ export function Approvals() {
             {actionError && <p className="text-sm text-red-600">{actionError}</p>}
 
             <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
-              <Button variant="danger" loading={actionLoading} onClick={() => decide('fail')}>
+              <button
+                onClick={() => decide('fail')}
+                disabled={actionLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
+              >
                 <ThumbsDown className="h-4 w-4" /> Deny
-              </Button>
-              <Button loading={actionLoading} onClick={() => decide('pass')}>
+              </button>
+              <Button
+                variant="primary"
+                onClick={() => decide('pass')}
+                loading={actionLoading}
+              >
                 <ThumbsUp className="h-4 w-4" /> Approve
               </Button>
             </div>

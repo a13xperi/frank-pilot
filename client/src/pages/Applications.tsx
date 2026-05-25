@@ -3,6 +3,7 @@ import { FileText, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
+import { ResponsiveCards } from '@/components/ResponsiveCards';
 import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/Button';
@@ -86,7 +87,7 @@ export function Applications() {
         title="Applications"
         description="Manage tenant applications - create, review, submit for screening"
         action={
-          <Button onClick={() => navigate('/applications/new')}>
+          <Button onClick={() => navigate('/applications/new')} variant="primary">
             <Plus className="h-4 w-4" /> New Application
           </Button>
         }
@@ -97,7 +98,7 @@ export function Applications() {
           <button
             key={t.value}
             onClick={() => setTab(t.value)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               tab === t.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -117,7 +118,18 @@ export function Applications() {
         ))}
       </div>
 
-      <DataTable
+      {/* Table at md+, stacked cards below md (same columns + data + handler). */}
+      <div className="hidden md:block">
+        <DataTable
+          columns={columns}
+          data={filtered}
+          loading={loading}
+          onRowClick={(a) => navigate(`/applications/${a.id}`)}
+          emptyMessage="No applications found"
+        />
+      </div>
+      <ResponsiveCards
+        className="md:hidden"
         columns={columns}
         data={filtered}
         loading={loading}

@@ -4,6 +4,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
 import { api } from '@/api/client';
@@ -90,9 +91,9 @@ export function Evictions() {
         description="Lease violations, NV eviction notices, and court case tracking"
         action={
           <RoleGate minRole="senior_manager">
-            <button onClick={() => setShowReport(true)} className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+            <Button variant="danger" onClick={() => setShowReport(true)}>
               <Plus className="h-4 w-4" /> Report Violation
-            </button>
+            </Button>
           </RoleGate>
         }
       />
@@ -150,8 +151,9 @@ export function Evictions() {
             <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="input" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowReport(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button
+            <Button variant="ghost" onClick={() => setShowReport(false)}>Cancel</Button>
+            <Button
+              variant="danger"
               disabled={!reportAppId || !reportDesc}
               onClick={async () => {
                 try {
@@ -162,10 +164,9 @@ export function Evictions() {
                   refetchAll();
                 } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
               }}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
             >
               Report
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
@@ -197,17 +198,17 @@ export function Evictions() {
                   }} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Issue Warning</button>
                 )}
                 {['reported', 'warning_issued'].includes(selectedViolation.status) && !selectedViolation.vawa_flagged && (
-                  <button onClick={() => setShowNotice(true)} className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700">Generate Notice</button>
+                  <Button variant="danger" size="sm" onClick={() => setShowNotice(true)}>Generate Notice</Button>
                 )}
                 {!['resolved', 'dismissed'].includes(selectedViolation.status) && (
                   <>
                     <div className="w-full mt-2">
                       <textarea value={resolveNotes} onChange={(e) => setResolveNotes(e.target.value)} rows={2} className="input" placeholder="Resolution / dismissal notes (required)" />
                     </div>
-                    <button disabled={!resolveNotes.trim()} onClick={async () => {
+                    <Button variant="primary" size="sm" disabled={!resolveNotes.trim()} onClick={async () => {
                       try { await api.post(`/api/evictions/violations/${selectedViolation.id}/resolve`, { notes: resolveNotes }); setActionMsg({ type: 'success', text: 'Violation resolved' }); setSelectedViolation(null); setResolveNotes(''); refetchAll(); }
                       catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-                    }} className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">Resolve</button>
+                    }}>Resolve</Button>
                     <button disabled={!resolveNotes.trim()} onClick={async () => {
                       try { await api.post(`/api/evictions/violations/${selectedViolation.id}/dismiss`, { notes: resolveNotes }); setActionMsg({ type: 'success', text: 'Violation dismissed' }); setSelectedViolation(null); setResolveNotes(''); refetchAll(); }
                       catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
@@ -230,8 +231,8 @@ export function Evictions() {
             </select>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowNotice(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button onClick={async () => {
+            <Button variant="ghost" onClick={() => setShowNotice(false)}>Cancel</Button>
+            <Button variant="danger" onClick={async () => {
               if (!selectedViolation) return;
               try {
                 await api.post<{ noticeId: string; noticeText: string }>(`/api/evictions/violations/${selectedViolation.id}/notice`, { noticeType });
@@ -240,7 +241,7 @@ export function Evictions() {
                 setSelectedViolation(null);
                 refetchAll();
               } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-            }} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Generate</button>
+            }}>Generate</Button>
           </div>
         </div>
       </Modal>
@@ -262,10 +263,10 @@ export function Evictions() {
             </div>
             {selectedNotice.status === 'draft' && (
               <RoleGate minRole="senior_manager">
-                <button onClick={async () => {
+                <Button variant="danger" onClick={async () => {
                   try { await api.post(`/api/evictions/notices/${selectedNotice.id}/serve`); setActionMsg({ type: 'success', text: 'Notice served' }); setSelectedNotice(null); refetchAll(); }
                   catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-                }} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Mark as Served</button>
+                }}>Mark as Served</Button>
               </RoleGate>
             )}
           </div>

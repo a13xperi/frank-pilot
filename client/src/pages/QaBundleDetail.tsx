@@ -5,6 +5,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/api/client';
 import { PageHeader } from '@/components/PageHeader';
+import { Button } from '@/components/Button';
 import { hasMinRole } from '@/types';
 import type { QaBundleSummary } from './QaBundles';
 
@@ -336,10 +337,7 @@ export function QaBundleDetail() {
         title={bundle.slug}
         description={`Captured ${new Date(bundle.capturedAt).toLocaleString()}`}
         action={
-          <button
-            onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+          <Button variant="secondary" size="sm" onClick={handleCopy}>
             {copied ? (
               <>
                 <Check className="h-4 w-4 text-emerald-600" /> Copied
@@ -349,7 +347,7 @@ export function QaBundleDetail() {
                 <Copy className="h-4 w-4" /> Copy stem
               </>
             )}
-          </button>
+          </Button>
         }
       />
 
