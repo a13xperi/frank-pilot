@@ -36,7 +36,7 @@ export function StepClaim() {
         }}
       >
         <img
-          src={getUnitPhoto(unit.photo_url)}
+          src={getUnitPhoto(unit.photo_url, unit.id)}
           alt=""
           className="aspect-[16/9] w-full object-cover"
         />

@@ -1,5 +1,5 @@
 import { api } from './client';
-import { UNIT_PLACEHOLDER } from '@/utils/unitPlaceholder';
+import { placeholderFor } from '@/utils/unitPlaceholder';
 
 // ─── Wedge #8 — live `GET /api/properties` listing for /discover ──────────
 //
@@ -132,12 +132,15 @@ export const DL2_FIXTURE: PropertyDetail = {
   neighborhood: 'East Las Vegas',
   description:
     'Family-oriented community in East Las Vegas, walking distance to Garcia Elementary and Sunrise Hospital. Three-story building with elevator, on-site laundry, gated parking, and a courtyard with playground equipment. Section 8 vouchers welcome.',
+  // Representative placeholder gallery — seeded per index so the carousel shows
+  // variety rather than five identical frames. Labeled "Representative photo" in
+  // the UI; not images of the actual building.
   photos: [
-    UNIT_PLACEHOLDER,
-    UNIT_PLACEHOLDER,
-    UNIT_PLACEHOLDER,
-    UNIT_PLACEHOLDER,
-    UNIT_PLACEHOLDER,
+    placeholderFor('donna-louise-2-0'),
+    placeholderFor('donna-louise-2-1'),
+    placeholderFor('donna-louise-2-2'),
+    placeholderFor('donna-louise-2-3'),
+    placeholderFor('donna-louise-2-4'),
   ],
   amenities: [
     'Pool',

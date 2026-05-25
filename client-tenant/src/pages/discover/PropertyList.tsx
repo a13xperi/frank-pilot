@@ -18,7 +18,7 @@ import {
   type GPMGType,
 } from '@/api/gpmg-fixtures';
 import { Card } from '@/components/primitives';
-import { UNIT_PLACEHOLDER } from '@/utils/unitPlaceholder';
+import { placeholderFor } from '@/utils/unitPlaceholder';
 import { HF } from '@/styles/tokens';
 import {
   getPropertyAvailability,
@@ -837,7 +837,7 @@ function PropertyTile({ prop }: { prop: TileSource }) {
             className="aspect-[16/9] w-full"
             style={{
               background: `${HF.sageLo}`,
-              backgroundImage: `url(${UNIT_PLACEHOLDER})`,
+              backgroundImage: `url(${placeholderFor(slug)})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
