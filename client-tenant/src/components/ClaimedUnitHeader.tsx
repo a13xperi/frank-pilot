@@ -25,7 +25,7 @@ export function ClaimedUnitHeader({ unit, expiresAt }: Props) {
   }, []);
 
   const remaining = new Date(expiresAt).getTime() - now;
-  const photo = getUnitPhoto(unit.photo_url);
+  const photo = getUnitPhoto(unit.photo_url, unit.id);
   const isExpired = remaining <= 0;
 
   const countdownLabel = isExpired

@@ -37,7 +37,7 @@ const chipStyle = {
 
 export function UnitCard({ unit, onClaim, claiming, mismatch, amiTier }: Props) {
   const { t } = useTranslation('discover');
-  const photo = getUnitPhoto(unit.photo_url);
+  const photo = getUnitPhoto(unit.photo_url, unit.id);
   const location = [unit.property_city, unit.property_state].filter(Boolean).join(', ');
   const hasMismatch = mismatch && mismatch.notes.length > 0;
   // Resolve AMI tier: explicit prop wins (incl. null to hide); fall back to

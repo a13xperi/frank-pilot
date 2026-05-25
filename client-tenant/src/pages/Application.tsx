@@ -329,7 +329,7 @@ function ClaimedUnitCard({
 
   const remaining = new Date(expiresAt).getTime() - now;
   const photo =
-    getUnitPhoto(unit.photo_url);
+    getUnitPhoto(unit.photo_url, unit.id);
 
   async function handleRelease() {
     const ok = window.confirm(
