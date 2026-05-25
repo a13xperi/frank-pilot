@@ -7,6 +7,8 @@ import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
 import { Modal } from '@/components/Modal';
 import { RoleGate } from '@/components/RoleGate';
+import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
 import { api } from '@/api/client';
 import { getPropertyPhoto } from '@/utils/propertyPhoto';
 import type { Property, PropertyListResponse } from '@/types';
@@ -58,6 +60,7 @@ const EMPTY_FORM = {
 
 export function Properties() {
   const { user } = useAuth();
+  const toast = useToast();
   const { data, loading, refetch } = useApiQuery<PropertyListResponse>('/api/properties');
   const [showCreate, setShowCreate] = useState(false);
   const [editProp, setEditProp] = useState<Property | null>(null);
@@ -70,6 +73,7 @@ export function Properties() {
       onesitePropertyId: values.onesitePropertyId || undefined,
       loftPropertyId: values.loftPropertyId || undefined,
     });
+    toast.success('Property created');
     setShowCreate(false);
     createForm.reset();
     refetch();
@@ -92,6 +96,7 @@ export function Properties() {
         onesitePropertyId: values.onesitePropertyId || undefined,
         loftPropertyId: values.loftPropertyId || undefined,
       });
+      toast.success('Property updated');
       setEditProp(null);
       refetch();
     }
@@ -107,12 +112,9 @@ export function Properties() {
         description="Manage rental properties, AMI areas, and integration IDs"
         action={
           <RoleGate minRole="asset_manager">
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-            >
+            <Button onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" /> Add Property
-            </button>
+            </Button>
           </RoleGate>
         }
       />
@@ -146,10 +148,10 @@ export function Properties() {
           </div>
           {createForm.error && <p className="text-sm text-red-600">{createForm.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button type="submit" disabled={createForm.submitting} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-              {createForm.submitting ? 'Creating...' : 'Create Property'}
-            </button>
+            <Button variant="ghost" type="button" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button type="submit" loading={createForm.submitting}>
+              Create Property
+            </Button>
           </div>
         </form>
       </Modal>
@@ -171,10 +173,10 @@ export function Properties() {
           )}
           {editForm.error && <p className="text-sm text-red-600">{editForm.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setEditProp(null)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button type="submit" disabled={editForm.submitting} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-              {editForm.submitting ? 'Saving...' : 'Save Changes'}
-            </button>
+            <Button variant="ghost" type="button" onClick={() => setEditProp(null)}>Cancel</Button>
+            <Button type="submit" loading={editForm.submitting}>
+              Save Changes
+            </Button>
           </div>
         </form>
       </Modal>

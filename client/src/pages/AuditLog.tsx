@@ -4,6 +4,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
 import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
+import { Button } from '@/components/Button';
 import { api } from '@/api/client';
 import { hasMinRole, formatRole, type AuditLogResponse, type AuditEntry } from '@/types';
 
@@ -212,13 +213,12 @@ function ComplianceTapePanel() {
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm w-80 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         />
-        <button
+        <Button
           onClick={handleSearch}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
           disabled={!inputValue.trim()}
         >
           Search
-        </button>
+        </Button>
       </div>
 
       {/* Only show table area when an applicant ID has been searched */}
@@ -232,13 +232,15 @@ function ComplianceTapePanel() {
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               {/* Verify Chain button + result badge */}
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={handleVerify}
+                loading={verifyLoading}
                 disabled={verifyLoading || tapeLoading}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
-                {verifyLoading ? 'Verifying…' : 'Verify Chain'}
-              </button>
+                Verify Chain
+              </Button>
               {verifyResult && verifyResult.ok && (
                 <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
                   Verified ✓ (sequence {verifyResult.lastSequence})
