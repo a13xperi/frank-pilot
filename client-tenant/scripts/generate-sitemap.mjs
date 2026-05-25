@@ -6,7 +6,7 @@
  * and emits a sitemap covering:
  *   - /              (Welcome)               priority 1.0, monthly
  *   - /discover      (browse)                priority 0.9, daily
- *   - /discover/{slug} for every property    priority 0.8, daily
+ *   - /property/{slug} for every property    priority 0.8, daily
  *   - /apply                                 priority 0.5, monthly
  *
  * Wired into the `build` npm script so the file regenerates pre-`vite build`.
@@ -124,7 +124,7 @@ export function buildSitemapXml({ fixtures, slugify, siteUrl, lastmod }) {
     const slug = slugify(p.name);
     lines.push(
       urlBlock({
-        loc: `${siteUrl}/discover/${slug}`,
+        loc: `${siteUrl}/property/${slug}`,
         lastmod,
         changefreq: PROPERTY_CHANGEFREQ,
         priority: PROPERTY_PRIORITY,

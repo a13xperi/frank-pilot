@@ -48,11 +48,14 @@ describe('generate-sitemap', () => {
     expect(applyBlock[0]).toContain('<changefreq>monthly</changefreq>');
   });
 
-  it('includes every GPMG property slug at /discover/{slug}', () => {
+  it('includes every GPMG property slug at /property/{slug}', () => {
+    // Must match the React route (App.tsx `/property/:slug`) and the in-app
+    // PropertyList card link — `/discover/{slug}` has no route and redirects
+    // logged-out crawlers to /login, dropping the listing JSON-LD from the index.
     expect(GPMG_FIXTURES.length).toBe(17); // safety net for the fixture contract
     for (const p of GPMG_FIXTURES) {
       const slug = slugify(p.name);
-      expect(xml).toContain(`<loc>${SITE_URL}/discover/${slug}</loc>`);
+      expect(xml).toContain(`<loc>${SITE_URL}/property/${slug}</loc>`);
     }
   });
 
@@ -60,7 +63,7 @@ describe('generate-sitemap', () => {
     const sampleSlug = slugify(GPMG_FIXTURES[0]!.name);
     const block = xml.match(
       new RegExp(
-        `<url>\\s*<loc>https://[^/]+/discover/${sampleSlug}</loc>[\\s\\S]*?</url>`
+        `<url>\\s*<loc>https://[^/]+/property/${sampleSlug}</loc>[\\s\\S]*?</url>`
       )
     )!;
     expect(block[0]).toContain('<priority>0.8</priority>');
