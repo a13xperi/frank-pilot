@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { HF } from '@/styles/tokens';
 import { CTA } from '@/components/primitives/CTA';
 import { askHousingQa } from '@/api/client';
+import { useConsent } from '@/state/consent';
 
 interface ChatMessage {
   id: string;
@@ -27,6 +28,13 @@ const nextId = () => `m${Date.now()}-${_seq++}`;
 
 export function HousingChatWidget() {
   const { t } = useTranslation('chat');
+  // While the cookie-consent banner is showing (needsChoice === true), the
+  // bottom-fixed banner stacks its Customize / Reject buttons full-width on
+  // mobile. The collapsed chat bubble (bottom-right, higher z-index) would
+  // otherwise overlap and intercept taps on those buttons. Hide the collapsed
+  // bubble until the visitor has recorded a consent choice; it reappears the
+  // instant the banner is dismissed.
+  const { needsChoice } = useConsent();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -97,6 +105,9 @@ export function HousingChatWidget() {
 
   // ── Bubble (collapsed) ──────────────────────────────────────────────
   if (!open) {
+    // Yield to the cookie-consent banner so it doesn't cover the
+    // Customize / Reject buttons (see needsChoice note above).
+    if (needsChoice) return null;
     return (
       <button
         ref={bubbleRef}
