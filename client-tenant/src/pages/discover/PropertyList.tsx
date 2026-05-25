@@ -154,7 +154,7 @@ function TypeCityAvailabilityFilters({
           </ChipButton>
         ))}
       </div>
-      <div className="flex items-center gap-2 overflow-x-auto">
+      <div className="flex items-center gap-2 flex-wrap">
         <FilterRowLabel>{t('filter.city')}</FilterRowLabel>
         {(Object.keys(CITY_LABELS) as CityFilter[]).map((k) => (
           <ChipButton
@@ -706,7 +706,7 @@ export function PropertyList() {
                 </ChipButton>
               ))}
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto">
+            <div className="flex items-center gap-2 flex-wrap">
               <span
                 style={{
                   fontSize: 12,
