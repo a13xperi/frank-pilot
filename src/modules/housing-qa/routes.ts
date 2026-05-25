@@ -58,7 +58,6 @@ export function housingQaRouter(): Router {
     if (!parsed.success) {
       res.status(400).json({
         error: "A non-empty question (max 1000 characters) is required.",
-        details: parsed.error.issues,
       });
       return;
     }

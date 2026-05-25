@@ -343,6 +343,7 @@ export function HousingChatWidget() {
           onKeyDown={onInputKeyDown}
           placeholder={t('input.placeholder')}
           aria-label={t('input.placeholder')}
+          maxLength={1000}
           disabled={loading}
           style={{
             flex: 1,
