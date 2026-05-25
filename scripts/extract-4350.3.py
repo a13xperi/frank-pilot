@@ -24,7 +24,7 @@ GEN_DATE = date.today().isoformat()
 def pdftext(path):
     """Return -layout text of a PDF, or raise on failure."""
     r = subprocess.run(["pdftotext", "-layout", path, "-"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8")
     if r.returncode != 0:
         raise RuntimeError(f"pdftotext failed on {path}: {r.stderr.strip()}")
     return r.stdout
@@ -131,7 +131,7 @@ def main():
             f"# HUD Handbook 4350.3 — pages {label}\n\n"
         )
         path = os.path.join(OUT, base + ".md")
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(front + body)
         index_rows.append((base + ".md", label, len(body)))
         print(f"wrote {path}  ({len(body):,} chars from {len(parts)} source(s))")
@@ -153,7 +153,7 @@ def main():
     for name, label, _ in index_rows:
         idx.append(f"| {label} | [{name}]({name}) |")
     idx.append("")
-    with open(os.path.join(OUT, "index.md"), "w") as f:
+    with open(os.path.join(OUT, "index.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(idx))
     print(f"wrote {os.path.join(OUT, 'index.md')}")
 
