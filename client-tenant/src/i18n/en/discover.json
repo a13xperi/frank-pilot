@@ -114,5 +114,11 @@
   "saved.removeShort": "Remove from shortlist",
   "saved.alertOn": "Vacancy alerts on",
   "saved.alertOff": "Get vacancy alerts",
-  "saved.apply": "Apply"
+  "saved.apply": "Apply",
+  "city.heading": "Affordable housing in {{city}}",
+  "city.intro": "{{count}} affordable senior and family communities in {{city}}, Nevada. Browse live availability, rent ranges, and AMI eligibility.",
+  "city.viewOnMap": "View all {{city}} homes on the map",
+  "city.backToAll": "All Nevada communities",
+  "city.metaTitle": "Affordable Housing in {{city}}, NV — {{count}} Communities",
+  "city.metaDescription": "Find affordable senior and family apartments in {{city}}, Nevada. Browse {{count}} communities with live availability, rent ranges, and AMI eligibility."
 }
