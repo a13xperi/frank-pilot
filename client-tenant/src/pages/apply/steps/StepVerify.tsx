@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 import { api, getToken } from '@/api/client';
 import { requestMagicLink } from '@/api/auth';
@@ -11,6 +12,23 @@ import { DemoEmailCard } from '@/components/DemoEmailCard';
 export function StepVerify() {
   const s = useApply();
   const { t } = useTranslation('apply');
+  const navigate = useNavigate();
+
+  // Open the echoed dev/demo magic-link without leaving the current origin.
+  // The server builds devLink against TENANT_PORTAL_URL (frank-pilot-tenant),
+  // but the token is host-agnostic — every deploy rewrites /api to the same
+  // backend — so navigating to the absolute URL would bounce a Frank-only demo
+  // tester onto the statewide surface. Strip to the same-origin callback,
+  // mirroring Login.tsx's handleDevLink.
+  function openDevLink() {
+    if (!s.devLink) return;
+    try {
+      const url = new URL(s.devLink);
+      navigate(`/auth/callback${url.search}`);
+    } catch {
+      navigate(`/auth/callback?token=${s.devLink}`);
+    }
+  }
 
   // Verify-stage poll — preserved verbatim from legacy Apply.tsx semantics.
   // Only polls once a token has been stored (post magic-link verify), else
@@ -92,9 +110,7 @@ export function StepVerify() {
       {s.devLink && (
         <DemoEmailCard
           email={s.email}
-          onOpen={() => {
-            window.location.href = s.devLink!;
-          }}
+          onOpen={openDevLink}
         />
       )}
       <button
