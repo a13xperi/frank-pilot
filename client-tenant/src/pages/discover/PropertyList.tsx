@@ -21,6 +21,7 @@ import {
 import { Card } from '@/components/primitives';
 import { SaveButton } from '@/components/SaveButton';
 import { useShortlist } from '@/state/shortlist';
+import { useFlag } from '@/lib/flags';
 import { placeholderFor } from '@/utils/unitPlaceholder';
 import { HF } from '@/styles/tokens';
 import {
@@ -316,6 +317,9 @@ export function PropertyList() {
   const { t } = useTranslation('discover');
   const { count: savedCount } = useShortlist();
   const [params, setParams] = useSearchParams();
+  // Frank-only mode (demo deployment): scope the embedded map to Frank's
+  // managed portfolio and suppress the statewide "universal" directory.
+  const frankOnly = useFlag('FRANK_ONLY_ENABLED');
 
   // Single source of truth for filters: URL params. This is what lets the
   // chips deep-link cleanly and what the AMI-banner X-button needs to
@@ -362,6 +366,9 @@ export function PropertyList() {
   const initialMapSrc = useMemo(() => {
     const mapParams = new URLSearchParams(params);
     mapParams.delete('view');
+    // Frank-only: the map reads `frankOnly` and skips the statewide directory
+    // fetch, rendering only Frank's availability layer (~17 properties).
+    if (frankOnly) mapParams.set('frankOnly', '1');
     const qs = mapParams.toString();
     return qs ? `/nv-housing-map.html?${qs}` : '/nv-housing-map.html';
     // eslint-disable-next-line react-hooks/exhaustive-deps
