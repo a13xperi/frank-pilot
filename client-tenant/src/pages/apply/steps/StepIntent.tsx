@@ -63,7 +63,16 @@ export function StepIntent() {
   // them through Register → Verify; URL params (the welcome handoff) survive
   // the step change and StepIntent's prefill picks them up post-verify.
   useEffect(() => {
-    if (!getToken()) s.setStep(1);
+    if (!getToken()) {
+      // Clear any stale "Session expired" banner before showing Register. A
+      // tester arriving with a dead token in localStorage 401s on the first
+      // authed call (saveIntent), which the API client surfaces as "Session
+      // expired"; once the token is cleared we bounce here, and the carried-
+      // over error would otherwise paint a scary banner on a brand-new
+      // applicant's "Create your account" screen.
+      s.setError(null);
+      s.setStep(1);
+    }
   }, [s]);
 
   const [incomeStr, setIncomeStr] = useState<string>(
