@@ -2,10 +2,15 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error — .mjs build script; no .d.ts shipped, imported by URL.
 import { buildSitemapXml } from '../../scripts/generate-sitemap.mjs';
-import { GPMG_FIXTURES, slugify } from '@/api/gpmg-fixtures';
+import { GPMG_FIXTURES, GPMG_CITIES, slugify } from '@/api/gpmg-fixtures';
 
 const SITE_URL = 'https://frank-pilot.vercel.app';
 const LASTMOD = '2026-05-22';
+
+// 3 static routes + one /property/{slug} per fixture + one /discover/city/{slug}
+// per city with ≥1 property.
+const STATIC_ROUTES = 3;
+const EXPECTED_URLS = STATIC_ROUTES + GPMG_FIXTURES.length + GPMG_CITIES.length;
 
 describe('generate-sitemap', () => {
   const xml = buildSitemapXml({
@@ -70,19 +75,38 @@ describe('generate-sitemap', () => {
     expect(block[0]).toContain('<changefreq>daily</changefreq>');
   });
 
+  it('includes every GPMG city at /discover/city/{slug}', () => {
+    // City landing pages are the SEO wedge — one crawlable page per city with
+    // inventory, keyed off GPMG_CITIES (derived from the fixtures).
+    expect(GPMG_CITIES.length).toBeGreaterThan(0);
+    for (const c of GPMG_CITIES) {
+      expect(xml).toContain(`<loc>${SITE_URL}/discover/city/${c.slug}</loc>`);
+    }
+  });
+
+  it('marks city pages priority 0.7 weekly', () => {
+    const sampleCity = GPMG_CITIES[0]!.slug;
+    const block = xml.match(
+      new RegExp(
+        `<url>\\s*<loc>https://[^/]+/discover/city/${sampleCity}</loc>[\\s\\S]*?</url>`
+      )
+    )!;
+    expect(block[0]).toContain('<priority>0.7</priority>');
+    expect(block[0]).toContain('<changefreq>weekly</changefreq>');
+  });
+
   it('stamps every <url> with the provided lastmod (ISO YYYY-MM-DD)', () => {
     const lastmodMatches = xml.match(/<lastmod>[^<]+<\/lastmod>/g) ?? [];
-    // 3 static routes + 17 properties = 20 url entries.
-    expect(lastmodMatches.length).toBe(20);
+    expect(lastmodMatches.length).toBe(EXPECTED_URLS);
     lastmodMatches.forEach((m) => {
       expect(m).toBe(`<lastmod>${LASTMOD}</lastmod>`);
     });
   });
 
-  it('contains exactly 20 <url> entries (3 static + 17 properties)', () => {
+  it('contains the expected <url> count (static + properties + cities)', () => {
     const urlOpenCount = (xml.match(/<url>/g) ?? []).length;
     const urlCloseCount = (xml.match(/<\/url>/g) ?? []).length;
-    expect(urlOpenCount).toBe(20);
-    expect(urlCloseCount).toBe(20);
+    expect(urlOpenCount).toBe(EXPECTED_URLS);
+    expect(urlCloseCount).toBe(EXPECTED_URLS);
   });
 });

@@ -67,6 +67,46 @@ export function findGPMGBySlug(slug: string): GPMGProperty | undefined {
   return GPMG_FIXTURES.find((p) => slugify(p.name) === slug);
 }
 
+/** A city that has at least one GPMG property — the unit of a city landing page. */
+export interface GPMGCity {
+  /** Canonical display name, e.g. "Las Vegas". */
+  name: string;
+  /** URL slug, e.g. "las-vegas". */
+  slug: string;
+  /** How many fixtures sit in this city. */
+  count: number;
+}
+
+/** kebab-case a city name into a URL slug (same rules as {@link slugify}). */
+export function citySlug(city: string): string {
+  return slugify(city);
+}
+
+/**
+ * Every city with ≥1 GPMG property, derived from the fixtures so it stays
+ * correct if the catalog changes. Sorted by property count (desc) then name —
+ * the order city landing pages and the sitemap iterate in.
+ */
+export const GPMG_CITIES: readonly GPMGCity[] = (() => {
+  const counts = new Map<string, number>();
+  for (const p of GPMG_FIXTURES) {
+    counts.set(p.city, (counts.get(p.city) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, slug: citySlug(name), count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+})();
+
+/** Resolve a URL city slug back to its canonical {@link GPMGCity}, or undefined. */
+export function findCityBySlug(slug: string): GPMGCity | undefined {
+  return GPMG_CITIES.find((c) => c.slug === slug);
+}
+
+/** All fixtures in a given canonical city name. */
+export function propertiesInCity(city: string): GPMGProperty[] {
+  return GPMG_FIXTURES.filter((p) => p.city === city);
+}
+
 /**
  * Rough "from $X/mo" estimate — GPMG publishes ranges only via PDFs and the
  * catalog doesn't expose per-unit rent, so we surface a conservative number

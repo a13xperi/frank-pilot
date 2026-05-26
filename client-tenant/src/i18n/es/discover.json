@@ -114,5 +114,11 @@
   "saved.removeShort": "Quitar de la lista",
   "saved.alertOn": "Alertas de disponibilidad activadas",
   "saved.alertOff": "Recibir alertas de disponibilidad",
-  "saved.apply": "Solicitar"
+  "saved.apply": "Solicitar",
+  "city.heading": "Vivienda asequible en {{city}}",
+  "city.intro": "{{count}} comunidades asequibles para personas mayores y familias en {{city}}, Nevada. Explora la disponibilidad en vivo, los rangos de renta y la elegibilidad por AMI.",
+  "city.viewOnMap": "Ver todas las viviendas de {{city}} en el mapa",
+  "city.backToAll": "Todas las comunidades de Nevada",
+  "city.metaTitle": "Vivienda asequible en {{city}}, NV — {{count}} comunidades",
+  "city.metaDescription": "Encuentra apartamentos asequibles para personas mayores y familias en {{city}}, Nevada. Explora {{count}} comunidades con disponibilidad en vivo, rangos de renta y elegibilidad por AMI."
 }

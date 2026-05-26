@@ -46,6 +46,29 @@ const ROUTES = [
 const PROPERTY_PRIORITY = '0.8';
 const PROPERTY_CHANGEFREQ = 'daily';
 
+// City landing pages (/discover/city/{slug}) — one per city with ≥1 property.
+// Slightly below /discover (0.9) and individual listings (0.8): they're real
+// crawl targets for city-search intent but their content turns over slower
+// than per-listing availability, hence weekly.
+const CITY_PRIORITY = '0.7';
+const CITY_CHANGEFREQ = 'weekly';
+
+/**
+ * Unique cities present in the fixtures, in first-seen order, each with its
+ * URL slug. Derived here (rather than importing GPMG_CITIES) so buildSitemapXml
+ * stays self-contained on just {fixtures, slugify}.
+ */
+function citiesFromFixtures(fixtures, slugify) {
+  const seen = new Set();
+  const cities = [];
+  for (const p of fixtures) {
+    if (seen.has(p.city)) continue;
+    seen.add(p.city);
+    cities.push({ name: p.city, slug: slugify(p.city) });
+  }
+  return cities;
+}
+
 /**
  * Load `GPMG_FIXTURES` + `slugify` from the canonical TS source by
  * transpiling it through esbuild into a temp ESM module, then dynamically
@@ -128,6 +151,17 @@ export function buildSitemapXml({ fixtures, slugify, siteUrl, lastmod }) {
         lastmod,
         changefreq: PROPERTY_CHANGEFREQ,
         priority: PROPERTY_PRIORITY,
+      })
+    );
+  }
+
+  for (const city of citiesFromFixtures(fixtures, slugify)) {
+    lines.push(
+      urlBlock({
+        loc: `${siteUrl}/discover/city/${city.slug}`,
+        lastmod,
+        changefreq: CITY_CHANGEFREQ,
+        priority: CITY_PRIORITY,
       })
     );
   }
