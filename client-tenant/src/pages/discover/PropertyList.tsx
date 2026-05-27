@@ -367,7 +367,11 @@ export function PropertyList() {
     const mapParams = new URLSearchParams(params);
     mapParams.delete('view');
     // Frank-only: the map reads `frankOnly` and skips the statewide directory
-    // fetch, rendering only Frank's availability layer (~17 properties).
+    // fetch, rendering only Frank's availability layer (~17 properties). Strip
+    // any inbound `frankOnly` from the page URL first so the build-time flag is
+    // the single source of truth — a hand-typed `?frankOnly=1` must NOT scope
+    // the statewide deploy down.
+    mapParams.delete('frankOnly');
     if (frankOnly) mapParams.set('frankOnly', '1');
     const qs = mapParams.toString();
     return qs ? `/nv-housing-map.html?${qs}` : '/nv-housing-map.html';
@@ -516,9 +520,9 @@ export function PropertyList() {
     const bucket = bedroomBucketFromFilter(bedroomFilter);
     // Suppress internal smoke-test artifacts (e.g. the "NAU-SMOKE Test
     // Property" seeded into prod for the NAU lifecycle smoke) from the
-    // public browse surface. Matches by name so it stays robust across slugs.
-    const isTestProperty = (name: string) =>
-      /nau-smoke|test property/i.test(name);
+    // public browse surface. Match on the unique `nau-smoke` token only —
+    // a bare "test property" substring could swallow a real listing.
+    const isTestProperty = (name: string) => /nau-smoke/i.test(name);
     if (apiProperties !== null) {
       return apiProperties
         .filter((p) => !isTestProperty(p.name))
