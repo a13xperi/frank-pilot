@@ -1,0 +1,160 @@
+name: Claude Night Shift
+
+# Autonomous overnight Claude. While you sleep, it picks up the OLDEST open issue
+# labeled for its lane, implements it on a fresh branch, runs that app's checks, and
+# opens a PR for your morning review. It NEVER pushes to main and NEVER merges.
+#
+#   Lane "tenant"   -> issues labeled `night-shift:tenant`,  scoped to client-tenant/
+#   Lane "backend"  -> issues labeled `night-shift:backend`, scoped to src/ + repo root
+#
+# Control surface = labels. No labeled issues -> the run is a clean no-op.
+#
+# Auth: Claude Max via CLAUDE_CODE_OAUTH_TOKEN. PR creation uses NIGHT_SHIFT_PAT (falls
+# back to GITHUB_TOKEN) so the opened PR triggers the required CI checks under branch
+# protection — a GITHUB_TOKEN-opened PR would not fire them.
+#
+# Schedule: 03:00 and 04:00 Europe/Copenhagen (02:00/03:00 UTC). Trigger manually via
+# the Actions tab ("Run workflow") to test-fire either lane on demand.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 03:00 Copenhagen — tenant lane
+    - cron: '0 3 * * *'   # 04:00 Copenhagen — backend lane
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: 'Which lane to run'
+        type: choice
+        options: [tenant, backend, both]
+        default: both
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  tenant:
+    # cron 02:00 UTC, manual "tenant", or manual "both"
+    if: |
+      github.event.schedule == '0 2 * * *' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.lane == 'tenant' || github.event.inputs.lane == 'both'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.NIGHT_SHIFT_PAT || secrets.GITHUB_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.NIGHT_SHIFT_PAT || secrets.GITHUB_TOKEN }}
+          claude_args: |
+            --model claude-opus-4-7
+            --max-turns 50
+          prompt: |
+            You are the Frank-Pilot night shift, TENANT lane. Repo: a13xperi/frank-pilot.
+            The tenant app lives in `client-tenant/`. Work on EXACTLY ONE issue this run.
+
+            STEP 1 — Pick work:
+            Run `gh issue list --label "night-shift:tenant" --state open --sort created --limit 20`.
+            Choose the OLDEST (lowest number) open issue. If there are none, post nothing
+            and STOP — this run is a clean no-op.
+
+            STEP 2 — Branch:
+            `git checkout -b night-shift/tenant-issue-<NUMBER>` off the default branch.
+
+            STEP 3 — Implement:
+            Make the smallest correct change that resolves the issue. Stay inside
+            `client-tenant/` unless the issue explicitly requires otherwise. Match the
+            surrounding code's style, naming, and i18n conventions.
+
+            STEP 4 — Verify (all from inside client-tenant/, must pass before you open a PR):
+              - `npm ci`
+              - `npx tsc --noEmit`
+              - `npm test -- --run`
+              - `node scripts/check-i18n-parity.mjs`
+              - `npm run build`
+            If anything fails and you cannot fix it cleanly, do NOT open a PR. Instead
+            comment on the issue with what you tried and the exact error, then STOP.
+
+            STEP 5 — Open a PR (never merge, never push to main):
+            Commit, push the branch, then `gh pr create` with base = default branch.
+            Title: `night-shift(tenant): <issue title>`. In the body, link the issue with
+            `Closes #<NUMBER>`, summarize the change, and list which checks you ran green.
+
+            HARD CONSTRAINTS:
+              - NEVER push to main / NEVER merge any PR.
+              - NEVER edit `.github/`, secrets, `.env*`, or CI config.
+              - NEVER run or author database migrations.
+              - One issue per run. When the PR is open (or you've commented a blocker), STOP.
+
+  backend:
+    # cron 03:00 UTC, manual "backend", or manual "both"
+    if: |
+      github.event.schedule == '0 3 * * *' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.lane == 'backend' || github.event.inputs.lane == 'both'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.NIGHT_SHIFT_PAT || secrets.GITHUB_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.NIGHT_SHIFT_PAT || secrets.GITHUB_TOKEN }}
+          claude_args: |
+            --model claude-opus-4-7
+            --max-turns 50
+          prompt: |
+            You are the Frank-Pilot night shift, BACKEND lane. Repo: a13xperi/frank-pilot.
+            The backend app lives at the repo root (`src/` + root config). Work on EXACTLY
+            ONE issue this run.
+
+            STEP 1 — Pick work:
+            Run `gh issue list --label "night-shift:backend" --state open --sort created --limit 20`.
+            Choose the OLDEST (lowest number) open issue. If there are none, post nothing
+            and STOP — this run is a clean no-op.
+
+            STEP 2 — Branch:
+            `git checkout -b night-shift/backend-issue-<NUMBER>` off the default branch.
+
+            STEP 3 — Implement:
+            Make the smallest correct change that resolves the issue. Stay in `src/` and
+            root config; do NOT touch `client-tenant/`. Match surrounding code style.
+
+            STEP 4 — Verify (from repo root, must pass before you open a PR):
+              - `npm ci`
+              - `npm run build`
+              - `npm test`
+            If anything fails and you cannot fix it cleanly, do NOT open a PR. Instead
+            comment on the issue with what you tried and the exact error, then STOP.
+
+            STEP 5 — Open a PR (never merge, never push to main):
+            Commit, push the branch, then `gh pr create` with base = default branch.
+            Title: `night-shift(backend): <issue title>`. In the body, link the issue with
+            `Closes #<NUMBER>`, summarize the change, and list which checks you ran green.
+
+            HARD CONSTRAINTS:
+              - NEVER push to main / NEVER merge any PR.
+              - NEVER edit `.github/`, secrets, `.env*`, or CI config.
+              - NEVER run or author database migrations. If an issue requires a schema
+                change, describe the needed migration in the PR body and let a human apply
+                it — do not write or run migration files yourself.
+              - One issue per run. When the PR is open (or you've commented a blocker), STOP.
