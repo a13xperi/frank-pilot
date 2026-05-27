@@ -514,8 +514,14 @@ export function PropertyList() {
   // run the full filter set over GPMG_FIXTURES as before.
   const tiles = useMemo<TileSource[]>(() => {
     const bucket = bedroomBucketFromFilter(bedroomFilter);
+    // Suppress internal smoke-test artifacts (e.g. the "NAU-SMOKE Test
+    // Property" seeded into prod for the NAU lifecycle smoke) from the
+    // public browse surface. Matches by name so it stays robust across slugs.
+    const isTestProperty = (name: string) =>
+      /nau-smoke|test property/i.test(name);
     if (apiProperties !== null) {
       return apiProperties
+        .filter((p) => !isTestProperty(p.name))
         .map(tileFromApi)
         .filter((t) => {
           if (typeFilter !== 'all' && t.type !== typeFilter) return false;
