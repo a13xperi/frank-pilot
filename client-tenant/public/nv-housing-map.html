@@ -419,7 +419,13 @@ function mergeLayers(availLayer, coverage){
 // We still always refresh from the network and re-hydrate only when the payload
 // actually changed — a background refresh never rebuilds markers needlessly.
 // sessionStorage (not local) self-clears on tab close, keeping the demo fresh.
-const CACHE_KEY = 'frank:map:merged:v1';
+// Frank-only mode (forwarded by PropertyList when VITE_FRANK_ONLY_ENABLED=true):
+// scope the map to Frank's managed portfolio (the live/GPMG availability layer)
+// and DO NOT load the statewide `nv-housing-props.json` "universal" directory.
+const FRANK_ONLY = new URLSearchParams(location.search).get('frankOnly') === '1';
+// Distinct cache namespace so a Frank-only visit can't be painted from a full
+// statewide snapshot cached by an earlier non-Frank-only visit (or vice versa).
+const CACHE_KEY = FRANK_ONLY ? 'frank:map:merged:frankonly:v1' : 'frank:map:merged:v1';
 
 // Instant first paint from the cached snapshot, if any.
 let cachedStr = null;
@@ -432,7 +438,9 @@ if(cachedStr){
 Promise.all([
   fetch('/api/applicants/properties/map').then(okJson).catch(()=>[]),
   fetch('/nv-gpmg-map-props.json').then(okJson).catch(()=>[]),
-  fetch('/nv-housing-props.json').then(okJson).catch(()=>[]),
+  // Frank-only: skip the statewide coverage directory entirely — no request,
+  // no merge, so the universal listings never reach the Frank surface.
+  FRANK_ONLY ? Promise.resolve([]) : fetch('/nv-housing-props.json').then(okJson).catch(()=>[]),
 ]).then(([live, gpmg, statewide])=>{
   const liveOk = Array.isArray(live) && live.some(r=>r && 'availableUnits' in r);
   const availLayer = liveOk ? live : (Array.isArray(gpmg) ? gpmg : []);

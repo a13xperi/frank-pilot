@@ -10,13 +10,20 @@ export type FlagName =
   | 'PROPERTY_DL2_ENABLED'
   | 'MOBILE_APPLY_ENABLED'
   | 'PAYMENT_WIZARD_ENABLED'
-  | 'LEASE_ESIGN_ENABLED';
+  | 'LEASE_ESIGN_ENABLED'
+  | 'FRANK_ONLY_ENABLED';
 
 // Flags that default OFF (opt-in via `=true`).
 const DEFAULT_OFF: ReadonlySet<FlagName> = new Set([
   'PAYMENT_WIZARD_ENABLED',
   // Tenant lease e-signature — off until the flow is verified end-to-end.
   'LEASE_ESIGN_ENABLED',
+  // Frank-only mode: when ON, /discover scopes to Frank's managed portfolio
+  // (the GPMG/availability layer) and the map does NOT load the statewide
+  // `nv-housing-props.json` "universal" directory. Default OFF so the normal
+  // hybrid statewide browse surface is unchanged; flip `=true` per-deploy for
+  // a Frank-only surface (e.g. the Frank-only demo deployment).
+  'FRANK_ONLY_ENABLED',
 ]);
 
 // Static lookup — Vite's `define` plugin can only substitute literal property
@@ -29,6 +36,7 @@ const ENV_RAW: Readonly<Record<FlagName, string | undefined>> = {
   MOBILE_APPLY_ENABLED: import.meta.env.VITE_MOBILE_APPLY_ENABLED,
   PAYMENT_WIZARD_ENABLED: import.meta.env.VITE_PAYMENT_WIZARD_ENABLED,
   LEASE_ESIGN_ENABLED: import.meta.env.VITE_LEASE_ESIGN_ENABLED,
+  FRANK_ONLY_ENABLED: import.meta.env.VITE_FRANK_ONLY_ENABLED,
 };
 
 export function useFlag(name: FlagName): boolean {
