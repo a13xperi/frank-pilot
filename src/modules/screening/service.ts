@@ -6,9 +6,11 @@ import { BackgroundCheckService } from "./background-check";
 import { CreditCheckService } from "./credit-check";
 import { ComplianceService } from "./compliance";
 import { FraudDetectionService } from "./fraud-detection";
+import { IdentityVerificationService } from "./identity-verification";
 import { AdverseActionService } from "../adverse-action/service";
 
 export class ScreeningService {
+  private identity = new IdentityVerificationService();
   private backgroundCheck = new BackgroundCheckService();
   private creditCheck = new CreditCheckService();
   private compliance = new ComplianceService();
@@ -17,13 +19,16 @@ export class ScreeningService {
 
   /**
    * Run full automated screening pipeline:
-   * 1. Background check
-   * 2. Credit check
-   * 3. Tax credit compliance
+   * 1. Identity verification (Persona / Stripe Identity)
+   * 2. Fraud screening (duplicate SSN, address)
+   * 3. Background check
+   * 4. Credit check
+   * 5. Tax credit compliance
    *
-   * Any single fail → overall fail.
-   * Any review_required + no fails → overall review_required.
-   * All pass → overall pass.
+   * Identity "rejected" short-circuits to fail (with FCRA adverse-action notice).
+   * Duplicate-SSN short-circuits to fail (same pattern).
+   * Otherwise: any single fail → overall fail; any review_required + no fails →
+   * overall review_required; all pass → overall pass.
    */
   async runFullScreening(
     applicationId: string,

@@ -381,6 +381,10 @@ CREATE TABLE applications (
   submitted_by UUID REFERENCES users(id),
 
   -- Screening results
+  identity_verification_result screening_result,
+  identity_verification_details JSONB,
+  identity_verification_completed_at TIMESTAMPTZ,
+
   background_check_result screening_result,
   background_check_details JSONB,
   background_check_completed_at TIMESTAMPTZ,
