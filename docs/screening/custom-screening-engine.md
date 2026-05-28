@@ -508,40 +508,96 @@ After RFQs come back and Frank signs vendor contracts:
 
 ---
 
-## 8. Open Questions
+## 8. Ratified Decisions
 
-1. **Identity vendor: Persona or Stripe Identity?** Persona is the
-   recommendation (better adverse-action UX, custom housing flow), but Stripe
-   is the contract-light path because we already have Stripe wired for BP-08.
-   Decision needed from Frank by week 4.
+The 7 design-level decisions below were ratified by Alex on 2026-05-27. Each
+remains revisitable if conditions change (scale inflection, vendor lock-in,
+counsel guidance) — the rationale is captured so future-us understands the
+trade-off being held.
 
-2. **Workflow engine: are we OK with in-process Postgres state, or does
-   Frank's compliance auditor require a Temporal / Step Functions level of
-   external orchestration?** The recommendation is in-process. Confirm with
-   counsel before week 6.
+### 8.1 Identity vendor — **Persona** (primary), Stripe Identity (fallback)
 
-3. **Pre-adverse 5-day window: legal calendar days or business days?**
-   Industry default is 5 business days; some operators use 5 calendar days
-   to be conservative. Compliance counsel call.
+FCRA + housing adverse-action workflow needs auditable, customizable ID
+checks. Stripe Identity is built for fraud signals ("is this the cardholder")
+rather than for "we made a housing decision based on this ID." The
+~$1–2/check cost delta is trivial against the $35.95 application fee.
+Stripe Identity remains the documented fallback so we can swap in a week
+if Persona credentialing slips.
 
-4. **Sex-offender registry source.** Checkr exposes its own scrape of the
-   national NSOPW registry. Some operators require a separate direct
-   NSOPW.gov query for the lifetime mandatory denial. Decision needed: is
-   Checkr's scrape sufficient, or do we hit NSOPW.gov directly?
+**Open follow-up:** confirm Persona's BAA-equivalent housing-PII contract terms
+before signing.
 
-5. **Plaid Income consent UX.** Plaid Income requires the applicant to link
-   their bank account during the application flow. We need a UX decision:
-   gated (no bank link = no application) or optional with a Work Number
-   fallback? The data quality is much higher with Plaid; the friction is
-   higher too.
+### 8.2 Workflow engine — **In-process Postgres state machine**
 
-6. **Dispute handling: who handles outbound dispute forwarding to the CRA?**
-   FCRA §1681i requires us to forward the dispute. Each CRA has its own
-   dispute-receiving API. Decision needed: do we build a dispute-routing
-   layer in-house, or do we use the CRA's hosted dispute portal (lower
-   build cost, slower applicant feedback)?
+Frank's scale is ~10 apps/day peak. Temporal / Step Functions are
+over-engineered until 10x scale or a 2nd operator with materially different
+rules lands. Compliance auditors care about audit-trail completeness (which
+`compliance_tape` already provides) rather than orchestration sophistication.
 
-7. **Real backtest corpus cutover.** When do we switch from synthetic to
-   real (PII-scrubbed) historical data? Recommended trigger: 6 months of
-   real screening outcomes post-launch, AND a PII scrubbing pipeline that
-   passes compliance review. Confirm with counsel.
+**Revisit trigger:** ≥100 apps/day sustained, OR onboarding a 2nd operator
+whose rules diverge from Frank's, OR an auditor explicitly demanding
+external orchestration evidence.
+
+### 8.3 Pre-adverse window — **5 business days**
+
+Industry standard; legally defensible; what June (Frank's legal) will likely
+recommend. Calendar days saves a day of decision latency but loses the
+legal-safe-harbor optic. Confirm with June at onboarding (master plan Phase 0
+item 4).
+
+### 8.4 Sex-offender registry source — **Both: vendor primary + direct NSOPW.gov belt-and-suspenders**
+
+HUD §5.856 mandates lifetime denial for registered sex offenders — false
+negatives are catastrophic, false positives are fixable via the individualized
+assessment matrix at `docs/screening/hud-criminal-decision-matrix.md`. Direct
+NSOPW.gov query is free, ~50ms latency. If vendor and direct disagree, hold
+for manual review. Belt-and-suspenders cost is trivial against §5.856
+exposure.
+
+**Implementation note:** the direct NSOPW.gov adapter is a new stub —
+`src/modules/screening/nsopw-direct.ts` — added during Phase 4 step 3 of the
+build plan (§7).
+
+### 8.5 Plaid consent UX — **Gated, with Work Number as an explicit W-2 path**
+
+LIHTC tenants are heavily 1099 / gig / multi-job — Work Number alone covers
+~40-60% of applicants. Self-reported income is a non-starter for LIHTC
+compliance audit. UX: applicant chooses "I have a W-2 job" → Work Number;
+anything else → Plaid bank link. Nobody completes the funnel with
+self-reported only.
+
+**Conversion-friction acknowledgement:** Plaid linking will cost us some
+funnel drop-off. The trade-off is accepted because LIHTC compliance failure
+is a tape-stamped event Frank cannot afford.
+
+### 8.6 FCRA §1681i disputes — **CRA hosted portal**
+
+At Frank's scale (~5-10 disputes/year max), hosting our own dispute intake
+is overkill. Link applicants to the chosen vendor's portal from the
+adverse-action letter; receive resolution via webhook (vendor-dependent).
+
+**Revisit trigger:** onboarding a 2nd operator (volume scales linearly), or
+sustained ≥20 disputes/quarter (process becomes a bottleneck).
+
+### 8.7 Real backtest corpus cutover — **Phase 5 + ~2 weeks (target wk 10-14)**
+
+Synthetic corpus is sufficient for Phase 4 implementation — the rules under
+test don't change. Real corpus matters when (a) tuning thresholds against
+true-positive / true-negative rates, and (b) validating vendor SDK swaps
+against historical outcomes. Cutover gated on three preconditions, all of
+which align with master plan Phase 5:
+
+1. Frank's PMS CSV export landing (master plan Phase 5, wk 8-12+)
+2. PII-scrub pipeline live (hash SSN, fuzz DOB to month/year only, redact
+   street addresses, keep zip + city + state)
+3. Screening vendor signed (master plan Phase 3, wk 3-6)
+
+**Target corpus:** 200-500 real applicants spanning the last 24 months,
+covering at least 3 properties to exercise multi-property AMI lookups.
+
+### Net effect on the master plan
+
+Zero schedule change. All 7 decisions align with the existing Phase 4
+(wk 6-10) and Phase 5 (wk 8-12+) sequencing. What they unblock is the
+5-step Phase 4 build plan in §7 — the work can start the moment Frank's
+PMS logins (master plan Phase 0 → Phase 2) land.
