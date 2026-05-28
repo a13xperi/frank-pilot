@@ -32,6 +32,7 @@ export class BackgroundCheckService {
     ssnLast4: string;
     dateOfBirth: string;
     state: string;
+    screeningTag?: string;
   }): Promise<BackgroundCheckResult> {
     logger.info("Initiating background check", {
       applicant: `${input.firstName} ${input.lastName}`,
@@ -65,9 +66,14 @@ export class BackgroundCheckService {
     ssnLast4: string;
     dateOfBirth: string;
     state: string;
+    screeningTag?: string;
   }): Promise<any> {
     // STUB: Replace with actual API call in production
     // Example: const response = await fetch(`${this.apiUrl}/v1/background-check`, { ... });
+
+    if (process.env.MOCK_MODE === "1" && input.screeningTag) {
+      return this.mockResponse(input.screeningTag);
+    }
 
     if (!this.apiKey || this.apiKey === "changeme") {
       logger.warn("Using stub background check — no API key configured");
@@ -82,6 +88,43 @@ export class BackgroundCheckService {
 
     // Production implementation would go here
     throw new Error("Production API integration not yet configured");
+  }
+
+  private mockResponse(tag: string): any {
+    if (tag === "deny_felony") {
+      return {
+        felonies: 1,
+        sexOffenses: false,
+        violentCrimes: false,
+        misdemeanors: [],
+        records: [{ type: "felony", description: "synthetic" }],
+      };
+    }
+    if (tag === "deny_sex_offender") {
+      return {
+        felonies: 0,
+        sexOffenses: true,
+        violentCrimes: false,
+        misdemeanors: [],
+        records: [{ type: "lifetime_registry", description: "synthetic" }],
+      };
+    }
+    if (tag === "review_misdemeanors") {
+      return {
+        felonies: 0,
+        sexOffenses: false,
+        violentCrimes: false,
+        misdemeanors: [{ code: "M-1" }, { code: "M-2" }, { code: "M-3" }],
+        records: [],
+      };
+    }
+    return {
+      felonies: 0,
+      sexOffenses: false,
+      violentCrimes: false,
+      misdemeanors: [],
+      records: [],
+    };
   }
 
   private evaluateResults(response: any): BackgroundCheckResult {
