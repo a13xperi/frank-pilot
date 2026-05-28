@@ -1,0 +1,18 @@
+{
+  "id": "synthetic-06-review-low-credit",
+  "screening_tag": "review_low_credit",
+  "first_name": "Faye",
+  "last_name": "Subprime",
+  "date_of_birth": "1995-03-18",
+  "ssn_last4": "0006",
+  "current_state": "NV",
+  "current_address_line1": "600 Synthetic Way",
+  "current_city": "Henderson",
+  "annual_income_cents": 3600000,
+  "household_size": 1,
+  "ami_limit_cents": 6000000,
+  "ami_area": "Henderson-NV",
+  "expected_outcome": "manual_review",
+  "expected_terminal_reason": "credit_review_low_score",
+  "notes": "Credit score 520 (below 600 threshold) but no evictions/bankruptcy → review_required."
+}

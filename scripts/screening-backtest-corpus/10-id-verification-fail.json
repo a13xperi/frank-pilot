@@ -1,0 +1,18 @@
+{
+  "id": "synthetic-10-id-verification-fail",
+  "screening_tag": "id_verification_fail",
+  "first_name": "Jude",
+  "last_name": "Rejected",
+  "date_of_birth": "1993-05-12",
+  "ssn_last4": "0010",
+  "current_state": "NV",
+  "current_address_line1": "1000 Synthetic Way",
+  "current_city": "Las Vegas",
+  "annual_income_cents": 4800000,
+  "household_size": 1,
+  "ami_limit_cents": 5040000,
+  "ami_area": "Las Vegas-NV",
+  "expected_outcome": "failed",
+  "expected_terminal_reason": "identity_verification_failed",
+  "notes": "Persona rejects: document tampered, selfie mismatch — pipeline never reaches parallel checks."
+}

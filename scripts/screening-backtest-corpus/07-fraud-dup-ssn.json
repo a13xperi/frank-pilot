@@ -1,0 +1,19 @@
+{
+  "id": "synthetic-07-fraud-dup-ssn",
+  "screening_tag": "fraud_dup_ssn",
+  "first_name": "Gabe",
+  "last_name": "Duplicate",
+  "date_of_birth": "1987-09-09",
+  "ssn_last4": "0007",
+  "current_state": "NV",
+  "current_address_line1": "700 Synthetic Way",
+  "current_city": "Las Vegas",
+  "annual_income_cents": 4800000,
+  "household_size": 1,
+  "ami_limit_cents": 5040000,
+  "ami_area": "Las Vegas-NV",
+  "duplicate_ssn_hit": true,
+  "expected_outcome": "failed",
+  "expected_terminal_reason": "fraud_duplicate_ssn",
+  "notes": "Duplicate SSN collides with another active application — early-exit in fraud_screening state."
+}

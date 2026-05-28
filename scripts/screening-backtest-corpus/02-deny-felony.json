@@ -1,0 +1,18 @@
+{
+  "id": "synthetic-02-deny-felony",
+  "screening_tag": "deny_felony",
+  "first_name": "Brett",
+  "last_name": "Felony",
+  "date_of_birth": "1985-08-22",
+  "ssn_last4": "0002",
+  "current_state": "NV",
+  "current_address_line1": "200 Synthetic Way",
+  "current_city": "Las Vegas",
+  "annual_income_cents": 4800000,
+  "household_size": 1,
+  "ami_limit_cents": 5040000,
+  "ami_area": "Las Vegas-NV",
+  "expected_outcome": "failed",
+  "expected_terminal_reason": "background_fail_felony",
+  "notes": "Active felony — auto-deny on background check."
+}

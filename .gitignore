@@ -22,3 +22,6 @@ docs/intel/raw/
 demo/
 .claude/
 .playwright-mcp/
+
+# Screening backtest harness output — one directory per run; not source-controlled.
+tmp/screening-backtest/
