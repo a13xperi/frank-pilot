@@ -17,7 +17,12 @@ import approvalRoutes from "./modules/approval/routes";
 import paymentRoutes from "./modules/payment/routes";
 import paymentWebhookRouter from "./modules/payment/webhook";
 import { assertStripeProdConfig } from "./modules/payment/boot-guard";
-import { voiceIntakeWebhookRouter, voiceIntakeRoutes } from "./modules/voice-intake";
+import {
+  voiceIntakeWebhookRouter,
+  voiceToolCallbackRouter,
+  voiceBrowserSessionRouter,
+  voiceIntakeRoutes,
+} from "./modules/voice-intake";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
 import adverseActionRoutes from "./modules/adverse-action/routes";
@@ -98,6 +103,12 @@ app.use("/api/payments/webhook", paymentWebhookRouter);
 // and ElevenLabs would auto-disable us after 10 consecutive failures).
 app.use("/api/webhooks/elevenlabs/post-call", voiceIntakeWebhookRouter);
 
+// Voice agent IN-CALL server tools (Phase A) — sibling of the post-call
+// webhook above, same raw-body constraint. Flag-gates on VOICE_TOOLS_ENABLED
+// independently of the post-call flag so the receiver can ride along into
+// prod (dark, returning 503) before any tool handler is wired.
+app.use("/api/webhooks/elevenlabs/tools", voiceToolCallbackRouter);
+
 app.use(express.json({ limit: "1mb" }));
 
 // Request logging (PII-safe)
@@ -151,6 +162,14 @@ app.use("/api/applicants", applicantRoutes);
 // process; answers are grounded strictly in injected data). Degrades to 503
 // when ANTHROPIC_API_KEY is absent.
 app.use("/api/housing-qa", housingQaRouter());
+
+// "Talk to Frank" — in-browser WebRTC voice session minter. Anonymous
+// visitors are the dominant case (mirrors the outbound phone semantics),
+// so this sits ahead of any auth-required route. Flag-gates on
+// VOICE_BROWSER_SESSIONS_ENABLED so the route returns 503 (and the UI
+// hides the affordance) until the operator opts in. Daily budget cap +
+// per-IP + per-cookie rate limits are enforced inside the router.
+app.use("/api/voice/sessions", voiceBrowserSessionRouter);
 
 // Saved-property shortlist (public — guests via uh_guest cookie OR authed users).
 // Guests save without an account; on magic-link conversion the saves migrate

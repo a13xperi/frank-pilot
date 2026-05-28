@@ -131,3 +131,61 @@ export const api = {
 export function askHousingQa(question: string): Promise<{ answer: string }> {
   return api.post<{ answer: string }>('/housing-qa', { question });
 }
+
+/**
+ * "Talk to Frank" — mint an ElevenLabs Conv. AI WebRTC signed URL.
+ *
+ * Returns a discriminated union so the pill can switch on outcome without
+ * threading try/catch + status-code parsing through React. The 503 branch is
+ * load-bearing: it covers both "feature flag is off" and "daily budget cap
+ * exhausted" — the pill hides itself on either signal and stays hidden for
+ * the rest of the page lifetime.
+ *
+ * Anonymous-allowed. The backend mints a `frank_voice_session` cookie on the
+ * first call; credentials:'include' is already set on every fetch via the
+ * shared request() path, but this endpoint sits OUTSIDE request() (we need
+ * the raw status code) so credentials:'include' is set explicitly here too.
+ */
+export type StartVoiceSessionResult =
+  | {
+      status: 'ok';
+      signedUrl: string;
+      agentId: string;
+      sessionId: string;
+      maxDurationSecs: number;
+    }
+  | { status: 'disabled' }
+  | { status: 'rate_limited'; retryAfterSecs: number | null }
+  | { status: 'error'; message: string };
+
+export async function startVoiceSession(): Promise<StartVoiceSessionResult> {
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  const url = `${baseUrl}/api/voice/sessions`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+  } catch (err) {
+    return { status: 'error', message: (err as Error).message };
+  }
+  if (res.status === 503) return { status: 'disabled' };
+  if (res.status === 429) {
+    const retryAfter = res.headers.get('Retry-After');
+    const secs = retryAfter ? Number(retryAfter) : null;
+    return { status: 'rate_limited', retryAfterSecs: Number.isFinite(secs) ? secs : null };
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    return { status: 'error', message: body?.error || `Request failed: ${res.status}` };
+  }
+  const body = (await res.json()) as {
+    signedUrl: string;
+    agentId: string;
+    sessionId: string;
+    maxDurationSecs: number;
+  };
+  return { status: 'ok', ...body };
+}
