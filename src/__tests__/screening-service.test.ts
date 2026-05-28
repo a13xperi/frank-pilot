@@ -44,12 +44,38 @@ jest.mock("../modules/screening/compliance", () => ({
   })),
 }));
 
+jest.mock("../modules/screening/identity-verification", () => ({
+  IdentityVerificationService: jest.fn().mockImplementation(() => ({
+    verify: jest.fn(),
+  })),
+}));
+
+jest.mock("../modules/screening/fraud-detection", () => ({
+  FraudDetectionService: jest.fn().mockImplementation(() => ({
+    checkDuplicateSSN: jest.fn().mockResolvedValue({ existingApplicationIds: [] }),
+    checkAddressFraud: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+jest.mock("../modules/adverse-action/service", () => ({
+  AdverseActionService: jest.fn().mockImplementation(() => ({
+    sendNotice: jest.fn().mockResolvedValue({
+      noticeId: "notice-001",
+      applicationId: "app-001",
+      sentAt: new Date(),
+      reason: "screening_failed",
+    }),
+  })),
+}));
+
 import { query } from "../config/database";
 import { writeAuditLog } from "../middleware/audit";
 import { decrypt } from "../utils/encryption";
 import { BackgroundCheckService } from "../modules/screening/background-check";
 import { CreditCheckService } from "../modules/screening/credit-check";
 import { ComplianceService } from "../modules/screening/compliance";
+import { IdentityVerificationService } from "../modules/screening/identity-verification";
+import { AdverseActionService } from "../modules/adverse-action/service";
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockAuditLog = writeAuditLog as jest.MockedFunction<typeof writeAuditLog>;
@@ -107,13 +133,31 @@ function makeComplianceResult(result: "pass" | "fail" | "review_required") {
   } as any;
 }
 
+function makeIdentityResult(result: "verified" | "rejected" | "review_required") {
+  const confidence = result === "verified" ? 0.95 : result === "rejected" ? 0.21 : 0.7;
+  const liveness = result === "verified" ? 0.97 : result === "rejected" ? 0.34 : 0.72;
+  return {
+    result,
+    confidence,
+    idType: "driver_license",
+    livenessScore: liveness,
+    details: {
+      documentValid: result !== "rejected",
+      selfieMatch: result !== "rejected",
+      riskSignals: result === "rejected" ? ["selfie_no_match", "document_tampered"] : [],
+    },
+  } as any;
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("ScreeningService.runFullScreening", () => {
   let service: ScreeningService;
+  let mockIdentity: jest.Mocked<InstanceType<typeof IdentityVerificationService>>;
   let mockBackground: jest.Mocked<InstanceType<typeof BackgroundCheckService>>;
   let mockCredit: jest.Mocked<InstanceType<typeof CreditCheckService>>;
   let mockCompliance: jest.Mocked<InstanceType<typeof ComplianceService>>;
+  let mockAdverseAction: jest.Mocked<InstanceType<typeof AdverseActionService>>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -123,11 +167,14 @@ describe("ScreeningService.runFullScreening", () => {
     service = new ScreeningService();
 
     // Grab the instances created inside the constructor
+    mockIdentity = (service as any).identity;
     mockBackground = (service as any).backgroundCheck;
     mockCredit = (service as any).creditCheck;
     mockCompliance = (service as any).compliance;
+    mockAdverseAction = (service as any).adverseAction;
 
-    // Default: all checks pass
+    // Default: identity verified + all vendor checks pass
+    mockIdentity.verify.mockResolvedValue(makeIdentityResult("verified"));
     mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("pass"));
     mockCredit.runCheck.mockResolvedValue(makeCreditResult("pass"));
     mockCompliance.runCheck.mockResolvedValue(makeComplianceResult("pass"));
@@ -135,7 +182,7 @@ describe("ScreeningService.runFullScreening", () => {
     // Default query: app found + subsequent UPDATEs succeed
     mockQuery
       .mockResolvedValueOnce({ rows: [makeApp()] } as any) // SELECT application
-      .mockResolvedValue({ rows: [] } as any);              // UPDATEs
+      .mockResolvedValue({ rows: [] } as any);              // identity persist + UPDATEs
   });
 
   // ── Guard: application not found / wrong status ───────────────────────────
@@ -373,6 +420,83 @@ describe("ScreeningService.runFullScreening", () => {
     expect(mockCompliance.runCheck).toHaveBeenCalledWith(
       expect.objectContaining({ householdSize: 1 })
     );
+  });
+
+  // ── Identity verification (Persona / Stripe Identity) ─────────────────────
+
+  it("verified identity passes through; overall reflects downstream checks only", async () => {
+    mockIdentity.verify.mockResolvedValue(makeIdentityResult("verified"));
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(result.overallResult).toBe("pass");
+    expect(result.identity.result).toBe("verified");
+    expect(mockBackground.runCheck).toHaveBeenCalled();
+    expect(mockCredit.runCheck).toHaveBeenCalled();
+    expect(mockCompliance.runCheck).toHaveBeenCalled();
+    expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
+  });
+
+  it("threads screeningTag through to identity.verify", async () => {
+    await service.runFullScreening("app-001", "user-1", "leasing_agent", "id_verification_fail");
+
+    expect(mockIdentity.verify).toHaveBeenCalledWith(
+      expect.objectContaining({ screeningTag: "id_verification_fail" })
+    );
+  });
+
+  it("identity review_required runs full pipeline; overall becomes review_required when no fails", async () => {
+    mockIdentity.verify.mockResolvedValue(makeIdentityResult("review_required"));
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(result.overallResult).toBe("review_required");
+    expect(result.identity.result).toBe("review_required");
+    expect(mockBackground.runCheck).toHaveBeenCalled();
+    expect(mockCredit.runCheck).toHaveBeenCalled();
+    expect(mockCompliance.runCheck).toHaveBeenCalled();
+    expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
+  });
+
+  it("identity rejected short-circuits the pipeline with FCRA adverse-action notice", async () => {
+    mockIdentity.verify.mockResolvedValue(makeIdentityResult("rejected"));
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    // Mirrors the duplicate-SSN early-exit return shape.
+    expect(result.overallResult).toBe("fail");
+    expect(result.identity.result).toBe("rejected");
+    expect(result.background.details.reason).toBe("identity_verification_rejected");
+    expect(result.credit.details.reason).toBe("identity_verification_rejected");
+    expect(result.compliance.details.reason).toBe("identity_verification_rejected");
+
+    // Downstream vendor checks must NOT have run.
+    expect(mockBackground.runCheck).not.toHaveBeenCalled();
+    expect(mockCredit.runCheck).not.toHaveBeenCalled();
+    expect(mockCompliance.runCheck).not.toHaveBeenCalled();
+
+    // FCRA § 1681m adverse-action notice fired exactly once with screening_failed reason.
+    expect(mockAdverseAction.sendNotice).toHaveBeenCalledTimes(1);
+    expect(mockAdverseAction.sendNotice).toHaveBeenCalledWith(
+      "app-001",
+      "user-1",
+      "leasing_agent",
+      "screening_failed",
+      expect.stringContaining("identity verification failed")
+    );
+
+    // Status flip to screening_failed (mirrors dup-SSN block).
+    const statusUpdate = mockQuery.mock.calls.find(
+      (c) => (c[0] as string).includes("overall_screening_result")
+    );
+    expect(statusUpdate?.[1]).toContain("screening_failed");
+  });
+
+  it("writes an identity_verification_completed audit log entry", async () => {
+    await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    const actions = mockAuditLog.mock.calls.map((c) => (c[0] as any).action);
+    expect(actions).toContain("identity_verification_completed");
   });
 });
 

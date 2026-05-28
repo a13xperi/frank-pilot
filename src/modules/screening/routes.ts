@@ -47,15 +47,32 @@ router.post(
   requirePermission("screening:initiate"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+      // screeningTag is an optional MOCK_MODE knob (e.g. "id_verification_fail")
+      // — runtime-only, no DB column. Threaded through to identity/background/
+      // credit/compliance services to trigger their canned failure responses.
+      const screeningTag = typeof req.body?.screeningTag === "string"
+        ? req.body.screeningTag
+        : undefined;
+
       const result: any = await screeningService.runFullScreening(
         param(req.params.applicationId),
         req.user!.id,
-        req.user!.role
+        req.user!.role,
+        screeningTag
       );
       // runFullScreening returns nested checks but with `result` keys; the client
       // contract is `status`. Rename to match getResults shape when present, but
       // pass through any other fields the service includes (e.g. applicationId).
       const shaped: any = { ...result };
+      if (result?.identity) {
+        shaped.identity = {
+          status: result.identity.result,
+          confidence: result.identity.confidence,
+          livenessScore: result.identity.livenessScore,
+          idType: result.identity.idType,
+          details: result.identity.details,
+        };
+      }
       if (result?.background) {
         shaped.background = { status: result.background.result, details: result.background.details };
       }

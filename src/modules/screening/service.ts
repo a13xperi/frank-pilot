@@ -6,9 +6,23 @@ import { BackgroundCheckService } from "./background-check";
 import { CreditCheckService } from "./credit-check";
 import { ComplianceService } from "./compliance";
 import { FraudDetectionService } from "./fraud-detection";
+import { IdentityVerificationService } from "./identity-verification";
+import type { IdentityVerificationResult } from "./identity-verification";
 import { AdverseActionService } from "../adverse-action/service";
 
+// IdentityVerificationResult.result uses verified/rejected/review_required;
+// the `screening_result` enum + downstream overall-result aggregator use
+// pass/fail/review_required. Translate on the boundary.
+function mapIdentityResultToScreening(
+  r: IdentityVerificationResult["result"]
+): "pass" | "fail" | "review_required" {
+  if (r === "verified") return "pass";
+  if (r === "rejected") return "fail";
+  return "review_required";
+}
+
 export class ScreeningService {
+  private identity = new IdentityVerificationService();
   private backgroundCheck = new BackgroundCheckService();
   private creditCheck = new CreditCheckService();
   private compliance = new ComplianceService();
@@ -17,20 +31,25 @@ export class ScreeningService {
 
   /**
    * Run full automated screening pipeline:
-   * 1. Background check
-   * 2. Credit check
-   * 3. Tax credit compliance
+   * 1. Identity verification (Persona / Stripe Identity)
+   * 2. Fraud screening (duplicate SSN, address)
+   * 3. Background check
+   * 4. Credit check
+   * 5. Tax credit compliance
    *
-   * Any single fail → overall fail.
-   * Any review_required + no fails → overall review_required.
-   * All pass → overall pass.
+   * Identity "rejected" short-circuits to fail (with FCRA adverse-action notice).
+   * Duplicate-SSN short-circuits to fail (same pattern).
+   * Otherwise: any single fail → overall fail; any review_required + no fails →
+   * overall review_required; all pass → overall pass.
    */
   async runFullScreening(
     applicationId: string,
     initiatedBy: string,
-    initiatorRole: string
+    initiatorRole: string,
+    screeningTag?: string
   ): Promise<{
     overallResult: "pass" | "fail" | "review_required";
+    identity: IdentityVerificationResult;
     background: any;
     credit: any;
     compliance: any;
@@ -66,6 +85,91 @@ export class ScreeningService {
     const ssnDecrypted = decrypt(app.ssn_encrypted);
     const ssnLast4 = ssnDecrypted.slice(-4);
     const dob = decrypt(app.date_of_birth_encrypted);
+
+    // Identity verification — runs FIRST. Persona primary / Stripe Identity
+    // fallback. Rejection short-circuits the pipeline (FCRA adverse-action
+    // notice mirrors the duplicate-SSN early-exit below); review_required
+    // joins the overall-result aggregation alongside background/credit/compliance.
+    const identityResult = await this.identity.verify({
+      firstName: app.first_name,
+      lastName: app.last_name,
+      dateOfBirth: dob,
+      screeningTag,
+    });
+
+    const identityScreeningResult = mapIdentityResultToScreening(identityResult.result);
+
+    await query(
+      `UPDATE applications SET
+        identity_verification_result = $2,
+        identity_verification_details = $3,
+        identity_verification_completed_at = NOW()
+       WHERE id = $1`,
+      [applicationId, identityScreeningResult, JSON.stringify(identityResult.details)]
+    );
+
+    await writeAuditLog({
+      action: "identity_verification_completed",
+      actorId: initiatedBy,
+      actorRole: initiatorRole,
+      applicationId,
+      details: {
+        result: identityResult.result,
+        confidence: identityResult.confidence,
+        livenessScore: identityResult.livenessScore,
+        idType: identityResult.idType,
+        riskSignals: identityResult.details.riskSignals,
+      },
+    });
+
+    if (identityResult.result === "rejected") {
+      await query(
+        "UPDATE applications SET overall_screening_result = $2, status = $3 WHERE id = $1",
+        [applicationId, "fail", "screening_failed"]
+      );
+
+      await writeAuditLog({
+        action: "screening_completed",
+        actorId: initiatedBy,
+        actorRole: initiatorRole,
+        applicationId,
+        details: {
+          overallResult: "fail",
+          newStatus: "screening_failed",
+          failedAt: "identity_verification",
+          reason: "identity_rejected",
+          riskSignals: identityResult.details.riskSignals,
+        },
+      });
+
+      this.adverseAction
+        .sendNotice(
+          applicationId,
+          initiatedBy,
+          initiatorRole,
+          "screening_failed",
+          "Automated screening denial: identity verification failed (document validity, selfie match, or liveness score below threshold)"
+        )
+        .catch((err: Error) =>
+          logger.error("Failed to send FCRA adverse action notice after identity-rejected denial", {
+            error: err.message,
+            applicationId,
+          })
+        );
+
+      logger.warn("Screening early-exit on identity verification rejection", {
+        applicationId,
+        riskSignals: identityResult.details.riskSignals,
+      });
+
+      return {
+        overallResult: "fail",
+        identity: identityResult,
+        background: { result: "fail", details: { reason: "identity_verification_rejected" } },
+        credit: { result: "fail", details: { reason: "identity_verification_rejected" } },
+        compliance: { result: "fail", details: { reason: "identity_verification_rejected" } },
+      };
+    }
 
     // Fraud screening step — runs BEFORE the parallel vendor checks.
     // Duplicate-SSN is the only fraud signal that auto-fails; everything
@@ -114,6 +218,7 @@ export class ScreeningService {
 
         return {
           overallResult: "fail",
+          identity: identityResult,
           background: { result: "fail", details: { reason: "duplicate_ssn" } },
           credit: { result: "fail", details: { reason: "duplicate_ssn" } },
           compliance: { result: "fail", details: { reason: "duplicate_ssn" } },
@@ -189,8 +294,15 @@ export class ScreeningService {
       ]
     );
 
-    // Determine overall result
-    const results = [backgroundResult.result, creditResult.result, complianceResult.result];
+    // Determine overall result — identity participates alongside background/credit/compliance.
+    // Rejected identity already short-circuited above, so identityScreeningResult here is
+    // either "pass" (verified) or "review_required".
+    const results = [
+      identityScreeningResult,
+      backgroundResult.result,
+      creditResult.result,
+      complianceResult.result,
+    ];
     let overallResult: "pass" | "fail" | "review_required";
 
     if (results.includes("fail")) {
@@ -277,6 +389,7 @@ export class ScreeningService {
 
     return {
       overallResult,
+      identity: identityResult,
       background: backgroundResult,
       credit: creditResult,
       compliance: complianceResult,
@@ -289,6 +402,7 @@ export class ScreeningService {
   async getResults(applicationId: string): Promise<any> {
     const result = await query(
       `SELECT
+        identity_verification_result, identity_verification_details, identity_verification_completed_at,
         background_check_result, background_check_details, background_check_completed_at,
         credit_check_result, credit_score, credit_check_details, credit_check_completed_at,
         compliance_check_result, compliance_check_details, compliance_check_completed_at,
