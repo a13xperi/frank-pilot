@@ -1,0 +1,10 @@
+{
+  "pill.idle": "Habla con Frank",
+  "pill.connecting": "Conectando…",
+  "pill.live": "Terminar llamada",
+  "pill.label.idle": "Iniciar una llamada de voz con Frank",
+  "pill.label.live": "Terminar la llamada de voz",
+  "hint.rateLimited": "Un momento — demasiadas llamadas. Inténtalo de nuevo en breve.",
+  "hint.error": "No se pudo iniciar la llamada. Inténtalo de nuevo.",
+  "mic.denied": "Se requiere acceso al micrófono para la llamada."
+}
