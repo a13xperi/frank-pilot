@@ -1,0 +1,18 @@
+{
+  "id": "synthetic-04-deny-income-over-ami",
+  "screening_tag": "deny_income_over_ami",
+  "first_name": "Dana",
+  "last_name": "Overincome",
+  "date_of_birth": "1988-06-30",
+  "ssn_last4": "0004",
+  "current_state": "NV",
+  "current_address_line1": "400 Synthetic Way",
+  "current_city": "Henderson",
+  "annual_income_cents": 9000000,
+  "household_size": 2,
+  "ami_limit_cents": 6720000,
+  "ami_area": "Henderson-NV",
+  "expected_outcome": "failed",
+  "expected_terminal_reason": "compliance_fail_over_ami",
+  "notes": "Plaid verifies $90k income; 60% AMI limit for household-2 in Henderson is $67.2k — LIHTC compliance fails."
+}

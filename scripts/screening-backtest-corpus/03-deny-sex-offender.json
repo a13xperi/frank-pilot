@@ -1,0 +1,18 @@
+{
+  "id": "synthetic-03-deny-sex-offender",
+  "screening_tag": "deny_sex_offender",
+  "first_name": "Carl",
+  "last_name": "Registry",
+  "date_of_birth": "1970-02-11",
+  "ssn_last4": "0003",
+  "current_state": "NV",
+  "current_address_line1": "300 Synthetic Way",
+  "current_city": "Reno",
+  "annual_income_cents": 3600000,
+  "household_size": 1,
+  "ami_limit_cents": 4680000,
+  "ami_area": "Reno-NV",
+  "expected_outcome": "failed",
+  "expected_terminal_reason": "background_fail_sex_offender",
+  "notes": "Lifetime sex-offender registry — HUD §5.856 mandatory denial."
+}

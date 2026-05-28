@@ -1,4 +1,5 @@
 import { logger } from "../../utils/logger";
+import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
 
 export interface CreditCheckResult {
   result: "pass" | "fail" | "review_required";
@@ -31,6 +32,7 @@ export class CreditCheckService {
     lastName: string;
     ssnLast4: string;
     dateOfBirth: string;
+    screeningTag?: string;
   }): Promise<CreditCheckResult> {
     logger.info("Initiating credit check", {
       applicant: `${input.firstName} ${input.lastName}`,
@@ -61,10 +63,18 @@ export class CreditCheckService {
     lastName: string;
     ssnLast4: string;
     dateOfBirth: string;
+    screeningTag?: string;
   }): Promise<any> {
     // STUB: Replace with actual credit bureau API call
+    if (process.env.MOCK_MODE === "1" && input.screeningTag) {
+      return this.mockResponse(input.screeningTag);
+    }
+
     if (!this.apiKey || this.apiKey === "changeme") {
-      logger.warn("Using stub credit check — no API key configured");
+      if (!shouldUseScreeningStub()) {
+        throw new Error(STUB_GATE_ERROR);
+      }
+      logger.warn("Using stub credit check — no API key configured (stub policy allows fallback)");
       return {
         creditScore: 680,
         paymentHistory: "good",
@@ -76,6 +86,37 @@ export class CreditCheckService {
     }
 
     throw new Error("Production API integration not yet configured");
+  }
+
+  private mockResponse(tag: string): any {
+    if (tag === "review_low_credit") {
+      return {
+        creditScore: 520,
+        paymentHistory: "fair",
+        outstandingDebts: 8200,
+        collections: 1,
+        evictions: 0,
+        bankruptcies: 0,
+      };
+    }
+    if (tag === "approve_clean") {
+      return {
+        creditScore: 720,
+        paymentHistory: "excellent",
+        outstandingDebts: 1200,
+        collections: 0,
+        evictions: 0,
+        bankruptcies: 0,
+      };
+    }
+    return {
+      creditScore: 680,
+      paymentHistory: "good",
+      outstandingDebts: 2500,
+      collections: 0,
+      evictions: 0,
+      bankruptcies: 0,
+    };
   }
 
   private evaluateResults(response: any): CreditCheckResult {

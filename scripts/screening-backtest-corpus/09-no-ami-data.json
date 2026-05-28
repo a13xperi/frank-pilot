@@ -1,0 +1,18 @@
+{
+  "id": "synthetic-09-no-ami-data",
+  "screening_tag": "no_ami_data",
+  "first_name": "Ira",
+  "last_name": "Noami",
+  "date_of_birth": "1989-07-07",
+  "ssn_last4": "0009",
+  "current_state": "NV",
+  "current_address_line1": "900 Synthetic Way",
+  "current_city": "Nye-County",
+  "annual_income_cents": 4200000,
+  "household_size": 1,
+  "ami_limit_cents": null,
+  "ami_area": "Nye-County-NV",
+  "expected_outcome": "manual_review",
+  "expected_terminal_reason": "compliance_review_no_ami_data",
+  "notes": "No AMI limit configured for area → ComplianceService returns review_required."
+}

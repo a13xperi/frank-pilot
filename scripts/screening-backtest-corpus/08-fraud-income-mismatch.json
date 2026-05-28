@@ -1,0 +1,19 @@
+{
+  "id": "synthetic-08-fraud-income-mismatch",
+  "screening_tag": "fraud_income_mismatch",
+  "first_name": "Hana",
+  "last_name": "Mismatch",
+  "date_of_birth": "1991-12-25",
+  "ssn_last4": "0008",
+  "current_state": "NV",
+  "current_address_line1": "800 Synthetic Way",
+  "current_city": "Henderson",
+  "annual_income_cents": 9000000,
+  "household_size": 2,
+  "ami_limit_cents": 6720000,
+  "ami_area": "Henderson-NV",
+  "reported_annual_income_cents": 9000000,
+  "expected_outcome": "manual_review",
+  "expected_terminal_reason": "fraud_income_mismatch",
+  "notes": "Applicant reports $90k; Plaid verifies $30k — >15% delta fires medium-severity fraud flag, manual_review."
+}

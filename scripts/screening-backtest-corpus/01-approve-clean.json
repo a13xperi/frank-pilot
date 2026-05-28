@@ -1,0 +1,18 @@
+{
+  "id": "synthetic-01-approve-clean",
+  "screening_tag": "approve_clean",
+  "first_name": "Alex",
+  "last_name": "Approve",
+  "date_of_birth": "1990-04-15",
+  "ssn_last4": "0001",
+  "current_state": "NV",
+  "current_address_line1": "100 Synthetic Way",
+  "current_city": "Henderson",
+  "annual_income_cents": 5400000,
+  "household_size": 2,
+  "ami_limit_cents": 6720000,
+  "ami_area": "Henderson-NV",
+  "expected_outcome": "passed",
+  "expected_terminal_reason": "all_checks_passed",
+  "notes": "Happy path. Income $54k under $67.2k 60% AMI limit. Clean BG, credit 720."
+}

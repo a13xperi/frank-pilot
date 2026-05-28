@@ -1,16 +1,18 @@
-import { query } from "../../config/database";
+import { query, getClient } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 import { decrypt } from "../../utils/encryption";
 import { BackgroundCheckService } from "./background-check";
 import { CreditCheckService } from "./credit-check";
 import { ComplianceService } from "./compliance";
+import { FraudDetectionService } from "./fraud-detection";
 import { AdverseActionService } from "../adverse-action/service";
 
 export class ScreeningService {
   private backgroundCheck = new BackgroundCheckService();
   private creditCheck = new CreditCheckService();
   private compliance = new ComplianceService();
+  private fraud = new FraudDetectionService();
   private adverseAction = new AdverseActionService();
 
   /**
@@ -64,6 +66,80 @@ export class ScreeningService {
     const ssnDecrypted = decrypt(app.ssn_encrypted);
     const ssnLast4 = ssnDecrypted.slice(-4);
     const dob = decrypt(app.date_of_birth_encrypted);
+
+    // Fraud screening step — runs BEFORE the parallel vendor checks.
+    // Duplicate-SSN is the only fraud signal that auto-fails; everything
+    // else raises a flag for staff review and continues the pipeline.
+    if (app.ssn_hash) {
+      const dupCheck = await this.fraud.checkDuplicateSSN(app.ssn_hash);
+      const otherIds = dupCheck.existingApplicationIds.filter((id) => id !== applicationId);
+      if (otherIds.length > 0) {
+        await query(
+          "UPDATE applications SET overall_screening_result = $2, status = $3 WHERE id = $1",
+          [applicationId, "fail", "screening_failed"]
+        );
+        await writeAuditLog({
+          action: "screening_completed",
+          actorId: initiatedBy,
+          actorRole: initiatorRole,
+          applicationId,
+          details: {
+            overallResult: "fail",
+            newStatus: "screening_failed",
+            failedAt: "fraud_screening",
+            reason: "duplicate_ssn",
+            duplicateApplicationIds: otherIds,
+          },
+        });
+
+        this.adverseAction
+          .sendNotice(
+            applicationId,
+            initiatedBy,
+            initiatorRole,
+            "screening_failed",
+            "Automated screening denial: duplicate SSN detected on another active application"
+          )
+          .catch((err: Error) =>
+            logger.error("Failed to send FCRA adverse action notice after duplicate-SSN denial", {
+              error: err.message,
+              applicationId,
+            })
+          );
+
+        logger.warn("Screening early-exit on duplicate SSN", {
+          applicationId,
+          duplicateApplicationIds: otherIds,
+        });
+
+        return {
+          overallResult: "fail",
+          background: { result: "fail", details: { reason: "duplicate_ssn" } },
+          credit: { result: "fail", details: { reason: "duplicate_ssn" } },
+          compliance: { result: "fail", details: { reason: "duplicate_ssn" } },
+        };
+      }
+    }
+
+    // Address-fraud check — non-blocking; raises a flag for staff review.
+    if (app.current_address_line1) {
+      const client = await getClient();
+      try {
+        await this.fraud.checkAddressFraud(client, applicationId, {
+          addressLine1: app.current_address_line1,
+          city: app.current_city || undefined,
+          state: app.current_state || undefined,
+          zip: app.current_zip || undefined,
+        });
+      } catch (err) {
+        logger.warn("Address-fraud check failed (non-blocking)", {
+          error: (err as Error).message,
+          applicationId,
+        });
+      } finally {
+        client.release();
+      }
+    }
 
     // Run all checks in parallel
     const [backgroundResult, creditResult, complianceResult] = await Promise.all([

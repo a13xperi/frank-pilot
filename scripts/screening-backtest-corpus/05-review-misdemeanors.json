@@ -1,0 +1,18 @@
+{
+  "id": "synthetic-05-review-misdemeanors",
+  "screening_tag": "review_misdemeanors",
+  "first_name": "Eli",
+  "last_name": "Misdemeanor",
+  "date_of_birth": "1992-11-04",
+  "ssn_last4": "0005",
+  "current_state": "NV",
+  "current_address_line1": "500 Synthetic Way",
+  "current_city": "Las Vegas",
+  "annual_income_cents": 4200000,
+  "household_size": 1,
+  "ami_limit_cents": 6000000,
+  "ami_area": "Las Vegas-NV",
+  "expected_outcome": "manual_review",
+  "expected_terminal_reason": "background_review_misdemeanors",
+  "notes": "3 misdemeanors → BG risk score 75 → review_required, routes to manual_review (HUD individualized assessment)."
+}
