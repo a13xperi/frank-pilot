@@ -163,7 +163,7 @@ describe("POST /screening/:applicationId/screen", () => {
     expect(res.body.applicationId).toBe("app-001");
   });
 
-  it("passes applicationId, userId, and userRole to service.runFullScreening", async () => {
+  it("passes applicationId, userId, userRole, and optional screeningTag to service.runFullScreening", async () => {
     mockAuthQuery(seniorManager);
     mockRunFullScreening.mockResolvedValue({ overallResult: "pass" });
 
@@ -171,10 +171,29 @@ describe("POST /screening/:applicationId/screen", () => {
       .post("/screening/app-001/screen")
       .set("Authorization", tokenFor(seniorManager));
 
+    // 4th arg is the optional MOCK_MODE screeningTag knob; omitted in this request.
     expect(mockRunFullScreening).toHaveBeenCalledWith(
       "app-001",
       seniorManager.id,
-      seniorManager.role
+      seniorManager.role,
+      undefined
+    );
+  });
+
+  it("threads screeningTag from POST body into runFullScreening", async () => {
+    mockAuthQuery(seniorManager);
+    mockRunFullScreening.mockResolvedValue({ overallResult: "fail" });
+
+    await request(app)
+      .post("/screening/app-001/screen")
+      .set("Authorization", tokenFor(seniorManager))
+      .send({ screeningTag: "id_verification_fail" });
+
+    expect(mockRunFullScreening).toHaveBeenCalledWith(
+      "app-001",
+      seniorManager.id,
+      seniorManager.role,
+      "id_verification_fail"
     );
   });
 
