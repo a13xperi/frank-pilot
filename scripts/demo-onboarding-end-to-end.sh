@@ -184,15 +184,23 @@ SR_JWT=$(staff_login "$SENIOR_EMAIL" "$STAFF_PASSWORD")
 green "  senior_manager jwt acquired"
 
 # ─── 10. Run automated screening ───────────────────────────────────────
+# The screening pipeline now runs identity verification as its first gate
+# (Persona / Stripe Identity scaffold) before the duplicate-SSN check and
+# parallel background/credit/compliance. Under MOCK_MODE=1, pass a
+# screeningTag in the body to drive canned vendor responses — e.g.
+#     curl ... -d '{"screeningTag":"id_verification_fail"}'
+# returns overallResult=fail with identity.status=rejected (mirrors the
+# duplicate-SSN early-exit and fires an FCRA adverse-action notice).
 say "10. Staff fires automated screening pipeline"
 api "POST /api/screening/:applicationId/screen"
 SCREEN=$(curl -fsS -X POST "$API/api/screening/$APP_ID/screen" \
   -H "Authorization: Bearer $SR_JWT" -H 'Content-Type: application/json' -d '{}')
 OVERALL=$(echo "$SCREEN" | jq -r '.overallResult')
+ID=$(echo "$SCREEN" | jq -r '.identity.status // "n/a"')
 BG=$(echo "$SCREEN" | jq -r '.background.status')
 CR=$(echo "$SCREEN" | jq -r '.credit.status')
 CO=$(echo "$SCREEN" | jq -r '.compliance.status')
-green "  overall=$OVERALL  bg=$BG  credit=$CR  compliance=$CO"
+green "  overall=$OVERALL  identity=$ID  bg=$BG  credit=$CR  compliance=$CO"
 if [ "$OVERALL" != "pass" ]; then
   red "screening did not pass — cannot continue chain (review_required or fail)"
   echo "$SCREEN" | jq .
