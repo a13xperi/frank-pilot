@@ -143,7 +143,9 @@ CREATE TYPE audit_action AS ENUM (
   -- BP-08 hardening: refund lifecycle (refunds.ts + webhook.ts charge.refunded)
   'payment_refund_requested',
   'payment_refunded',
-  'ledger_refund_recorded'
+  'ledger_refund_recorded',
+  -- Identity verification (first gate of runFullScreening)
+  'identity_verification_completed'
 );
 
 CREATE TYPE fraud_flag_type AS ENUM (

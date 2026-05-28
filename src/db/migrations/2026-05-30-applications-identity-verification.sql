@@ -11,11 +11,16 @@
 --   "review_required" -> 'review_required'
 -- details  is the full IdentityVerificationResult shape (confidence,
 --          idType, livenessScore, riskSignals, optional rawResponse).
--- The audit + adverse-action chain reuses the existing
--- 'screening_completed' and 'adverse_action_notice_sent' audit actions
--- (same pattern as the duplicate-SSN early-exit), so no enum change.
+-- The rejection path reuses the existing 'adverse_action_notice_sent'
+-- audit action (FCRA § 1681m mirror of the duplicate-SSN early-exit),
+-- but identity verification itself writes its own audit row so reviewers
+-- can distinguish identity vs. the final pipeline summary
+-- ('screening_completed'). The new enum value is added below, matching
+-- the BP-08 audit-action enum precedent.
 
 ALTER TABLE applications
   ADD COLUMN IF NOT EXISTS identity_verification_result        screening_result,
   ADD COLUMN IF NOT EXISTS identity_verification_details       JSONB,
   ADD COLUMN IF NOT EXISTS identity_verification_completed_at  TIMESTAMPTZ;
+
+ALTER TYPE audit_action ADD VALUE IF NOT EXISTS 'identity_verification_completed';
