@@ -37,6 +37,14 @@ export const TAPE_STAMP_KINDS = {
   BP08_PAYMENT_REPLAY_BLOCKED: "bp08.payment_replay_blocked",
   BP08_PAYMENT_REFUND_REQUESTED: "bp08.payment_refund_requested",
   BP08_PAYMENT_REFUNDED: "bp08.payment_refunded",
+  // Voice intake — HUD fair-housing audit trail anchors. Every completed
+  // ElevenLabs Conv. AI intake stamps VOICE_INTAKE_COMPLETED; every Frank
+  // decision (skipped item, escalation, hangup, language) stamps
+  // VOICE_INTAKE_DECISION; every outbound AI call attempt stamps
+  // VOICE_INTAKE_OUTBOUND_ATTEMPTED with the consent record id (TCPA PEWC).
+  VOICE_INTAKE_COMPLETED: "voice_intake.completed",
+  VOICE_INTAKE_DECISION: "voice_intake.decision",
+  VOICE_INTAKE_OUTBOUND_ATTEMPTED: "voice_intake.outbound_attempted",
 } as const;
 
 export type TapeStampKind = keyof typeof TAPE_STAMP_KINDS;
@@ -56,6 +64,12 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   BP08_PAYMENT_REPLAY_BLOCKED: "HUD 4350.3 Ch. 4-6",
   BP08_PAYMENT_REFUND_REQUESTED: "HUD 4350.3 Ch. 4-6",
   BP08_PAYMENT_REFUNDED: "HUD 4350.3 Ch. 4-6",
+  // HUD 4350.3 Ch. 4-6 governs waiting-list application capture; FCC AI
+  // disclosure + Nevada NRS 200.620 two-party consent share the same audit
+  // anchor for the voice-channel intake.
+  VOICE_INTAKE_COMPLETED: "HUD 4350.3 Ch. 4-6 / NRS 200.620",
+  VOICE_INTAKE_DECISION: "HUD 4350.3 Ch. 4-6",
+  VOICE_INTAKE_OUTBOUND_ATTEMPTED: "TCPA 47 CFR §64.1200(a)(2)",
 };
 
 export interface TapeStampInput {

@@ -90,6 +90,12 @@ const PERMISSIONS: Record<string, string[]> = {
   // project scoring, award). Asset managers and admins only.
   "acquisition:view": ["asset_manager", "system_admin"],
   "acquisition:manage": ["asset_manager", "system_admin"],
+
+  // Voice intake review (ElevenLabs Conv. AI post-call). View is open to
+  // leasing agents (they can triage callback queue); approve/reject gates the
+  // promotion of an intake into an `applications` row, so it's senior+ only.
+  "voice_intake:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "voice_intake:approve": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
 };
 
 export function requireRole(...roles: string[]) {

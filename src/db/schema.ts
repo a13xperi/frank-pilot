@@ -49,6 +49,17 @@ CREATE TYPE screening_result AS ENUM (
   'review_required'
 );
 
+-- Entry path for an application. 'web' is the historical default; 'voice'
+-- means ElevenLabs Conv. AI intake (voice_intake_calls join on
+-- applications.voice_call_id), 'sms' for SMS-funnel applicants, 'operator'
+-- for rows created by PM staff.
+CREATE TYPE application_source AS ENUM (
+  'web',
+  'voice',
+  'sms',
+  'operator'
+);
+
 CREATE TYPE payment_method AS ENUM (
   'ach',
   'credit_card',
@@ -429,6 +440,15 @@ CREATE TABLE applications (
   -- Unit claim (soft reservation while applicant completes the application)
   claimed_unit_id UUID,
   claim_expires_at TIMESTAMPTZ,
+
+  -- Voice intake (Phase 1 foundation). The source column records the entry path;
+  -- voice_call_id links back to voice_intake_calls.conversation_id when
+  -- the applicant came in over the phone. consent_outbound_ai_calls is a
+  -- TCPA PEWC gate for outbound AI calls (Phase 2 — outbound endpoint
+  -- refuses when false).
+  source application_source NOT NULL DEFAULT 'web',
+  voice_call_id TEXT,
+  consent_outbound_ai_calls BOOLEAN NOT NULL DEFAULT FALSE,
 
   -- Metadata
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -1157,6 +1177,83 @@ CREATE TABLE IF NOT EXISTS stripe_webhook_dlq (
   last_failed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ============================================================
+-- Voice intake — ElevenLabs Conv. AI post-call persistence
+-- See src/modules/voice-intake/webhook.ts and
+-- src/db/migrations/2026-05-27-voice-intake.sql for the rationale.
+-- Mirrors the BP-08 Stripe webhook idempotency + DLQ pattern.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS voice_intake_calls (
+  id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id             TEXT NOT NULL UNIQUE,
+  agent_id                    TEXT NOT NULL,
+  started_at                  TIMESTAMPTZ NOT NULL,
+  ended_at                    TIMESTAMPTZ,
+  language                    VARCHAR(8),
+  call_successful             VARCHAR(16),
+  evaluation_criteria_results JSONB NOT NULL DEFAULT '{}'::jsonb,
+  data_collection_results     JSONB NOT NULL DEFAULT '{}'::jsonb,
+  transcript_url              TEXT,
+  audio_url                   TEXT,
+  cost_breakdown              JSONB NOT NULL DEFAULT '{}'::jsonb,
+  consent_recording           BOOLEAN NOT NULL DEFAULT TRUE,
+  callback_requested          BOOLEAN NOT NULL DEFAULT FALSE,
+  applicant_id                UUID REFERENCES applications(id) ON DELETE SET NULL,
+  raw_payload                 JSONB,
+  created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_intake_calls_applicant
+  ON voice_intake_calls(applicant_id, started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_voice_intake_calls_started
+  ON voice_intake_calls(started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_voice_intake_calls_callback_pending
+  ON voice_intake_calls(started_at DESC)
+  WHERE callback_requested = TRUE;
+
+-- Daily rollup of cost telemetry. Per-call detail stays in
+-- voice_intake_calls.cost_breakdown for drill-down; this table powers the
+-- Slack budget alert and the Mission Control dashboard with a single SELECT.
+CREATE TABLE IF NOT EXISTS voice_intake_costs (
+  date              DATE PRIMARY KEY,
+  call_count        INTEGER NOT NULL DEFAULT 0,
+  tts_chars         BIGINT  NOT NULL DEFAULT 0,
+  asr_seconds       BIGINT  NOT NULL DEFAULT 0,
+  llm_input_tokens  BIGINT  NOT NULL DEFAULT 0,
+  llm_output_tokens BIGINT  NOT NULL DEFAULT 0,
+  convai_minutes    NUMERIC(12,2) NOT NULL DEFAULT 0,
+  cost_usd          NUMERIC(10,4) NOT NULL DEFAULT 0,
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS elevenlabs_processed_events (
+  event_id        TEXT PRIMARY KEY,
+  event_type      TEXT NOT NULL,
+  conversation_id TEXT,
+  processed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_elevenlabs_processed_conv
+  ON elevenlabs_processed_events(conversation_id);
+
+CREATE TABLE IF NOT EXISTS elevenlabs_webhook_dlq (
+  event_id        TEXT PRIMARY KEY,
+  event_type      TEXT NOT NULL,
+  raw_payload     JSONB NOT NULL,
+  error_message   TEXT NOT NULL,
+  attempt_count   INTEGER NOT NULL DEFAULT 1,
+  first_failed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_failed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_elevenlabs_dlq_active
+  ON elevenlabs_webhook_dlq(last_failed_at DESC)
+  WHERE attempt_count < 5;
+
 -- Lease e-signature (native). One tenant signature row per application; the
 -- executed PDF + a sha256 hash give tamper-evidence, and the compliance tape
 -- (LEASE_EXECUTED stamp) is the legally-meaningful audit record. ESIGN/UETA:
@@ -1273,6 +1370,7 @@ DROP TYPE IF EXISTS modification_type CASCADE;
 DROP TYPE IF EXISTS fraud_flag_type CASCADE;
 DROP TYPE IF EXISTS audit_action CASCADE;
 DROP TYPE IF EXISTS payment_method CASCADE;
+DROP TYPE IF EXISTS application_source CASCADE;
 DROP TYPE IF EXISTS screening_result CASCADE;
 DROP TYPE IF EXISTS application_status CASCADE;
 DROP TYPE IF EXISTS user_role CASCADE;
