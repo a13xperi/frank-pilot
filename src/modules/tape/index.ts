@@ -45,6 +45,17 @@ export const TAPE_STAMP_KINDS = {
   VOICE_INTAKE_COMPLETED: "voice_intake.completed",
   VOICE_INTAKE_DECISION: "voice_intake.decision",
   VOICE_INTAKE_OUTBOUND_ATTEMPTED: "voice_intake.outbound_attempted",
+  // Voice agent in-call server-tool invocations. Every tool the agent fires
+  // mid-call (send_app_link, lookup_tenant, file_maintenance_request,
+  // file_compliance_report) stamps VOICE_TOOL_INVOKED with the tool name +
+  // conversation id so the audit trail catches actions taken DURING the call,
+  // not just the post-call summary.
+  VOICE_TOOL_INVOKED: "voice_intake.tool_invoked",
+  // "Talk to Frank" — in-browser WebRTC session lifecycle. STARTED stamps on
+  // every successful signed-URL mint; DENIED stamps on rate-limit or daily
+  // budget trip (mirrors the deny audit trail of the BP-08 payment loop).
+  VOICE_BROWSER_SESSION_STARTED: "voice_intake.browser_session_started",
+  VOICE_BROWSER_SESSION_DENIED: "voice_intake.browser_session_denied",
 } as const;
 
 export type TapeStampKind = keyof typeof TAPE_STAMP_KINDS;
@@ -70,6 +81,9 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   VOICE_INTAKE_COMPLETED: "HUD 4350.3 Ch. 4-6 / NRS 200.620",
   VOICE_INTAKE_DECISION: "HUD 4350.3 Ch. 4-6",
   VOICE_INTAKE_OUTBOUND_ATTEMPTED: "TCPA 47 CFR §64.1200(a)(2)",
+  VOICE_TOOL_INVOKED: "HUD 4350.3 Ch. 4-6",
+  VOICE_BROWSER_SESSION_STARTED: "HUD 4350.3 Ch. 4-6",
+  VOICE_BROWSER_SESSION_DENIED: "HUD 4350.3 Ch. 4-6",
 };
 
 export interface TapeStampInput {
