@@ -1,4 +1,5 @@
 import { logger } from "../../utils/logger";
+import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
 
 export interface NsopwDirectResult {
   result: "no_match" | "match" | "review_required";
@@ -89,7 +90,10 @@ export class NsopwDirectService {
     }
 
     if (!this.apiKey || this.apiKey === "changeme") {
-      logger.warn("Using stub direct NSOPW check — no API key configured");
+      if (!shouldUseScreeningStub()) {
+        throw new Error(STUB_GATE_ERROR);
+      }
+      logger.warn("Using stub direct NSOPW check — no API key configured (stub policy allows fallback)");
       return {
         records: [],
         searchedStates: input.states,

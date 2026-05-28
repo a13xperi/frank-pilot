@@ -370,6 +370,13 @@ function renderSummaryMd(s: BacktestSummary): string {
   return lines.join("\n");
 }
 
+function escapeCsv(field: string): string {
+  if (/[",\n\r]/.test(field)) {
+    return `"${field.replace(/"/g, '""')}"`;
+  }
+  return field;
+}
+
 function renderCsv(rows: BacktestRow[]): string {
   const header = [
     "applicant_id",
@@ -388,17 +395,17 @@ function renderCsv(rows: BacktestRow[]): string {
   for (const row of rows) {
     lines.push(
       [
-        row.applicantId,
-        row.tag,
-        row.expectedOutcome,
-        row.actualOutcome,
+        escapeCsv(row.applicantId),
+        escapeCsv(row.tag),
+        escapeCsv(row.expectedOutcome),
+        escapeCsv(row.actualOutcome),
         row.match ? "true" : "false",
-        row.expectedReason,
-        row.terminalReason,
+        escapeCsv(row.expectedReason),
+        escapeCsv(row.terminalReason),
         row.reasonMatch ? "true" : "false",
         String(row.timeToDecisionMs),
-        `"${row.statePath}"`,
-        `"${row.ruleFlags.join("|")}"`,
+        escapeCsv(row.statePath),
+        escapeCsv(row.ruleFlags.join("|")),
       ].join(",")
     );
   }

@@ -1,4 +1,5 @@
 import { logger } from "../../utils/logger";
+import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
 
 export interface BackgroundCheckResult {
   result: "pass" | "fail" | "review_required";
@@ -76,7 +77,10 @@ export class BackgroundCheckService {
     }
 
     if (!this.apiKey || this.apiKey === "changeme") {
-      logger.warn("Using stub background check — no API key configured");
+      if (!shouldUseScreeningStub()) {
+        throw new Error(STUB_GATE_ERROR);
+      }
+      logger.warn("Using stub background check — no API key configured (stub policy allows fallback)");
       return {
         felonies: 0,
         sexOffenses: false,

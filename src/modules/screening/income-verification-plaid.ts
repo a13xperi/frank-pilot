@@ -1,4 +1,5 @@
 import { logger } from "../../utils/logger";
+import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
 
 export interface PlaidIncomeResult {
   result: "verified" | "unverified" | "review_required";
@@ -78,7 +79,10 @@ export class PlaidIncomeService {
     }
 
     if (!this.clientId || !this.secret || this.secret === "changeme") {
-      logger.warn("Using stub Plaid Income — no client_id/secret configured");
+      if (!shouldUseScreeningStub()) {
+        throw new Error(STUB_GATE_ERROR);
+      }
+      logger.warn("Using stub Plaid Income — no client_id/secret configured (stub policy allows fallback)");
       return {
         verified: true,
         annualIncomeCents: 5400000,

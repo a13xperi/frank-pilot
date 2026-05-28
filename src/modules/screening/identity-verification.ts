@@ -1,4 +1,5 @@
 import { logger } from "../../utils/logger";
+import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
 
 export interface IdentityVerificationResult {
   result: "verified" | "rejected" | "review_required";
@@ -68,7 +69,10 @@ export class IdentityVerificationService {
     }
 
     if (!this.apiKey || this.apiKey === "changeme") {
-      logger.warn("Using stub identity verification — no API key configured");
+      if (!shouldUseScreeningStub()) {
+        throw new Error(STUB_GATE_ERROR);
+      }
+      logger.warn("Using stub identity verification — no API key configured (stub policy allows fallback)");
       return {
         documentValid: true,
         selfieMatch: true,

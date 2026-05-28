@@ -1,4 +1,3 @@
-import { PoolClient } from "pg";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 
@@ -84,10 +83,7 @@ export interface TransitionInput {
  *
  * Throws if the transition is not valid per the TRANSITIONS table.
  */
-export async function transition(
-  _client: PoolClient | null,
-  input: TransitionInput
-): Promise<void> {
+export async function transition(input: TransitionInput): Promise<void> {
   const { applicationId, from, to, trigger, actorId, actorRole, evidence } = input;
 
   if (!canTransition(from, to)) {
