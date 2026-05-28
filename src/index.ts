@@ -17,6 +17,7 @@ import approvalRoutes from "./modules/approval/routes";
 import paymentRoutes from "./modules/payment/routes";
 import paymentWebhookRouter from "./modules/payment/webhook";
 import { assertStripeProdConfig } from "./modules/payment/boot-guard";
+import { voiceIntakeWebhookRouter, voiceIntakeRoutes } from "./modules/voice-intake";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
 import adverseActionRoutes from "./modules/adverse-action/routes";
@@ -88,6 +89,14 @@ app.use(cors({ origin: corsOrigins, credentials: true }));
 // parser consumes the buffer and we lose the bytes the HMAC was computed
 // over. Do not reorder.
 app.use("/api/payments/webhook", paymentWebhookRouter);
+
+// Voice intake (ElevenLabs Conv. AI) webhook — same raw-body constraint as
+// the Stripe receiver above. The router itself flag-gates on
+// VOICE_INTAKE_ENABLED so it can sit in the chain even when the feature is
+// off; mounting unconditionally keeps the request path stable across
+// environments (otherwise webhook delivery during a config flip would 404
+// and ElevenLabs would auto-disable us after 10 consecutive failures).
+app.use("/api/webhooks/elevenlabs/post-call", voiceIntakeWebhookRouter);
 
 app.use(express.json({ limit: "1mb" }));
 
@@ -246,6 +255,15 @@ app.use("/api/properties", propertyRoutes);
 
 // QAP acquisitions — Demand-Evidence Engine (asset_manager+ / acquisition:view)
 app.use("/api/acquisitions", acquisitionRoutes);
+
+// Voice intake PM console (flag-gated to avoid surfacing unstamped review
+// surface area when the feature is off in an environment).
+if (process.env.VOICE_INTAKE_ENABLED === "true") {
+  app.use("/api/pm/voice-intakes", voiceIntakeRoutes);
+  logger.info("Voice intake PM routes mounted");
+} else {
+  logger.info("Voice intake PM routes skipped — VOICE_INTAKE_ENABLED is off");
+}
 
 // Compliance reports (Fair Housing Act — audit:view / Regional Manager+)
 app.use("/api/compliance", complianceRoutes);
