@@ -18,6 +18,7 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import Anthropic from "@anthropic-ai/sdk";
 import { spawn } from "child_process";
 import os from "os";
+import path from "path";
 import { buildContext } from "./retriever";
 import { buildSystemPrompt } from "./prompt";
 import { logger } from "../../utils/logger";
@@ -72,17 +73,42 @@ let activeCliCalls = 0;
 // balloon node's heap (the CLI path has no MAX_TOKENS equivalent).
 const MAX_CLI_OUTPUT_BYTES = 256 * 1024;
 
+// Resolve the `claude` binary. In prod (Railway) it ships as the
+// @anthropic-ai/claude-code dependency, whose bin is a ~215MB native launcher
+// that is NOT on PATH for the `node dist/index.js` process — so resolve it from
+// the installed package dir. CLAUDE_CLI_PATH overrides (tests / custom installs);
+// bare "claude" is the last resort for a globally-installed CLI.
+function resolveCliBin(): string {
+  if (process.env.CLAUDE_CLI_PATH) return process.env.CLAUDE_CLI_PATH;
+  try {
+    const pkgPath = require.resolve("@anthropic-ai/claude-code/package.json");
+    const pkg = require(pkgPath) as { bin?: string | Record<string, string> };
+    const rel = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.claude;
+    if (rel) return path.join(path.dirname(pkgPath), rel);
+  } catch {
+    /* dependency not present (e.g. dev without it) — fall through to PATH */
+  }
+  return "claude";
+}
+
 function callViaCli(system: string, question: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(
-      "claude",
+      resolveCliBin(),
       [
         "-p",
         "--system-prompt",
         system,
         "--model",
         MODEL,
-        "--allowed-tools",
+        // `--tools ""` is the CLI's DOCUMENTED "disable ALL tools" switch and is
+        // load-bearing for security: this `claude` runs inside the prod
+        // container, so a prompt-injected "read /proc/self/environ" must not be
+        // able to call a tool. NOTE the trap — the similarly-named
+        // `--allowed-tools ""` does NOT disable tools (read-family tools stay
+        // auto-permitted in -p mode and WILL exfiltrate files). Verified
+        // empirically 2026-05-29; never swap this back to --allowed-tools.
+        "--tools",
         "",
         "--output-format",
         "text",

@@ -63,12 +63,16 @@ function makeApp() {
 
 const ORIGINAL_KEY = process.env.ANTHROPIC_API_KEY;
 const ORIGINAL_CLI_FLAG = process.env.HOUSING_QA_CLI_FALLBACK;
+const ORIGINAL_CLI_PATH = process.env.CLAUDE_CLI_PATH;
 
 beforeEach(() => {
   createMock.mockReset();
   spawnMock.mockReset();
   process.env.ANTHROPIC_API_KEY = "test-key-123";
   delete process.env.HOUSING_QA_CLI_FALLBACK;
+  // Pin the resolved binary so the spawn assertion is deterministic regardless
+  // of whether @anthropic-ai/claude-code is installed in this environment.
+  process.env.CLAUDE_CLI_PATH = "claude";
 });
 
 afterAll(() => {
@@ -76,6 +80,8 @@ afterAll(() => {
   else process.env.ANTHROPIC_API_KEY = ORIGINAL_KEY;
   if (ORIGINAL_CLI_FLAG === undefined) delete process.env.HOUSING_QA_CLI_FALLBACK;
   else process.env.HOUSING_QA_CLI_FALLBACK = ORIGINAL_CLI_FLAG;
+  if (ORIGINAL_CLI_PATH === undefined) delete process.env.CLAUDE_CLI_PATH;
+  else process.env.CLAUDE_CLI_PATH = ORIGINAL_CLI_PATH;
 });
 
 describe("POST /api/housing-qa — validation", () => {
@@ -219,8 +225,13 @@ describe("POST /api/housing-qa — CLI fallback (keyless)", () => {
     // otherwise commander parses the leading `--` payload as a real flag.
     expect(args[args.length - 2]).toBe("--");
     expect(args[args.length - 1]).toBe(payload);
-    // tools stay disabled
-    expect(args).toContain("--allowed-tools");
+    // Tools MUST be disabled via `--tools ""` (the documented disable-all). The
+    // similarly-named `--allowed-tools ""` fails OPEN (read-family tools stay
+    // live in -p mode and can exfiltrate files), so it must never appear here.
+    const toolsIdx = args.indexOf("--tools");
+    expect(toolsIdx).toBeGreaterThanOrEqual(0);
+    expect(args[toolsIdx + 1]).toBe("");
+    expect(args).not.toContain("--allowed-tools");
   });
 
   it("does NOT spawn when no key is set and the flag is off → 503", async () => {
