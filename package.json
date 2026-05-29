@@ -16,6 +16,7 @@
     "e2e:up:once": "node scripts/e2e-up.mjs --once"
   },
   "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.157",
     "@anthropic-ai/sdk": "^0.98.0",
     "bcrypt": "^5.1.1",
     "commander": "^12.1.0",
