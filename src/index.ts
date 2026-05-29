@@ -22,6 +22,8 @@ import {
   voiceToolCallbackRouter,
   voiceBrowserSessionRouter,
   voiceIntakeRoutes,
+  voiceIntakeApplicantRoutes,
+  registerVoiceToolHandlers,
 } from "./modules/voice-intake";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
@@ -283,6 +285,19 @@ if (process.env.VOICE_INTAKE_ENABLED === "true") {
 } else {
   logger.info("Voice intake PM routes skipped — VOICE_INTAKE_ENABLED is off");
 }
+
+// Applicant-facing voice-intake prefill (Phase B). Mounted on the same
+// flag as the PM console — both surfaces depend on the voice_intake_calls
+// table existing and the post-call webhook having landed rows.
+if (process.env.VOICE_INTAKE_ENABLED === "true") {
+  app.use("/api/voice/intakes", voiceIntakeApplicantRoutes);
+  logger.info("Voice intake applicant routes mounted");
+}
+
+// Phase B: register in-call server-tool handlers (send_app_link, etc.).
+// Idempotent — safe even when VOICE_TOOLS_ENABLED is off; the tool-callback
+// router will still 503 until that flag flips on.
+registerVoiceToolHandlers();
 
 // Compliance reports (Fair Housing Act — audit:view / Regional Manager+)
 app.use("/api/compliance", complianceRoutes);

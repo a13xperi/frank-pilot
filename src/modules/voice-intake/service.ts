@@ -53,7 +53,7 @@ export interface PersistResult {
  * shapes each entry as `{ value, rationale, json_schema, ... }`. Returns
  * null if missing or non-string.
  */
-function pickField(
+export function pickField(
   results: Record<string, unknown> | undefined,
   key: string
 ): string | null {
@@ -180,7 +180,7 @@ export async function persistConversation(payload: PostCallPayload): Promise<Per
  * happens at the downstream approve step. The column is `VARCHAR(20)`, so
  * the looseness is tolerated.
  */
-function normalizePhone(raw: string | null): string | null {
+export function normalizePhone(raw: string | null): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   if (trimmed.startsWith("+")) {
