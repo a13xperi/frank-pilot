@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import { api } from '@/api/client';
+import { fetchVoicePrefill } from '@/api/voiceIntake';
 import { ClaimedUnitHeader } from '@/components/ClaimedUnitHeader';
 import { Card } from '@/components/primitives';
 import { HF } from '@/styles/tokens';
@@ -197,6 +198,47 @@ export function Apply() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Phase B.2 — voice-intake prefill. When the applicant arrives from a "Talk
+  // to Frank" call, the magic link carried `?intake=<conversationId>` (preserved
+  // through AuthCallback). Hydrate the wizard with what Frank collected on the
+  // call. Best-effort and fill-only-empty: never clobber a value the user typed
+  // or one the Issue #8 /auth/me + applications hydration already set. Any
+  // failure (soft-404 / 401 / network) falls back to the blank form — identical
+  // to a cold start. Mount-once, like the Wedge #5 propertyId consumer above.
+  useEffect(() => {
+    const conversationId = search.get('intake');
+    if (!conversationId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { prefill: p } = await fetchVoicePrefill(conversationId);
+        if (cancelled || !p) return;
+        if (p.firstName) setFirstName((prev) => prev || p.firstName!);
+        if (p.lastName) setLastName((prev) => prev || p.lastName!);
+        if (p.phone) setPhone((prev) => prev || p.phone!);
+        if (p.currentCity) setCity((prev) => prev || p.currentCity!);
+        if (p.householdSize != null) {
+          // Local field defaults to '1'; only override the untouched default so
+          // we don't stomp a value the user changed or an application supplied.
+          setHouseholdSize((prev) => (prev === '1' ? String(p.householdSize) : prev));
+          // intentHouseholdSize defaults to 1 (ApplyContext) — never null. Guard
+          // on the untouched default so we fill it but never stomp a user/app value.
+          if (wiz.intentHouseholdSize === 1) wiz.setIntentHouseholdSize(p.householdSize);
+        }
+        if (p.monthlyIncome != null) {
+          // Frank collects MONTHLY income; the wizard's details step holds gross
+          // ANNUAL. Convert once here so AMI tiering downstream sees annual.
+          setAnnualIncome((prev) => prev || String(Math.round(p.monthlyIncome! * 12)));
+        }
+      } catch {
+        /* best-effort — soft-404 / 401 / network all fall back to blank form */
+      }
+    })();
+    return () => { cancelled = true; };
+    // Consume the intake handle once on mount, mirroring Wedge #5 above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Issue #8 — gate render on intent-step deep links until hydration completes.
   // Without this, landing on `?step=intent` paints the empty quiz form for a
   // tick before /auth/me + /applicants/me/applications resolve and backfill
@@ -245,8 +287,12 @@ export function Apply() {
           if (latest.intent_budget_max != null) setIntentBudgetMax(Number(latest.intent_budget_max));
           if (latest.intent_move_in_date) setIntentMoveInDate(latest.intent_move_in_date.slice(0, 10));
           if (latest.intent_household_size != null) {
-            wiz.setIntentHouseholdSize(latest.intent_household_size);
-            setHouseholdSize(String(latest.intent_household_size));
+            // Fill-only-default, mirroring the Phase B.2 voice prefill above:
+            // these two effects both write household at mount and race, so
+            // whichever resolves first wins and neither clobbers the other.
+            const hh = latest.intent_household_size;
+            if (wiz.intentHouseholdSize === 1) wiz.setIntentHouseholdSize(hh);
+            setHouseholdSize((prev) => (prev === '1' ? String(hh) : prev));
           }
         }
       } catch {
