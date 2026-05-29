@@ -23,11 +23,13 @@ import { InspectionsPage } from '@/pages/Inspections';
 import { MaintenancePage } from '@/pages/Maintenance';
 import { ApplicationForm } from '@/pages/ApplicationForm';
 import { ApplicationDetail } from '@/pages/ApplicationDetail';
+import { DemoOverlay } from '@/components/DemoOverlay';
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <DemoOverlay />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route element={<ProtectedRoute />}>

@@ -14,6 +14,25 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+// Demo overlay subscriber registry. Dev-only consumer; pure additive — every
+// existing caller behaves the same and there are no subscribers in prod builds.
+export type ApiEvent = {
+  method: string;
+  path: string;
+  status: number;
+  ok: boolean;
+  durationMs: number;
+  ts: number;
+};
+type Subscriber = (e: ApiEvent) => void;
+const subs = new Set<Subscriber>();
+export function onApiEvent(cb: Subscriber): () => void {
+  subs.add(cb);
+  return () => {
+    subs.delete(cb);
+  };
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -46,7 +65,23 @@ async function request<T>(
   // round-trips on every request — set by the backend on a guest's first save
   // and read back on subsequent saves/reads + magic-link conversion. Harmless
   // for the JWT-authed endpoints (they ignore the cookie).
+  const method = (options.method ?? 'GET').toUpperCase();
+  const t0 = performance.now();
   const res = await fetch(fullPath, { ...options, headers, credentials: 'include' });
+
+  if (subs.size > 0) {
+    const evt: ApiEvent = {
+      method,
+      path: relativePath,
+      status: res.status,
+      ok: res.ok,
+      durationMs: Math.round(performance.now() - t0),
+      ts: Date.now(),
+    };
+    for (const s of subs) {
+      try { s(evt); } catch { /* swallow subscriber errors */ }
+    }
+  }
 
   // /auth/me is the probe endpoint — callers (AuthCallback, VerifyPending,
   // the Apply step='verify' poll) use it to discover auth state and handle

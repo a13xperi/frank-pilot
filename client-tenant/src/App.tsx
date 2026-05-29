@@ -24,6 +24,7 @@ import { WaitlistFasterList } from '@/pages/waitlist/FasterList';
 import { MagicLinkSent } from '@/pages/apply/MagicLinkSent';
 import { ScreenshotButton } from '@/components/dev/ScreenshotButton';
 import { DemoStuckButton } from '@/components/dev/DemoStuckButton';
+import { DemoOverlay } from '@/components/DemoOverlay';
 import { HousingChatWidget } from '@/components/HousingChatWidget';
 import { TalkToFrankPill } from '@/components/TalkToFrankPill';
 import { CookieBanner } from '@/components/CookieBanner';
@@ -93,6 +94,7 @@ export default function App() {
     <CookieBanner />
     <ScreenshotButton />
     <DemoStuckButton />
+    <DemoOverlay />
     <HousingChatWidget />
     <TalkToFrankPill />
     </>

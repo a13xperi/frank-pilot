@@ -1,6 +1,25 @@
 const TOKEN_KEY = 'frank_token';
 const USER_KEY = 'frank_user';
 
+// Demo overlay subscriber registry. Dev-only consumer; pure additive — every
+// existing caller behaves the same and there are no subscribers in prod builds.
+export type ApiEvent = {
+  method: string;
+  path: string;
+  status: number;
+  ok: boolean;
+  durationMs: number;
+  ts: number;
+};
+type Subscriber = (e: ApiEvent) => void;
+const subs = new Set<Subscriber>();
+export function onApiEvent(cb: Subscriber): () => void {
+  subs.add(cb);
+  return () => {
+    subs.delete(cb);
+  };
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -14,7 +33,23 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  const method = (options.method ?? 'GET').toUpperCase();
+  const t0 = performance.now();
   const res = await fetch(path, { ...options, headers });
+
+  if (subs.size > 0) {
+    const evt: ApiEvent = {
+      method,
+      path,
+      status: res.status,
+      ok: res.ok,
+      durationMs: Math.round(performance.now() - t0),
+      ts: Date.now(),
+    };
+    for (const s of subs) {
+      try { s(evt); } catch { /* swallow subscriber errors */ }
+    }
+  }
 
   if (res.status === 401 && !path.includes('/api/auth/login')) {
     localStorage.removeItem(TOKEN_KEY);
