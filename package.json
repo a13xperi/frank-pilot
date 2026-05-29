@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "2.1.157",
-    "@anthropic-ai/sdk": "^0.98.0",
+    "@anthropic-ai/sdk": "^0.100.1",
     "bcrypt": "^5.1.1",
     "commander": "^12.1.0",
     "cors": "^2.8.5",
@@ -30,7 +30,7 @@
     "node-cron": "^4.2.1",
     "pdfkit": "^0.18.0",
     "pg": "^8.21.0",
-    "resend": "^6.12.3",
+    "resend": "^6.12.4",
     "stripe": "^17.2.0",
     "twilio": "^5.3.0",
     "uuid": "^10.0.0",
