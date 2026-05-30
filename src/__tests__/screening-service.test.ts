@@ -68,6 +68,10 @@ jest.mock("../modules/adverse-action/service", () => ({
   })),
 }));
 
+jest.mock("../modules/screening/state-machine", () => ({
+  transitionApplicationStatus: jest.fn(),
+}));
+
 import { query } from "../config/database";
 import { writeAuditLog } from "../middleware/audit";
 import { decrypt } from "../utils/encryption";
@@ -76,10 +80,14 @@ import { CreditCheckService } from "../modules/screening/credit-check";
 import { ComplianceService } from "../modules/screening/compliance";
 import { IdentityVerificationService } from "../modules/screening/identity-verification";
 import { AdverseActionService } from "../modules/adverse-action/service";
+import { transitionApplicationStatus } from "../modules/screening/state-machine";
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockAuditLog = writeAuditLog as jest.MockedFunction<typeof writeAuditLog>;
 const mockDecrypt = decrypt as jest.MockedFunction<typeof decrypt>;
+const mockTransition = transitionApplicationStatus as jest.MockedFunction<
+  typeof transitionApplicationStatus
+>;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -163,6 +171,7 @@ describe("ScreeningService.runFullScreening", () => {
     jest.clearAllMocks();
     mockAuditLog.mockResolvedValue(undefined);
     mockDecrypt.mockImplementation((v: string) => `decrypted:${v}`);
+    mockTransition.mockResolvedValue({ changed: true, status: "screening_passed" } as any);
 
     service = new ScreeningService();
 
@@ -187,13 +196,13 @@ describe("ScreeningService.runFullScreening", () => {
 
   // ── Guard: application not found / wrong status ───────────────────────────
 
-  it("throws when application is not found or not in submitted status", async () => {
+  it("throws when application is not found or not in submitted/screening status", async () => {
     mockQuery.mockReset();
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
 
     await expect(
       service.runFullScreening("app-missing", "user-1", "leasing_agent")
-    ).rejects.toThrow(/not found or not in submitted status/i);
+    ).rejects.toThrow(/not found or not in submitted\/screening status/i);
   });
 
   // ── All-pass scenario ─────────────────────────────────────────────────────
@@ -204,13 +213,12 @@ describe("ScreeningService.runFullScreening", () => {
     expect(result.overallResult).toBe("pass");
   });
 
-  it("sets status to screening_passed when overallResult is pass", async () => {
+  it("transitions to screening_passed (all_checks_passed) when overallResult is pass", async () => {
     await service.runFullScreening("app-001", "user-1", "leasing_agent");
 
-    const statusUpdate = mockQuery.mock.calls.find(
-      (c) => (c[0] as string).includes("overall_screening_result")
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_passed", trigger: "all_checks_passed" })
     );
-    expect(statusUpdate?.[1]).toContain("screening_passed");
   });
 
   // ── Fail propagation ──────────────────────────────────────────────────────
@@ -239,15 +247,23 @@ describe("ScreeningService.runFullScreening", () => {
     expect(result.overallResult).toBe("fail");
   });
 
-  it("sets status to screening_failed when overallResult is fail", async () => {
+  it("transitions to screening_failed (any_check_failed) when overallResult is fail", async () => {
     mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("fail"));
 
     await service.runFullScreening("app-001", "user-1", "leasing_agent");
 
-    const statusUpdate = mockQuery.mock.calls.find(
-      (c) => (c[0] as string).includes("overall_screening_result")
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_failed", trigger: "any_check_failed" })
     );
-    expect(statusUpdate?.[1]).toContain("screening_failed");
+  });
+
+  it("does NOT send the FCRA notice when the final transition loses the CAS (changed:false)", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("fail"));
+    mockTransition.mockResolvedValue({ changed: false, status: "screening_failed" } as any);
+
+    await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
   });
 
   // ── Review-required escalation ────────────────────────────────────────────
@@ -282,15 +298,14 @@ describe("ScreeningService.runFullScreening", () => {
 
   // ── review_required still sets screening_passed (routes to human review) ─
 
-  it("sets status to screening_passed even when review_required (human Tier 1 will see it)", async () => {
+  it("transitions to screening_passed (review_required_passthrough) even when review_required (human Tier 1 will see it)", async () => {
     mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("review_required"));
 
     await service.runFullScreening("app-001", "user-1", "leasing_agent");
 
-    const statusUpdate = mockQuery.mock.calls.find(
-      (c) => (c[0] as string).includes("overall_screening_result")
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_passed", trigger: "review_required_passthrough" })
     );
-    expect(statusUpdate?.[1]).toContain("screening_passed");
   });
 
   // ── PCI-DSS: SSN decryption and last-4 extraction ─────────────────────────
@@ -485,11 +500,10 @@ describe("ScreeningService.runFullScreening", () => {
       expect.stringContaining("identity verification failed")
     );
 
-    // Status flip to screening_failed (mirrors dup-SSN block).
-    const statusUpdate = mockQuery.mock.calls.find(
-      (c) => (c[0] as string).includes("overall_screening_result")
+    // Status flip to screening_failed via the chokepoint (mirrors dup-SSN block).
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_failed", trigger: "identity_rejected" })
     );
-    expect(statusUpdate?.[1]).toContain("screening_failed");
   });
 
   it("writes an identity_verification_completed audit log entry", async () => {

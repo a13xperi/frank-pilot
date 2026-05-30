@@ -22,6 +22,7 @@ import { ApplicationService } from "../modules/application/service";
 import { query, transaction } from "../config/database";
 import { encrypt, hashSSN, maskSSN } from "../utils/encryption";
 import { writeAuditLog } from "../middleware/audit";
+import { transitionApplicationStatus } from "../modules/screening/state-machine";
 
 /** Wrap rows in a minimal QueryResult shape without casting to `any`. */
 function qr<T extends Record<string, unknown>>(rows: T[]): QueryResult<T> {
@@ -66,12 +67,28 @@ jest.mock("../modules/screening/fraud-detection", () => ({
   })),
 }));
 
+// Auto-screening-on-submit collaborators (SCREENING_ON_SUBMIT_ENABLED path).
+// state-machine mocked inline (no out-of-scope ref → no TDZ); ScreeningService
+// reads mockRunFullScreening lazily inside the per-construction impl closure.
+const mockRunFullScreening = jest.fn();
+jest.mock("../modules/screening/state-machine", () => ({
+  transitionApplicationStatus: jest.fn(),
+}));
+jest.mock("../modules/screening/service", () => ({
+  ScreeningService: jest.fn().mockImplementation(() => ({
+    runFullScreening: mockRunFullScreening,
+  })),
+}));
+
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockTransaction = transaction as jest.MockedFunction<typeof transaction>;
 const mockEncrypt = encrypt as jest.MockedFunction<typeof encrypt>;
 const mockHashSSN = hashSSN as jest.MockedFunction<typeof hashSSN>;
 const mockMaskSSN = maskSSN as jest.MockedFunction<typeof maskSSN>;
 const mockWriteAuditLog = writeAuditLog as jest.MockedFunction<typeof writeAuditLog>;
+const mockTransition = transitionApplicationStatus as jest.MockedFunction<
+  typeof transitionApplicationStatus
+>;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -308,6 +325,78 @@ describe("ApplicationService.submit()", () => {
     const result = await service.submit("app-001", "user-001", "leasing_agent");
 
     expect(result).toEqual(submittedRow);
+  });
+});
+
+// ── submit() — auto-screening on submit (SCREENING_ON_SUBMIT_ENABLED) ────────
+
+describe("ApplicationService.submit() — auto-screening on submit", () => {
+  const ORIGINAL_FLAG = process.env.SCREENING_ON_SUBMIT_ENABLED;
+  const flush = () => new Promise((r) => setImmediate(r));
+
+  beforeEach(() => {
+    mockQuery.mockReset();
+    mockWriteAuditLog.mockReset();
+    mockTransition.mockReset();
+    mockRunFullScreening.mockReset();
+    mockRunFullScreening.mockResolvedValue(undefined);
+    mockTransition.mockResolvedValue({ changed: true, status: "screening" } as any);
+  });
+
+  afterEach(() => {
+    if (ORIGINAL_FLAG === undefined) delete process.env.SCREENING_ON_SUBMIT_ENABLED;
+    else process.env.SCREENING_ON_SUBMIT_ENABLED = ORIGINAL_FLAG;
+  });
+
+  it("flag off ⇒ no chokepoint transition, no screening kickoff (byte-for-byte legacy)", async () => {
+    delete process.env.SCREENING_ON_SUBMIT_ENABLED;
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "submitted", submitted_at: new Date() }]));
+
+    const service = makeService();
+    const result = await service.submit("app-001", "user-001", "leasing_agent");
+    await flush();
+
+    expect(result.status).toBe("submitted");
+    expect(mockTransition).not.toHaveBeenCalled();
+    expect(mockRunFullScreening).not.toHaveBeenCalled();
+  });
+
+  it("flag on ⇒ advances submitted→screening through the chokepoint and kicks runFullScreening", async () => {
+    process.env.SCREENING_ON_SUBMIT_ENABLED = "true";
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "submitted", submitted_at: new Date() }]));
+
+    const service = makeService();
+    const result = await service.submit("app-001", "user-001", "leasing_agent");
+
+    // submit() still returns the submitted row synchronously.
+    expect(result.status).toBe("submitted");
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applicationId: "app-001",
+        from: "submitted",
+        to: "screening",
+        trigger: "screening_started",
+      })
+    );
+
+    // Fire-and-forget kickoff: flush microtasks so the void promise resolves.
+    await flush();
+    expect(mockRunFullScreening).toHaveBeenCalledWith("app-001", "user-001", "leasing_agent");
+  });
+
+  it("flag on + pipeline throws ⇒ submit() still resolves; app left in screening (non-approvable)", async () => {
+    process.env.SCREENING_ON_SUBMIT_ENABLED = "true";
+    mockQuery.mockResolvedValue(qr([{ id: "app-001", status: "submitted", submitted_at: new Date() }]));
+    mockRunFullScreening.mockRejectedValue(new Error("vendor down"));
+
+    const service = makeService();
+    // Must NOT reject — a screening failure never surfaces to the applicant.
+    const result = await service.submit("app-001", "user-001", "leasing_agent");
+    await flush();
+
+    expect(result.status).toBe("submitted");
+    expect(mockTransition).toHaveBeenCalledTimes(1);
+    expect(mockRunFullScreening).toHaveBeenCalled();
   });
 });
 

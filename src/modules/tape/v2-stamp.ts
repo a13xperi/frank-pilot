@@ -25,12 +25,14 @@ import {
   makeHud92006SupplementCapturedPayload,
   makePositionLetterSentPayload,
   makeLeaseExecutedPayload,
+  makeScreeningStateTransitionPayload,
   type WelcomeLetterDeliveredInput,
   type Hud9281FairHousingPostedInput,
   type WaitingListAppCapturedInput,
   type Hud92006SupplementCapturedInput,
   type PositionLetterSentInput,
   type LeaseExecutedInput,
+  type ScreeningStateTransitionInput,
 } from "./events";
 import { COMPLIANCE_TAPE_V2_FLAG, type TapeJsonLdPayload, type TapeStampKind } from "./types";
 
@@ -129,6 +131,17 @@ export async function stampV2LeaseExecuted(
   return stampV2(
     "LEASE_EXECUTED",
     makeLeaseExecutedPayload(input),
+    input.sessionId,
+  );
+}
+
+export async function stampV2ScreeningStateTransition(
+  input: ScreeningStateTransitionInput,
+): Promise<void> {
+  if (!flagEnabled()) return;
+  return stampV2(
+    "screening.state_transition",
+    makeScreeningStateTransitionPayload(input),
     input.sessionId,
   );
 }

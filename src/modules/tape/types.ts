@@ -35,7 +35,9 @@ export type TapeStampKind =
   // QAP acquisitions Phase 3.2 — Next Available Unit Rule (global-scope admin events)
   | "acq.nau_triggered"
   | "acq.nau_satisfied"
-  | "acq.nau_lost";
+  | "acq.nau_lost"
+  // Screening pipeline — application_status transitions (screening on funnel)
+  | "screening.state_transition";
 
 /** A JSON-LD payload. Lane C provides one `make<Event>Payload` per kind.
  *  The `@context` URL is stubbed in v1 (see docs/bp-02-contracts.md §5). */
@@ -149,6 +151,7 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   "acq.nau_triggered": "IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)",
   "acq.nau_satisfied": "IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)",
   "acq.nau_lost": "IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)",
+  "screening.state_transition": "FCRA 15 U.S.C. §1681b + HUD 4350.3 Ch. 4",
 };
 
 /** Feature flag controlling dual-write during cutover. When false, the new

@@ -145,7 +145,10 @@ CREATE TYPE audit_action AS ENUM (
   'payment_refunded',
   'ledger_refund_recorded',
   -- Identity verification (first gate of runFullScreening)
-  'identity_verification_completed'
+  'identity_verification_completed',
+  -- Screening state machine — every application_status transition driven by
+  -- the screening pipeline (transitionApplicationStatus chokepoint).
+  'screening_state_transition'
 );
 
 CREATE TYPE fraud_flag_type AS ENUM (
@@ -381,6 +384,11 @@ CREATE TABLE applications (
   status application_status DEFAULT 'draft',
   submitted_at TIMESTAMPTZ,
   submitted_by UUID REFERENCES users(id),
+
+  -- Append-only trail of screening-driven status transitions, written by the
+  -- transitionApplicationStatus chokepoint. One JSONB object per transition:
+  -- { from, to, trigger, actorId, actorRole, at, evidence }.
+  status_history JSONB NOT NULL DEFAULT '[]'::jsonb,
 
   -- Screening results
   identity_verification_result screening_result,

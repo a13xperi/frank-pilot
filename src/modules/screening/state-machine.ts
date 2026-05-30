@@ -1,5 +1,7 @@
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
+import { query } from "../../config/database";
+import { stampV2ScreeningStateTransition } from "../tape/v2-stamp";
 
 export type ScreeningState =
   | "queued"
@@ -121,4 +123,165 @@ export async function transition(input: TransitionInput): Promise<void> {
     to,
     trigger,
   });
+}
+
+// ---------------------------------------------------------------------------
+// application_status chokepoint
+//
+// The abstract ScreeningState machine above models the screening pipeline's
+// internal lifecycle. The functions below operate on the real
+// `application_status` enum — the column the approval queue and applicant
+// funnel actually read — and are the single writer of `applications.status`
+// for the screening pipeline.
+//
+// Every transition is a compare-and-swap (WHERE id = $1 AND status = $from):
+//   - success      → writes status, appends an idempotent status_history entry,
+//                    writes a screening_state_transition audit row, emits a
+//                    (dark) compliance-tape stamp, returns { changed: true }.
+//   - 0-row CAS    → another writer already moved this app out of `from`
+//                    (e.g. concurrent auto + manual screening). No-op: writes
+//                    NOTHING and returns { changed: false }. Callers MUST gate
+//                    exactly-once side effects (FCRA notice) on changed.
+// ---------------------------------------------------------------------------
+
+/** Real application_status values touched by the screening pipeline. */
+export type AppStatus =
+  | "submitted"
+  | "screening"
+  | "screening_passed"
+  | "screening_failed";
+
+interface AppStatusTransition {
+  from: AppStatus;
+  to: AppStatus;
+  trigger: string;
+}
+
+export const APP_STATUS_TRANSITIONS: ReadonlyArray<AppStatusTransition> = [
+  { from: "submitted", to: "screening", trigger: "screening_started" },
+  { from: "screening", to: "screening_passed", trigger: "all_checks_passed" },
+  { from: "screening", to: "screening_passed", trigger: "review_required_passthrough" },
+  { from: "screening", to: "screening_failed", trigger: "any_check_failed" },
+  { from: "screening", to: "screening_failed", trigger: "identity_rejected" },
+  { from: "screening", to: "screening_failed", trigger: "duplicate_ssn" },
+];
+
+export interface AppStatusTransitionInput {
+  applicationId: string;
+  from: AppStatus;
+  to: AppStatus;
+  trigger: string;
+  actorId?: string;
+  actorRole?: string;
+  evidence?: Record<string, unknown>;
+}
+
+export interface AppStatusTransitionResult {
+  changed: boolean;
+  status: AppStatus;
+}
+
+function isValidAppStatusTransition(from: AppStatus, to: AppStatus, trigger: string): boolean {
+  return APP_STATUS_TRANSITIONS.some(
+    (t) => t.from === from && t.to === to && t.trigger === trigger
+  );
+}
+
+/**
+ * Atomically move applications.status via compare-and-swap, recording the
+ * transition in status_history + audit_log + (dark) compliance tape.
+ *
+ * Returns { changed: false } when the CAS matches 0 rows (the app already left
+ * `from`). Callers MUST gate any exactly-once side effect (FCRA adverse-action
+ * notice) on `changed === true`.
+ *
+ * @throws if (from, to, trigger) is not a defined transition.
+ */
+export async function transitionApplicationStatus(
+  input: AppStatusTransitionInput
+): Promise<AppStatusTransitionResult> {
+  const { applicationId, from, to, trigger, actorId, actorRole, evidence } = input;
+
+  if (!isValidAppStatusTransition(from, to, trigger)) {
+    throw new Error(
+      `Invalid application_status transition: ${from} -> ${to} (trigger '${trigger}')`
+    );
+  }
+
+  // $2 (to) and $3 (from) are each used twice: once compared/assigned against
+  // the application_status enum column and once rendered as text inside the
+  // status_history JSONB. Without explicit casts on the enum sites, Postgres
+  // deduces conflicting types for the same parameter ("inconsistent types
+  // deduced for parameter $2") and the statement fails to prepare. Cast the
+  // enum sites explicitly so each parameter resolves to a single base type.
+  const result = await query(
+    `UPDATE applications
+        SET status = $2::application_status,
+            status_history = status_history || jsonb_build_object(
+              'from', $3::text,
+              'to', $2::text,
+              'trigger', $4::text,
+              'actorId', $5::text,
+              'actorRole', $6::text,
+              'at', NOW(),
+              'evidence', $7::jsonb
+            )
+      WHERE id = $1 AND status = $3::application_status
+      RETURNING id`,
+    [
+      applicationId,
+      to,
+      from,
+      trigger,
+      actorId ?? null,
+      actorRole ?? null,
+      JSON.stringify(evidence ?? {}),
+    ]
+  );
+
+  if (result.rows.length === 0) {
+    // Lost the compare-and-swap — skip audit, tape, and caller-gated side effects.
+    logger.info("application_status transition no-op (CAS miss)", {
+      applicationId,
+      from,
+      to,
+      trigger,
+    });
+    return { changed: false, status: to };
+  }
+
+  await writeAuditLog({
+    action: "screening_state_transition",
+    actorId,
+    actorRole,
+    applicationId,
+    resourceType: "application",
+    details: {
+      fromStatus: from,
+      toStatus: to,
+      trigger,
+      evidence: evidence || {},
+    },
+  });
+
+  // Dark compliance-tape stamp — no-op unless COMPLIANCE_TAPE_V2_ENABLED.
+  void stampV2ScreeningStateTransition({
+    applicationId,
+    fromStatus: from,
+    toStatus: to,
+    trigger,
+    actorId: actorId ?? null,
+    actorRole,
+    transitionedAt: new Date().toISOString(),
+    evidence,
+  });
+
+  logger.info("application_status transition", {
+    applicationId,
+    from,
+    to,
+    trigger,
+  });
+
+  return { changed: true, status: to };
 }
