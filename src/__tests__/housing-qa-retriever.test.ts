@@ -32,6 +32,9 @@ describe("housing-qa retriever — grounded context assembly", () => {
     // always-on facts block is present so the agent can ground the answer.
     expect(ctx.facts.applicationFee.amount).toBe("$35.95");
     expect(ctx.facts.applicationFee.refundable).toBe(false);
+    // truncation fields are compact-only — absent on process routes (#224).
+    expect(ctx.totalMatching).toBeUndefined();
+    expect(ctx.shown).toBeUndefined();
   });
 
   it("(2) 'senior housing in Henderson' → city+attribute filter, compact, capped at K=8", () => {
@@ -41,6 +44,13 @@ describe("housing-qa retriever — grounded context assembly", () => {
     // capped
     expect(ctx.properties.length).toBeLessThanOrEqual(8);
     expect(ctx.properties.length).toBeGreaterThan(0);
+    // #224: the TRUE total is surfaced as a structured field (19 senior records
+    // in Henderson) alongside how many reached the model (8) — so the prompt can
+    // make the model disclose "8 of 19" instead of implying the slice is all.
+    expect(ctx.totalMatching).toBe(19);
+    expect(ctx.shown).toBe(8);
+    expect(ctx.shown).toBe(ctx.properties.length);
+    expect(ctx.totalMatching!).toBeGreaterThan(ctx.shown!);
     // filtered by BOTH city (Henderson) and attribute (senior)
     for (const p of ctx.properties) {
       const cp = p as { city: string | null; type: string | null };
