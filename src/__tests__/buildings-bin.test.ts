@@ -201,9 +201,8 @@ describe("seedBuildings (crosswalk resolution + fail-closed)", () => {
 
   it("fail-closed: a unit_number with no match leaves building_id NULL and does NOT throw", async () => {
     let unitUpdates = 0;
-    let unitsMatched = 0;
 
-    mockQuery.mockImplementation((async (sql: string, params?: unknown[]) => {
+    mockQuery.mockImplementation((async (sql: string) => {
       if (sql.includes("FROM properties WHERE name")) {
         return { rows: [{ id: "prop-1" }], rowCount: 1 } as any;
       }
@@ -213,9 +212,7 @@ describe("seedBuildings (crosswalk resolution + fail-closed)", () => {
       if (sql.startsWith("UPDATE units")) {
         unitUpdates++;
         // bins unit-number scheme never overlaps seeded synthetic units → 0 matched.
-        const matched = 0;
-        unitsMatched += matched;
-        return { rows: [], rowCount: matched } as any;
+        return { rows: [], rowCount: 0 } as any;
       }
       return { rows: [], rowCount: 0 } as any;
     }) as any);
@@ -224,8 +221,114 @@ describe("seedBuildings (crosswalk resolution + fail-closed)", () => {
 
     // Unit UPDATEs were attempted (one per unit string of the 7 mapped props)…
     expect(unitUpdates).toBeGreaterThan(0);
-    // …but none matched, so building_id stays NULL everywhere. No throw.
-    expect(unitsMatched).toBe(0);
+
+    // …and crucially the UPDATE is per-unit SCOPED (property_id + unit_number),
+    // so at most one row could ever match. Inspect the real SQL + bound params:
+    // dropping the `unit_number = $3` filter (fail-OPEN, would link every unit of
+    // a property to one building — a real §42 mis-attribution) must break this.
+    const unitUpdateCalls = mockQuery.mock.calls.filter((c) =>
+      (c[0] as string).startsWith("UPDATE units")
+    );
+    expect(unitUpdateCalls.length).toBe(unitUpdates);
+    for (const c of unitUpdateCalls) {
+      const sql = c[0] as string;
+      const params = c[1] as unknown[];
+      expect(sql).toContain("property_id = $2");
+      expect(sql).toContain("unit_number = $3");
+      // $1 building_id, $2 property_id, $3 unit_number — exactly the bins.json
+      // unit string, never a wildcard / null.
+      expect(params).toHaveLength(3);
+      expect(typeof params[2]).toBe("string");
+      expect((params[2] as string).length).toBeGreaterThan(0);
+    }
+
+    // The bound unit_number params are real bins.json unit strings for the mapped
+    // props (e.g. juan building 2 → '2-101'), proving the loader passes the source
+    // unit through verbatim rather than a synthesized / fuzzy key.
+    const boundUnitNumbers = new Set(
+      unitUpdateCalls.map((c) => (c[1] as unknown[])[2] as string)
+    );
+    expect(boundUnitNumbers.has("2-101")).toBe(true);
+  });
+
+  it("happy path: a matching unit gets building_id set to the upserted building id", async () => {
+    // Target juan → building '2' → unit '2-101' (real bins.json values). The
+    // INSERT returns a stable building id and the matching UPDATE returns
+    // rowCount 1; assert that exact building id is bound as $1 of the UPDATE
+    // (a regression that read .rows.length instead of .rowCount, or wrote the
+    // wrong building_id, would be caught here).
+    const TARGET_PROP = "Juan Garcia Aka Ernie Cragin";
+    const TARGET_BUILDING_CODE = "2";
+    const TARGET_UNIT = "2-101";
+    const BUILDING_ID = "bldg-juan-2";
+
+    let currentBuildingId: string | null = null;
+    let matchedBuildingIdForTarget: string | null = null;
+
+    mockQuery.mockImplementation((async (sql: string, params?: unknown[]) => {
+      const p = (params ?? []) as unknown[];
+      if (sql.includes("FROM properties WHERE name")) {
+        const name = p[0] as string;
+        // Only juan resolves to a row; everyone else is absent (skipped).
+        if (name === TARGET_PROP) {
+          return { rows: [{ id: "prop-juan" }], rowCount: 1 } as any;
+        }
+        return { rows: [], rowCount: 0 } as any;
+      }
+      if (sql.startsWith("INSERT INTO buildings")) {
+        const buildingCode = p[1] as string;
+        currentBuildingId =
+          buildingCode === TARGET_BUILDING_CODE ? BUILDING_ID : `bldg-${buildingCode}`;
+        return { rows: [{ id: currentBuildingId }], rowCount: 1 } as any;
+      }
+      if (sql.startsWith("UPDATE units")) {
+        const boundBuildingId = p[0] as string;
+        const unitNumber = p[2] as string;
+        if (unitNumber === TARGET_UNIT) {
+          matchedBuildingIdForTarget = boundBuildingId;
+          return { rows: [{ id: "unit-1" }], rowCount: 1 } as any;
+        }
+        return { rows: [], rowCount: 0 } as any;
+      }
+      return { rows: [], rowCount: 0 } as any;
+    }) as any);
+
+    await expect(seedBuildings(query)).resolves.toBeUndefined();
+
+    // The matching unit's UPDATE bound the SAME building id that its building
+    // INSERT returned — no cross-wiring, no stale id.
+    expect(matchedBuildingIdForTarget).toBe(BUILDING_ID);
+  });
+
+  it("fail-closed: >1 exact-name matches is ambiguous → binKey skipped, no INSERT, warns", async () => {
+    const { logger } = jest.requireMock("../utils/logger") as {
+      logger: { warn: jest.Mock };
+    };
+
+    mockQuery.mockImplementation((async (sql: string) => {
+      if (sql.includes("FROM properties WHERE name")) {
+        // Every joinName resolves to TWO rows → ambiguous → must fail-closed skip.
+        return { rows: [{ id: "prop-a" }, { id: "prop-b" }], rowCount: 2 } as any;
+      }
+      if (sql.startsWith("INSERT INTO buildings")) {
+        return { rows: [{ id: "bldg-1" }], rowCount: 1 } as any;
+      }
+      return { rows: [], rowCount: 0 } as any;
+    }) as any);
+
+    await expect(seedBuildings(query)).resolves.toBeUndefined();
+
+    // No building rows were inserted for the ambiguous matches.
+    const inserts = mockQuery.mock.calls
+      .map((c) => c[0] as string)
+      .filter((s) => s.startsWith("INSERT INTO buildings"));
+    expect(inserts).toHaveLength(0);
+
+    // And each of the 7 mapped binKeys was skipped-with-warning (ambiguous).
+    const ambiguousWarns = logger.warn.mock.calls.filter((c) =>
+      String(c[0]).includes("ambiguous")
+    );
+    expect(ambiguousWarns.length).toBe(7);
   });
 
   it("upserts buildings with ON CONFLICT (property_id, building_code) DO UPDATE (idempotent)", async () => {

@@ -97,7 +97,7 @@ export function buildingsFromBins(binsJson: BinsJson): PropertyBuildings[] {
 
     const buildings: BuildingRecord[] = p.buildings.map((b) => ({
       buildingCode: b.buildingCode,
-      bin: b.bin === null ? null : b.bin, // preserve NULL — never invent
+      bin: b.bin, // preserve NULL — never invent
       binConfidence,
       unitCount: b.unitCount,
       unitNumbers: Array.isArray(b.units) ? b.units.slice() : [],
