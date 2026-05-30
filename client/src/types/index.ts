@@ -49,7 +49,7 @@ export function formatRole(role: UserRole | null | undefined): string {
 // ── Application types ─────────────────────────────────────────────
 
 export type ApplicationStatus =
-  | 'draft' | 'submitted' | 'screening' | 'screening_passed' | 'screening_failed'
+  | 'draft' | 'submitted' | 'screening' | 'screening_review' | 'screening_passed' | 'screening_failed'
   | 'tier1_review' | 'tier1_approved' | 'tier1_denied'
   | 'tier2_review' | 'tier2_approved' | 'tier2_denied'
   | 'tier3_review' | 'tier3_approved' | 'tier3_denied'
@@ -153,10 +153,31 @@ export interface SignupStatsResponse {
 // ── Screening types ───────────────────────────────────────────────
 
 export interface ScreeningResult {
-  overallResult: 'pass' | 'fail' | 'review_required';
+  overallResult: 'pass' | 'fail' | 'review_required' | 'could_not_screen';
   background: { status: string; details?: unknown };
   credit: { status: string; score?: number; details?: unknown };
   compliance: { status: string; amiQualified?: boolean; details?: unknown };
+}
+
+// Staff review queue — applications held in `screening_review` because the
+// screening pipeline could not produce an automated verdict (a vendor check
+// returned could_not_screen). Shape mirrors GET /api/screening/review-queue.
+export interface ReviewQueueItem {
+  id: string;
+  first_name: string;
+  last_name: string;
+  property_id: string;
+  created_at: string;
+  overall_screening_result: string | null;
+  identity_verification_result: string | null;
+  background_check_result: string | null;
+  credit_check_result: string | null;
+  compliance_check_result: string | null;
+  status_history?: unknown;
+}
+
+export interface ReviewQueueResponse {
+  queue: ReviewQueueItem[];
 }
 
 export interface FraudFlag {
