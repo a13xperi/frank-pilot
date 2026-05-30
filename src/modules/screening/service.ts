@@ -9,6 +9,7 @@ import { FraudDetectionService } from "./fraud-detection";
 import { IdentityVerificationService } from "./identity-verification";
 import type { IdentityVerificationResult } from "./identity-verification";
 import { AdverseActionService } from "../adverse-action/service";
+import { transitionApplicationStatus } from "./state-machine";
 
 // IdentityVerificationResult.result uses verified/rejected/review_required;
 // the `screening_result` enum + downstream overall-result aggregator use
@@ -54,23 +55,34 @@ export class ScreeningService {
     credit: any;
     compliance: any;
   }> {
-    // Fetch application data
+    // Fetch application data. Accept both 'submitted' (manual /screen) and
+    // 'screening' (auto-on-submit already advanced it through the chokepoint).
     const appResult = await query(
-      `SELECT * FROM applications WHERE id = $1 AND status = 'submitted'`,
+      `SELECT * FROM applications WHERE id = $1 AND status IN ('submitted', 'screening')`,
       [applicationId]
     );
 
     if (appResult.rows.length === 0) {
-      throw new Error("Application not found or not in submitted status");
+      throw new Error("Application not found or not in submitted/screening status");
     }
 
     const app = appResult.rows[0];
 
-    // Update status to screening
-    await query(
-      "UPDATE applications SET status = 'screening' WHERE id = $1",
-      [applicationId]
-    );
+    // Move submitted → screening through the chokepoint. The auto-on-submit
+    // path already performed this transition, so only fire it when the app is
+    // still 'submitted' (manual /screen entry). The screening_initiated audit
+    // below records the pipeline kickoff in both paths.
+    if (app.status === "submitted") {
+      await transitionApplicationStatus({
+        applicationId,
+        from: "submitted",
+        to: "screening",
+        trigger: "screening_started",
+        actorId: initiatedBy,
+        actorRole: initiatorRole,
+        evidence: { source: "run_full_screening" },
+      });
+    }
 
     await writeAuditLog({
       action: "screening_initiated",
@@ -124,9 +136,22 @@ export class ScreeningService {
 
     if (identityResult.result === "rejected") {
       await query(
-        "UPDATE applications SET overall_screening_result = $2, status = $3 WHERE id = $1",
-        [applicationId, "fail", "screening_failed"]
+        "UPDATE applications SET overall_screening_result = $2 WHERE id = $1",
+        [applicationId, "fail"]
       );
+
+      const { changed } = await transitionApplicationStatus({
+        applicationId,
+        from: "screening",
+        to: "screening_failed",
+        trigger: "identity_rejected",
+        actorId: initiatedBy,
+        actorRole: initiatorRole,
+        evidence: {
+          failedAt: "identity_verification",
+          riskSignals: identityResult.details.riskSignals,
+        },
+      });
 
       await writeAuditLog({
         action: "screening_completed",
@@ -142,20 +167,24 @@ export class ScreeningService {
         },
       });
 
-      this.adverseAction
-        .sendNotice(
-          applicationId,
-          initiatedBy,
-          initiatorRole,
-          "screening_failed",
-          "Automated screening denial: identity verification failed (document validity, selfie match, or liveness score below threshold)"
-        )
-        .catch((err: Error) =>
-          logger.error("Failed to send FCRA adverse action notice after identity-rejected denial", {
-            error: err.message,
+      // FCRA adverse-action notice — gated on the CAS winning, so a concurrent
+      // auto + manual run can never double-send the denial.
+      if (changed) {
+        this.adverseAction
+          .sendNotice(
             applicationId,
-          })
-        );
+            initiatedBy,
+            initiatorRole,
+            "screening_failed",
+            "Automated screening denial: identity verification failed (document validity, selfie match, or liveness score below threshold)"
+          )
+          .catch((err: Error) =>
+            logger.error("Failed to send FCRA adverse action notice after identity-rejected denial", {
+              error: err.message,
+              applicationId,
+            })
+          );
+      }
 
       logger.warn("Screening early-exit on identity verification rejection", {
         applicationId,
@@ -179,9 +208,23 @@ export class ScreeningService {
       const otherIds = dupCheck.existingApplicationIds.filter((id) => id !== applicationId);
       if (otherIds.length > 0) {
         await query(
-          "UPDATE applications SET overall_screening_result = $2, status = $3 WHERE id = $1",
-          [applicationId, "fail", "screening_failed"]
+          "UPDATE applications SET overall_screening_result = $2 WHERE id = $1",
+          [applicationId, "fail"]
         );
+
+        const { changed } = await transitionApplicationStatus({
+          applicationId,
+          from: "screening",
+          to: "screening_failed",
+          trigger: "duplicate_ssn",
+          actorId: initiatedBy,
+          actorRole: initiatorRole,
+          evidence: {
+            failedAt: "fraud_screening",
+            duplicateApplicationIds: otherIds,
+          },
+        });
+
         await writeAuditLog({
           action: "screening_completed",
           actorId: initiatedBy,
@@ -196,20 +239,24 @@ export class ScreeningService {
           },
         });
 
-        this.adverseAction
-          .sendNotice(
-            applicationId,
-            initiatedBy,
-            initiatorRole,
-            "screening_failed",
-            "Automated screening denial: duplicate SSN detected on another active application"
-          )
-          .catch((err: Error) =>
-            logger.error("Failed to send FCRA adverse action notice after duplicate-SSN denial", {
-              error: err.message,
+        // FCRA adverse-action notice — gated on the CAS winning so a concurrent
+        // auto + manual run can never double-send the denial.
+        if (changed) {
+          this.adverseAction
+            .sendNotice(
               applicationId,
-            })
-          );
+              initiatedBy,
+              initiatorRole,
+              "screening_failed",
+              "Automated screening denial: duplicate SSN detected on another active application"
+            )
+            .catch((err: Error) =>
+              logger.error("Failed to send FCRA adverse action notice after duplicate-SSN denial", {
+                error: err.message,
+                applicationId,
+              })
+            );
+        }
 
         logger.warn("Screening early-exit on duplicate SSN", {
           applicationId,
@@ -313,16 +360,42 @@ export class ScreeningService {
       overallResult = "pass";
     }
 
-    // Update application status based on screening result
-    const newStatus = overallResult === "fail" ? "screening_failed" : "screening_passed";
+    // Persist the aggregate result; the status column now moves exclusively
+    // through the chokepoint (transitionApplicationStatus).
     await query(
-      "UPDATE applications SET overall_screening_result = $2, status = $3 WHERE id = $1",
-      [applicationId, overallResult, newStatus]
+      "UPDATE applications SET overall_screening_result = $2 WHERE id = $1",
+      [applicationId, overallResult]
     );
+
+    const finalStatus =
+      overallResult === "fail" ? "screening_failed" : "screening_passed";
+    const finalTrigger =
+      overallResult === "fail"
+        ? "any_check_failed"
+        : overallResult === "review_required"
+          ? "review_required_passthrough"
+          : "all_checks_passed";
+
+    const { changed } = await transitionApplicationStatus({
+      applicationId,
+      from: "screening",
+      to: finalStatus,
+      trigger: finalTrigger,
+      actorId: initiatedBy,
+      actorRole: initiatorRole,
+      evidence: {
+        overallResult,
+        identity: identityScreeningResult,
+        background: backgroundResult.result,
+        credit: creditResult.result,
+        compliance: complianceResult.result,
+      },
+    });
 
     // FCRA § 1681m: send adverse action notice when screening result is fail.
     // Non-blocking — notice failure must not prevent the screening result from being returned.
-    if (overallResult === "fail") {
+    // Gated on the CAS winning so a concurrent auto + manual run can't double-send.
+    if (overallResult === "fail" && changed) {
       const failedChecks = [
         backgroundResult.result === "fail" ? "background check" : null,
         creditResult.result === "fail" ? "credit check" : null,
@@ -375,7 +448,7 @@ export class ScreeningService {
         actorId: initiatedBy,
         actorRole: initiatorRole,
         applicationId,
-        details: { overallResult, newStatus },
+        details: { overallResult, newStatus: finalStatus },
       }),
     ]);
 

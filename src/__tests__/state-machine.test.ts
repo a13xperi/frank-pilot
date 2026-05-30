@@ -10,16 +10,27 @@
 import {
   TRANSITIONS,
   TERMINAL_STATES,
+  APP_STATUS_TRANSITIONS,
   canTransition,
   isTerminal,
   validTriggers,
   transition,
+  transitionApplicationStatus,
 } from "../modules/screening/state-machine";
+import { query } from "../config/database";
+import { stampV2ScreeningStateTransition } from "../modules/tape/v2-stamp";
 
 jest.mock("../middleware/audit", () => ({ writeAuditLog: jest.fn() }));
 jest.mock("../utils/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
+jest.mock("../config/database", () => ({ query: jest.fn() }));
+jest.mock("../modules/tape/v2-stamp", () => ({ stampV2ScreeningStateTransition: jest.fn() }));
+
+const mockQuery = query as jest.MockedFunction<typeof query>;
+const mockStamp = stampV2ScreeningStateTransition as jest.MockedFunction<
+  typeof stampV2ScreeningStateTransition
+>;
 
 describe("screening state machine — table", () => {
   it("flags terminal states correctly", () => {
@@ -146,5 +157,121 @@ describe("transition()", () => {
         trigger: "fraud_flag_raised",
       })
     ).rejects.toThrow(/Invalid trigger/);
+  });
+});
+
+// ── application_status chokepoint (transitionApplicationStatus) ──────────────
+
+describe("transitionApplicationStatus (application_status chokepoint)", () => {
+  const audit = require("../middleware/audit") as { writeAuditLog: jest.Mock };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("APP_STATUS_TRANSITIONS fans out only from submitted/screening into the screening terminals", () => {
+    const froms = new Set(APP_STATUS_TRANSITIONS.map((t) => t.from));
+    expect(froms).toEqual(new Set(["submitted", "screening"]));
+    expect(
+      APP_STATUS_TRANSITIONS.every((t) =>
+        ["screening", "screening_passed", "screening_failed"].includes(t.to)
+      )
+    ).toBe(true);
+  });
+
+  it("on a winning CAS: writes status+history, audit row, tape stamp, returns changed:true", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-1" }] } as any);
+
+    const res = await transitionApplicationStatus({
+      applicationId: "app-1",
+      from: "screening",
+      to: "screening_passed",
+      trigger: "all_checks_passed",
+      actorId: "user-1",
+      actorRole: "leasing_agent",
+      evidence: { overallResult: "pass" },
+    });
+
+    expect(res).toEqual({ changed: true, status: "screening_passed" });
+
+    // CAS UPDATE params: [id, to, from, trigger, actorId, actorRole, evidenceJson]
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/WHERE id = \$1 AND status = \$3/);
+    expect(params).toEqual([
+      "app-1",
+      "screening_passed",
+      "screening",
+      "all_checks_passed",
+      "user-1",
+      "leasing_agent",
+      JSON.stringify({ overallResult: "pass" }),
+    ]);
+
+    expect(audit.writeAuditLog).toHaveBeenCalledTimes(1);
+    expect(audit.writeAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "screening_state_transition",
+        applicationId: "app-1",
+        details: expect.objectContaining({
+          fromStatus: "screening",
+          toStatus: "screening_passed",
+          trigger: "all_checks_passed",
+        }),
+      })
+    );
+    expect(mockStamp).toHaveBeenCalledTimes(1);
+  });
+
+  it("on a losing CAS (0 rows): no audit, no tape, returns changed:false", async () => {
+    mockQuery.mockResolvedValue({ rows: [] } as any);
+
+    const res = await transitionApplicationStatus({
+      applicationId: "app-1",
+      from: "screening",
+      to: "screening_failed",
+      trigger: "any_check_failed",
+    });
+
+    expect(res).toEqual({ changed: false, status: "screening_failed" });
+    expect(audit.writeAuditLog).not.toHaveBeenCalled();
+    expect(mockStamp).not.toHaveBeenCalled();
+  });
+
+  it("throws on an undefined (from,to) pair without touching the DB", async () => {
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-1",
+        from: "submitted",
+        to: "screening_passed",
+        trigger: "all_checks_passed",
+      })
+    ).rejects.toThrow(/Invalid application_status transition/);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("throws when the trigger is valid elsewhere but wrong for this (from,to)", async () => {
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-1",
+        from: "screening",
+        to: "screening_failed",
+        trigger: "all_checks_passed",
+      })
+    ).rejects.toThrow(/Invalid application_status transition/);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("every APP_STATUS_TRANSITIONS row is accepted by the validator", async () => {
+    for (const t of APP_STATUS_TRANSITIONS) {
+      mockQuery.mockResolvedValue({ rows: [{ id: "x" }] } as any);
+      await expect(
+        transitionApplicationStatus({
+          applicationId: "x",
+          from: t.from,
+          to: t.to,
+          trigger: t.trigger,
+        })
+      ).resolves.toEqual({ changed: true, status: t.to });
+    }
   });
 });

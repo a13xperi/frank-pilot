@@ -4,6 +4,7 @@ import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 import { CreateApplicationInput, UpdateApplicationInput } from "./validation";
 import { FraudDetectionService } from "../screening/fraud-detection";
+import { transitionApplicationStatus } from "../screening/state-machine";
 
 export class ApplicationService {
   private fraudDetection = new FraudDetectionService();
@@ -227,7 +228,59 @@ export class ApplicationService {
       details: { status: "submitted" },
     });
 
+    // Auto-screening on submit — dark-deployed behind SCREENING_ON_SUBMIT_ENABLED.
+    // Flag off ⇒ byte-for-byte current behavior (manual /screen only). When on,
+    // advance the app into `screening` through the chokepoint and kick the
+    // pipeline fire-and-forget. A screening failure leaves the app in
+    // `screening` (non-approvable) and never affects the submit response.
+    if (process.env.SCREENING_ON_SUBMIT_ENABLED === "true") {
+      try {
+        await transitionApplicationStatus({
+          applicationId,
+          from: "submitted",
+          to: "screening",
+          trigger: "screening_started",
+          actorId: submittedBy,
+          actorRole: submitterRole,
+          evidence: { source: "auto_on_submit" },
+        });
+        void this.runScreeningSafely(applicationId, submittedBy, submitterRole);
+      } catch (err) {
+        logger.error("Failed to kick off auto-screening on submit", {
+          error: (err as Error).message,
+          applicationId,
+        });
+      }
+    }
+
     return result.rows[0];
+  }
+
+  /**
+   * Run the full screening pipeline for an auto-submitted application without
+   * letting a failure surface to the applicant. Lazy-imports ScreeningService
+   * to avoid an application <-> screening import cycle. On any throw the app
+   * stays in `screening` (non-approvable) and the error is logged — never a
+   * silent pass, never a 500 to the applicant.
+   */
+  private async runScreeningSafely(
+    applicationId: string,
+    initiatedBy: string,
+    initiatorRole: string
+  ): Promise<void> {
+    try {
+      const { ScreeningService } = await import("../screening/service");
+      await new ScreeningService().runFullScreening(
+        applicationId,
+        initiatedBy,
+        initiatorRole
+      );
+    } catch (err) {
+      logger.error("Auto-screening pipeline failed after submit", {
+        error: (err as Error).message,
+        applicationId,
+      });
+    }
   }
 
   async getById(applicationId: string): Promise<any> {
