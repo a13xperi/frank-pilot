@@ -10,6 +10,8 @@
  * properties refuse rent (rent.disclosed=false → no rent value), and an
  * unknown property name produces a refusal note with no invented data.
  */
+import fs from "fs";
+import path from "path";
 import { buildContext } from "../modules/housing-qa/retriever";
 import { getHousingIndex } from "../modules/housing-qa/data";
 
@@ -96,5 +98,117 @@ describe("housing-qa retriever — grounded context assembly", () => {
     expect(prop).not.toHaveProperty("_aka");
     // provenance _source is intentionally retained
     expect(prop).toHaveProperty("_source");
+  });
+});
+
+/**
+ * AMI-tier provenance contract (issue #225).
+ *
+ * Investigation (2026-05-30, live prod probes) established that #225 is NOT a
+ * grounding leak — the model provably refuses to invent AMI tiers for records
+ * it wasn't given — and NOT a recoverable data gap: enrichment has converged
+ * (scripts/enrich-ami-tiers.py fills 0 additional of the ~81 statewide records
+ * that have no NHD-LIHD counterpart). Those nulls are legitimately
+ * "AMI tier unknown in our sources."
+ *
+ * What remains is to LOCK the contract so the leak can never be *introduced* by
+ * a future refactor. The single coercion point is load-time normalization
+ * (`blankNormalized`: `amiTiers && amiTiers.length ? amiTiers : null`). The two
+ * emit paths — `compact()` (city/attribute) and `stripInternal()` (named) —
+ * must pass `amiTiers` through untouched, and an amiTier *filter* must never
+ * surface a null-tier record (so the model is never handed an empty/ambiguous
+ * tier to cite).
+ */
+describe("housing-qa retriever — AMI-tier provenance (#225)", () => {
+  const idx = getHousingIndex();
+
+  it("normalizes empty amiTiers to null — never a citable empty array []", () => {
+    // The whole point: an empty `[]` would read as 'tiers known to be none',
+    // a subtly different (and false) claim than `null` = 'not in our data'.
+    const empties = idx.records.filter(
+      (r) => Array.isArray(r.amiTiers) && r.amiTiers.length === 0
+    );
+    expect(empties).toHaveLength(0);
+
+    // Every record is either null or a non-empty string[] — no third state.
+    for (const r of idx.records) {
+      expect(
+        r.amiTiers === null ||
+          (Array.isArray(r.amiTiers) && r.amiTiers.length > 0)
+      ).toBe(true);
+    }
+  });
+
+  it("the contract is exercised on real data — both null and populated records exist", () => {
+    const nulls = idx.records.filter((r) => r.amiTiers === null);
+    const populated = idx.records.filter(
+      (r) => Array.isArray(r.amiTiers) && r.amiTiers.length > 0
+    );
+    // ~81 statewide records have no NHD-LIHD AMI source (legitimately null);
+    // 254 are enriched. Soft bounds, not exact counts (data may grow).
+    expect(nulls.length).toBeGreaterThan(0);
+    expect(populated.length).toBeGreaterThan(100);
+  });
+
+  it("a named record with no AMI source emits amiTiers: null (never invented)", () => {
+    // City Center Las Vegas is in the statewide set but has no matchable
+    // NHD-LIHD tier — it must surface as null, not a fabricated percentage.
+    const ctx = buildContext("Tell me about City Center Las Vegas");
+    expect(ctx.routing).toBe("named_property");
+    const prop = ctx.properties[0] as { name: string | null; amiTiers: unknown };
+    expect(prop.name).toBe("City Center Las Vegas");
+    expect(prop.amiTiers).toBeNull();
+  });
+
+  it("a named record WITH an AMI source emits its real tiers (control)", () => {
+    const ctx = buildContext("Tell me about Silver Pines Apts");
+    expect(ctx.routing).toBe("named_property");
+    const prop = ctx.properties[0] as { amiTiers: string[] | null };
+    expect(Array.isArray(prop.amiTiers)).toBe(true);
+    expect(prop.amiTiers!.length).toBeGreaterThan(0);
+  });
+
+  it("an amiTier filter never surfaces a null-tier record", () => {
+    // Filtering by a tier must only return records that actually carry it;
+    // a null-tier record can never match (guards retriever.ts `r.amiTiers || []`).
+    const ctx = buildContext("Show me 50% AMI housing in Las Vegas");
+    for (const p of ctx.properties) {
+      const tiers = (p as { amiTiers: string[] | null }).amiTiers;
+      expect(tiers).not.toBeNull();
+      expect(Array.isArray(tiers)).toBe(true);
+      expect(tiers!.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("the fallback snapshot mirrors the primary's amiTiers (no silent drift)", () => {
+    // data.ts loads client-tenant/public/nv-housing-props.json and only falls
+    // back to src/db/data/nv-housing-props.json when the primary is missing.
+    // The two are committed in lock-step (same records, same order) so a missing
+    // primary degrades to identical AMI data — NEVER to the all-null fallback the
+    // file used to be (issue #225). This locks that promise: if someone re-runs
+    // enrich-ami-tiers.py (which writes only the primary) without re-syncing the
+    // fallback, this test fails loudly instead of letting the mirror rot.
+    const root = path.resolve(__dirname, "..", "..");
+    const primary = JSON.parse(
+      fs.readFileSync(
+        path.join(root, "client-tenant", "public", "nv-housing-props.json"),
+        "utf-8"
+      )
+    ) as Array<{ name: string; amiTiers: string[] | null }>;
+    const fallback = JSON.parse(
+      fs.readFileSync(
+        path.join(root, "src", "db", "data", "nv-housing-props.json"),
+        "utf-8"
+      )
+    ) as Array<{ name: string; amiTiers: string[] | null }>;
+
+    expect(fallback.length).toBe(primary.length);
+    for (let i = 0; i < primary.length; i++) {
+      // same record at the same index …
+      expect(fallback[i].name).toBe(primary[i].name);
+      // … carrying the same AMI tiers (null === [] treated as equal — both load
+      // to null via blankNormalized, so the served grounding is identical).
+      expect(fallback[i].amiTiers ?? []).toEqual(primary[i].amiTiers ?? []);
+    }
   });
 });
