@@ -428,6 +428,14 @@ export interface HousingContext {
   routing: Branch;
   propertyMode: "full" | "compact" | "none";
   properties: Array<EmittedProperty | CompactProperty>;
+  /**
+   * Compact routes only (city / attribute): the TRUE number of matching
+   * records before the K_COMPACT display cap, and how many actually reached
+   * the model. When `totalMatching > shown` the list is truncated and the
+   * prompt MUST disclose "N of TOTAL" (issue #224). Undefined for full/none.
+   */
+  totalMatching?: number;
+  shown?: number;
   faqSections: FaqMatch[];
   facts: typeof ALWAYS_ON_FACTS;
   notes: string[];
@@ -448,6 +456,8 @@ export function buildContext(
   const notes: string[] = [];
   let properties: Array<EmittedProperty | CompactProperty> = [];
   let mode: "full" | "compact" | "none" = "none";
+  let totalMatching: number | undefined;
+  let shown: number | undefined;
 
   if (branch === "named_property") {
     const rec = detail.record!;
@@ -467,6 +477,8 @@ export function buildContext(
     );
     properties = recs.slice(0, K_COMPACT).map(compact);
     mode = "compact";
+    totalMatching = recs.length;
+    shown = properties.length;
     if (recs.length > K_COMPACT) {
       notes.push(
         `${recs.length} properties in ${detail.city}; showing first ${K_COMPACT}.`
@@ -490,6 +502,8 @@ export function buildContext(
     );
     properties = recs.slice(0, K_COMPACT).map(compact);
     mode = "compact";
+    totalMatching = recs.length;
+    shown = properties.length;
     const scope = detail.city ? ` in ${detail.city}` : "";
     if (recs.length > K_COMPACT) {
       notes.push(`${recs.length} matches${scope}; showing first ${K_COMPACT}.`);
@@ -530,6 +544,8 @@ export function buildContext(
     routing: branch,
     propertyMode: mode,
     properties,
+    totalMatching,
+    shown,
     faqSections: faq,
     facts: ALWAYS_ON_FACTS,
     notes,
