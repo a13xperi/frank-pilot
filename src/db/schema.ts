@@ -471,6 +471,27 @@ CREATE TABLE applications (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- LIHTC §42 Buildings (one row per Building Identification Number). Declared
+-- BEFORE units so units.building_id can reference it inline. BINs are nullable
+-- (5 are blank in the GPMG source) and never invented; bin_confidence flags
+-- the provisional fletcher mapping. Mirrors 2026-05-30-buildings-bin.sql.
+CREATE TABLE buildings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id   UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  building_code VARCHAR(20) NOT NULL,
+  bin           VARCHAR(20),
+  bin_confidence VARCHAR(12) NOT NULL DEFAULT 'confirmed'
+                 CHECK (bin_confidence IN ('confirmed','provisional')),
+  bin_source    VARCHAR(40),
+  unit_count    INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (property_id, building_code)
+);
+
+-- A BIN is globally unique when present; NULLs are exempt.
+CREATE UNIQUE INDEX idx_buildings_bin ON buildings(bin) WHERE bin IS NOT NULL;
+
 -- Individual units, generated from properties.unit_mix. Status drives the
 -- unit-picker funnel: available → held (during applicant claim) → leased.
 CREATE TABLE units (
@@ -490,6 +511,8 @@ CREATE TABLE units (
   -- QAP acquisitions Phase 3: per-unit AMI designation from a bound award's
   -- election/unit-mix. NULL = undesignated. See 2026-05-25-acq-awards-and-designations.sql.
   ami_designation VARCHAR(10) CHECK (ami_designation IN ('30','50','60','market')),
+  -- LIHTC §42 Phase A: link to the unit's building (nullable). See 2026-05-30-buildings-bin.sql.
+  building_id UUID REFERENCES buildings(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (property_id, unit_number)
@@ -501,6 +524,12 @@ CREATE INDEX idx_units_available ON units(status) WHERE status = 'available';
 CREATE INDEX idx_units_bedrooms_rent ON units(bedrooms, monthly_rent);
 -- Stale-hold scan support for the lazy-expire path in GET /applicants/units.
 CREATE INDEX idx_units_held_expires ON units(claim_expires_at) WHERE status = 'held';
+-- LIHTC §42 Phase A: index the building FK (mirrors 2026-05-30-buildings-bin.sql).
+CREATE INDEX idx_units_building ON units(building_id);
+
+-- LIHTC §42 Phase A: Form 8609 line 8b (multi-building project as one). NULL = unknown.
+-- Declared post-hoc because the properties table is created earlier in this bootstrap SQL.
+ALTER TABLE properties ADD COLUMN election_8b BOOLEAN;
 
 -- FK from applications.claimed_unit_id → units(id). Declared post-units because
 -- the applications table is created earlier in this bootstrap SQL.
@@ -1364,6 +1393,7 @@ DROP TABLE IF EXISTS waitlist_entries CASCADE;
 DROP TABLE IF EXISTS known_problem_addresses CASCADE;
 DROP TABLE IF EXISTS ami_limits CASCADE;
 DROP TABLE IF EXISTS applications CASCADE;
+DROP TABLE IF EXISTS buildings CASCADE;
 DROP TABLE IF EXISTS properties CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 

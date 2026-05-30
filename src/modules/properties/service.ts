@@ -31,6 +31,17 @@ export interface PropertyRecord {
   waitingListEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
+  /** LIHTC §42 Phase A: read-only building/BIN roster, populated only on the
+   *  single-property detail (getById). Omitted on list/marker responses. */
+  buildings?: BuildingSummary[];
+}
+
+/** Read-only building summary surfaced on the property detail response. */
+export interface BuildingSummary {
+  buildingCode: string;
+  bin: string | null;
+  binConfidence: "confirmed" | "provisional";
+  unitCount: number;
 }
 
 // Wedge #8 — live unit availability rollup. Joined from the units table so the
@@ -461,7 +472,33 @@ export class PropertyService {
       [propertyId]
     );
     if (result.rows.length === 0) return null;
-    return this.rowToRecord(result.rows[0]);
+    const record = this.rowToRecord(result.rows[0]);
+
+    // LIHTC §42 Phase A: attach the read-only building/BIN roster. Read-only —
+    // no behavior change. Tolerant of a DB that predates the buildings table.
+    try {
+      const buildingsRes = await query(
+        `SELECT building_code, bin, bin_confidence, unit_count
+           FROM buildings
+          WHERE property_id = $1
+          ORDER BY building_code`,
+        [propertyId]
+      );
+      record.buildings = buildingsRes.rows.map((row: any) => ({
+        buildingCode: row.building_code,
+        bin: row.bin ?? null,
+        binConfidence: row.bin_confidence,
+        unitCount: row.unit_count,
+      }));
+    } catch (err) {
+      // Buildings table may not exist yet (pre-migration DB) — surface nothing.
+      logger.warn("getById: buildings roster unavailable", {
+        propertyId,
+        error: (err as Error).message,
+      });
+    }
+
+    return record;
   }
 
   async create(
