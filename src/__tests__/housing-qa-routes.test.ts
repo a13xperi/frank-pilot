@@ -52,7 +52,11 @@ function fakeChild(stdout: string, code = 0) {
   return child;
 }
 
-import { housingQaRouter, setHousingQaDisabled } from "../modules/housing-qa/routes";
+import {
+  housingQaRouter,
+  setHousingQaDisabled,
+  housingQaStatus,
+} from "../modules/housing-qa/routes";
 import { logger } from "../utils/logger";
 
 function makeApp() {
@@ -67,6 +71,7 @@ const ORIGINAL_CLI_FLAG = process.env.HOUSING_QA_CLI_FALLBACK;
 const ORIGINAL_CLI_PATH = process.env.CLAUDE_CLI_PATH;
 const ORIGINAL_ENABLED = process.env.HOUSING_QA_ENABLED;
 const ORIGINAL_DAILY_MAX = process.env.HOUSING_QA_DAILY_MAX;
+const ORIGINAL_DAILY_BUDGET = process.env.HOUSING_QA_DAILY_BUDGET_USD;
 
 beforeEach(() => {
   createMock.mockReset();
@@ -78,6 +83,7 @@ beforeEach(() => {
   // Guardrails default to ON / default cap for every test unless it opts in.
   delete process.env.HOUSING_QA_ENABLED;
   delete process.env.HOUSING_QA_DAILY_MAX;
+  delete process.env.HOUSING_QA_DAILY_BUDGET_USD;
   setHousingQaDisabled(false);
   // Pin the resolved binary so the spawn assertion is deterministic regardless
   // of whether @anthropic-ai/claude-code is installed in this environment.
@@ -95,6 +101,7 @@ afterAll(() => {
   restoreEnv("CLAUDE_CLI_PATH", ORIGINAL_CLI_PATH);
   restoreEnv("HOUSING_QA_ENABLED", ORIGINAL_ENABLED);
   restoreEnv("HOUSING_QA_DAILY_MAX", ORIGINAL_DAILY_MAX);
+  restoreEnv("HOUSING_QA_DAILY_BUDGET_USD", ORIGINAL_DAILY_BUDGET);
   setHousingQaDisabled(false);
 });
 
@@ -345,5 +352,84 @@ describe("POST /api/housing-qa — usage logging is PII-safe", () => {
     expect(meta.path).toBe("sdk");
     // The raw question text must NEVER appear in the structured log meta.
     expect(JSON.stringify(meta)).not.toContain("secret-codeword");
+  });
+});
+
+describe("POST /api/housing-qa — metered spend accounting + USD budget", () => {
+  it("captures SDK usage (cache folded into input) → status + success log", async () => {
+    const before = housingQaStatus();
+    // 3000 base + 500 + 500 cache = 4000 input; output 1000. Choosing the cache
+    // split this way keeps the est. cost a clean $0.009 while still proving the
+    // fold (the asserted input delta is 4000, not the 3000 base).
+    createMock.mockResolvedValueOnce({
+      content: [{ type: "text", text: "Grounded answer." }],
+      usage: {
+        input_tokens: 3000,
+        cache_creation_input_tokens: 500,
+        cache_read_input_tokens: 500,
+        output_tokens: 1000,
+      },
+    });
+
+    const res = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question: "How much is the application fee?" });
+    expect(res.status).toBe(200);
+
+    // Status reflects exactly this call's tokens (counters are exact, not rounded);
+    // input delta = 4000 proves cache tokens are folded into the input total.
+    const after = housingQaStatus();
+    expect(after.dailyInputTokens - before.dailyInputTokens).toBe(4000);
+    expect(after.dailyOutputTokens - before.dailyOutputTokens).toBe(1000);
+    expect(after.dailyEstCostUsd).toBeGreaterThan(before.dailyEstCostUsd);
+    expect(after.dailyBudgetUsd).toBe(10); // default
+
+    // The success log carries token counts + an estimated cost (not PII).
+    const infoCall = (logger.info as jest.Mock).mock.calls.find(
+      (c) => c[0] === "housing-qa answered"
+    );
+    const meta = infoCall![1] as Record<string, unknown>;
+    expect(meta.inputTokens).toBe(4000);
+    expect(meta.outputTokens).toBe(1000);
+    // 4000/1e6*$1 + 1000/1e6*$5 = $0.004 + $0.005 = $0.009
+    expect(meta.estCostUsd).toBeCloseTo(0.009, 6);
+  });
+
+  it("503s the SDK path when HOUSING_QA_DAILY_BUDGET_USD=0 (cost kill-switch)", async () => {
+    process.env.HOUSING_QA_DAILY_BUDGET_USD = "0";
+    const res = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question: "How much is the application fee?" });
+    expect(res.status).toBe(503);
+    expect(res.body.error).toMatch(/today's limit/i);
+    // Budget gate trips BEFORE the model is dispatched.
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("the USD budget governs the SDK path ONLY — the priced-blind CLI still answers", async () => {
+    // Budget that would block the SDK, but no key + flag on → CLI path.
+    delete process.env.ANTHROPIC_API_KEY;
+    process.env.HOUSING_QA_CLI_FALLBACK = "1";
+    process.env.HOUSING_QA_DAILY_BUDGET_USD = "0";
+    spawnMock.mockImplementationOnce(() => fakeChild("CLI answer"));
+
+    const res = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question: "How much is the application fee?" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ answer: "CLI answer" });
+    expect(createMock).not.toHaveBeenCalled();
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+
+    // CLI path reports no usage → token fields log as null, never throws.
+    const infoCall = (logger.info as jest.Mock).mock.calls.find(
+      (c) => c[0] === "housing-qa answered"
+    );
+    const meta = infoCall![1] as Record<string, unknown>;
+    expect(meta.path).toBe("cli");
+    expect(meta.inputTokens).toBeNull();
+    expect(meta.outputTokens).toBeNull();
+    expect(meta.estCostUsd).toBeNull();
   });
 });

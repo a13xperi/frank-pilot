@@ -28,6 +28,15 @@ const MODEL = "claude-haiku-4-5-20251001";
 const MAX_QUESTION_CHARS = 1000;
 const MAX_TOKENS = 1024;
 
+// Estimated Haiku 4.5 rates for the daily USD budget — INFORMATIONAL, not
+// billing-grade (the real invoice is Anthropic's). VERIFY against the current
+// pricing page when touched; both the cap and the logged `estCostUsd` derive
+// from these. Cache-read/-write tokens (if `usage` carries them) are folded in
+// at the input rate — a deliberate simplification; cache rates are lower, so
+// this over-estimates spend slightly, which is the safe direction for a cap.
+const USD_PER_MTOK_INPUT = 1.0; // ~$1.00 / 1M input tokens
+const USD_PER_MTOK_OUTPUT = 5.0; // ~$5.00 / 1M output tokens
+
 const questionSchema = z.object({
   question: z.string().trim().min(1).max(MAX_QUESTION_CHARS),
 });
@@ -80,30 +89,85 @@ function dailyMax(): number {
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 500;
 }
+
+// Daily USD budget — the operator-facing cost knob for the metered SDK path.
+// Read lazily like dailyMax(). `HOUSING_QA_DAILY_BUDGET_USD=0` blocks all SDK
+// calls (a coarse cost kill-switch, matching the DAILY_MAX=0 semantics);
+// unset/invalid falls back to $10/day. Governs the SDK path ONLY — the CLI
+// fallback has no `usage` to price, so it's bounded by the request counter
+// (dailyMax) alone.
+function dailyBudgetUsd(): number {
+  const raw = process.env.HOUSING_QA_DAILY_BUDGET_USD;
+  if (raw === undefined || raw === "") return 10;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 10;
+}
+
 let dailyCount = 0;
+let dailyInputTokens = 0;
+let dailyOutputTokens = 0;
 let dailyWindow = utcDayStamp();
 function utcDayStamp(): string {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD in UTC
 }
-// Rolls the window on the first call of a new UTC day. Returns false when the
-// cap is already reached (caller 503s); otherwise counts this call → true.
-function underDailyCapAndCount(): boolean {
+// Rolls every per-day accumulator together on the first call of a new UTC day,
+// so the request counter and the spend counters can never desync.
+function rollWindow(): void {
   const today = utcDayStamp();
   if (today !== dailyWindow) {
     dailyWindow = today;
     dailyCount = 0;
+    dailyInputTokens = 0;
+    dailyOutputTokens = 0;
   }
+}
+// Estimated USD spent so far today, derived from accumulated tokens.
+function dailyEstCostUsd(): number {
+  return (
+    (dailyInputTokens / 1e6) * USD_PER_MTOK_INPUT +
+    (dailyOutputTokens / 1e6) * USD_PER_MTOK_OUTPUT
+  );
+}
+// Rolls the window then checks both ceilings: the USD budget (SDK path only —
+// the CLI path has no usage to price, so pass usagePriced=false there) and the
+// request counter. Returns false when either is already reached (caller 503s);
+// otherwise counts this call → true. The budget check is post-hoc: real token
+// usage is known only AFTER the call, so a call can overshoot the budget by at
+// most one call (~$0.01 at MAX_TOKENS=1024) — acceptable.
+function underDailyCapAndCount(usagePriced: boolean): boolean {
+  rollWindow();
+  if (usagePriced && dailyEstCostUsd() >= dailyBudgetUsd()) return false;
   if (dailyCount >= dailyMax()) return false;
   dailyCount++;
   return true;
+}
+// Records real token usage from a completed SDK call so the budget gate and the
+// status route reflect actual spend. Cache tokens (if present) are folded into
+// input. No-op for the CLI path, which reports no usage.
+function recordUsage(inputTokens: number, outputTokens: number): void {
+  rollWindow();
+  dailyInputTokens += Math.max(0, inputTokens);
+  dailyOutputTokens += Math.max(0, outputTokens);
 }
 // Observability for the admin status route + tests.
 export function housingQaStatus(): {
   enabled: boolean;
   dailyCount: number;
   dailyMax: number;
+  dailyInputTokens: number;
+  dailyOutputTokens: number;
+  dailyEstCostUsd: number;
+  dailyBudgetUsd: number;
 } {
-  return { enabled: housingQaEnabled(), dailyCount, dailyMax: dailyMax() };
+  return {
+    enabled: housingQaEnabled(),
+    dailyCount,
+    dailyMax: dailyMax(),
+    dailyInputTokens,
+    dailyOutputTokens,
+    dailyEstCostUsd: Number(dailyEstCostUsd().toFixed(4)),
+    dailyBudgetUsd: dailyBudgetUsd(),
+  };
 }
 
 // Lazily construct the SDK client so a missing key degrades to a 503 rather
@@ -250,10 +314,14 @@ export function housingQaRouter(): Router {
       return;
     }
 
-    // Daily volume ceiling — only well-formed, dispatchable requests count.
-    if (!underDailyCapAndCount()) {
+    // Daily ceilings — only well-formed, dispatchable requests count. The USD
+    // budget is enforced only when the SDK (metered) path will answer; the CLI
+    // path is priced-blind and bounded by the request counter alone.
+    if (!underDailyCapAndCount(Boolean(client))) {
       logger.warn("housing-qa request rejected — daily cap reached", {
         dailyMax: dailyMax(),
+        dailyBudgetUsd: dailyBudgetUsd(),
+        dailyEstCostUsd: Number(dailyEstCostUsd().toFixed(4)),
       });
       res.status(503).json({
         error:
@@ -267,6 +335,10 @@ export function housingQaRouter(): Router {
       const system = buildSystemPrompt(context);
 
       let answer: string;
+      // Captured from the SDK response for the budget gate + spend log; stays
+      // null on the CLI path, which reports no usage.
+      let inputTokens: number | null = null;
+      let outputTokens: number | null = null;
       if (client) {
         const completion = await client.messages.create({
           model: MODEL,
@@ -281,6 +353,15 @@ export function housingQaRouter(): Router {
           .map((block) => block.text)
           .join("")
           .trim();
+        // Fold cache tokens into input (over-estimates slightly — the safe
+        // direction for a cost cap). Feeds the daily budget + status route.
+        const u = completion.usage;
+        inputTokens =
+          (u?.input_tokens ?? 0) +
+          (u?.cache_creation_input_tokens ?? 0) +
+          (u?.cache_read_input_tokens ?? 0);
+        outputTokens = u?.output_tokens ?? 0;
+        recordUsage(inputTokens, outputTokens);
       } else {
         // CLI fallback (local, keyless) — see callViaCli. Bound concurrency so
         // many IPs can't fan out into unbounded subprocesses.
@@ -308,13 +389,26 @@ export function housingQaRouter(): Router {
 
       // PII-safe usage line for cost-spike + abuse visibility. Question LENGTH
       // only, never content (the logger PII-filters regardless). `route` is the
-      // retrieval branch; `path` is which backend answered.
+      // retrieval branch; `path` is which backend answered. Token counts + the
+      // estimated cost are present only on the metered SDK path (null on CLI);
+      // tokens are not PII.
       logger.info("housing-qa answered", {
         route: context.routing,
         path: client ? "sdk" : "cli",
         qLen: question.length,
         propertyCount: context.properties.length,
         latencyMs: Date.now() - startedAt,
+        inputTokens,
+        outputTokens,
+        estCostUsd:
+          inputTokens !== null && outputTokens !== null
+            ? Number(
+                (
+                  (inputTokens / 1e6) * USD_PER_MTOK_INPUT +
+                  (outputTokens / 1e6) * USD_PER_MTOK_OUTPUT
+                ).toFixed(4)
+              )
+            : null,
       });
 
       res.json({ answer });
