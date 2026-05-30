@@ -41,7 +41,70 @@ const qaLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many questions, please slow down and try again soon." },
+  // Surface per-IP abuse without Sentry. The PII-filtered logger scrubs the IP;
+  // we log the event + path only, never the question.
+  handler: (req, res, _next, options) => {
+    logger.warn("housing-qa rate-limited", { path: req.path });
+    res.status(options.statusCode).json(options.message);
+  },
 });
+
+// --------------------------------------------------------------------------- //
+// Operational guardrails — kill-switch + daily volume ceiling
+//
+// This endpoint is PUBLIC and, in prod, backed by a personal Max-subscription
+// token through the CLI fallback. The per-IP limit alone can't bound it: many
+// distinct IPs can each stay under 20/10min while summing to a large daily
+// spend, and there's no way to stop it short of a redeploy. These add an
+// instant kill and a hard daily cap.
+// --------------------------------------------------------------------------- //
+
+// Restart-durable default from env (ON unless explicitly "false"), mirroring
+// the VOICE_INTAKE_ENABLED pattern. `inMemoryDisabled` is the break-glass: an
+// auth-gated admin route flips it for an INSTANT kill with no redeploy. Either
+// signal being "off" disables the endpoint.
+let inMemoryDisabled = false;
+export function setHousingQaDisabled(disabled: boolean): void {
+  inMemoryDisabled = disabled;
+}
+export function housingQaEnabled(): boolean {
+  return !inMemoryDisabled && process.env.HOUSING_QA_ENABLED !== "false";
+}
+
+// Hard daily call ceiling, reset at UTC midnight. Read the cap lazily so ops
+// can change it without a reimport. `HOUSING_QA_DAILY_MAX=0` blocks all calls
+// (a coarse second kill-switch); unset/invalid falls back to 500/day.
+function dailyMax(): number {
+  const raw = process.env.HOUSING_QA_DAILY_MAX;
+  if (raw === undefined || raw === "") return 500;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 500;
+}
+let dailyCount = 0;
+let dailyWindow = utcDayStamp();
+function utcDayStamp(): string {
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD in UTC
+}
+// Rolls the window on the first call of a new UTC day. Returns false when the
+// cap is already reached (caller 503s); otherwise counts this call → true.
+function underDailyCapAndCount(): boolean {
+  const today = utcDayStamp();
+  if (today !== dailyWindow) {
+    dailyWindow = today;
+    dailyCount = 0;
+  }
+  if (dailyCount >= dailyMax()) return false;
+  dailyCount++;
+  return true;
+}
+// Observability for the admin status route + tests.
+export function housingQaStatus(): {
+  enabled: boolean;
+  dailyCount: number;
+  dailyMax: number;
+} {
+  return { enabled: housingQaEnabled(), dailyCount, dailyMax: dailyMax() };
+}
 
 // Lazily construct the SDK client so a missing key degrades to a 503 rather
 // than throwing at module load (which would crash the whole server boot).
@@ -154,6 +217,19 @@ export function housingQaRouter(): Router {
   const router: Router = Router();
 
   router.post("/", qaLimiter, async (req: Request, res: Response) => {
+    const startedAt = Date.now();
+
+    // Kill-switch first — a disabled endpoint short-circuits before we even
+    // parse the body. Same opaque 503 body as the keyless path.
+    if (!housingQaEnabled()) {
+      logger.warn("housing-qa request rejected — endpoint disabled");
+      res.status(503).json({
+        error:
+          "The housing assistant is temporarily unavailable. Please try again later.",
+      });
+      return;
+    }
+
     const parsed = questionSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({
@@ -170,6 +246,18 @@ export function housingQaRouter(): Router {
       res.status(503).json({
         error:
           "The housing assistant is temporarily unavailable. Please try again later.",
+      });
+      return;
+    }
+
+    // Daily volume ceiling — only well-formed, dispatchable requests count.
+    if (!underDailyCapAndCount()) {
+      logger.warn("housing-qa request rejected — daily cap reached", {
+        dailyMax: dailyMax(),
+      });
+      res.status(503).json({
+        error:
+          "The housing assistant has reached today's limit. Please try again tomorrow.",
       });
       return;
     }
@@ -217,6 +305,17 @@ export function housingQaRouter(): Router {
         });
         return;
       }
+
+      // PII-safe usage line for cost-spike + abuse visibility. Question LENGTH
+      // only, never content (the logger PII-filters regardless). `route` is the
+      // retrieval branch; `path` is which backend answered.
+      logger.info("housing-qa answered", {
+        route: context.routing,
+        path: client ? "sdk" : "cli",
+        qLen: question.length,
+        propertyCount: context.properties.length,
+        latencyMs: Date.now() - startedAt,
+      });
 
       res.json({ answer });
     } catch (err) {

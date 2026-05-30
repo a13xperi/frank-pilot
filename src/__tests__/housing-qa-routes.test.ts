@@ -52,7 +52,8 @@ function fakeChild(stdout: string, code = 0) {
   return child;
 }
 
-import { housingQaRouter } from "../modules/housing-qa/routes";
+import { housingQaRouter, setHousingQaDisabled } from "../modules/housing-qa/routes";
+import { logger } from "../utils/logger";
 
 function makeApp() {
   const app = express();
@@ -64,24 +65,37 @@ function makeApp() {
 const ORIGINAL_KEY = process.env.ANTHROPIC_API_KEY;
 const ORIGINAL_CLI_FLAG = process.env.HOUSING_QA_CLI_FALLBACK;
 const ORIGINAL_CLI_PATH = process.env.CLAUDE_CLI_PATH;
+const ORIGINAL_ENABLED = process.env.HOUSING_QA_ENABLED;
+const ORIGINAL_DAILY_MAX = process.env.HOUSING_QA_DAILY_MAX;
 
 beforeEach(() => {
   createMock.mockReset();
   spawnMock.mockReset();
+  (logger.info as jest.Mock).mockReset();
+  (logger.warn as jest.Mock).mockReset();
   process.env.ANTHROPIC_API_KEY = "test-key-123";
   delete process.env.HOUSING_QA_CLI_FALLBACK;
+  // Guardrails default to ON / default cap for every test unless it opts in.
+  delete process.env.HOUSING_QA_ENABLED;
+  delete process.env.HOUSING_QA_DAILY_MAX;
+  setHousingQaDisabled(false);
   // Pin the resolved binary so the spawn assertion is deterministic regardless
   // of whether @anthropic-ai/claude-code is installed in this environment.
   process.env.CLAUDE_CLI_PATH = "claude";
 });
 
+function restoreEnv(key: string, original: string | undefined) {
+  if (original === undefined) delete process.env[key];
+  else process.env[key] = original;
+}
+
 afterAll(() => {
-  if (ORIGINAL_KEY === undefined) delete process.env.ANTHROPIC_API_KEY;
-  else process.env.ANTHROPIC_API_KEY = ORIGINAL_KEY;
-  if (ORIGINAL_CLI_FLAG === undefined) delete process.env.HOUSING_QA_CLI_FALLBACK;
-  else process.env.HOUSING_QA_CLI_FALLBACK = ORIGINAL_CLI_FLAG;
-  if (ORIGINAL_CLI_PATH === undefined) delete process.env.CLAUDE_CLI_PATH;
-  else process.env.CLAUDE_CLI_PATH = ORIGINAL_CLI_PATH;
+  restoreEnv("ANTHROPIC_API_KEY", ORIGINAL_KEY);
+  restoreEnv("HOUSING_QA_CLI_FALLBACK", ORIGINAL_CLI_FLAG);
+  restoreEnv("CLAUDE_CLI_PATH", ORIGINAL_CLI_PATH);
+  restoreEnv("HOUSING_QA_ENABLED", ORIGINAL_ENABLED);
+  restoreEnv("HOUSING_QA_DAILY_MAX", ORIGINAL_DAILY_MAX);
+  setHousingQaDisabled(false);
 });
 
 describe("POST /api/housing-qa — validation", () => {
@@ -258,5 +272,78 @@ describe("POST /api/housing-qa — CLI fallback (keyless)", () => {
       .send({ question: "How much is the application fee?" });
     expect(res.status).toBe(502);
     expect(JSON.stringify(res.body)).not.toMatch(/secret stderr boom/);
+  });
+});
+
+describe("POST /api/housing-qa — kill-switch (HOUSING_QA_ENABLED)", () => {
+  it("returns 503 and never calls the model when HOUSING_QA_ENABLED=false", async () => {
+    process.env.HOUSING_QA_ENABLED = "false";
+    const res = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question: "How much is the application fee?" });
+    expect(res.status).toBe(503);
+    expect(res.body.error).toMatch(/temporarily unavailable/i);
+    expect(createMock).not.toHaveBeenCalled();
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
+  it("the in-memory override (break-glass) 503s instantly, then re-enables", async () => {
+    // Disable via the admin setter (no env change, no redeploy) → 503.
+    setHousingQaDisabled(true);
+    const down = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question: "How much is the application fee?" });
+    expect(down.status).toBe(503);
+    expect(createMock).not.toHaveBeenCalled();
+
+    // Flip it back on → normal 200.
+    setHousingQaDisabled(false);
+    createMock.mockResolvedValueOnce({
+      content: [{ type: "text", text: "Back online." }],
+    });
+    const up = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question: "How much is the application fee?" });
+    expect(up.status).toBe(200);
+    expect(up.body.answer).toBe("Back online.");
+  });
+});
+
+describe("POST /api/housing-qa — daily ceiling (HOUSING_QA_DAILY_MAX)", () => {
+  it("returns 503 without calling the model once the daily cap is reached", async () => {
+    // 0 = block all calls for the day (the cap floor).
+    process.env.HOUSING_QA_DAILY_MAX = "0";
+    const res = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question: "How much is the application fee?" });
+    expect(res.status).toBe(503);
+    expect(res.body.error).toMatch(/today's limit/i);
+    expect(createMock).not.toHaveBeenCalled();
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/housing-qa — usage logging is PII-safe", () => {
+  it("logs question LENGTH and route on success, never the question text", async () => {
+    createMock.mockResolvedValueOnce({
+      content: [{ type: "text", text: "The fee is $35.95." }],
+    });
+    const question = "How much is the secret-codeword application fee?";
+    const res = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question });
+    expect(res.status).toBe(200);
+
+    const infoCall = (logger.info as jest.Mock).mock.calls.find(
+      (c) => c[0] === "housing-qa answered"
+    );
+    expect(infoCall).toBeDefined();
+    const meta = infoCall![1] as Record<string, unknown>;
+    expect(meta.qLen).toBe(question.length);
+    expect(typeof meta.latencyMs).toBe("number");
+    expect(meta.route).toBeDefined();
+    expect(meta.path).toBe("sdk");
+    // The raw question text must NEVER appear in the structured log meta.
+    expect(JSON.stringify(meta)).not.toContain("secret-codeword");
   });
 });
