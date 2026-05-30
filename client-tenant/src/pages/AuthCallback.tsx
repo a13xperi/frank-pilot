@@ -48,6 +48,17 @@ async function fetchMeWithRetry(): Promise<MeResponse> {
   }
 }
 
+// Phase B.2 — carry the voice-intake handle through the redirect. A "Talk to
+// Frank" magic link arrives as `…/auth/callback?token=…&intake=<conversationId>`;
+// resolvePostVerifyRoute() decides the destination but knows nothing about the
+// intake handle, so we re-attach it here. Harmless on /dashboard|/application
+// (they ignore it); the apply wizard reads it to hydrate the form from the call.
+function withIntake(dest: string, intake: string | null): string {
+  if (!intake) return dest;
+  const sep = dest.includes('?') ? '&' : '?';
+  return `${dest}${sep}intake=${encodeURIComponent(intake)}`;
+}
+
 async function resolvePostVerifyRoute(): Promise<string> {
   // Retry once on transient /auth/me failure. Defaulting to the intent quiz
   // here misroutes staff (and any returning applicant) into the wrong screen.
@@ -73,6 +84,7 @@ export function AuthCallback() {
 
   useEffect(() => {
     const token = searchParams.get('token');
+    const intake = searchParams.get('intake');
     if (!token) {
       setError('No token found in link.');
       return;
@@ -89,7 +101,7 @@ export function AuthCallback() {
           return '/login';
         }
       })
-      .then(dest => navigate(dest, { replace: true }))
+      .then(dest => navigate(withIntake(dest, intake), { replace: true }))
       .catch(err => setError(err instanceof Error ? err.message : 'Invalid or expired link'));
   }, [searchParams, navigate]);
 
