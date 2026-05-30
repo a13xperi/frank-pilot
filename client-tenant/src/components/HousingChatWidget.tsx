@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HF } from '@/styles/tokens';
 import { CTA } from '@/components/primitives/CTA';
+import { ChatMarkdown } from './ChatMarkdown';
 import { askHousingQa } from '@/api/client';
 import { useConsent } from '@/state/consent';
 
@@ -271,12 +272,16 @@ export function HousingChatWidget() {
                   padding: '8px 11px',
                   fontSize: 13.5,
                   lineHeight: 1.45,
-                  whiteSpace: 'pre-wrap',
+                  // User text is plain (preserve their own line breaks); the
+                  // assistant answer is markdown rendered into block elements,
+                  // so pre-wrap would double the spacing — let the renderer own
+                  // layout there. (#223)
+                  whiteSpace: isUser ? 'pre-wrap' : 'normal',
                   wordBreak: 'break-word',
                   boxShadow: HF.shadow.xs,
                 }}
               >
-                {m.text}
+                {isUser ? m.text : <ChatMarkdown text={m.text} />}
               </div>
             </div>
           );
