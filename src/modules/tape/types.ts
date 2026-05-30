@@ -53,6 +53,9 @@ export interface TapeJsonLdPayload {
   ruleCitation: string;
   /** Free-form, kind-specific fields. Validated per-kind in Lane C. */
   evidence?: Record<string, unknown>;
+  /** LIHTC §42 Building Identification Number, when a stamp scopes to a specific
+   *  building/unit. Optional and not emitted by any maker yet (Phase A data layer). */
+  bin?: string;
   /** Any other JSON-LD fields the kind needs. */
   [extra: string]: unknown;
 }

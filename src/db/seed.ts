@@ -3,6 +3,7 @@ dotenv.config();
 
 import { pool, query } from "../config/database";
 import bcrypt from "bcrypt";
+import { seedBuildings } from "./seed-buildings";
 
 // ── Unit status distribution ─────────────────────────────────────────────────
 // Target: 70% available / 20% leased / 10% held
@@ -298,6 +299,16 @@ async function seed() {
       throw new Error(`Seed distribution assertion failed — ${msg}. Fix unitStatus() or the seed data.`);
     }
     console.log(`  Distribution check passed: ${distReport.map((r) => `${r.status}=${r.actual}%`).join(" / ")}`);
+
+    // ── LIHTC §42 buildings + BIN (data layer; fail-closed) ─────────────
+    // Resolves properties by EXACT name; skips + logs the 5 unmapped binKeys
+    // and any joinName row absent from this DB (e.g. fresh demo DB without the
+    // statewide geo-seed). Never throws on a missing property — log and continue.
+    try {
+      await seedBuildings(query);
+    } catch (err) {
+      console.warn(`  Buildings seed warning: ${(err as Error).message}`);
+    }
 
     // ── Seeded applicant: applicantA@cdpc.test (e2e harness) ───────────
     // Pre-walked through register + verify + intent + claim. Lands on
