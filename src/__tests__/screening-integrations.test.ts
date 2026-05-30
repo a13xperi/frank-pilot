@@ -11,7 +11,7 @@
  *
  * Also tests the two real live paths exposed by environment config:
  *   - Stub path: no SCREENING_API_KEY → returns clean stub data
- *   - Error path: API throws → caught → returns review_required (safe fallback)
+ *   - Error path: API throws → caught → returns could_not_screen (safe fallback)
  *
  * LIHTC/HUD/FCRA compliance notes:
  *   BackgroundCheckService: auto-fail on felonies, sex offenses, violent crimes
@@ -166,17 +166,17 @@ describe("BackgroundCheckService.runCheck()", () => {
     expect(result.details.riskScore).toBe(25);
   });
 
-  it("returns review_required with riskScore=-1 when the screening API throws (safe fallback)", async () => {
+  it("returns could_not_screen with riskScore=-1 when the screening API throws (safe fallback)", async () => {
     jest.spyOn(service as any, "callScreeningAPI").mockRejectedValue(
       new Error("Network timeout")
     );
 
     const result = await service.runCheck(bgInput());
 
-    expect(result.result).toBe("review_required");
+    expect(result.result).toBe("could_not_screen");
     expect(result.details.riskScore).toBe(-1);
     expect(result.details.rawResponse).toMatchObject({
-      error: expect.stringMatching(/manual review/i),
+      error: expect.stringMatching(/could not screen/i),
     });
   });
 
@@ -339,17 +339,17 @@ describe("CreditCheckService.runCheck()", () => {
     expect(result.creditScore).toBe(450);
   });
 
-  it("returns review_required with creditScore=0 when the credit API throws (safe fallback)", async () => {
+  it("returns could_not_screen with creditScore=0 when the credit API throws (safe fallback)", async () => {
     jest.spyOn(service as any, "callCreditAPI").mockRejectedValue(
       new Error("Credit bureau timeout")
     );
 
     const result = await service.runCheck(creditInput());
 
-    expect(result.result).toBe("review_required");
+    expect(result.result).toBe("could_not_screen");
     expect(result.creditScore).toBe(0);
     expect(result.details.rawResponse).toMatchObject({
-      error: expect.stringMatching(/manual review/i),
+      error: expect.stringMatching(/could not screen/i),
     });
   });
 

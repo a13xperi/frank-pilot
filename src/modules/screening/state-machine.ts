@@ -149,7 +149,8 @@ export type AppStatus =
   | "submitted"
   | "screening"
   | "screening_passed"
-  | "screening_failed";
+  | "screening_failed"
+  | "screening_review";
 
 interface AppStatusTransition {
   from: AppStatus;
@@ -164,6 +165,12 @@ export const APP_STATUS_TRANSITIONS: ReadonlyArray<AppStatusTransition> = [
   { from: "screening", to: "screening_failed", trigger: "any_check_failed" },
   { from: "screening", to: "screening_failed", trigger: "identity_rejected" },
   { from: "screening", to: "screening_failed", trigger: "duplicate_ssn" },
+  // could_not_screen — the vendor pipeline threw (config/infra failure, no
+  // verdict). HOLD the application in a non-approvable status until staff
+  // resolve it manually. NEVER auto-passes.
+  { from: "screening", to: "screening_review", trigger: "could_not_screen" },
+  { from: "screening_review", to: "screening_passed", trigger: "manual_override_pass" },
+  { from: "screening_review", to: "screening_failed", trigger: "manual_override_fail" },
 ];
 
 export interface AppStatusTransitionInput {

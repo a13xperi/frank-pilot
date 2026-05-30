@@ -20,6 +20,7 @@ const SUBMITTED_STATUSES = new Set([
   'screening',
   'screening_passed',
   'screening_failed',
+  'screening_review',
   'tier1_review',
   'tier1_approved',
   'tier1_denied',

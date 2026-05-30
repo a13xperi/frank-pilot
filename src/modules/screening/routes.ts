@@ -40,6 +40,24 @@ function toClientShape(row: any) {
   };
 }
 
+// Staff review queue — applications held in `screening_review` (vendor pipeline
+// could not produce a verdict). Registered BEFORE the "/:applicationId/..." param
+// routes so the literal path is not captured by the param matcher.
+router.get(
+  "/review-queue",
+  authenticate,
+  requirePermission("screening:view"),
+  async (_req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const queue = await screeningService.getReviewQueue();
+      res.json({ queue });
+    } catch (err: any) {
+      logger.error("Failed to get screening review queue", { error: err.message });
+      res.status(500).json({ error: "Failed to get screening review queue" });
+    }
+  }
+);
+
 // Initiate screening (Senior Manager+)
 router.post(
   "/:applicationId/screen",
@@ -89,6 +107,38 @@ router.post(
       res.json(shaped);
     } catch (err: any) {
       logger.error("Screening failed", { error: err.message, applicationId: param(req.params.applicationId) });
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
+// Resolve a held (screening_review) application — staff manual override.
+router.post(
+  "/:applicationId/review-resolve",
+  authenticate,
+  requirePermission("screening:initiate"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const decision = req.body?.decision;
+      if (decision !== "pass" && decision !== "fail") {
+        res.status(400).json({ error: "decision must be 'pass' or 'fail'" });
+        return;
+      }
+      const notes = typeof req.body?.notes === "string" ? req.body.notes : "";
+
+      const result = await screeningService.resolveReview(
+        param(req.params.applicationId),
+        decision,
+        notes,
+        req.user!.id,
+        req.user!.role
+      );
+      res.json(result);
+    } catch (err: any) {
+      logger.error("Failed to resolve screening review", {
+        error: err.message,
+        applicationId: param(req.params.applicationId),
+      });
       res.status(400).json({ error: err.message });
     }
   }

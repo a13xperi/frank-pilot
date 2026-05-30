@@ -10,15 +10,19 @@ import { IdentityVerificationService } from "./identity-verification";
 import type { IdentityVerificationResult } from "./identity-verification";
 import { AdverseActionService } from "../adverse-action/service";
 import { transitionApplicationStatus } from "./state-machine";
+import type { AppStatusTransitionResult } from "./state-machine";
 
-// IdentityVerificationResult.result uses verified/rejected/review_required;
-// the `screening_result` enum + downstream overall-result aggregator use
-// pass/fail/review_required. Translate on the boundary.
+// IdentityVerificationResult.result uses verified/rejected/review_required/
+// could_not_screen; the `screening_result` enum + downstream overall-result
+// aggregator use pass/fail/review_required/could_not_screen. Translate on the
+// boundary. A could_not_screen (vendor threw — no verdict) maps straight through
+// so the aggregator can HOLD the application instead of passing it.
 function mapIdentityResultToScreening(
   r: IdentityVerificationResult["result"]
-): "pass" | "fail" | "review_required" {
+): "pass" | "fail" | "review_required" | "could_not_screen" {
   if (r === "verified") return "pass";
   if (r === "rejected") return "fail";
+  if (r === "could_not_screen") return "could_not_screen";
   return "review_required";
 }
 
@@ -49,7 +53,7 @@ export class ScreeningService {
     initiatorRole: string,
     screeningTag?: string
   ): Promise<{
-    overallResult: "pass" | "fail" | "review_required";
+    overallResult: "pass" | "fail" | "review_required" | "could_not_screen";
     identity: IdentityVerificationResult;
     background: any;
     credit: any;
@@ -344,16 +348,22 @@ export class ScreeningService {
     // Determine overall result — identity participates alongside background/credit/compliance.
     // Rejected identity already short-circuited above, so identityScreeningResult here is
     // either "pass" (verified) or "review_required".
-    const results = [
+    const results: Array<"pass" | "fail" | "review_required" | "could_not_screen"> = [
       identityScreeningResult,
       backgroundResult.result,
       creditResult.result,
       complianceResult.result,
     ];
-    let overallResult: "pass" | "fail" | "review_required";
+    let overallResult: "pass" | "fail" | "review_required" | "could_not_screen";
 
+    // Precedence: a genuine fail denies; a could_not_screen (vendor threw — no
+    // verdict) HOLDS for staff review and must outrank a borderline
+    // review_required (which passes through). A misconfigured/failed pipeline
+    // can therefore never reach screening_passed.
     if (results.includes("fail")) {
       overallResult = "fail";
+    } else if (results.includes("could_not_screen")) {
+      overallResult = "could_not_screen";
     } else if (results.includes("review_required")) {
       overallResult = "review_required";
     } else {
@@ -367,14 +377,24 @@ export class ScreeningService {
       [applicationId, overallResult]
     );
 
+    // fail              -> screening_failed  / any_check_failed
+    // could_not_screen  -> screening_review  / could_not_screen   (NEW: a HOLD)
+    // review_required   -> screening_passed  / review_required_passthrough
+    // pass              -> screening_passed  / all_checks_passed
     const finalStatus =
-      overallResult === "fail" ? "screening_failed" : "screening_passed";
+      overallResult === "fail"
+        ? "screening_failed"
+        : overallResult === "could_not_screen"
+          ? "screening_review"
+          : "screening_passed";
     const finalTrigger =
       overallResult === "fail"
         ? "any_check_failed"
-        : overallResult === "review_required"
-          ? "review_required_passthrough"
-          : "all_checks_passed";
+        : overallResult === "could_not_screen"
+          ? "could_not_screen"
+          : overallResult === "review_required"
+            ? "review_required_passthrough"
+            : "all_checks_passed";
 
     const { changed } = await transitionApplicationStatus({
       applicationId,
@@ -486,5 +506,72 @@ export class ScreeningService {
 
     if (result.rows.length === 0) return null;
     return result.rows[0];
+  }
+
+  /**
+   * Staff review queue — applications held in `screening_review` because the
+   * vendor pipeline could not produce a verdict (config/infra failure). These
+   * are non-approvable until a reviewer resolves them via resolveReview().
+   * Oldest-first so the longest-held applicants are surfaced at the top.
+   */
+  async getReviewQueue(): Promise<any[]> {
+    const result = await query(
+      `SELECT id, first_name, last_name, property_id, created_at,
+              overall_screening_result, identity_verification_result,
+              background_check_result, credit_check_result,
+              compliance_check_result, status_history
+         FROM applications
+        WHERE status = 'screening_review'
+        ORDER BY created_at ASC`
+    );
+    return result.rows;
+  }
+
+  /**
+   * Resolve a held (`screening_review`) application. A "pass" decision releases
+   * it to screening_passed; a "fail" decision moves it to screening_failed and
+   * fires an FCRA adverse-action notice (non-blocking, gated on the CAS winning
+   * — mirrors the automated denial call sites). Returns { changed, status }.
+   */
+  async resolveReview(
+    applicationId: string,
+    decision: "pass" | "fail",
+    notes: string,
+    reviewerId: string,
+    reviewerRole: string
+  ): Promise<AppStatusTransitionResult> {
+    const to = decision === "pass" ? "screening_passed" : "screening_failed";
+    const trigger = decision === "pass" ? "manual_override_pass" : "manual_override_fail";
+
+    const { changed, status } = await transitionApplicationStatus({
+      applicationId,
+      from: "screening_review",
+      to,
+      trigger,
+      actorId: reviewerId,
+      actorRole: reviewerRole,
+      evidence: { resolution: decision, notes },
+    });
+
+    // FCRA § 1681m: send adverse-action notice on a manual denial. Non-blocking
+    // and gated on the CAS winning so a concurrent resolution can't double-send.
+    if (decision === "fail" && changed) {
+      this.adverseAction
+        .sendNotice(
+          applicationId,
+          reviewerId,
+          reviewerRole,
+          "screening_failed",
+          "Manual screening review denial: " + notes
+        )
+        .catch((err: Error) =>
+          logger.error("Failed to send FCRA adverse action notice after manual review denial", {
+            error: err.message,
+            applicationId,
+          })
+        );
+    }
+
+    return { changed, status };
   }
 }

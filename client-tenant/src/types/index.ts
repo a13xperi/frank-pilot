@@ -26,6 +26,7 @@ export type ApplicationStatus =
   | 'screening'
   | 'screening_passed'
   | 'screening_failed'
+  | 'screening_review'
   | 'tier1_review'
   | 'tier1_approved'
   | 'tier1_denied'
