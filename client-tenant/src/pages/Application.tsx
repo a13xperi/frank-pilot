@@ -81,6 +81,7 @@ const STATUS_LABELS: Record<string, string> = {
   screening: 'Screening',
   screening_passed: 'Screening passed',
   screening_failed: 'Screening failed',
+  screening_review: 'Under review',
   tier1_review: 'Tier 1 Review',
   tier1_approved: 'Tier 1 Approved',
   tier1_denied: 'Tier 1 Denied',

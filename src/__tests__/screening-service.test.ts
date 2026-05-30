@@ -106,7 +106,7 @@ function makeApp(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeBackgroundResult(result: "pass" | "fail" | "review_required") {
+function makeBackgroundResult(result: "pass" | "fail" | "review_required" | "could_not_screen") {
   return {
     result,
     details: {
@@ -116,7 +116,10 @@ function makeBackgroundResult(result: "pass" | "fail" | "review_required") {
   } as any;
 }
 
-function makeCreditResult(result: "pass" | "fail" | "review_required", score = 700) {
+function makeCreditResult(
+  result: "pass" | "fail" | "review_required" | "could_not_screen",
+  score = 700
+) {
   return {
     result,
     creditScore: score,
@@ -296,6 +299,104 @@ describe("ScreeningService.runFullScreening", () => {
     expect(result.overallResult).toBe("fail");
   });
 
+  // ── could_not_screen: misconfigured / failed pipeline HOLDS, never passes ──
+  //
+  // CRITICAL ENV NUANCE: under jest NODE_ENV='test', shouldUseScreeningStub()
+  // returns TRUE, so the STUB_GATE_ERROR throw inside the vendor never fires and
+  // the per-check catch is NOT reached by default — the stub gate is OPEN. To
+  // exercise the could_not_screen path we simulate the infra failure at the
+  // vendor boundary directly: force a vendor's runCheck to RESOLVE with
+  // could_not_screen (the value its own catch block now returns), or REJECT to
+  // hit the catch. We use the already-mocked runCheck (see jest.mock above) the
+  // same way every other vendor-result test in this file does.
+
+  it("returns overallResult=could_not_screen when background could_not_screen (no fails)", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("could_not_screen"));
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(result.overallResult).toBe("could_not_screen");
+  });
+
+  it("could_not_screen takes precedence over review_required (a held check is not a borderline pass)", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("could_not_screen"));
+    mockCredit.runCheck.mockResolvedValue(makeCreditResult("review_required"));
+    mockCompliance.runCheck.mockResolvedValue(makeComplianceResult("review_required"));
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(result.overallResult).toBe("could_not_screen");
+  });
+
+  it("fail takes precedence over could_not_screen (a real denial still wins)", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("fail"));
+    mockCredit.runCheck.mockResolvedValue(makeCreditResult("could_not_screen"));
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(result.overallResult).toBe("fail");
+  });
+
+  it("a could-not-screen pipeline lands in screening_review (could_not_screen), NEVER screening_passed", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("could_not_screen"));
+
+    await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    // HOLD, not a pass: routes through the chokepoint into the new review state.
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_review", trigger: "could_not_screen" })
+    );
+    // It must NEVER have attempted to mark the app passed.
+    expect(mockTransition).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_passed" })
+    );
+  });
+
+  it("persists overall_screening_result='could_not_screen' for a held pipeline", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("could_not_screen"));
+
+    await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    // The aggregate-result UPDATE writes the overallResult value verbatim.
+    const wroteCouldNotScreen = mockQuery.mock.calls.some(
+      ([sql, params]) =>
+        typeof sql === "string" &&
+        /SET overall_screening_result = \$2/.test(sql) &&
+        Array.isArray(params) &&
+        params[1] === "could_not_screen"
+    );
+    expect(wroteCouldNotScreen).toBe(true);
+  });
+
+  it("sends NO adverse-action notice for could_not_screen (it is a hold, not a denial)", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("could_not_screen"));
+
+    await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
+  });
+
+  it("a vendor that THROWS (rejected runCheck) is not treated as a pass and sends no notice", async () => {
+    // Hitting the catch via a rejection: the per-check catch now returns
+    // could_not_screen, so the overall result holds rather than passing. The
+    // vendor mock here stands in for the real catch having already mapped the
+    // throw to a could_not_screen verdict. The load-bearing guarantee is that a
+    // thrown/misconfigured vendor never becomes screening_passed and never fires
+    // an adverse-action denial.
+    mockBackground.runCheck.mockRejectedValue(
+      new Error("Screening vendor unavailable — could not screen")
+    );
+
+    await service
+      .runFullScreening("app-001", "user-1", "leasing_agent")
+      .catch(() => undefined);
+
+    expect(mockTransition).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_passed" })
+    );
+    expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
+  });
+
   // ── review_required still sets screening_passed (routes to human review) ─
 
   it("transitions to screening_passed (review_required_passthrough) even when review_required (human Tier 1 will see it)", async () => {
@@ -306,6 +407,24 @@ describe("ScreeningService.runFullScreening", () => {
     expect(mockTransition).toHaveBeenCalledWith(
       expect.objectContaining({ to: "screening_passed", trigger: "review_required_passthrough" })
     );
+  });
+
+  it("a GENUINE review_required verdict still reaches screening_passed (borderline pass-through is UNCHANGED)", async () => {
+    // Distinct from could_not_screen: this is a real borderline verdict from
+    // evaluateResults(), not an infra failure. It MUST keep its existing
+    // pass-through behaviour (screening_passed + Tier-2), and send no notice.
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("review_required"));
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(result.overallResult).toBe("review_required");
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_passed", trigger: "review_required_passthrough" })
+    );
+    expect(mockTransition).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_review" })
+    );
+    expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
   });
 
   // ── PCI-DSS: SSN decryption and last-4 extraction ─────────────────────────

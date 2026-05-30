@@ -15,9 +15,9 @@
  *   - rejected         → document invalid / selfie mismatch / confidence|liveness < 0.5
  *   - review_required  → 0.5 ≤ score < 0.85, or any risk signals present
  *   - verified         → valid doc + selfie match + both scores ≥ 0.85 + no signals
- *   - A thrown API error or a blocked stub gate degrades to review_required
- *     (human review), NOT to verified — a misconfigured prod deploy must never
- *     auto-pass an applicant.
+ *   - A thrown API error or a blocked stub gate degrades to could_not_screen
+ *     (held for staff review), NOT to verified — a misconfigured prod deploy must
+ *     never auto-pass an applicant.
  */
 
 import { IdentityVerificationService } from "../modules/screening/identity-verification";
@@ -247,20 +247,20 @@ describe("IdentityVerificationService.verify()", () => {
 
   // ── Fail-safe: thrown errors never become a silent pass ───────────────────
 
-  it("returns review_required (api_unavailable) when the identity API throws", async () => {
+  it("returns could_not_screen when the identity API throws (safe fallback, never a silent pass)", async () => {
     jest.spyOn(service as any, "callIdentityAPI").mockRejectedValue(
       new Error("Network timeout")
     );
 
     const result = await service.verify(idInput());
 
-    expect(result.result).toBe("review_required");
+    expect(result.result).toBe("could_not_screen");
     expect(result.confidence).toBe(0);
     expect(result.livenessScore).toBe(0);
     expect(result.idType).toBe("unknown");
-    expect(result.details.riskSignals).toContain("api_unavailable");
+    expect(result.details.riskSignals).toContain("could_not_screen");
     expect(result.details.rawResponse).toMatchObject({
-      error: expect.stringMatching(/manual review/i),
+      error: expect.stringMatching(/could not screen/i),
     });
   });
 
@@ -274,17 +274,17 @@ describe("IdentityVerificationService.verify()", () => {
     ).rejects.toThrow("STUB_GATE_ERROR_SENTINEL");
   });
 
-  it("verify() fails safe to review_required when the stub gate blocks (no silent pass in prod)", async () => {
+  it("verify() fails safe to could_not_screen when the stub gate blocks (no silent pass in prod)", async () => {
     mockShouldStub.mockReturnValue(false);
 
     const result = await service.verify(idInput());
 
-    // The gate throw is caught by verify()'s try/catch → review_required, not verified.
-    expect(result.result).toBe("review_required");
-    expect(result.details.riskSignals).toContain("api_unavailable");
+    // The gate throw is caught by verify()'s try/catch → could_not_screen, not verified.
+    expect(result.result).toBe("could_not_screen");
+    expect(result.details.riskSignals).toContain("could_not_screen");
   });
 
-  it("fails safe to review_required when a real key is set but live integration is not configured", async () => {
+  it("fails safe to could_not_screen when a real key is set but live integration is not configured", async () => {
     // The key is read in the constructor, so build the service after setting it.
     process.env.IDENTITY_API_KEY = "live-persona-key";
     service = new IdentityVerificationService();
@@ -292,9 +292,9 @@ describe("IdentityVerificationService.verify()", () => {
     const result = await service.verify(idInput());
 
     // callIdentityAPI throws "Production API integration not yet configured",
-    // caught by verify() → review_required (never verified).
-    expect(result.result).toBe("review_required");
-    expect(result.details.riskSignals).toContain("api_unavailable");
+    // caught by verify() → could_not_screen (never verified).
+    expect(result.result).toBe("could_not_screen");
+    expect(result.details.riskSignals).toContain("could_not_screen");
   });
 
   it("a placeholder 'changeme' key is treated as no key (stub path)", async () => {

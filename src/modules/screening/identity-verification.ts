@@ -2,7 +2,7 @@ import { logger } from "../../utils/logger";
 import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
 
 export interface IdentityVerificationResult {
-  result: "verified" | "rejected" | "review_required";
+  result: "verified" | "rejected" | "review_required" | "could_not_screen";
   confidence: number;
   idType: "driver_license" | "passport" | "state_id" | "unknown";
   livenessScore: number;
@@ -43,16 +43,19 @@ export class IdentityVerificationService {
       return this.evaluateResults(response);
     } catch (err) {
       logger.error("Identity verification API error", { error: (err as Error).message });
+      // A thrown error means the vendor never produced a verdict — we could NOT
+      // screen. This must HOLD the application (not pass it, not treat it as a
+      // borderline review), so it lands in screening_review for staff resolution.
       return {
-        result: "review_required",
+        result: "could_not_screen",
         confidence: 0,
         idType: "unknown",
         livenessScore: 0,
         details: {
           documentValid: false,
           selfieMatch: false,
-          riskSignals: ["api_unavailable"],
-          rawResponse: { error: "API unavailable, manual review required" },
+          riskSignals: ["could_not_screen"],
+          rawResponse: { error: "Screening vendor unavailable — could not screen" },
         },
       };
     }
