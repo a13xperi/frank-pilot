@@ -58,7 +58,11 @@ export function makeScreeningStateTransitionPayload(
     "@context": "https://frank-pilot.example/compliance-tape/v1",
     "@type": "ComplianceEvent.ScreeningStateTransition",
     actorId: actorId ?? null,
-    subjectId: applicationId,
+    // subjectId drives tape scope → compliance_tape.applicant_id, which is an
+    // FK to users(id). An application id is NOT a users(id) and would violate
+    // that FK once COMPLIANCE_TAPE_V2_ENABLED is on. Scope by the actor user
+    // (users(id)-or-null); the application id is preserved in evidence below.
+    subjectId: actorId ?? null,
     ruleCitation: TAPE_CITATIONS[KIND],
     evidence: {
       applicationId,

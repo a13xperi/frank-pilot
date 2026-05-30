@@ -208,9 +208,15 @@ export async function transitionApplicationStatus(
     );
   }
 
+  // $2 (to) and $3 (from) are each used twice: once compared/assigned against
+  // the application_status enum column and once rendered as text inside the
+  // status_history JSONB. Without explicit casts on the enum sites, Postgres
+  // deduces conflicting types for the same parameter ("inconsistent types
+  // deduced for parameter $2") and the statement fails to prepare. Cast the
+  // enum sites explicitly so each parameter resolves to a single base type.
   const result = await query(
     `UPDATE applications
-        SET status = $2,
+        SET status = $2::application_status,
             status_history = status_history || jsonb_build_object(
               'from', $3::text,
               'to', $2::text,
@@ -220,7 +226,7 @@ export async function transitionApplicationStatus(
               'at', NOW(),
               'evidence', $7::jsonb
             )
-      WHERE id = $1 AND status = $3
+      WHERE id = $1 AND status = $3::application_status
       RETURNING id`,
     [
       applicationId,
