@@ -8,9 +8,20 @@
  *
  * Datasets (resolved relative to repo root):
  *   1. STATEWIDE HUD-LIHTC base : client-tenant/public/nv-housing-props.json
- *      (335 records). Falls back to src/db/data/nv-housing-props.json.
+ *      (335 records). Falls back to src/db/data/nv-housing-props.json — kept in
+ *      sync with the primary (same records + amiTiers) so a missing primary
+ *      degrades gracefully, never to all-null AMI data.
  *   2. AVAILABLE-NOW (GPMG)     : docs/intel/gpmglv-properties-extracted.json
  *      (dict; property list under "properties", 17 records).
+ *
+ * AMI-tier provenance (issue #225): 254/335 statewide records carry amiTiers,
+ * enriched from the NHD-LIHD set-aside source via scripts/enrich-ami-tiers.py. The
+ * remaining ~81 are HUD-LIHTC properties with no NHD-LIHD counterpart (a
+ * different property universe, ~133 overlap) — their AMI tier is legitimately
+ * unknown, normalized to `null`, and surfaced as "not in our data" (NOT an
+ * empty `[]` and NEVER invented). Enrichment has converged: re-running the
+ * script fills 0 additional. This is a data-completeness limit, not a grounding
+ * leak — locked by the AMI-provenance tests in housing-qa-retriever.test.ts.
  */
 
 import fs from "fs";
