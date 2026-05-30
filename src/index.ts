@@ -8,6 +8,10 @@ import { logger } from "./utils/logger";
 import { resolveCorsOrigin } from "./utils/cors-origin";
 import { authenticate, login, AuthRequest } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
+import {
+  setHousingQaDisabled,
+  housingQaStatus,
+} from "./modules/housing-qa/routes";
 import { queryAuditLog } from "./middleware/audit";
 
 // Route imports
@@ -164,6 +168,37 @@ app.use("/api/applicants", applicantRoutes);
 // process; answers are grounded strictly in injected data). Degrades to 503
 // when ANTHROPIC_API_KEY is absent.
 app.use("/api/housing-qa", housingQaRouter());
+
+// Break-glass kill-switch for the public housing-QA endpoint (system_admin
+// only). HOUSING_QA_ENABLED=false is the restart-durable default; this flips
+// the in-memory override instantly with NO redeploy. GET reports current state
+// + today's call count for cost visibility.
+app.get(
+  "/api/admin/housing-qa",
+  authenticate,
+  requirePermission("housing_qa:admin"),
+  (_req: AuthRequest, res) => {
+    res.json(housingQaStatus());
+  }
+);
+app.post(
+  "/api/admin/housing-qa",
+  authenticate,
+  requirePermission("housing_qa:admin"),
+  (req: AuthRequest, res) => {
+    const enabled = (req.body as { enabled?: unknown })?.enabled;
+    if (typeof enabled !== "boolean") {
+      res.status(400).json({ error: "Body must include { enabled: boolean }" });
+      return;
+    }
+    setHousingQaDisabled(!enabled);
+    logger.warn("housing-qa kill-switch toggled", {
+      enabled,
+      by: req.user?.id,
+    });
+    res.json(housingQaStatus());
+  }
+);
 
 // "Talk to Frank" — in-browser WebRTC voice session minter. Anonymous
 // visitors are the dominant case (mirrors the outbound phone semantics),

@@ -78,6 +78,11 @@ const PERMISSIONS: Record<string, string[]> = {
   // Audit
   "audit:view": ["regional_manager", "asset_manager", "system_admin"],
 
+  // Housing-QA kill-switch — break-glass disable/enable of the PUBLIC grounded
+  // chat endpoint (personal-token-backed in prod). Highest blast radius, so
+  // system_admin only.
+  "housing_qa:admin": ["system_admin"],
+
   // User management
   "user:manage": ["system_admin"],
   "user:view": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
