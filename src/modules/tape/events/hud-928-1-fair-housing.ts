@@ -32,9 +32,12 @@ export interface Hud9281FairHousingPostedInput {
  * Caller is responsible for supplying `postedAt`.
  *
  * Note: this event is property-scoped, not applicant-scoped. The service
- * routes subjectId → compliance_tape.applicant_id (UUID column), so when
- * propertyId is unknown subjectId must be null (= global-scope chain). A
- * non-UUID sentinel like "n/a" trips the column type and the stamp errors.
+ * routes a non-null subjectId → compliance_tape.applicant_id, which is an FK
+ * to users(id). A propertyId is NOT a users(id), so subjectId must ALWAYS be
+ * null here (= global-scope chain) regardless of whether propertyId is known;
+ * the propertyId is preserved in evidence below. (Passing propertyId as
+ * subjectId silently FK-violates once COMPLIANCE_TAPE_V2_ENABLED is on —
+ * stampSafe swallows the error and the stamp never writes.)
  */
 export function makeHud9281FairHousingPostedPayload(
   input: Hud9281FairHousingPostedInput
@@ -45,7 +48,10 @@ export function makeHud9281FairHousingPostedPayload(
     "@context": "https://frank-pilot.example/compliance-tape/v1",
     "@type": "ComplianceEvent.Hud9281FairHousingPosted",
     actorId: null,
-    subjectId: propertyId ?? null,
+    // Property-scoped event → no user subject. subjectId stays null (global
+    // scope); propertyId rides in evidence. See docblock above re: the
+    // users(id) FK on compliance_tape.applicant_id.
+    subjectId: null,
     ruleCitation: TAPE_CITATIONS[KIND],
     evidence: {
       postedAt,
