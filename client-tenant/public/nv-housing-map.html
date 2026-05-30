@@ -142,8 +142,8 @@
 </head>
 <body>
 <header class="app">
-  <div class="logo">U</div>
-  <div class="brand">Universal Housing<span> · Nevada</span></div>
+  <div class="logo" id="logo">U</div>
+  <div class="brand" id="brand">Universal Housing<span> · Nevada</span></div>
   <div class="eyebrow" id="eyebrow">Nevada LIHD · loading…</div>
 </header>
 
@@ -423,6 +423,14 @@ function mergeLayers(availLayer, coverage){
 // scope the map to Frank's managed portfolio (the live/GPMG availability layer)
 // and DO NOT load the statewide `nv-housing-props.json` "universal" directory.
 const FRANK_ONLY = new URLSearchParams(location.search).get('frankOnly') === '1';
+// Frank-only deploys scope this map to Frank's managed portfolio, so brand it
+// as Frank Pilot rather than the statewide "Universal Housing" directory.
+if(FRANK_ONLY){
+  var _brand = document.getElementById('brand');
+  if(_brand) _brand.innerHTML = 'Frank Pilot<span> · Nevada</span>';
+  var _logo = document.getElementById('logo');
+  if(_logo) _logo.textContent = 'F';
+}
 // Distinct cache namespace so a Frank-only visit can't be painted from a full
 // statewide snapshot cached by an earlier non-Frank-only visit (or vice versa).
 const CACHE_KEY = FRANK_ONLY ? 'frank:map:merged:frankonly:v1' : 'frank:map:merged:v1';
