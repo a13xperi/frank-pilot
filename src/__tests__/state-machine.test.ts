@@ -169,14 +169,118 @@ describe("transitionApplicationStatus (application_status chokepoint)", () => {
     jest.clearAllMocks();
   });
 
-  it("APP_STATUS_TRANSITIONS fans out only from submitted/screening into the screening terminals", () => {
+  it("APP_STATUS_TRANSITIONS fans out from submitted/screening (+screening_review hold) into the screening terminals", () => {
+    // screening_review is a NEW non-terminal hold: a could-not-screen pipeline
+    // lands there, and staff resolve it forward to passed/failed. It is both a
+    // `to` (from screening) and a `from` (manual override out).
     const froms = new Set(APP_STATUS_TRANSITIONS.map((t) => t.from));
-    expect(froms).toEqual(new Set(["submitted", "screening"]));
+    expect(froms).toEqual(new Set(["submitted", "screening", "screening_review"]));
     expect(
       APP_STATUS_TRANSITIONS.every((t) =>
-        ["screening", "screening_passed", "screening_failed"].includes(t.to)
+        ["screening", "screening_review", "screening_passed", "screening_failed"].includes(t.to)
       )
     ).toBe(true);
+  });
+
+  // ── could_not_screen hold + staff-resolution transitions (Phase: screening_review) ──
+
+  it("screening -> screening_review is valid ONLY with trigger 'could_not_screen'", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-cns" }] } as any);
+
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-cns",
+        from: "screening",
+        to: "screening_review",
+        trigger: "could_not_screen",
+        actorId: "system",
+        actorRole: "system",
+        evidence: { overallResult: "could_not_screen" },
+      })
+    ).resolves.toEqual({ changed: true, status: "screening_review" });
+
+    // CAS UPDATE params: [id, to, from, trigger, actorId, actorRole, evidenceJson]
+    const [, params] = mockQuery.mock.calls[0];
+    expect(params).toEqual([
+      "app-cns",
+      "screening_review",
+      "screening",
+      "could_not_screen",
+      "system",
+      "system",
+      JSON.stringify({ overallResult: "could_not_screen" }),
+    ]);
+    expect(mockStamp).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects screening -> screening_review under any trigger other than 'could_not_screen'", async () => {
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-cns",
+        from: "screening",
+        to: "screening_review",
+        trigger: "any_check_failed",
+      })
+    ).rejects.toThrow(/Invalid application_status transition/);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("screening_review -> screening_passed is valid ONLY with trigger 'manual_override_pass'", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-cns" }] } as any);
+
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-cns",
+        from: "screening_review",
+        to: "screening_passed",
+        trigger: "manual_override_pass",
+        actorId: "staff-1",
+        actorRole: "leasing_agent",
+      })
+    ).resolves.toEqual({ changed: true, status: "screening_passed" });
+  });
+
+  it("rejects screening_review -> screening_passed under a wrong trigger", async () => {
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-cns",
+        from: "screening_review",
+        to: "screening_passed",
+        // all_checks_passed is valid for screening->screening_passed, but NOT
+        // for the manual staff override out of the hold.
+        trigger: "all_checks_passed",
+      })
+    ).rejects.toThrow(/Invalid application_status transition/);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("screening_review -> screening_failed is valid ONLY with trigger 'manual_override_fail'", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-cns" }] } as any);
+
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-cns",
+        from: "screening_review",
+        to: "screening_failed",
+        trigger: "manual_override_fail",
+        actorId: "staff-1",
+        actorRole: "leasing_agent",
+      })
+    ).resolves.toEqual({ changed: true, status: "screening_failed" });
+  });
+
+  it("rejects screening_review -> screening_failed under a wrong trigger", async () => {
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-cns",
+        from: "screening_review",
+        to: "screening_failed",
+        // any_check_failed is valid for screening->screening_failed, but NOT
+        // for the manual staff override out of the hold.
+        trigger: "any_check_failed",
+      })
+    ).rejects.toThrow(/Invalid application_status transition/);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it("on a winning CAS: writes status+history, audit row, tape stamp, returns changed:true", async () => {

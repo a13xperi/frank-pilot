@@ -2,7 +2,7 @@ import { logger } from "../../utils/logger";
 import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
 
 export interface BackgroundCheckResult {
-  result: "pass" | "fail" | "review_required";
+  result: "pass" | "fail" | "review_required" | "could_not_screen";
   details: {
     felonies: number;
     sexOffenses: boolean;
@@ -46,16 +46,18 @@ export class BackgroundCheckService {
       return this.evaluateResults(response);
     } catch (err) {
       logger.error("Background check API error", { error: (err as Error).message });
-      // On API failure, flag for manual review rather than auto-passing
+      // A thrown error means the vendor never produced a verdict — we could NOT
+      // screen. This must HOLD the application (not pass it, not treat it as a
+      // borderline review), so it lands in screening_review for staff resolution.
       return {
-        result: "review_required",
+        result: "could_not_screen",
         details: {
           felonies: 0,
           sexOffenses: false,
           violentCrimes: false,
           misdemeanors: 0,
           riskScore: -1,
-          rawResponse: { error: "API unavailable, manual review required" },
+          rawResponse: { error: "Screening vendor unavailable — could not screen" },
         },
       };
     }

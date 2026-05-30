@@ -28,6 +28,7 @@ CREATE TYPE application_status AS ENUM (
   'screening',
   'screening_passed',
   'screening_failed',
+  'screening_review',
   'tier1_review',
   'tier1_approved',
   'tier1_denied',
@@ -46,7 +47,8 @@ CREATE TYPE application_status AS ENUM (
 CREATE TYPE screening_result AS ENUM (
   'pass',
   'fail',
-  'review_required'
+  'review_required',
+  'could_not_screen'
 );
 
 -- Entry path for an application. 'web' is the historical default; 'voice'

@@ -2,7 +2,7 @@ import { logger } from "../../utils/logger";
 import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
 
 export interface CreditCheckResult {
-  result: "pass" | "fail" | "review_required";
+  result: "pass" | "fail" | "review_required" | "could_not_screen";
   creditScore: number;
   details: {
     paymentHistory: string;
@@ -43,8 +43,11 @@ export class CreditCheckService {
       return this.evaluateResults(response);
     } catch (err) {
       logger.error("Credit check API error", { error: (err as Error).message });
+      // A thrown error means the vendor never produced a verdict — we could NOT
+      // screen. This must HOLD the application (not pass it, not treat it as a
+      // borderline review), so it lands in screening_review for staff resolution.
       return {
-        result: "review_required",
+        result: "could_not_screen",
         creditScore: 0,
         details: {
           paymentHistory: "unknown",
@@ -52,7 +55,7 @@ export class CreditCheckService {
           collections: 0,
           evictions: 0,
           bankruptcies: 0,
-          rawResponse: { error: "API unavailable, manual review required" },
+          rawResponse: { error: "Screening vendor unavailable — could not screen" },
         },
       };
     }
