@@ -1,4 +1,5 @@
 import { logger } from "../../utils/logger";
+import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
 
 export interface WorkNumberResult {
   result: "verified" | "no_record" | "partial" | "review_required";
@@ -44,7 +45,15 @@ export class WorkNumberService {
     });
 
     if (!this.apiKey || this.apiKey === "changeme") {
-      logger.warn("Using stub Work Number verification — no API key configured");
+      // Fail-loud: a keyless production deploy must NOT silently report every
+      // applicant as employment-verified. Stub data is only allowed behind the
+      // explicit stub-policy gate (MOCK_MODE / ALLOW_STUB_SCREENING / test);
+      // otherwise throw so the missing key surfaces as a hard error instead of
+      // a false-positive "verified". (Matches credit-check.ts / nsopw-direct.ts.)
+      if (!shouldUseScreeningStub()) {
+        throw new Error(STUB_GATE_ERROR);
+      }
+      logger.warn("Using stub Work Number verification — no API key configured (stub policy allows fallback)");
       return {
         result: "verified",
         details: {
