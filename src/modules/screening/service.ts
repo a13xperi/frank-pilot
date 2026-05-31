@@ -8,6 +8,14 @@ import { ComplianceService } from "./compliance";
 import { FraudDetectionService } from "./fraud-detection";
 import { IdentityVerificationService } from "./identity-verification";
 import type { IdentityVerificationResult } from "./identity-verification";
+// Phase 4a — extended screening adapters. Dormant by default; they join the
+// parallel fan-out only behind the SCREENING_EXTENDED_CHECKS_ENABLED dark flag.
+import { PlaidIncomeService } from "./income-verification-plaid";
+import type { PlaidIncomeResult } from "./income-verification-plaid";
+import { WorkNumberService } from "./work-number";
+import type { WorkNumberResult } from "./work-number";
+import { NsopwDirectService } from "./nsopw-direct";
+import type { NsopwDirectResult } from "./nsopw-direct";
 import { AdverseActionService } from "../adverse-action/service";
 import { transitionApplicationStatus } from "./state-machine";
 import type { AppStatusTransitionResult } from "./state-machine";
@@ -33,6 +41,12 @@ export class ScreeningService {
   private compliance = new ComplianceService();
   private fraud = new FraudDetectionService();
   private adverseAction = new AdverseActionService();
+  // Phase 4a (dark): extended adapters. Instantiation is side-effect-free (each
+  // just reads env into fields); they only run when the flag is on (read at call
+  // time in runFullScreening). Default-off keeps the live fan-out unchanged.
+  private plaidIncome = new PlaidIncomeService();
+  private workNumber = new WorkNumberService();
+  private nsopw = new NsopwDirectService();
 
   /**
    * Run full automated screening pipeline:
@@ -345,14 +359,167 @@ export class ScreeningService {
       ]
     );
 
+    // ── Phase 4a: extended screening adapters (dark flag) ─────────────────────
+    // When SCREENING_EXTENDED_CHECKS_ENABLED is off (default) this block is a
+    // no-op and `extendedResults` stays empty, so the aggregation below is
+    // byte-for-byte today's background+credit+compliance behaviour. When on,
+    // Plaid income + direct NSOPW + (conditionally) Work Number join the verdict.
+    // Each adapter is fail-loud: a keyless/erroring call HOLDs, never passes.
+    const extendedChecksEnabled =
+      process.env.SCREENING_EXTENDED_CHECKS_ENABLED === "true";
+    const extendedResults: Array<
+      "pass" | "fail" | "review_required" | "could_not_screen"
+    > = [];
+    let incomeResult: PlaidIncomeResult | null = null;
+    let nsopwResult: NsopwDirectResult | null = null;
+    let workNumberResult: WorkNumberResult | null = null;
+    let incomeScreening: "pass" | "review_required" | null = null;
+    let nsopwScreening: "pass" | "fail" | "review_required" | null = null;
+    let workNumberScreening:
+      | "pass"
+      | "review_required"
+      | "could_not_screen"
+      | null = null;
+
+    if (extendedChecksEnabled) {
+      const declaredEmployer = !!app.employer_name;
+
+      const [income, nsopw, wn] = await Promise.all([
+        // Plaid income — always (primary income source). Its internal catch
+        // returns review_required, so this never throws.
+        this.plaidIncome.verifyIncome({
+          firstName: app.first_name,
+          lastName: app.last_name,
+          dateOfBirth: dob,
+          screeningTag,
+        }),
+        // Direct NSOPW — always (belt-and-suspenders for the §5.856 lifetime
+        // mandatory denial, design §8.4). Internal catch returns review_required.
+        this.nsopw.check({
+          firstName: app.first_name,
+          lastName: app.last_name,
+          dateOfBirth: dob,
+          states: app.current_state ? [app.current_state] : ["NV"],
+          screeningTag,
+        }),
+        // Work Number (Equifax) — only when the applicant declared a W-2
+        // employer (design §3.3/§8.5). ⚠️ work-number.ts has NO internal catch
+        // (P1 fail-loud contract): a keyless/erroring call THROWS. Wrap it here
+        // so the throw is contained as a could_not_screen HOLD and never aborts
+        // the whole Promise.all / screening run.
+        declaredEmployer
+          ? this.workNumber
+              .verifyEmployment({
+                firstName: app.first_name,
+                lastName: app.last_name,
+                ssn: ssnDecrypted,
+                dateOfBirth: dob,
+              })
+              .then((value) => ({ ok: true as const, value }))
+              .catch((error: Error) => ({ ok: false as const, error }))
+          : Promise.resolve(null),
+      ]);
+
+      incomeResult = income;
+      nsopwResult = nsopw;
+
+      // Plaid: verified → pass; unverified/review_required → review_required.
+      incomeScreening = income.result === "verified" ? "pass" : "review_required";
+      extendedResults.push(incomeScreening);
+
+      // NSOPW: match → fail (24 CFR §5.856 lifetime mandatory denial);
+      // no_match → pass; review_required → review_required.
+      nsopwScreening =
+        nsopw.result === "match"
+          ? "fail"
+          : nsopw.result === "no_match"
+            ? "pass"
+            : "review_required";
+      extendedResults.push(nsopwScreening);
+
+      // Work Number: verified → pass; no_record/partial/review_required →
+      // review_required; a thrown adapter (keyless prod) → could_not_screen HOLD.
+      if (wn) {
+        if (wn.ok) {
+          workNumberResult = wn.value;
+          workNumberScreening =
+            wn.value.result === "verified" ? "pass" : "review_required";
+        } else {
+          logger.error(
+            "Work Number verification threw — holding application (could_not_screen)",
+            { error: wn.error.message, applicationId }
+          );
+          workNumberScreening = "could_not_screen";
+        }
+        extendedResults.push(workNumberScreening);
+      }
+
+      // Income cross-check (design §3.3). Plaid is the primary (bank-linked)
+      // figure; reconcile it against the Work Number W-2 number when the
+      // applicant declared an employer and both verified, otherwise against the
+      // applicant's self-reported income. A >15% delta raises a medium fraud
+      // flag and forces review_required. Guard a positive reported figure to
+      // avoid divide-by-zero on a zero-income LIHTC household.
+      if (income.result === "verified") {
+        const plaidAnnual = income.annualIncomeCents / 100;
+        let reportedIncome: number | null = null;
+        if (
+          workNumberResult?.result === "verified" &&
+          workNumberResult.details.annualizedIncome
+        ) {
+          reportedIncome = workNumberResult.details.annualizedIncome;
+        } else {
+          const selfReported = parseFloat(app.annual_income || "0");
+          if (selfReported > 0) reportedIncome = selfReported;
+        }
+        if (reportedIncome !== null && reportedIncome > 0) {
+          const mismatch = await this.fraud.checkIncomeMismatch(
+            applicationId,
+            reportedIncome,
+            plaidAnnual
+          );
+          if (mismatch) extendedResults.push("review_required");
+        }
+      }
+
+      // Persist the extended results in their own columns (additive migration
+      // 2026-05-30-extended-screening-columns.sql). Separate UPDATE so the
+      // flag-off path leaves the existing persist block untouched.
+      await query(
+        `UPDATE applications SET
+           income_verification_result = $2,
+           income_verification_details = $3,
+           income_verification_completed_at = NOW(),
+           nsopw_result = $4,
+           nsopw_details = $5,
+           nsopw_completed_at = NOW(),
+           work_number_result = $6,
+           work_number_details = $7,
+           work_number_completed_at = CASE WHEN $6 IS NULL THEN NULL ELSE NOW() END
+         WHERE id = $1`,
+        [
+          applicationId,
+          incomeScreening,
+          JSON.stringify(incomeResult?.details ?? {}),
+          nsopwScreening,
+          JSON.stringify(nsopwResult?.details ?? {}),
+          workNumberScreening,
+          workNumberResult ? JSON.stringify(workNumberResult.details) : null,
+        ]
+      );
+    }
+
     // Determine overall result — identity participates alongside background/credit/compliance.
     // Rejected identity already short-circuited above, so identityScreeningResult here is
     // either "pass" (verified) or "review_required".
+    // extendedResults is empty unless the dark flag is on, so flag-off this
+    // array is identical to before (identity + background + credit + compliance).
     const results: Array<"pass" | "fail" | "review_required" | "could_not_screen"> = [
       identityScreeningResult,
       backgroundResult.result,
       creditResult.result,
       complianceResult.result,
+      ...extendedResults,
     ];
     let overallResult: "pass" | "fail" | "review_required" | "could_not_screen";
 
@@ -409,6 +576,14 @@ export class ScreeningService {
         background: backgroundResult.result,
         credit: creditResult.result,
         compliance: complianceResult.result,
+        // Flag-off → empty spread → identical evidence object as before.
+        ...(extendedChecksEnabled
+          ? {
+              incomeVerification: incomeScreening,
+              nsopw: nsopwScreening,
+              workNumber: workNumberScreening,
+            }
+          : {}),
       },
     });
 
@@ -499,6 +674,9 @@ export class ScreeningService {
         background_check_result, background_check_details, background_check_completed_at,
         credit_check_result, credit_score, credit_check_details, credit_check_completed_at,
         compliance_check_result, compliance_check_details, compliance_check_completed_at,
+        income_verification_result, income_verification_details, income_verification_completed_at,
+        work_number_result, work_number_details, work_number_completed_at,
+        nsopw_result, nsopw_details, nsopw_completed_at,
         overall_screening_result
        FROM applications WHERE id = $1`,
       [applicationId]

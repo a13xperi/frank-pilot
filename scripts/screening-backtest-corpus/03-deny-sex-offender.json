@@ -12,7 +12,8 @@
   "household_size": 1,
   "ami_limit_cents": 4680000,
   "ami_area": "Reno-NV",
+  "declared_employer": true,
   "expected_outcome": "failed",
   "expected_terminal_reason": "background_fail_sex_offender",
-  "notes": "Lifetime sex-offender registry — HUD §5.856 mandatory denial."
+  "notes": "Lifetime sex-offender registry — HUD §5.856 mandatory denial. Background fail dominates; NSOPW also matches (belt-and-suspenders) and Work Number runs (declared employer) — neither changes the denial, exercising both Phase 4a adapters on a terminal case."
 }
