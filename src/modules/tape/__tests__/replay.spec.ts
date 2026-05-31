@@ -12,7 +12,7 @@
  * — un-skip after Phase 2 integration.
  */
 
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 import { GENESIS_HASH } from "../hashing";
 import type {
   TapeEntry,
@@ -55,7 +55,7 @@ class InMemoryTapeRepository implements TapeRepository {
   async insert(
     row: Omit<TapeEntry, "id" | "createdAt"> & { createdAt: string }
   ): Promise<TapeEntry> {
-    const entry: TapeEntry = { ...row, id: uuidv4() };
+    const entry: TapeEntry = { ...row, id: randomUUID() };
     const key = this.scopeKey(
       row.applicantId
         ? { type: "applicant", applicantId: row.applicantId }

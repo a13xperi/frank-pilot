@@ -10,7 +10,7 @@
  * exactly. No IO, no database required.
  */
 
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 import { computeEntryHash, GENESIS_HASH, hashToHex } from "../hashing";
 import type {
   TapeEntry,
@@ -34,7 +34,7 @@ class InMemoryTapeRepository implements TapeRepository {
   async insert(
     row: Omit<TapeEntry, "id" | "createdAt"> & { createdAt: string }
   ): Promise<TapeEntry> {
-    const entry: TapeEntry = { ...row, id: uuidv4() };
+    const entry: TapeEntry = { ...row, id: randomUUID() };
     const key = this.scopeKey(
       row.applicantId
         ? { type: "applicant", applicantId: row.applicantId }
@@ -367,7 +367,7 @@ describe("TapeService", () => {
       );
 
       repo.injectFabricatedEntry(scope, {
-        id: uuidv4(),
+        id: randomUUID(),
         sequence: 3,
         kind: "WAITING_LIST_APP_CAPTURED",
         citation: TAPE_CITATIONS.WAITING_LIST_APP_CAPTURED,
