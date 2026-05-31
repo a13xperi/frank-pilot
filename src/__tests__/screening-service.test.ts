@@ -65,6 +65,12 @@ jest.mock("../modules/adverse-action/service", () => ({
       sentAt: new Date(),
       reason: "screening_failed",
     }),
+    generateNoticeDraft: jest.fn().mockResolvedValue({
+      applicationId: "app-001",
+      applicantName: "Jane Doe",
+      propertyName: "Desert Oasis Apartments",
+      noticeText: "DRAFT FCRA NOTICE TEXT",
+    }),
   })),
 }));
 
@@ -675,5 +681,160 @@ describe("ScreeningService.getResults", () => {
       expect.any(String),
       ["app-xyz"]
     );
+  });
+});
+
+// ── getReviewQueue ──────────────────────────────────────────────────────────────
+
+describe("ScreeningService.getReviewQueue", () => {
+  let service: ScreeningService;
+
+  beforeEach(() => {
+    service = new ScreeningService();
+    mockQuery.mockReset();
+  });
+
+  it("queries only screening_review rows, oldest-first", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+
+    await service.getReviewQueue();
+
+    const sql = mockQuery.mock.calls[0]![0] as string;
+    expect(sql).toMatch(/WHERE status = 'screening_review'/i);
+    expect(sql).toMatch(/ORDER BY created_at ASC/i);
+  });
+
+  it("SELECTs the per-check *_details and *_completed_at columns (the 'why')", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+
+    await service.getReviewQueue();
+
+    const sql = mockQuery.mock.calls[0]![0] as string;
+    // The whole point of the usable queue: each check's detail + timestamp.
+    expect(sql).toMatch(/identity_verification_details/);
+    expect(sql).toMatch(/identity_verification_completed_at/);
+    expect(sql).toMatch(/background_check_details/);
+    expect(sql).toMatch(/background_check_completed_at/);
+    expect(sql).toMatch(/credit_check_details/);
+    expect(sql).toMatch(/credit_check_completed_at/);
+    expect(sql).toMatch(/compliance_check_details/);
+    expect(sql).toMatch(/compliance_check_completed_at/);
+  });
+
+  it("returns rows carrying the new detail columns through verbatim", async () => {
+    const row = {
+      id: "app-held-1",
+      first_name: "Jane",
+      last_name: "Doe",
+      property_id: "prop-001",
+      overall_screening_result: "could_not_screen",
+      background_check_result: "could_not_screen",
+      background_check_details: { reason: "vendor_unavailable" },
+      background_check_completed_at: new Date("2026-05-30T10:00:00Z"),
+      credit_check_details: { creditScore: 700 },
+      credit_check_completed_at: new Date("2026-05-30T10:01:00Z"),
+      identity_verification_details: { documentValid: true },
+      identity_verification_completed_at: new Date("2026-05-30T10:02:00Z"),
+      compliance_check_details: { incomeWithinLimits: true },
+      compliance_check_completed_at: new Date("2026-05-30T10:03:00Z"),
+    };
+    mockQuery.mockResolvedValueOnce({ rows: [row] } as any);
+
+    const queue = await service.getReviewQueue();
+
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toHaveProperty("background_check_details", { reason: "vendor_unavailable" });
+    expect(queue[0]).toHaveProperty("background_check_completed_at");
+    expect(queue[0]).toHaveProperty("credit_check_details");
+    expect(queue[0]).toHaveProperty("identity_verification_details");
+    expect(queue[0]).toHaveProperty("compliance_check_details");
+  });
+});
+
+// ── getAdverseActionDraft (delegator) ─────────────────────────────────────────────
+
+describe("ScreeningService.getAdverseActionDraft", () => {
+  let service: ScreeningService;
+  let mockAdverseAction: jest.Mocked<InstanceType<typeof AdverseActionService>>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new ScreeningService();
+    mockAdverseAction = (service as any).adverseAction;
+  });
+
+  it("delegates to AdverseActionService.generateNoticeDraft with the same args", async () => {
+    await service.getAdverseActionDraft("app-001", "Criminal history within lookback window");
+
+    expect(mockAdverseAction.generateNoticeDraft).toHaveBeenCalledWith(
+      "app-001",
+      "Criminal history within lookback window"
+    );
+    // It must NOT commit/send: the draft path never touches sendNotice.
+    expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
+  });
+
+  it("returns the rendered draft (non-empty noticeText) from the delegate", async () => {
+    const draft = await service.getAdverseActionDraft("app-001");
+
+    expect(draft.noticeText).toBeTruthy();
+    expect(typeof draft.noticeText).toBe("string");
+    expect(draft.applicationId).toBe("app-001");
+  });
+});
+
+// ── resolveReview (manual override of a held screening_review application) ─────────
+//
+// Locks the "preview === sent" invariant: the FCRA notice fired on a manual
+// denial must carry the RAW reviewer notes — the exact reasonDetail the staffer
+// previewed via getAdverseActionDraft(id, notes). A prefix/mutation here would
+// silently make the applicant's letter diverge from what was reviewed.
+
+describe("ScreeningService.resolveReview", () => {
+  let service: ScreeningService;
+  let mockAdverseAction: jest.Mocked<InstanceType<typeof AdverseActionService>>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new ScreeningService();
+    mockAdverseAction = (service as any).adverseAction;
+  });
+
+  it("fires the FCRA notice with the RAW notes as reasonDetail (no prefix) on a denial", async () => {
+    mockTransition.mockResolvedValue({ changed: true, status: "screening_failed" } as any);
+
+    const notes = "Identity documents could not be verified by the vendor.";
+    await service.resolveReview("app-001", "fail", notes, "user-sm-001", "senior_manager");
+
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_failed", trigger: "manual_override_fail" })
+    );
+    expect(mockAdverseAction.sendNotice).toHaveBeenCalledTimes(1);
+    expect(mockAdverseAction.sendNotice).toHaveBeenCalledWith(
+      "app-001",
+      "user-sm-001",
+      "senior_manager",
+      "screening_failed",
+      notes // byte-identical to the previewed draft — must NOT be prefixed/mutated
+    );
+  });
+
+  it("does NOT fire an adverse-action notice on a manual pass", async () => {
+    mockTransition.mockResolvedValue({ changed: true, status: "screening_passed" } as any);
+
+    await service.resolveReview("app-001", "pass", "Vendor recovered; verdict clear.", "user-sm-001", "senior_manager");
+
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_passed", trigger: "manual_override_pass" })
+    );
+    expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
+  });
+
+  it("does NOT send when the CAS transition is lost (changed=false) — exactly-once guard", async () => {
+    mockTransition.mockResolvedValue({ changed: false, status: "screening_review" } as any);
+
+    await service.resolveReview("app-001", "fail", "Denied.", "user-sm-001", "senior_manager");
+
+    expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
   });
 });
