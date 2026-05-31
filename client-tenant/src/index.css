@@ -1,8 +1,21 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/* Preserve the existing JS theme (custom tokens, fonts, radii, shadows) under
+   Tailwind v4 instead of porting them to CSS-first @theme. Lowest-risk path. */
+@config '../tailwind.config.ts';
 
 @layer base {
+  /* Tailwind v4 changed the default `border`/`divide` color from gray-200 to
+     currentColor. This app was authored against v3 defaults, so restore the old
+     behavior app-wide (official v4 upgrade-guide compatibility shim). */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
   body {
     background-color: theme('colors.cream');
     color: theme('colors.ink');
