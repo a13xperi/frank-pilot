@@ -8,6 +8,10 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    // TS 6.0 no longer auto-includes global-declaring @types/* packages
+    // (jest/node ambient globals). List them explicitly so describe/it/
+    // expect/process resolve. Module-imported @types resolve via imports.
+    "types": ["node", "jest"],
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": true,
