@@ -65,7 +65,12 @@ function signedBody(
     .update(`${ts}.`)
     .update(body, "utf8")
     .digest("hex");
-  const finalSig = opts?.tamper ? sig.replace(/.$/, "0") : sig;
+  // Tamper by flipping the last hex char to a *guaranteed-different* value.
+  // (Naively forcing it to "0" is a no-op ~1/16 of the time — when the real
+  // signature already ends in "0" — which made this test flake in CI.)
+  const finalSig = opts?.tamper
+    ? sig.slice(0, -1) + (sig.endsWith("0") ? "1" : "0")
+    : sig;
   return { body, header: `t=${ts},v0=${finalSig}`, ts };
 }
 
