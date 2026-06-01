@@ -11,9 +11,12 @@
 -- order-creation WITHOUT ever capturing an authorization — a compliance gap.
 -- This migration adds the durable authorization record that gates the pull.
 --
--- We persist the evidentiary trail (who, when, which disclosure version, a
--- SHA-256 hash of the exact disclosure text shown, capture method, IP, UA) —
--- the same shape as the ESIGN/UETA `lease_signatures` record. One authorization
+-- We persist the evidentiary trail (who, when, which disclosure version, the
+-- exact disclosure text shown AND its SHA-256 hash, capture method, IP, UA) —
+-- the same shape as the ESIGN/UETA `lease_signatures` record. The exact text is
+-- retained on the row (not merely referenced by version) so the recorded hash
+-- stays verifiable against immutable text forever — even after the disclosure
+-- wording is bumped and the source constant changes. One authorization
 -- per application: `application_id` is UNIQUE and writes are ON CONFLICT DO
 -- NOTHING, so the FIRST authorization wins and re-submits are idempotent.
 --
@@ -31,6 +34,7 @@ CREATE TABLE IF NOT EXISTS consumer_report_authorizations (
   applicant_role     TEXT,
   disclosure_version TEXT NOT NULL,
   disclosure_hash    TEXT NOT NULL,
+  disclosure_text    TEXT NOT NULL,
   method             TEXT NOT NULL DEFAULT 'in_app_checkbox',
   authorized_ip      TEXT,
   user_agent         TEXT,

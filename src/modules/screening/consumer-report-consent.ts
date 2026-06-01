@@ -14,9 +14,13 @@
  * posts the affirmation to /me/applications/submit-draft, which calls
  * recordAuthorization() before any report order is created.
  *
- * The evidentiary record (who / when / which disclosure version / a SHA-256 hash
- * of the exact text shown / capture method / IP / UA) mirrors the ESIGN/UETA
- * `lease_signatures` record. One authorization per application — first wins,
+ * The evidentiary record (who / when / which disclosure version / the exact
+ * disclosure text shown AND its SHA-256 hash / capture method / IP / UA) mirrors
+ * the ESIGN/UETA `lease_signatures` record. The exact text is retained on the
+ * row — not merely referenced by version — so the recorded hash stays verifiable
+ * against immutable text forever, even after FCRA_DISCLOSURE_VERSION is bumped
+ * and the source constant below changes (see verifyStoredAuthorization).
+ * One authorization per application — first wins,
  * re-submits idempotent (consumer_report_authorizations.application_id UNIQUE,
  * written ON CONFLICT DO NOTHING).
  *
@@ -83,6 +87,7 @@ export interface StoredAuthorization {
   applicantId: string | null;
   disclosureVersion: string;
   disclosureHash: string;
+  disclosureText: string;
   method: string;
   authorizedAt: string; // ISO-8601
 }
@@ -92,7 +97,8 @@ export async function getAuthorization(
   applicationId: string
 ): Promise<StoredAuthorization | null> {
   const res = await query(
-    `SELECT application_id, applicant_id, disclosure_version, disclosure_hash, method, authorized_at
+    `SELECT application_id, applicant_id, disclosure_version, disclosure_hash,
+            disclosure_text, method, authorized_at
        FROM consumer_report_authorizations
       WHERE application_id = $1`,
     [applicationId]
@@ -104,9 +110,26 @@ export async function getAuthorization(
     applicantId: (r.applicant_id as string) ?? null,
     disclosureVersion: r.disclosure_version as string,
     disclosureHash: r.disclosure_hash as string,
+    disclosureText: r.disclosure_text as string,
     method: r.method as string,
     authorizedAt: new Date(r.authorized_at as string).toISOString(),
   };
+}
+
+/**
+ * Re-derive the hash from the disclosure text RETAINED on the authorization row
+ * and confirm it matches the hash recorded at authorization time. Because the
+ * exact text is persisted per-row, this remains verifiable indefinitely — even
+ * for a superseded disclosure version whose text no longer exists in source.
+ * `intact: false` means the retained text and recorded hash disagree (tamper or
+ * corruption); `found: false` means there is no authorization to verify.
+ */
+export async function verifyStoredAuthorization(
+  applicationId: string
+): Promise<{ found: boolean; intact: boolean }> {
+  const a = await getAuthorization(applicationId);
+  if (!a) return { found: false, intact: false };
+  return { found: true, intact: fcraDisclosureHash(a.disclosureText) === a.disclosureHash };
 }
 
 /**
@@ -150,11 +173,13 @@ export async function recordAuthorization(input: {
   const disclosureHash = fcraDisclosureHash();
   const method = input.method ?? "in_app_checkbox";
 
+  // Retain the EXACT text whose hash we record, so the authorization stays
+  // self-provably verifiable even after FCRA_DISCLOSURE_TEXT is later changed.
   const inserted = await query(
     `INSERT INTO consumer_report_authorizations
        (application_id, applicant_id, applicant_role, disclosure_version,
-        disclosure_hash, method, authorized_ip, user_agent)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        disclosure_hash, disclosure_text, method, authorized_ip, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT (application_id) DO NOTHING
      RETURNING authorized_at`,
     [
@@ -163,6 +188,7 @@ export async function recordAuthorization(input: {
       input.applicantRole ?? null,
       version,
       disclosureHash,
+      FCRA_DISCLOSURE_TEXT,
       method,
       input.ip ?? null,
       input.userAgent ?? null,
