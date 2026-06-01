@@ -325,6 +325,15 @@ export class ScreeningService {
         ssnLast4,
         dateOfBirth: dob,
         state: app.current_state || "NV",
+        // Thread the demo tag through to the background vendor, exactly as we
+        // already do for identity and the extended checks (plaid/nsopw/work-
+        // number). The sandbox vendor honors it ONLY under MOCK_MODE=1, so this
+        // is byte-identical in real keyless prod (the applicant funnel never
+        // sends a tag, and outside MOCK_MODE the vendor ignores it). It makes
+        // the documented MOCK background tags (deny_felony, deny_sex_offender,
+        // review_misdemeanors) reachable end-to-end — e.g. to exercise the
+        // HUD/FHA criminal-decision engine's individualized-review HOLD.
+        screeningTag,
       }),
       this.creditCheck.runCheck({
         firstName: app.first_name,
