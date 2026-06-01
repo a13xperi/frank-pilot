@@ -27,6 +27,14 @@ rand_ssn() {
 }
 APPLICANT_SSN="${APPLICANT_SSN:-$(rand_ssn)}"
 
+# Optional demo-link header. When the backend has DEMO_LINK_SECRET configured
+# (a staging/prod-shaped env), the devLink is only echoed to requests carrying
+# a matching x-demo-token header (see src/utils/demo-link.ts — "secret wins").
+# Export DEMO_TOKEN=<secret> to use that path; leave unset for a fully-open
+# DEMO_LINK_IN_RESPONSE=true backend (local default).
+DEMO_HDR=()
+[ -n "${DEMO_TOKEN:-}" ] && DEMO_HDR=(-H "x-demo-token: ${DEMO_TOKEN}")
+
 green() { printf "\033[32m%s\033[0m\n" "$*"; }
 red()   { printf "\033[31m%s\033[0m\n" "$*"; }
 say()   { printf "\033[36m▸\033[0m %s\n" "$*"; }
@@ -59,7 +67,7 @@ magic_login() {
   local email="$1"
   local req
   req=$(curl -fsS -X POST "$API/api/auth/magic-link/request" \
-    -H 'Content-Type: application/json' \
+    -H 'Content-Type: application/json' "${DEMO_HDR[@]}" \
     -d "{\"email\":\"$email\"}")
   local dev_link
   dev_link=$(echo "$req" | jq -r '.devLink // empty')
@@ -92,7 +100,7 @@ green "  ok"
 say "2. Applicant self-registers"
 api "POST /api/applicants/register"
 REG=$(curl -fsS -X POST "$API/api/applicants/register" \
-  -H 'Content-Type: application/json' \
+  -H 'Content-Type: application/json' "${DEMO_HDR[@]}" \
   -d "{\"email\":\"$APPLICANT_EMAIL\",\"firstName\":\"Alice\",\"lastName\":\"Onboarding\",\"phone\":\"702-555-0100\"}")
 require "$REG" '.ok == true' "register accepted"
 DEV_LINK=$(echo "$REG" | jq -r '.devLink // empty')
