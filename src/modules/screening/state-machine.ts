@@ -178,6 +178,12 @@ export const APP_STATUS_TRANSITIONS: ReadonlyArray<AppStatusTransition> = [
   // verdict). HOLD the application in a non-approvable status until staff
   // resolve it manually. NEVER auto-passes.
   { from: "screening", to: "screening_review", trigger: "could_not_screen" },
+  // individualized_assessment_required — the background check surfaced a
+  // discretionary criminal record inside the lookback (HUD/FHA Castro §III.B).
+  // It must NOT auto-fail (no time-blind blanket ban) and must NOT auto-pass
+  // (the assessment must happen). HOLD in screening_review for staff to run the
+  // individualized assessment before any denial.
+  { from: "screening", to: "screening_review", trigger: "individualized_assessment_required" },
   { from: "screening_review", to: "screening_passed", trigger: "manual_override_pass" },
   { from: "screening_review", to: "screening_failed", trigger: "manual_override_fail" },
 ];

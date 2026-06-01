@@ -115,14 +115,38 @@ function makeApp(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeBackgroundResult(result: "pass" | "fail" | "review_required" | "could_not_screen") {
+function makeBackgroundResult(
+  result: "pass" | "fail" | "review_required" | "could_not_screen",
+  extraDetails: Record<string, unknown> = {}
+) {
   return {
     result,
     details: {
       felonies: 0, sexOffenses: false, violentCrimes: false,
       misdemeanors: 0, riskScore: 10,
+      ...extraDetails,
     },
   } as any;
+}
+
+/** A background check that surfaced a discretionary criminal record requiring a
+ *  HUD/FHA individualized assessment (Castro §III.B): review_required result
+ *  carrying decision="individualized_review". */
+function makeBackgroundIA() {
+  return makeBackgroundResult("review_required", {
+    decision: "individualized_review",
+    riskScore: 90,
+    felonies: 1,
+    reasons: ["felony_nonviolent within 5-yr lookback — individualized assessment required"],
+    citations: ["Castro memo §III; 24 CFR §100.500"],
+    assessmentFactors: {
+      natureAndSeverity: ["felony_nonviolent"],
+      timeElapsedYears: 2.0,
+      applicableLookbackYears: 5,
+      mitigatingEvidenceRequired: true,
+      workflow: "Castro §III.B",
+    },
+  });
 }
 
 function makeCreditResult(
@@ -306,6 +330,94 @@ describe("ScreeningService.runFullScreening", () => {
     const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
 
     expect(result.overallResult).toBe("fail");
+  });
+
+  // ── HUD/FHA individualized assessment: discretionary criminal record HOLDS ──
+  //
+  // A discretionary criminal record in lookback is surfaced by background-check
+  // as result=review_required tagged details.decision="individualized_review".
+  // It must HOLD in screening_review (Castro §III.B), never auto-fail (no
+  // time-blind blanket ban) and never auto-pass via the review_required
+  // passthrough. The overall result stays the enum-safe "review_required" — the
+  // HOLD-ness is the STATUS, so this needs NO new screening_result enum value
+  // and NO migration.
+
+  it("routes a background individualized-assessment to screening_review, NEVER screening_passed", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundIA());
+    mockTransition.mockResolvedValue({ changed: true, status: "screening_review" } as any);
+
+    await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "screening_review",
+        trigger: "individualized_assessment_required",
+      })
+    );
+    // It must NEVER have attempted to mark the app passed (no auto-pass) ...
+    expect(mockTransition).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_passed" })
+    );
+    // ... and NEVER failed it (no time-blind blanket ban).
+    expect(mockTransition).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_failed" })
+    );
+  });
+
+  it("keeps overallResult=review_required for an individualized-assessment hold (enum-safe, no migration)", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundIA());
+    mockTransition.mockResolvedValue({ changed: true, status: "screening_review" } as any);
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(result.overallResult).toBe("review_required");
+    // The aggregate-result UPDATE writes the enum-safe "review_required" verbatim.
+    const wroteReviewRequired = mockQuery.mock.calls.some(
+      ([sql, params]) =>
+        typeof sql === "string" &&
+        /SET overall_screening_result = \$2/.test(sql) &&
+        Array.isArray(params) &&
+        params[1] === "review_required"
+    );
+    expect(wroteReviewRequired).toBe(true);
+  });
+
+  it("sends NO adverse-action notice for an individualized-assessment hold (assessment precedes any denial)", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundIA());
+    mockTransition.mockResolvedValue({ changed: true, status: "screening_review" } as any);
+
+    await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
+  });
+
+  it("fail still outranks an individualized-assessment hold (a mandatory denial elsewhere wins)", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundIA());
+    mockCredit.runCheck.mockResolvedValue(makeCreditResult("fail"));
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(result.overallResult).toBe("fail");
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_failed", trigger: "any_check_failed" })
+    );
+  });
+
+  it("a plain review_required (decision='clear', e.g. 3+ misdemeanors) still passes through to screening_passed", async () => {
+    // Regression guard: only an individualized_review decision HOLDs. A soft
+    // review_required (misdemeanor risk score) keeps the legacy passthrough.
+    mockBackground.runCheck.mockResolvedValue(
+      makeBackgroundResult("review_required", { decision: "clear", riskScore: 75, misdemeanors: 3 })
+    );
+
+    await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "screening_passed",
+        trigger: "review_required_passthrough",
+      })
+    );
   });
 
   // ── could_not_screen: misconfigured / failed pipeline HOLDS, never passes ──

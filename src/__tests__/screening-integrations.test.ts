@@ -14,7 +14,13 @@
  *   - Error path: API throws → caught → returns could_not_screen (safe fallback)
  *
  * LIHTC/HUD/FCRA compliance notes:
- *   BackgroundCheckService: auto-fail on felonies, sex offenses, violent crimes
+ *   BackgroundCheckService: runs the HUD/FHA individualized-assessment engine
+ *     (hud-criminal-decision.ts). Only federal MANDATORY floors auto-fail
+ *     (§5.856 lifetime sex-offender registrant; §960.204 meth/current-drug/
+ *     drug-eviction). DISCRETIONARY records (felonies, violent crimes) do NOT
+ *     auto-fail — they become review_required tagged decision="individualized_review"
+ *     so the orchestrator HOLDs them for a Castro §III.B assessment (never a
+ *     time-blind blanket ban; never an auto-pass).
  *   CreditCheckService: auto-fail on evictions or active bankruptcy;
  *     sub-600 score → review_required (not auto-fail — decision matrix handles exceptions)
  */
@@ -69,6 +75,7 @@ describe("BackgroundCheckService.runCheck()", () => {
     const result = await service.runCheck(bgInput());
 
     expect(result.result).toBe("pass");
+    expect(result.details.decision).toBe("clear");
     expect(result.details.felonies).toBe(0);
     expect(result.details.sexOffenses).toBe(false);
     expect(result.details.violentCrimes).toBe(false);
@@ -78,7 +85,10 @@ describe("BackgroundCheckService.runCheck()", () => {
 
   // ── evaluateResults() via spy ────────────────────────────────────────────
 
-  it("returns fail when response contains felonies (auto-fail criterion)", async () => {
+  it("HOLDs felonies for individualized assessment — does NOT auto-fail (HUD/FHA)", async () => {
+    // Felonies are DISCRETIONARY: Castro §III forbids a time-blind blanket ban.
+    // The engine routes them to a review_required HOLD tagged for individualized
+    // assessment, never a "fail".
     jest.spyOn(service as any, "callScreeningAPI").mockResolvedValue({
       felonies: 2,
       sexOffenses: false,
@@ -88,12 +98,19 @@ describe("BackgroundCheckService.runCheck()", () => {
 
     const result = await service.runCheck(bgInput());
 
-    expect(result.result).toBe("fail");
+    expect(result.result).toBe("review_required");
+    expect(result.details.decision).toBe("individualized_review");
     expect(result.details.felonies).toBe(2);
-    expect(result.details.riskScore).toBe(100);
+    expect(result.details.riskScore).toBe(90);
+    expect(result.details.assessmentFactors?.mitigatingEvidenceRequired).toBe(true);
+    expect(result.details.citations).toEqual(
+      expect.arrayContaining([expect.stringMatching(/100\.500|Castro/)])
+    );
   });
 
-  it("returns fail when response contains sex offenses (auto-fail)", async () => {
+  it("auto-fails a sex-offender registry hit (§5.856 mandatory floor)", async () => {
+    // §5.856 lifetime registrant is one of the few MANDATORY federal denials —
+    // it is the exception that still auto-fails (no individualized assessment).
     jest.spyOn(service as any, "callScreeningAPI").mockResolvedValue({
       felonies: 0,
       sexOffenses: true,
@@ -104,11 +121,15 @@ describe("BackgroundCheckService.runCheck()", () => {
     const result = await service.runCheck(bgInput());
 
     expect(result.result).toBe("fail");
+    expect(result.details.decision).toBe("mandatory_denial");
     expect(result.details.sexOffenses).toBe(true);
     expect(result.details.riskScore).toBe(100);
+    expect(result.details.citations).toEqual(
+      expect.arrayContaining([expect.stringMatching(/5\.856/)])
+    );
   });
 
-  it("returns fail when response contains violent crimes (auto-fail)", async () => {
+  it("HOLDs violent crimes for individualized assessment — does NOT auto-fail", async () => {
     jest.spyOn(service as any, "callScreeningAPI").mockResolvedValue({
       felonies: 0,
       sexOffenses: false,
@@ -118,11 +139,16 @@ describe("BackgroundCheckService.runCheck()", () => {
 
     const result = await service.runCheck(bgInput());
 
-    expect(result.result).toBe("fail");
+    expect(result.result).toBe("review_required");
+    expect(result.details.decision).toBe("individualized_review");
     expect(result.details.violentCrimes).toBe(true);
+    expect(result.details.riskScore).toBe(90);
   });
 
-  it("returns review_required when misdemeanor count >= 3 (riskScore=75)", async () => {
+  it("returns review_required when misdemeanor count >= 3 (riskScore=75, soft-clear)", async () => {
+    // Misdemeanors are NOT a denial-consideration trigger in the engine
+    // (decision stays "clear"); the legacy soft-risk score still routes 3+ to a
+    // review_required passthrough (auto-pass), distinct from an IA hold.
     jest.spyOn(service as any, "callScreeningAPI").mockResolvedValue({
       felonies: 0,
       sexOffenses: false,
@@ -133,6 +159,7 @@ describe("BackgroundCheckService.runCheck()", () => {
     const result = await service.runCheck(bgInput());
 
     expect(result.result).toBe("review_required");
+    expect(result.details.decision).toBe("clear");
     expect(result.details.misdemeanors).toBe(3);
     expect(result.details.riskScore).toBe(75);
   });
