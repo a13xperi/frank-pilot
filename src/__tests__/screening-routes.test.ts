@@ -120,11 +120,20 @@ function buildApp() {
 
 const app = buildApp();
 
+// Reset mock state before EVERY test, in any describe. jest.clearAllMocks()
+// clears call records but NOT the mockResolvedValueOnce queue; mockReset() on
+// the users-DB query mock additionally drains any auth row a prior test queued
+// but never consumed, so a leaked once-value can't misalign authenticate's user
+// lookup and flip a later test's status code. Keeps each test hermetic
+// regardless of suite execution order (the ordering flake the audit flagged).
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockQuery.mockReset();
+});
+
 // ── POST /:applicationId/screen — initiate screening ─────────────────────
 
 describe("POST /screening/:applicationId/screen", () => {
-  beforeEach(() => jest.clearAllMocks());
-
   it("returns 401 when no Authorization header is provided", async () => {
     const res = await request(app).post("/screening/app-001/screen");
     expect(res.status).toBe(401);
@@ -226,8 +235,6 @@ describe("POST /screening/:applicationId/screen", () => {
 // ── GET /:applicationId/results — get screening results ───────────────────
 
 describe("GET /screening/:applicationId/results", () => {
-  beforeEach(() => jest.clearAllMocks());
-
   it("returns 401 when no token provided", async () => {
     const res = await request(app).get("/screening/app-001/results");
     expect(res.status).toBe(401);
@@ -299,8 +306,6 @@ describe("GET /screening/:applicationId/results", () => {
 // ── GET /:applicationId/fraud-flags — get fraud flags ────────────────────
 
 describe("GET /screening/:applicationId/fraud-flags", () => {
-  beforeEach(() => jest.clearAllMocks());
-
   it("returns 401 when no token provided", async () => {
     const res = await request(app).get("/screening/app-001/fraud-flags");
     expect(res.status).toBe(401);
@@ -371,8 +376,6 @@ describe("GET /screening/:applicationId/fraud-flags", () => {
 // ── POST /fraud-flags/:flagId/resolve — resolve fraud flag ────────────────
 
 describe("POST /screening/fraud-flags/:flagId/resolve", () => {
-  beforeEach(() => jest.clearAllMocks());
-
   it("returns 401 when no token provided", async () => {
     const res = await request(app)
       .post("/screening/fraud-flags/flag-001/resolve")
@@ -465,8 +468,6 @@ describe("POST /screening/fraud-flags/:flagId/resolve", () => {
 // string (array/duplicate params collapse to undefined).
 
 describe("GET /screening/:applicationId/adverse-action/draft", () => {
-  beforeEach(() => jest.clearAllMocks());
-
   const sampleDraft = {
     applicationId: "app-001",
     applicantName: "Jane Doe",
