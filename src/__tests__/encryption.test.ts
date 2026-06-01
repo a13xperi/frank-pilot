@@ -46,7 +46,9 @@ describe("encrypt / decrypt", () => {
   it("throws on tampered ciphertext", () => {
     const ciphertext = encrypt("sensitive");
     const [iv, tag, data] = ciphertext.split(":");
-    const tampered = `${iv}:${tag}:${data.slice(0, -2)}ff`; // corrupt last byte
+    // Corrupt the last byte to a *guaranteed-different* value — forcing "ff"
+    // is a no-op the ~1/256 of the time the ciphertext already ends in "ff".
+    const tampered = `${iv}:${tag}:${data.slice(0, -2)}${data.endsWith("ff") ? "00" : "ff"}`;
     expect(() => decrypt(tampered)).toThrow();
   });
 });
