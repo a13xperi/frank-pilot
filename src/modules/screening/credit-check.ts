@@ -1,5 +1,5 @@
 import { logger } from "../../utils/logger";
-import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
+import { resolveVendor } from "./vendors";
 
 export interface CreditCheckResult {
   result: "pass" | "fail" | "review_required" | "could_not_screen";
@@ -17,16 +17,12 @@ export interface CreditCheckResult {
 /**
  * Credit check integration.
  * Threshold: 600+ preferred, decision matrix allows exceptions.
+ *
+ * The raw vendor response comes from the screening vendor seam
+ * (resolveVendor("credit")); this service owns only Frank's evaluation policy
+ * (evaluateResults) and the fail-loud catch → could_not_screen HOLD.
  */
 export class CreditCheckService {
-  private apiUrl: string;
-  private apiKey: string;
-
-  constructor() {
-    this.apiUrl = process.env.SCREENING_API_URL || "https://api.screening-provider.example.com";
-    this.apiKey = process.env.SCREENING_API_KEY || "";
-  }
-
   async runCheck(input: {
     firstName: string;
     lastName: string;
@@ -68,58 +64,9 @@ export class CreditCheckService {
     dateOfBirth: string;
     screeningTag?: string;
   }): Promise<any> {
-    // STUB: Replace with actual credit bureau API call
-    if (process.env.MOCK_MODE === "1" && input.screeningTag) {
-      return this.mockResponse(input.screeningTag);
-    }
-
-    if (!this.apiKey || this.apiKey === "changeme") {
-      if (!shouldUseScreeningStub()) {
-        throw new Error(STUB_GATE_ERROR);
-      }
-      logger.warn("Using stub credit check — no API key configured (stub policy allows fallback)");
-      return {
-        creditScore: 680,
-        paymentHistory: "good",
-        outstandingDebts: 2500,
-        collections: 0,
-        evictions: 0,
-        bankruptcies: 0,
-      };
-    }
-
-    throw new Error("Production API integration not yet configured");
-  }
-
-  private mockResponse(tag: string): any {
-    if (tag === "review_low_credit") {
-      return {
-        creditScore: 520,
-        paymentHistory: "fair",
-        outstandingDebts: 8200,
-        collections: 1,
-        evictions: 0,
-        bankruptcies: 0,
-      };
-    }
-    if (tag === "approve_clean") {
-      return {
-        creditScore: 720,
-        paymentHistory: "excellent",
-        outstandingDebts: 1200,
-        collections: 0,
-        evictions: 0,
-        bankruptcies: 0,
-      };
-    }
-    return {
-      creditScore: 680,
-      paymentHistory: "good",
-      outstandingDebts: 2500,
-      collections: 0,
-      evictions: 0,
-      bankruptcies: 0,
-    };
+    // Delegate the raw pull to the configured vendor. The vendor self-gates on
+    // the stub policy: keyless production THROWS here → caught above → HOLD.
+    return resolveVendor("credit").credit(input);
   }
 
   private evaluateResults(response: any): CreditCheckResult {

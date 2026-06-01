@@ -1,5 +1,5 @@
 import { logger } from "../../utils/logger";
-import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
+import { resolveVendor } from "./vendors";
 
 export interface WorkNumberResult {
   result: "verified" | "no_record" | "partial" | "review_required";
@@ -22,18 +22,15 @@ export interface WorkNumberResult {
  * module because Work Number is a separately credentialed Equifax product
  * with its own auth + endpoint, distinct from credit / criminal pulls.
  *
- * Stub pattern matches loft.ts / onesite.ts / background-check.ts: env-gated,
- * stub fallback when key absent, throws on production path until credentialed.
+ * P1 fail-loud contract: this service has NO internal try/catch. Employment is
+ * the one domain where the vendor returns a near-final verdict (no
+ * evaluateResults step), and a keyless-production gate error must PROPAGATE so
+ * the orchestrator's call-site wrapper contains it as could_not_screen rather
+ * than letting it look like a "verified" pass. The seam preserves that: the
+ * sandbox vendor's employment() throws STUB_GATE_ERROR when the stub gate is
+ * closed, and that throw flows straight out of verifyEmployment.
  */
 export class WorkNumberService {
-  private apiUrl: string;
-  private apiKey: string;
-
-  constructor() {
-    this.apiUrl = process.env.WORK_NUMBER_API_URL || "https://api.theworknumber.example.com";
-    this.apiKey = process.env.WORK_NUMBER_API_KEY || "";
-  }
-
   async verifyEmployment(input: {
     firstName: string;
     lastName: string;
@@ -44,30 +41,9 @@ export class WorkNumberService {
       applicant: `${input.firstName} ${input.lastName}`,
     });
 
-    if (!this.apiKey || this.apiKey === "changeme") {
-      // Fail-loud: a keyless production deploy must NOT silently report every
-      // applicant as employment-verified. Stub data is only allowed behind the
-      // explicit stub-policy gate (MOCK_MODE / ALLOW_STUB_SCREENING / test);
-      // otherwise throw so the missing key surfaces as a hard error instead of
-      // a false-positive "verified". (Matches credit-check.ts / nsopw-direct.ts.)
-      if (!shouldUseScreeningStub()) {
-        throw new Error(STUB_GATE_ERROR);
-      }
-      logger.warn("Using stub Work Number verification — no API key configured (stub policy allows fallback)");
-      return {
-        result: "verified",
-        details: {
-          currentEmployer: "STUB Employer Inc.",
-          employmentStatus: "active",
-          hireDate: "2023-01-01",
-          terminationDate: null,
-          annualizedIncome: 45000,
-          incomeSource: "employer_reported",
-          rawResponse: { stub: true },
-        },
-      };
-    }
-
-    throw new Error("Work Number production API not yet configured");
+    // Delegate to the configured vendor. No catch — a keyless-production gate
+    // error propagates by design (see class docblock). The employment vendor
+    // response is structurally a WorkNumberResult.
+    return resolveVendor("employment").employment(input);
   }
 }

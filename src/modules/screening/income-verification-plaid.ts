@@ -1,5 +1,5 @@
 import { logger } from "../../utils/logger";
-import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
+import { resolveVendor } from "./vendors";
 
 export interface PlaidIncomeResult {
   result: "verified" | "unverified" | "review_required";
@@ -26,16 +26,13 @@ export interface PlaidIncomeResult {
  * Cross-checked against Equifax Work Number when the applicant declares a
  * W-2 employer (FraudDetectionService.checkIncomeMismatch fires on >15%
  * delta between the two sources).
+ *
+ * The raw vendor response comes from the screening vendor seam
+ * (resolveVendor("income")); this service owns only the evaluation policy and
+ * the catch → review_required HOLD (Plaid failures are a softer hold than the
+ * could_not_screen used by background/credit).
  */
 export class PlaidIncomeService {
-  private clientId: string;
-  private secret: string;
-
-  constructor() {
-    this.clientId = process.env.PLAID_CLIENT_ID || "";
-    this.secret = process.env.PLAID_SECRET || "";
-  }
-
   async verifyIncome(input: {
     firstName: string;
     lastName: string;
@@ -74,65 +71,10 @@ export class PlaidIncomeService {
     plaidAccessToken?: string;
     screeningTag?: string;
   }): Promise<any> {
-    if (process.env.MOCK_MODE === "1" && input.screeningTag) {
-      return this.mockResponse(input.screeningTag);
-    }
-
-    if (!this.clientId || !this.secret || this.secret === "changeme") {
-      if (!shouldUseScreeningStub()) {
-        throw new Error(STUB_GATE_ERROR);
-      }
-      logger.warn("Using stub Plaid Income — no client_id/secret configured (stub policy allows fallback)");
-      return {
-        verified: true,
-        annualIncomeCents: 5400000,
-        monthlyAverageCents: 450000,
-        sources: [
-          { type: "payroll", employer: "Acme Co", monthlyAverageCents: 450000 },
-        ],
-        accountsLinked: 1,
-        monthsHistory: 24,
-      };
-    }
-
-    throw new Error("Production API integration not yet configured");
-  }
-
-  private mockResponse(tag: string): any {
-    if (tag === "fraud_income_mismatch") {
-      return {
-        verified: true,
-        annualIncomeCents: 3000000,
-        monthlyAverageCents: 250000,
-        sources: [
-          { type: "payroll", employer: "Acme Co", monthlyAverageCents: 250000 },
-        ],
-        accountsLinked: 1,
-        monthsHistory: 18,
-      };
-    }
-    if (tag === "deny_income_over_ami") {
-      return {
-        verified: true,
-        annualIncomeCents: 9000000,
-        monthlyAverageCents: 750000,
-        sources: [
-          { type: "payroll", employer: "Acme Co", monthlyAverageCents: 750000 },
-        ],
-        accountsLinked: 1,
-        monthsHistory: 24,
-      };
-    }
-    return {
-      verified: true,
-      annualIncomeCents: 5400000,
-      monthlyAverageCents: 450000,
-      sources: [
-        { type: "payroll", employer: "Acme Co", monthlyAverageCents: 450000 },
-      ],
-      accountsLinked: 1,
-      monthsHistory: 24,
-    };
+    // Delegate the raw pull to the configured vendor (sandbox by default; plaid
+    // when SCREENING_VENDOR_INCOME=plaid + creds). The vendor self-gates on the
+    // stub policy: keyless production THROWS here → caught above → review_required.
+    return resolveVendor("income").income(input);
   }
 
   private evaluateResults(response: any): PlaidIncomeResult {
