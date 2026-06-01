@@ -49,7 +49,7 @@ export function formatRole(role: UserRole | null | undefined): string {
 // ── Application types ─────────────────────────────────────────────
 
 export type ApplicationStatus =
-  | 'draft' | 'submitted' | 'screening' | 'screening_review' | 'screening_passed' | 'screening_failed'
+  | 'draft' | 'submitted' | 'awaiting_identity' | 'screening' | 'screening_review' | 'screening_passed' | 'screening_failed'
   | 'tier1_review' | 'tier1_approved' | 'tier1_denied'
   | 'tier2_review' | 'tier2_approved' | 'tier2_denied'
   | 'tier3_review' | 'tier3_approved' | 'tier3_denied'

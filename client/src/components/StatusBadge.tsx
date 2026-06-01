@@ -1,6 +1,7 @@
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-600',
   submitted: 'bg-blue-100 text-blue-700',
+  awaiting_identity: 'bg-sky-100 text-sky-700',
   screening: 'bg-yellow-100 text-yellow-700',
   screening_review: 'bg-amber-100 text-amber-700',
   screening_passed: 'bg-emerald-100 text-emerald-700',
