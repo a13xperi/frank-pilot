@@ -17,6 +17,7 @@ import {
   getAuthorization,
   hasValidAuthorization,
   recordAuthorization,
+  verifyStoredAuthorization,
 } from "../modules/screening/consumer-report-consent";
 import { query } from "../config/database";
 import { writeAuditLog } from "../middleware/audit";
@@ -79,9 +80,11 @@ describe("recordAuthorization", () => {
       alreadyRecorded: false,
     });
 
-    // INSERT ... ON CONFLICT DO NOTHING with the current version + the text hash.
+    // INSERT ... ON CONFLICT DO NOTHING persists the version, the text hash, AND
+    // the exact disclosure text whose hash it is.
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toMatch(/INSERT INTO consumer_report_authorizations/i);
+    expect(sql).toMatch(/disclosure_text/i);
     expect(sql).toMatch(/ON CONFLICT \(application_id\) DO NOTHING/i);
     expect(params).toEqual([
       "app-1",
@@ -89,10 +92,13 @@ describe("recordAuthorization", () => {
       "applicant",
       FCRA_DISCLOSURE_VERSION,
       fcraDisclosureHash(),
+      FCRA_DISCLOSURE_TEXT,
       "in_app_checkbox",
       "1.2.3.4",
       "UA/1.0",
     ]);
+    // The retained text hashes to the recorded hash — self-provable.
+    expect(fcraDisclosureHash(params![5] as string)).toBe(params![4]);
 
     expect(mockWriteAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -121,6 +127,7 @@ describe("recordAuthorization", () => {
           applicant_id: "u1",
           disclosure_version: FCRA_DISCLOSURE_VERSION,
           disclosure_hash: fcraDisclosureHash(),
+          disclosure_text: FCRA_DISCLOSURE_TEXT,
           method: "in_app_checkbox",
           authorized_at: new Date("2026-05-30T09:00:00.000Z"),
         },
@@ -187,5 +194,86 @@ describe("hasValidAuthorization", () => {
     mockQuery.mockResolvedValue(qr([])); // both hasValid + getAuthorization read empty
     await expect(hasValidAuthorization("app-1")).resolves.toBe(false);
     await expect(getAuthorization("app-1")).resolves.toBeNull();
+  });
+});
+
+describe("verifyStoredAuthorization", () => {
+  it("intact for a current-version authorization (retained text re-hashes to recorded hash)", async () => {
+    mockQuery.mockResolvedValueOnce(
+      qr([
+        {
+          application_id: "app-1",
+          applicant_id: "u1",
+          disclosure_version: FCRA_DISCLOSURE_VERSION,
+          disclosure_hash: fcraDisclosureHash(),
+          disclosure_text: FCRA_DISCLOSURE_TEXT,
+          method: "in_app_checkbox",
+          authorized_at: new Date("2026-06-01T10:00:00.000Z"),
+        },
+      ])
+    );
+    await expect(verifyStoredAuthorization("app-1")).resolves.toEqual({
+      found: true,
+      intact: true,
+    });
+  });
+
+  it("intact for a SUPERSEDED version whose text is gone from source — the retention guarantee", async () => {
+    // Simulate an authorization captured before a wording bump: the disclosure
+    // text below no longer matches the current FCRA_DISCLOSURE_TEXT constant, so
+    // it cannot be reconstructed from source. Because the exact text is RETAINED
+    // on the row, its recorded hash is still pre-imageable — closing the gap.
+    const oldText =
+      "CONSUMER REPORT AUTHORIZATION (v2024)\n\nSuperseded disclosure wording that " +
+      "no longer exists anywhere in the current source tree.";
+    const oldHash = createHash("sha256").update(oldText).digest("hex");
+    expect(oldText).not.toBe(FCRA_DISCLOSURE_TEXT);
+    expect(oldHash).not.toBe(fcraDisclosureHash());
+
+    mockQuery.mockResolvedValueOnce(
+      qr([
+        {
+          application_id: "app-old",
+          applicant_id: "u1",
+          disclosure_version: "2024-01-01",
+          disclosure_hash: oldHash,
+          disclosure_text: oldText,
+          method: "in_app_checkbox",
+          authorized_at: new Date("2024-01-01T00:00:00.000Z"),
+        },
+      ])
+    );
+    await expect(verifyStoredAuthorization("app-old")).resolves.toEqual({
+      found: true,
+      intact: true,
+    });
+  });
+
+  it("not intact when the retained text and recorded hash disagree (tamper/corruption)", async () => {
+    mockQuery.mockResolvedValueOnce(
+      qr([
+        {
+          application_id: "app-1",
+          applicant_id: "u1",
+          disclosure_version: FCRA_DISCLOSURE_VERSION,
+          disclosure_hash: fcraDisclosureHash(), // hash of the canonical text...
+          disclosure_text: FCRA_DISCLOSURE_TEXT + "\nTAMPERED LINE", // ...but text differs
+          method: "in_app_checkbox",
+          authorized_at: new Date("2026-06-01T10:00:00.000Z"),
+        },
+      ])
+    );
+    await expect(verifyStoredAuthorization("app-1")).resolves.toEqual({
+      found: true,
+      intact: false,
+    });
+  });
+
+  it("found:false / intact:false when there is no authorization to verify", async () => {
+    mockQuery.mockResolvedValueOnce(qr([]));
+    await expect(verifyStoredAuthorization("app-1")).resolves.toEqual({
+      found: false,
+      intact: false,
+    });
   });
 });

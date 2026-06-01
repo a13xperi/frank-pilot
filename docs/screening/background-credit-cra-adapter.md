@@ -218,9 +218,13 @@ What is NEW for this adapter:
   `CONSUMER_REPORT_ENABLED`.** `screening/consumer-report-consent.ts` holds a versioned
   clear-and-conspicuous disclosure (`FCRA_DISCLOSURE_VERSION` / `_TEXT` + SHA-256
   `fcraDisclosureHash`) and `recordAuthorization()` writes a durable
-  `consumer_report_authorizations` row (who / when / version / text-hash / method / IP /
-  UA — same evidentiary shape as `lease_signatures`) + a `consumer_report_authorized`
-  audit entry. `submit()` now **gates** the Checkr/TU pull on a valid authorization:
+  `consumer_report_authorizations` row (who / when / version / the **exact disclosure
+  text shown** + its SHA-256 hash / method / IP / UA — same evidentiary shape as
+  `lease_signatures`) + a `consumer_report_authorized` audit entry. The text is retained
+  **per-row**, not merely referenced by version, so the recorded hash stays pre-imageable
+  against immutable text forever — even after `FCRA_DISCLOSURE_TEXT` is later bumped and
+  the old wording leaves source; `verifyStoredAuthorization()` re-derives the hash from the
+  retained text to prove integrity on demand. `submit()` now **gates** the Checkr/TU pull on a valid authorization:
   honor one already on file (idempotent re-submit) or capture a freshly-affirmed consent;
   absent/stale ⇒ no orders, app stays `submitted`, and the route returns 400 +
   `{disclosure}` (fail-loud, never an unauthorized pull). `screening_authorization_at`
