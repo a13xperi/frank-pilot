@@ -61,6 +61,24 @@ describe("evaluateCriminalHistory — mandatory federal floors (auto-deny, no as
     expect(r.decision).toBe("clear");
   });
 
+  it("drug-related eviction with NO date → individualized_review, NOT mandatory (cannot prove the 3-yr window — never auto-deny blind)", () => {
+    // §960.204(a)(1) is date-gated; an undated eviction can't be proven in-window,
+    // so it must HOLD for staff to establish the date, not auto-deny on the
+    // undated-in-lookback presumption (the missing-date fail-safe).
+    const r = ev({ records: [{ category: "drug_related_eviction", disposition: "convicted" }] });
+    expect(r.decision).toBe("individualized_review");
+    expect(r.citations).toEqual(expect.arrayContaining([expect.stringMatching(/960\.204\(a\)\(1\)/)]));
+    expect(r.assessmentFactors?.timeElapsedYears).toBeNull();
+  });
+
+  it("undated drug-eviction stays individualized_review even with undatedConvictionInLookback=false (a mandatory floor never auto-clears on the policy knob)", () => {
+    const r = ev(
+      { records: [{ category: "drug_related_eviction", disposition: "convicted" }] },
+      { undatedConvictionInLookback: false }
+    );
+    expect(r.decision).toBe("individualized_review");
+  });
+
   it("meth manufacture NOT on assisted property is discretionary, not the floor → individualized_review", () => {
     const r = ev({
       records: [{ category: "meth_manufacture_assisted_property", onAssistedProperty: false, disposition: "convicted", dispositionDate: "2024-01-01" }],

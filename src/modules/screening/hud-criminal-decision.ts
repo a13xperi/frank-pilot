@@ -294,9 +294,24 @@ function processRecord(acc: Accumulator, record: CriminalRecord, policy: Lookbac
       return;
     case "drug_related_eviction": {
       const elapsed = yearsElapsed(record, asOf);
-      const within =
-        elapsed === null ? policy.undatedConvictionInLookback : elapsed <= policy.drugEvictionYears;
-      if (within) {
+      if (elapsed === null) {
+        // Undated eviction: the §960.204(a)(1) bar is date-gated (3 years from
+        // the date of the eviction), so an undated record can NEVER be proven
+        // inside the mandatory window. Do NOT auto-deny blind — route to
+        // individualized review (the missing-date fail-safe), where staff
+        // establish the eviction date before any denial. This branch ignores
+        // `undatedConvictionInLookback`: a mandatory floor must never auto-deny
+        // (legal exposure) nor silently auto-clear (compliance gap) on an
+        // undated record — holding for review is the only defensible outcome.
+        addAssessment(
+          acc,
+          `Drug-related eviction, date unknown (${label}) — cannot confirm the ${policy.drugEvictionYears}-yr §960.204(a)(1) window; individualized review required before any denial`,
+          "24 CFR §960.204(a)(1); Castro memo §III",
+          label,
+          null,
+          policy.drugEvictionYears
+        );
+      } else if (elapsed <= policy.drugEvictionYears) {
         addMandatory(
           acc,
           `Drug-related eviction within ${policy.drugEvictionYears} years (${label}) — mandatory denial (waivable on rehab/incarceration)`,

@@ -90,6 +90,63 @@ export class BackgroundCheckService {
   }
 
   private evaluateResults(response: any): BackgroundCheckResult {
+    // CRIMINAL_DECISION_ENGINE_ENABLED gates the HUD/FHA individualized-assessment
+    // engine. Default OFF → the pre-engine blanket-ban path runs and
+    // `background_check_details` is byte-identical to pre-engine behaviour (none
+    // of the engine keys are written), so the engine ships DARK: merging and
+    // deploying changes nothing until the flag is deliberately turned on. Flip it
+    // to "true" to activate the matrix-driven engine (mandatory federal floors
+    // auto-deny; discretionary in-lookback hits HOLD for individualized review).
+    if (process.env.CRIMINAL_DECISION_ENGINE_ENABLED === "true") {
+      return this.evaluateWithEngine(response);
+    }
+    return this.evaluateLegacy(response);
+  }
+
+  /**
+   * Pre-engine blanket-ban path — the flag-off default. Auto-fail on any felony /
+   * sex offense / violent crime; misdemeanor soft-risk scoring otherwise. Kept
+   * verbatim so flag-off is byte-identical to the historical behaviour.
+   */
+  private evaluateLegacy(response: any): BackgroundCheckResult {
+    const felonies = response.felonies || 0;
+    const sexOffenses = response.sexOffenses || false;
+    const violentCrimes = response.violentCrimes || false;
+    const misdemeanors = (response.misdemeanors || []).length;
+
+    // Auto-fail criteria
+    if (felonies > 0 || sexOffenses || violentCrimes) {
+      return {
+        result: "fail",
+        details: { felonies, sexOffenses, violentCrimes, misdemeanors, riskScore: 100, rawResponse: response },
+      };
+    }
+
+    // Risk scoring for misdemeanors
+    let riskScore = 0;
+    if (misdemeanors === 1) riskScore = 25;
+    else if (misdemeanors === 2) riskScore = 50;
+    else if (misdemeanors >= 3) riskScore = 75;
+
+    if (riskScore >= 75) {
+      return {
+        result: "review_required",
+        details: { felonies, sexOffenses, violentCrimes, misdemeanors, riskScore, rawResponse: response },
+      };
+    }
+
+    return {
+      result: "pass",
+      details: { felonies, sexOffenses, violentCrimes, misdemeanors, riskScore, rawResponse: response },
+    };
+  }
+
+  /**
+   * HUD/FHA individualized-assessment engine path (flag-on only). Mandatory
+   * federal floors → fail; discretionary in-lookback hits → review_required
+   * tagged decision="individualized_review" for the orchestrator to HOLD.
+   */
+  private evaluateWithEngine(response: any): BackgroundCheckResult {
     const felonies = response.felonies || 0;
     const sexOffenses = response.sexOffenses || false;
     const violentCrimes = response.violentCrimes || false;

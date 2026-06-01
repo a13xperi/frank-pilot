@@ -55,17 +55,22 @@ function creditInput() {
 
 // ── BackgroundCheckService ────────────────────────────────────────────────
 
-describe("BackgroundCheckService.runCheck()", () => {
+describe("BackgroundCheckService.runCheck() — engine ON", () => {
   let service: BackgroundCheckService;
 
   beforeEach(() => {
     delete process.env.SCREENING_API_KEY;
+    // These tests exercise the HUD/FHA individualized-assessment engine, which is
+    // gated behind CRIMINAL_DECISION_ENGINE_ENABLED (default OFF). Turn it on so
+    // the decision/citations/assessmentFactors keys are populated.
+    process.env.CRIMINAL_DECISION_ENGINE_ENABLED = "true";
     service = new BackgroundCheckService();
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
     delete process.env.SCREENING_API_KEY;
+    delete process.env.CRIMINAL_DECISION_ENGINE_ENABLED;
   });
 
   // ── Stub path (no API key) ───────────────────────────────────────────────
@@ -237,6 +242,134 @@ describe("BackgroundCheckService.runCheck()", () => {
 
     expect(result.result).toBe("pass");
     expect(result.details.riskScore).toBe(0);
+  });
+});
+
+// ── BackgroundCheckService — engine OFF (default) ──────────────────────────
+// CRIMINAL_DECISION_ENGINE_ENABLED defaults OFF. With the flag off the service
+// must run the pre-engine blanket-ban path and write NONE of the engine keys
+// (decision / citations / reasons / assessmentFactors) into details — i.e. it is
+// byte-identical to the historical behaviour. This is the dark-merge guard: the
+// engine merged + deployed must change nothing until the flag is deliberately on.
+
+describe("BackgroundCheckService.runCheck() — engine OFF (legacy, byte-identical)", () => {
+  let service: BackgroundCheckService;
+
+  beforeEach(() => {
+    delete process.env.SCREENING_API_KEY;
+    delete process.env.CRIMINAL_DECISION_ENGINE_ENABLED; // explicit default-OFF
+    service = new BackgroundCheckService();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    delete process.env.SCREENING_API_KEY;
+    delete process.env.CRIMINAL_DECISION_ENGINE_ENABLED;
+  });
+
+  function expectNoEngineKeys(details: any) {
+    expect(details).not.toHaveProperty("decision");
+    expect(details).not.toHaveProperty("reasons");
+    expect(details).not.toHaveProperty("citations");
+    expect(details).not.toHaveProperty("assessmentFactors");
+  }
+
+  it("clean stub record → pass, no engine keys", async () => {
+    const result = await service.runCheck(bgInput());
+
+    expect(result.result).toBe("pass");
+    expect(result.details.riskScore).toBe(0);
+    expectNoEngineKeys(result.details);
+  });
+
+  it("felonies → blanket auto-fail (legacy), riskScore=100, no engine keys", async () => {
+    // The legacy path is exactly the time-blind ban the engine is meant to
+    // replace — flag-off it must still behave that way, byte-identical.
+    jest.spyOn(service as any, "callScreeningAPI").mockResolvedValue({
+      felonies: 2,
+      sexOffenses: false,
+      violentCrimes: false,
+      misdemeanors: [],
+    });
+
+    const result = await service.runCheck(bgInput());
+
+    expect(result.result).toBe("fail");
+    expect(result.details.felonies).toBe(2);
+    expect(result.details.riskScore).toBe(100);
+    expectNoEngineKeys(result.details);
+  });
+
+  it("sex offense → blanket auto-fail (legacy), no engine keys", async () => {
+    jest.spyOn(service as any, "callScreeningAPI").mockResolvedValue({
+      felonies: 0,
+      sexOffenses: true,
+      violentCrimes: false,
+      misdemeanors: [],
+    });
+
+    const result = await service.runCheck(bgInput());
+
+    expect(result.result).toBe("fail");
+    expect(result.details.riskScore).toBe(100);
+    expectNoEngineKeys(result.details);
+  });
+
+  it("violent crime → blanket auto-fail (legacy), no engine keys", async () => {
+    jest.spyOn(service as any, "callScreeningAPI").mockResolvedValue({
+      felonies: 0,
+      sexOffenses: false,
+      violentCrimes: true,
+      misdemeanors: [],
+    });
+
+    const result = await service.runCheck(bgInput());
+
+    expect(result.result).toBe("fail");
+    expect(result.details.riskScore).toBe(100);
+    expectNoEngineKeys(result.details);
+  });
+
+  it("3 misdemeanors → review_required (soft-risk 75), no engine keys", async () => {
+    jest.spyOn(service as any, "callScreeningAPI").mockResolvedValue({
+      felonies: 0,
+      sexOffenses: false,
+      violentCrimes: false,
+      misdemeanors: ["DUI", "disorderly_conduct", "petty_theft"],
+    });
+
+    const result = await service.runCheck(bgInput());
+
+    expect(result.result).toBe("review_required");
+    expect(result.details.misdemeanors).toBe(3);
+    expect(result.details.riskScore).toBe(75);
+    expectNoEngineKeys(result.details);
+  });
+
+  it("2 misdemeanors → pass (soft-risk 50), no engine keys", async () => {
+    jest.spyOn(service as any, "callScreeningAPI").mockResolvedValue({
+      felonies: 0,
+      sexOffenses: false,
+      violentCrimes: false,
+      misdemeanors: ["DUI", "petty_theft"],
+    });
+
+    const result = await service.runCheck(bgInput());
+
+    expect(result.result).toBe("pass");
+    expect(result.details.riskScore).toBe(50);
+    expectNoEngineKeys(result.details);
+  });
+
+  it("API throws → could_not_screen HOLD even with engine off (fail-loud unaffected)", async () => {
+    jest.spyOn(service as any, "callScreeningAPI").mockRejectedValue(
+      new Error("Network timeout")
+    );
+
+    const result = await service.runCheck(bgInput());
+
+    expect(result.result).toBe("could_not_screen");
+    expect(result.details.riskScore).toBe(-1);
   });
 });
 
