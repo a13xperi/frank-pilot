@@ -330,18 +330,72 @@ router.post(
       const returnUrl =
         typeof req.body?.returnUrl === "string" ? req.body.returnUrl : undefined;
 
+      // Optional FCRA consumer-report authorization (§1681b). When
+      // CONSUMER_REPORT_ENABLED is on, the applicant must affirm the consent the
+      // apply wizard renders from /me/applications/consumer-report-disclosure.
+      // We trust the server-observed IP + user-agent (not client-supplied) and
+      // echo the disclosure `version` the applicant consented against. Flag off,
+      // this is ignored. submit() records the authorization before any pull and
+      // returns { consumerReportConsentRequired: true } if it's missing/stale.
+      const rawConsent = req.body?.consumerReportConsent;
+      const consumerReportConsent =
+        rawConsent && rawConsent.authorized === true
+          ? {
+              authorized: true,
+              disclosureVersion:
+                typeof rawConsent.disclosureVersion === "string"
+                  ? rawConsent.disclosureVersion
+                  : undefined,
+              ip: (req.ip || req.socket?.remoteAddress) ?? null,
+              userAgent: (req.headers["user-agent"] as string) ?? null,
+            }
+          : undefined;
+
       const result = await applicationService.submit(
         draft.rows[0].id,
         req.user.id,
         req.user.role,
-        returnUrl
+        returnUrl,
+        consumerReportConsent
       );
+
+      if (result?.consumerReportConsentRequired) {
+        const { getDisclosure } = await import(
+          "../screening/consumer-report-consent"
+        );
+        res.status(400).json({
+          error: "Consumer-report authorization required",
+          code: "consumer_report_consent_required",
+          disclosure: getDisclosure(),
+        });
+        return;
+      }
 
       res.json(result);
     } catch (err: any) {
       logger.error("Applicant submit-draft failed", { error: (err as Error).message });
       res.status(500).json({ error: "Failed to submit application" });
     }
+  }
+);
+
+// FCRA §1681b consumer-report disclosure. The apply wizard fetches this to
+// render the clear-and-conspicuous disclosure the applicant must read before
+// authorizing the background + credit pull, then echoes `version` back on
+// submit-draft. Static legal text + its version and SHA-256 hash — no PII, so
+// no email-verification gate; just an authenticated applicant/tenant.
+router.get(
+  "/me/applications/consumer-report-disclosure",
+  authenticate,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+      res.status(403).json({ error: "Applicant role required" });
+      return;
+    }
+    const { getDisclosure } = await import(
+      "../screening/consumer-report-consent"
+    );
+    res.json(getDisclosure());
   }
 );
 

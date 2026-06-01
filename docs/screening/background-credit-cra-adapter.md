@@ -214,13 +214,22 @@ What already exists (do not rebuild):
 
 What is NEW for this adapter:
 
-- **Applicant authorization / consent capture.** There is currently NO CRA-specific
-  disclosure or authorization in the codebase (the only `consent` fields are ESIGN-lease
-  and voice-call consent). In the applicant-mediated model the CRA's hosted flow captures
-  the FCRA disclosure + written authorization, so we need only (a) an in-app consent
-  checkbox before redirect and (b) to stamp `screening_authorization_at`. We do **not**
-  build a standalone-disclosure document (the vendor hosts it). Several states (CA, NY,
-  others) and the CRA contract require the authorization regardless — this closes that gap.
+- **Applicant authorization / consent capture.** ✅ **BUILT (server-side), dark behind
+  `CONSUMER_REPORT_ENABLED`.** `screening/consumer-report-consent.ts` holds a versioned
+  clear-and-conspicuous disclosure (`FCRA_DISCLOSURE_VERSION` / `_TEXT` + SHA-256
+  `fcraDisclosureHash`) and `recordAuthorization()` writes a durable
+  `consumer_report_authorizations` row (who / when / version / text-hash / method / IP /
+  UA — same evidentiary shape as `lease_signatures`) + a `consumer_report_authorized`
+  audit entry. `submit()` now **gates** the Checkr/TU pull on a valid authorization:
+  honor one already on file (idempotent re-submit) or capture a freshly-affirmed consent;
+  absent/stale ⇒ no orders, app stays `submitted`, and the route returns 400 +
+  `{disclosure}` (fail-loud, never an unauthorized pull). `screening_authorization_at`
+  is now bound to the **actual authorization timestamp**, not order-creation `NOW()` (the
+  prior semantic bug). The wizard renders the disclosure from
+  `GET /me/applications/consumer-report-disclosure` and posts `consumerReportConsent`
+  (server trusts the observed IP/UA). We do **not** build a standalone-disclosure document
+  (the vendor hosts it). Remaining: the in-app checkbox UX in the apply wizard (see §8 —
+  behind the frozen tenant-e2e `Step` union). Migration: `2026-06-01-fcra-consent.sql`.
 - **Pre-adverse-action window** (ratified 5 **business** days, `custom-screening-engine.md`
   §8.3). Today only the final notice is sent. Needs `pre_adverse_action_sent_at` column +
   a daily reaper that sends the final notice once 5 business days elapse + a pre-adverse
@@ -287,8 +296,11 @@ liveness canary.
 - **Eviction dedupe.** Evictions surface from BOTH Checkr (`eviction_search`) and TU
   (credit eviction history). Decide the authoritative source (recommend TU credit, since
   eviction is a credit/public-records signal) to avoid double-counting in the verdict.
-- **Consent UX placement.** The apply-wizard `Step` union is a frozen contract behind the
-  required tenant-e2e gate (`project_tenant_e2e_gate`) — the consent checkbox + redirect
-  needs its own focused change, like #244's deferred Stripe redirect step.
+- **Consent UX placement.** ✅ Server side **DONE** (see §5 — `consumer-report-consent.ts`,
+  the `submit()` gate, `GET .../consumer-report-disclosure`, and the 400+`{disclosure}`
+  contract). Remaining = the apply-wizard checkbox itself: the `Step` union is a frozen
+  contract behind the required tenant-e2e gate (`project_tenant_e2e_gate`), so the checkbox
+  (render disclosure → tick → POST `consumerReportConsent` with `disclosureVersion`) needs
+  its own focused client change, like #244's deferred Stripe redirect step.
 - **Combined create.** Whether `submit()` creates both reports eagerly or lazily at first
   `/screen`. Recommend eager-at-submit (matches #244 createSession) when the flag is on.
