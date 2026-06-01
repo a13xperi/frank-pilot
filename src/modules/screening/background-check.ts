@@ -1,9 +1,11 @@
 import { logger } from "../../utils/logger";
+import { query } from "../../config/database";
 import { resolveVendor } from "./vendors";
 import {
   evaluateCriminalHistory,
   type CriminalDecision,
   type CriminalAssessmentFactors,
+  type CriminalRecord,
 } from "./hud-criminal-decision";
 
 export interface BackgroundCheckResult {
@@ -26,8 +28,33 @@ export interface BackgroundCheckResult {
   };
 }
 
+/** Categorical report reference + status returned by createReport(). */
+export interface BackgroundReportHandle {
+  /** The CRA report/order reference id (e.g. Checkr `rep_…`). */
+  reportId: string;
+  /** CRA-reported categorical status (e.g. `pending`, `complete`). */
+  status: string;
+  /** The hosted invitation/consent url the applicant completes, when provided. */
+  url: string | null;
+}
+
 /**
  * Third-party background check integration.
+ *
+ * Two lifecycles coexist behind `CONSUMER_REPORT_ENABLED`:
+ *
+ *   - **Checkr CRA (production, flag ON)** — asynchronous + applicant-mediated.
+ *     submit() calls `createReport()` → the applicant authorizes the pull +
+ *     passes KBA on Checkr's hosted flow → the report arrives by WEBHOOK
+ *     (`report.completed`), which maps + persists a categorical verdict onto the
+ *     application row. At screening time `resolve()` READS that persisted verdict
+ *     (it never initiates the pull); a report still pending → `could_not_screen`
+ *     HOLD (never an auto-pass).
+ *
+ *   - **Legacy synchronous (flag OFF / MOCK / stub)** — `runCheck()` pulls the
+ *     raw response from the vendor seam (resolveVendor("background")) inline.
+ *     This path is byte-identical to the pre-CRA behaviour; the seam self-gates
+ *     on the stub policy (keyless prod → STUB_GATE_ERROR → caught → HOLD).
  *
  * The denial logic is the HUD/FHA individualized-assessment engine
  * (hud-criminal-decision.ts), NOT a blanket ban:
@@ -37,11 +64,233 @@ export interface BackgroundCheckResult {
  *     screening_review for a Castro §III.B assessment (never auto-fail, never auto-pass)
  *   - everything else ("clear") → the legacy misdemeanor soft-risk score
  *
- * The raw vendor response comes from the screening vendor seam
- * (resolveVendor("background")); this service owns only Frank's evaluation
- * policy (evaluateResults) and the fail-loud catch → could_not_screen HOLD.
+ * Both paths converge on the same evaluateResults(), so the verdict math is
+ * single-sourced regardless of how the raw response was produced.
  */
 export class BackgroundCheckService {
+  // ── Checkr CRA lifecycle (background + credit adapter) ───────────────────────
+
+  /**
+   * Create a Checkr background report/order for an application. Called from
+   * submit() on the armed path; returns the report reference + hosted invitation
+   * `url` the applicant uses to authorize the pull and complete KBA.
+   *
+   * CREDENTIALING-GATED: the real Checkr candidate→invitation→report create is a
+   * signed-contract + sandbox-key task (see docs/screening/background-credit-cra-adapter.md
+   * §4 "Credentialing-gated"). Until those credentials exist the create throws —
+   * this is fail-loud, never a fabricated handle. submit() catches the throw and
+   * leaves the app in `submitted` (no silent screening skip).
+   */
+  async createReport(_input: {
+    applicationId: string;
+    firstName: string;
+    lastName: string;
+    ssnLast4: string;
+    dateOfBirth: string;
+    state: string;
+    returnUrl?: string;
+  }): Promise<BackgroundReportHandle> {
+    // TODO(credentialing): replace with the real Checkr candidate + invitation +
+    // report create once a contract is signed and CHECKR_API_KEY exists. The
+    // hosted invitation url + report id come back from that call.
+    throw new Error("Checkr background report integration not yet configured");
+  }
+
+  /**
+   * Screening-time background entry point under CONSUMER_REPORT_ENABLED — reads
+   * the webhook-persisted Checkr verdict off the application row and re-evaluates
+   * it through the SAME evaluateResults() the synchronous path uses. Returns
+   * `could_not_screen` (a HOLD, never a pass) when:
+   *   - no report was ever created (`background_report_id` null), or
+   *   - the report hasn't completed yet (`background_check_completed_at` null —
+   *     applicant still authorizing / Checkr still running county searches), or
+   *   - the persisted detail isn't in the expected shape, or
+   *   - the lookup itself throws.
+   *
+   * The webhook stores the FULL mapped vendor response in
+   * `background_check_details.rawResponse` (categorical only), so re-running
+   * evaluateResults() here yields a verdict identical to what the webhook would
+   * have computed — the HUD engine flag (CRIMINAL_DECISION_ENGINE_ENABLED) is
+   * applied at screening time, not frozen at webhook time.
+   */
+  async resolve(applicationId: string): Promise<BackgroundCheckResult> {
+    try {
+      const res = await query(
+        `SELECT background_report_id,
+                background_check_completed_at,
+                background_check_details
+           FROM applications
+          WHERE id = $1`,
+        [applicationId]
+      );
+      const row = res.rows[0];
+
+      if (!row || !row.background_report_id) {
+        return this.couldNotScreen("no Checkr background report on file");
+      }
+      if (!row.background_check_completed_at) {
+        return this.couldNotScreen("Checkr background report still pending");
+      }
+
+      const stored = row.background_check_details;
+      const raw =
+        stored && typeof stored === "object"
+          ? (stored as Record<string, unknown>).rawResponse
+          : undefined;
+      if (raw && typeof raw === "object") {
+        return this.evaluateResults(raw);
+      }
+      return this.couldNotScreen("Checkr background verdict not in expected shape");
+    } catch (err) {
+      logger.error("Failed to resolve Checkr background report", {
+        error: (err as Error).message,
+        applicationId,
+      });
+      return this.couldNotScreen("Checkr background lookup failed");
+    }
+  }
+
+  /**
+   * Map a Checkr `report` to the BackgroundVendorResponse shape evaluateResults()
+   * consumes. Pure + side-effect-free — the webhook calls this then persists the
+   * result; the unit tests exercise it table-driven.
+   *
+   * `criminalRecords` is authoritative (the HUD engine reads it directly);
+   * `felonies`/`sexOffenses`/`violentCrimes`/`misdemeanors` are DERIVED summary
+   * flags that drive the legacy (engine-off) path.
+   *
+   * PII discipline: nothing here is persisted except what evaluateResults() folds
+   * into `rawResponse`, which the caller MUST restrict to categorical fields
+   * (reportId, candidateId, status, per-search statuses, adjudication) — never
+   * charge narratives, addresses, or full DOB/SSN, which live on Checkr.
+   */
+  mapCheckrReportToResponse(report: any): {
+    felonies: number;
+    sexOffenses: boolean;
+    violentCrimes: boolean;
+    misdemeanors: unknown[];
+    records: unknown[];
+    criminalRecords: CriminalRecord[];
+  } {
+    // TODO(credentialing): confirm field paths against a live Checkr sandbox
+    // report. The paths below follow Checkr's published report schema
+    // (sex_offender_search, national_criminal_search, county_criminal_searches[])
+    // but are unverified until a sandbox account exists.
+    const sexOffenderRecords = this.asArray(report?.sex_offender_search?.records);
+    const sexOffenses = sexOffenderRecords.length > 0;
+
+    // Aggregate the criminal search sections into a flat charge list. Checkr
+    // splits results across national + county searches; each carries a `records`
+    // (or `charges`) array.
+    const charges: any[] = [
+      ...this.asArray(report?.national_criminal_search?.records),
+      ...this.asArray(report?.national_criminal_search?.charges),
+      ...this.asArray(report?.county_criminal_searches).flatMap((s: any) => [
+        ...this.asArray(s?.records),
+        ...this.asArray(s?.charges),
+      ]),
+    ];
+
+    const criminalRecords: CriminalRecord[] = [];
+    // Sex-offender registry hits map to the §5.856 lifetime-registrant mandatory
+    // floor regardless of how the criminal searches classify them.
+    for (const _hit of sexOffenderRecords) {
+      criminalRecords.push({
+        category: "sex_offense_lifetime_registrant",
+        disposition: "convicted",
+        lifetimeRegistrant: true,
+      });
+    }
+    for (const charge of charges) {
+      criminalRecords.push(this.mapCheckrCharge(charge));
+    }
+
+    // Derived summary flags for the legacy (engine-off) path.
+    let felonies = 0;
+    let violentCrimes = false;
+    const misdemeanors: unknown[] = [];
+    for (const rec of criminalRecords) {
+      if (rec.category.startsWith("felony")) felonies += 1;
+      if (rec.category === "felony_violent" || rec.category === "misdemeanor_violent") {
+        violentCrimes = true;
+      }
+      if (rec.category.startsWith("misdemeanor")) misdemeanors.push({ category: rec.category });
+    }
+
+    return {
+      felonies,
+      sexOffenses,
+      violentCrimes,
+      misdemeanors,
+      // `records` is the legacy summary array; `criminalRecords` is the
+      // engine-authoritative structured list. evaluateWithEngine reads the latter.
+      records: criminalRecords,
+      criminalRecords,
+    };
+  }
+
+  /** Map one Checkr charge to a CriminalRecord. CREDENTIALING-GATED field paths. */
+  private mapCheckrCharge(charge: any): CriminalRecord {
+    // TODO(credentialing): confirm Checkr charge field paths (classification,
+    // disposition, offense_date, etc.) against a live sandbox response.
+    const classification = String(charge?.classification ?? charge?.type ?? "").toLowerCase();
+    const isFelony = classification.includes("felony");
+    const isViolent =
+      /violen|assault|battery|homicide|robbery|weapon/.test(
+        String(charge?.charge ?? charge?.description ?? "").toLowerCase()
+      );
+
+    let category: CriminalRecord["category"];
+    if (isFelony) {
+      category = isViolent ? "felony_violent" : "felony_nonviolent";
+    } else {
+      category = isViolent ? "misdemeanor_violent" : "misdemeanor_nonviolent";
+    }
+
+    return {
+      category,
+      // Default to the conservative "convicted" only when Checkr reports a
+      // conviction disposition; otherwise leave undefined so the engine's
+      // undated/open handling (never silent-clear) applies.
+      disposition: this.mapCheckrDisposition(charge?.disposition),
+      offenseDate: typeof charge?.offense_date === "string" ? charge.offense_date : undefined,
+      dispositionDate:
+        typeof charge?.disposition_date === "string" ? charge.disposition_date : undefined,
+    };
+  }
+
+  private mapCheckrDisposition(d: unknown): CriminalRecord["disposition"] {
+    const s = String(d ?? "").toLowerCase();
+    if (s.includes("convict") || s.includes("guilty")) return "convicted";
+    if (s.includes("dismiss")) return "dismissed";
+    if (s.includes("acquit")) return "acquitted";
+    if (s.includes("expunge")) return "expunged";
+    if (s.includes("pending")) return "pending";
+    if (s) return "unknown";
+    return undefined;
+  }
+
+  private asArray(v: unknown): any[] {
+    return Array.isArray(v) ? v : [];
+  }
+
+  /** Standard `could_not_screen` HOLD result (reason is categorical, no PII). */
+  private couldNotScreen(reason: string): BackgroundCheckResult {
+    return {
+      result: "could_not_screen",
+      details: {
+        felonies: 0,
+        sexOffenses: false,
+        violentCrimes: false,
+        misdemeanors: 0,
+        riskScore: -1,
+        rawResponse: { reason },
+      },
+    };
+  }
+
+  // ── Legacy synchronous path (flag OFF / MOCK / stub) — unchanged ─────────────
+
   async runCheck(input: {
     firstName: string;
     lastName: string;

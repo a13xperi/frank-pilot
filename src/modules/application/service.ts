@@ -1,5 +1,5 @@
 import { query, transaction } from "../../config/database";
-import { encrypt, hashSSN, maskSSN } from "../../utils/encryption";
+import { encrypt, decrypt, hashSSN, maskSSN } from "../../utils/encryption";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 import { CreateApplicationInput, UpdateApplicationInput } from "./validation";
@@ -282,6 +282,111 @@ export class ApplicationService {
         // `submitted` — staff/poll see no session — and surface loudly. This is
         // fail-loud, not fail-open.
         logger.error("Failed to create Stripe Identity session on submit", {
+          error: (err as Error).message,
+          applicationId,
+        });
+        return result.rows[0];
+      }
+    }
+
+    // Consumer-report CRA capture on submit — dark behind CONSUMER_REPORT_ENABLED
+    // (independent of SCREENING_ON_SUBMIT_ENABLED). When armed: create the Checkr
+    // background + TransUnion ShareAble credit report orders and park the app in
+    // `awaiting_consumer_report` until the applicant authorizes the pulls + passes
+    // KBA and the webhook(s) land verdicts (which then advance it into screening).
+    // The hosted authorization url(s) are returned so the caller can redirect.
+    // This branch sits AFTER the identity gate (identity, if armed, returns first)
+    // and BEFORE the legacy auto-screen path — screening is kicked by the webhook
+    // once the reports resolve, not synchronously here.
+    if (process.env.CONSUMER_REPORT_ENABLED === "true") {
+      try {
+        const { BackgroundCheckService } = await import(
+          "../screening/background-check"
+        );
+        const { CreditCheckService } = await import("../screening/credit-check");
+
+        const appRow = await query(
+          `SELECT first_name, last_name, ssn_encrypted, date_of_birth_encrypted, current_state
+             FROM applications WHERE id = $1`,
+          [applicationId]
+        );
+        const a = appRow.rows[0] || {};
+        // PII stays minimal even when handed to the CRA: only the last 4 of SSN.
+        const ssnLast4 = a.ssn_encrypted ? decrypt(a.ssn_encrypted).slice(-4) : "";
+        const dob = a.date_of_birth_encrypted
+          ? decrypt(a.date_of_birth_encrypted)
+          : "";
+
+        // Create both report orders. A throw here (e.g. credentialing not yet
+        // configured) is fail-loud: we do NOT fall through to a normal submit,
+        // which would skip the consumer-report gate. The app stays in `submitted`.
+        const [background, credit] = await Promise.all([
+          new BackgroundCheckService().createReport({
+            applicationId,
+            firstName: a.first_name,
+            lastName: a.last_name,
+            ssnLast4,
+            dateOfBirth: dob,
+            state: a.current_state || "NV",
+            returnUrl,
+          }),
+          new CreditCheckService().createReport({
+            applicationId,
+            firstName: a.first_name,
+            lastName: a.last_name,
+            ssnLast4,
+            dateOfBirth: dob,
+            returnUrl,
+          }),
+        ]);
+
+        await transitionApplicationStatus({
+          applicationId,
+          from: "submitted",
+          to: "awaiting_consumer_report",
+          trigger: "consumer_report_started",
+          actorId: submittedBy,
+          actorRole: submitterRole,
+          evidence: {
+            source: "submit_consumer_report_capture",
+            backgroundReportId: background.reportId,
+            creditReportId: credit.reportId,
+          },
+        });
+
+        // Persist ONLY the report references + categorical statuses + the
+        // applicant-authorization timestamp. NEVER charge narratives, tradeline
+        // detail, addresses, or full DOB/SSN — those live on the CRA.
+        await query(
+          `UPDATE applications SET
+             background_report_id = $2,
+             credit_report_id = $3,
+             consumer_report_background_status = $4,
+             consumer_report_credit_status = $5,
+             screening_authorization_at = NOW()
+           WHERE id = $1`,
+          [
+            applicationId,
+            background.reportId,
+            credit.reportId,
+            background.status,
+            credit.status,
+          ]
+        );
+
+        return {
+          ...result.rows[0],
+          status: "awaiting_consumer_report",
+          consumerReport: {
+            background: { url: background.url, status: background.status },
+            credit: { url: credit.url, status: credit.status },
+          },
+        };
+      } catch (err) {
+        // Report creation failed. Do NOT silently fall through to a normal submit
+        // (that would skip the consumer-report gate entirely). Leave the app in
+        // `submitted` and surface loudly. Fail-loud, not fail-open.
+        logger.error("Failed to create consumer-report orders on submit", {
           error: (err as Error).message,
           applicationId,
         });
