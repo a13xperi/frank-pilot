@@ -257,6 +257,18 @@ describe("ScreeningService.runFullScreening", () => {
     );
   });
 
+  it("threads screeningTag through to the background check (MOCK demo tags reach the criminal engine)", async () => {
+    await service.runFullScreening("app-001", "user-1", "leasing_agent", "deny_felony");
+
+    // Without this, a MOCK deny_felony tag never reaches the sandbox vendor's
+    // background fixture, so the HUD/FHA criminal-decision engine can't be
+    // exercised end-to-end. The vendor self-gates on MOCK_MODE, so this is a
+    // no-op in real keyless prod.
+    expect(mockBackground.runCheck).toHaveBeenCalledWith(
+      expect.objectContaining({ screeningTag: "deny_felony" })
+    );
+  });
+
   // ── Fail propagation ──────────────────────────────────────────────────────
 
   it("returns overallResult=fail when background check fails", async () => {
