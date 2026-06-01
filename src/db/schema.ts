@@ -410,6 +410,20 @@ CREATE TABLE applications (
   compliance_check_details JSONB,
   compliance_check_completed_at TIMESTAMPTZ,
 
+  -- Phase 4a extended adapters (wired behind SCREENING_EXTENDED_CHECKS_ENABLED).
+  -- See migration 2026-05-30-applications-extended-screening-columns.sql.
+  income_verification_result screening_result,
+  income_verification_details JSONB,
+  income_verification_completed_at TIMESTAMPTZ,
+
+  work_number_result screening_result,
+  work_number_details JSONB,
+  work_number_completed_at TIMESTAMPTZ,
+
+  nsopw_result screening_result,
+  nsopw_details JSONB,
+  nsopw_completed_at TIMESTAMPTZ,
+
   overall_screening_result screening_result,
 
   -- Approval chain

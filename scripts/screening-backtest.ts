@@ -26,6 +26,13 @@ import { BackgroundCheckService } from "../src/modules/screening/background-chec
 import { CreditCheckService } from "../src/modules/screening/credit-check";
 import { IdentityVerificationService } from "../src/modules/screening/identity-verification";
 import { PlaidIncomeService } from "../src/modules/screening/income-verification-plaid";
+// Phase 4a — extended fan-out adapters. Both join the screening parallel block
+// behind SCREENING_EXTENDED_CHECKS_ENABLED in runFullScreening; the backtest
+// gates their MOCK stub paths so a future SDK swap is verified the same way the
+// original four are. NSOPW runs for every applicant; Work Number only when a
+// W-2 employer was declared (design §3.3/§8.5).
+import { NsopwDirectService } from "../src/modules/screening/nsopw-direct";
+import { WorkNumberService } from "../src/modules/screening/work-number";
 import {
   ScreeningState,
   canTransition,
@@ -48,6 +55,10 @@ interface SyntheticApplicant {
   ami_area: string;
   duplicate_ssn_hit?: boolean;
   reported_annual_income_cents?: number;
+  // Phase 4a — when true the Work Number (W-2) adapter runs. Mirrors
+  // runFullScreening, which only calls Work Number when the applicant declared
+  // an employer. Absent/false ⇒ Work Number is skipped for that applicant.
+  declared_employer?: boolean;
   expected_outcome: "passed" | "failed" | "manual_review";
   expected_terminal_reason: string;
   notes?: string;
@@ -116,7 +127,9 @@ async function runApplicant(
   bg: BackgroundCheckService,
   credit: CreditCheckService,
   identity: IdentityVerificationService,
-  plaid: PlaidIncomeService
+  plaid: PlaidIncomeService,
+  nsopw: NsopwDirectService,
+  workNumber: WorkNumberService
 ): Promise<BacktestRow> {
   const startedAt = Date.now();
   const statePath: ScreeningState[] = ["queued"];
@@ -161,7 +174,7 @@ async function runApplicant(
 
   recordTransition(statePath, "fraud_screening", "screening");
 
-  const [bgResult, creditResult, plaidResult] = await Promise.all([
+  const [bgResult, creditResult, plaidResult, nsopwResult, wn] = await Promise.all([
     bg.runCheck({
       firstName: app.first_name,
       lastName: app.last_name,
@@ -183,7 +196,52 @@ async function runApplicant(
       dateOfBirth: app.date_of_birth,
       screeningTag: app.screening_tag,
     }),
+    // NSOPW direct — always (belt-and-suspenders for the §5.856 lifetime
+    // mandatory denial). Internal catch returns review_required, so never throws.
+    nsopw.check({
+      firstName: app.first_name,
+      lastName: app.last_name,
+      dateOfBirth: app.date_of_birth,
+      states: [app.current_state],
+      screeningTag: app.screening_tag,
+    }),
+    // Work Number — only when a W-2 employer was declared. work-number.ts has
+    // NO internal catch (P1 fail-loud contract); contain the throw here exactly
+    // as runFullScreening does so a single adapter can't abort the replay.
+    app.declared_employer
+      ? workNumber
+          .verifyEmployment({
+            firstName: app.first_name,
+            lastName: app.last_name,
+            ssn: app.ssn_last4,
+            dateOfBirth: app.date_of_birth,
+          })
+          .then((value) => ({ ok: true as const, value }))
+          .catch((error: Error) => ({ ok: false as const, error }))
+      : Promise.resolve(null),
   ]);
+
+  // NSOPW: match → fail (mandatory denial); no_match → pass; else review_required.
+  const nsopwVerdict: "pass" | "fail" | "review_required" =
+    nsopwResult.result === "match"
+      ? "fail"
+      : nsopwResult.result === "no_match"
+        ? "pass"
+        : "review_required";
+
+  // Work Number: verified → pass; other verdicts → review_required; a thrown
+  // adapter → could_not_screen HOLD (routed to manual_review). Null when skipped.
+  // MOCK_MODE never throws, so could_not_screen is exercised by the unit suite,
+  // not this corpus — kept here only to mirror runFullScreening faithfully.
+  let wnVerdict: "pass" | "review_required" | "could_not_screen" | null = null;
+  if (wn) {
+    if (wn.ok) {
+      wnVerdict = wn.value.result === "verified" ? "pass" : "review_required";
+    } else {
+      wnVerdict = "could_not_screen";
+      ruleFlags.push("work_number_could_not_screen");
+    }
+  }
 
   // Simulated compliance check — deterministic against the corpus's declared
   // AMI limit, since ComplianceService reads the live DB.
@@ -196,31 +254,49 @@ async function runApplicant(
     complianceVerdict = "pass";
   }
 
-  // Simulated income-mismatch check — runs after Plaid returns. If the
-  // applicant's reported income differs from Plaid's verified income by
-  // >15%, fire a fraud flag and route to manual_review.
+  // Simulated income-mismatch check — runs after Plaid returns (cross-check is
+  // guarded on a verified Plaid figure, as in runFullScreening). The reported
+  // baseline is the Work Number W-2 figure when WN verified, otherwise the
+  // corpus's declared reported income. A >15% delta from Plaid fires a fraud
+  // flag and routes to manual_review.
   let incomeMismatch = false;
-  if (
-    app.reported_annual_income_cents !== undefined &&
-    app.reported_annual_income_cents > 0
-  ) {
-    const reportedCents = app.reported_annual_income_cents;
-    const verifiedCents = plaidResult.annualIncomeCents;
-    const delta = Math.abs(reportedCents - verifiedCents) / reportedCents;
-    if (delta > 0.15) {
-      incomeMismatch = true;
-      ruleFlags.push("fraud_income_mismatch");
+  if (plaidResult.result === "verified") {
+    let reportedCents: number | undefined;
+    if (wn && wn.ok && wn.value.result === "verified" && wn.value.details.annualizedIncome) {
+      reportedCents = wn.value.details.annualizedIncome * 100;
+    } else if (
+      app.reported_annual_income_cents !== undefined &&
+      app.reported_annual_income_cents > 0
+    ) {
+      reportedCents = app.reported_annual_income_cents;
+    }
+    if (reportedCents !== undefined && reportedCents > 0) {
+      const verifiedCents = plaidResult.annualIncomeCents;
+      const delta = Math.abs(reportedCents - verifiedCents) / reportedCents;
+      if (delta > 0.15) {
+        incomeMismatch = true;
+        ruleFlags.push("fraud_income_mismatch");
+      }
     }
   }
 
   if (bgResult.result === "fail") ruleFlags.push("background_fail");
   if (creditResult.result === "fail") ruleFlags.push("credit_fail");
   if (complianceVerdict === "fail") ruleFlags.push("compliance_fail_over_ami");
+  if (nsopwVerdict === "fail") ruleFlags.push("nsopw_match");
   if (bgResult.result === "review_required") ruleFlags.push("background_review");
   if (creditResult.result === "review_required") ruleFlags.push("credit_review");
   if (complianceVerdict === "review_required") ruleFlags.push("compliance_review_no_ami");
+  if (nsopwVerdict === "review_required") ruleFlags.push("nsopw_review");
+  if (wnVerdict === "review_required") ruleFlags.push("work_number_review");
 
-  const results = [bgResult.result, creditResult.result, complianceVerdict];
+  const results: Array<"pass" | "fail" | "review_required" | "could_not_screen"> = [
+    bgResult.result,
+    creditResult.result,
+    complianceVerdict,
+    nsopwVerdict,
+    ...(wnVerdict ? [wnVerdict] : []),
+  ];
 
   if (results.includes("fail")) {
     recordTransition(statePath, "screening", "failed");
@@ -233,9 +309,16 @@ async function runApplicant(
           : "background_fail_felony";
     } else if (creditResult.result === "fail") {
       terminalReason = "credit_fail";
+    } else if (nsopwVerdict === "fail") {
+      terminalReason = "nsopw_match_sex_offender";
     } else {
       terminalReason = "compliance_fail_over_ami";
     }
+  } else if (results.includes("could_not_screen")) {
+    // A vendor threw — no verdict. Never a silent pass: HOLD for staff review.
+    recordTransition(statePath, "screening", "manual_review");
+    actualOutcome = "manual_review";
+    terminalReason = "could_not_screen_hold";
   } else if (incomeMismatch || results.includes("review_required")) {
     recordTransition(statePath, "screening", "manual_review");
     actualOutcome = "manual_review";
@@ -245,6 +328,10 @@ async function runApplicant(
       terminalReason = "background_review_misdemeanors";
     } else if (creditResult.result === "review_required") {
       terminalReason = "credit_review_low_score";
+    } else if (nsopwVerdict === "review_required") {
+      terminalReason = "nsopw_review_inconclusive";
+    } else if (wnVerdict === "review_required") {
+      terminalReason = "work_number_review_inconclusive";
     } else {
       terminalReason = "compliance_review_no_ami_data";
     }
@@ -429,6 +516,8 @@ async function main(): Promise<void> {
   const credit = new CreditCheckService();
   const identity = new IdentityVerificationService();
   const plaid = new PlaidIncomeService();
+  const nsopw = new NsopwDirectService();
+  const workNumber = new WorkNumberService();
 
   const runId = new Date().toISOString().replace(/[:.]/g, "-");
   const startedAt = new Date().toISOString();
@@ -440,7 +529,7 @@ async function main(): Promise<void> {
 
   const rows: BacktestRow[] = [];
   for (const app of corpus) {
-    const row = await runApplicant(app, bg, credit, identity, plaid);
+    const row = await runApplicant(app, bg, credit, identity, plaid, nsopw, workNumber);
     rows.push(row);
     const tick = row.match ? "ok" : "MISMATCH";
     console.log(
