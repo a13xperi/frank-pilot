@@ -492,16 +492,23 @@ export class ScreeningService {
       // 2026-05-30-extended-screening-columns.sql). Separate UPDATE so the
       // flag-off path leaves the existing persist block untouched.
       await query(
+        // $2/$4/$6 bind to the `screening_result` enum. $6 is referenced twice
+        // (the column assignment AND the completed_at CASE), so without an
+        // explicit cast Postgres cannot unify the two inferred types and fails
+        // PREPARE with "could not determine data type of parameter $6". Casting
+        // every enum param removes the ambiguity (and guards future reuse).
+        // NB: mocked unit tests don't exercise a real PREPARE, so this only
+        // surfaces against a live Postgres — caught on the staging deploy.
         `UPDATE applications SET
-           income_verification_result = $2,
+           income_verification_result = $2::screening_result,
            income_verification_details = $3,
            income_verification_completed_at = NOW(),
-           nsopw_result = $4,
+           nsopw_result = $4::screening_result,
            nsopw_details = $5,
            nsopw_completed_at = NOW(),
-           work_number_result = $6,
+           work_number_result = $6::screening_result,
            work_number_details = $7,
-           work_number_completed_at = CASE WHEN $6 IS NULL THEN NULL ELSE NOW() END
+           work_number_completed_at = CASE WHEN $6::screening_result IS NULL THEN NULL ELSE NOW() END
          WHERE id = $1`,
         [
           applicationId,
