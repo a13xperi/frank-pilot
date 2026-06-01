@@ -174,10 +174,31 @@ export interface ReviewQueueItem {
   credit_check_result: string | null;
   compliance_check_result: string | null;
   status_history?: unknown;
+  // Per-check vendor detail payloads. Each *_details is a JSON object whose shape
+  // varies by vendor (may be null when the check never produced a payload). Surfaced
+  // in the resolve modal so the reviewer can see WHY each check landed where it did.
+  identity_verification_details?: Record<string, unknown> | null;
+  identity_verification_completed_at?: string | null;
+  background_check_details?: Record<string, unknown> | null;
+  background_check_completed_at?: string | null;
+  credit_check_details?: Record<string, unknown> | null;
+  credit_check_completed_at?: string | null;
+  compliance_check_details?: Record<string, unknown> | null;
+  compliance_check_completed_at?: string | null;
 }
 
 export interface ReviewQueueResponse {
   queue: ReviewQueueItem[];
+}
+
+// Server-rendered §1681m adverse-action letter preview. Returned by
+// GET /api/screening/:applicationId/adverse-action/draft — the client renders
+// noticeText for confirmation but NEVER sends the notice (server commits on resolve).
+export interface AdverseActionDraft {
+  applicationId: string;
+  applicantName: string;
+  propertyName: string;
+  noticeText: string;
 }
 
 export interface FraudFlag {

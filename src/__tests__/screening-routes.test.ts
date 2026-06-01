@@ -30,11 +30,13 @@ jest.mock("../utils/logger", () => ({
 
 const mockRunFullScreening = jest.fn();
 const mockGetResults = jest.fn();
+const mockGetAdverseActionDraft = jest.fn();
 
 jest.mock("../modules/screening/service", () => ({
   ScreeningService: jest.fn().mockImplementation(() => ({
     runFullScreening: mockRunFullScreening,
     getResults: mockGetResults,
+    getAdverseActionDraft: mockGetAdverseActionDraft,
   })),
 }));
 
@@ -453,5 +455,74 @@ describe("POST /screening/fraud-flags/:flagId/resolve", () => {
 
     expect(res.status).toBe(500);
     expect(res.body.error).toMatch(/failed to resolve fraud flag/i);
+  });
+});
+
+// ── GET /:applicationId/adverse-action/draft — preview FCRA denial notice ──
+//
+// Render-only preview, gated by screening:initiate (only staff who can deny may
+// preview the denial). reasonDetail is an optional query param coerced to a
+// string (array/duplicate params collapse to undefined).
+
+describe("GET /screening/:applicationId/adverse-action/draft", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const sampleDraft = {
+    applicationId: "app-001",
+    applicantName: "Jane Doe",
+    propertyName: "Desert Oasis Apartments",
+    noticeText: "Dear Jane Doe, ... FCRA § 1681m ...",
+  };
+
+  it("returns 401 when no token provided", async () => {
+    const res = await request(app).get("/screening/app-001/adverse-action/draft");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 403 when leasing_agent attempts to preview a denial notice", async () => {
+    mockAuthQuery(leasingAgent);
+
+    const res = await request(app)
+      .get("/screening/app-001/adverse-action/draft")
+      .set("Authorization", tokenFor(leasingAgent));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/insufficient permissions/i);
+  });
+
+  it("returns 200 with the rendered draft when senior_manager previews", async () => {
+    mockAuthQuery(seniorManager);
+    mockGetAdverseActionDraft.mockResolvedValue(sampleDraft);
+
+    const res = await request(app)
+      .get("/screening/app-001/adverse-action/draft?reasonDetail=Criminal%20history")
+      .set("Authorization", tokenFor(seniorManager));
+
+    expect(res.status).toBe(200);
+    expect(res.body.draft).toEqual(sampleDraft);
+    expect(mockGetAdverseActionDraft).toHaveBeenCalledWith("app-001", "Criminal history");
+  });
+
+  it("coerces a duplicated reasonDetail query param to undefined (no array reaches the service)", async () => {
+    mockAuthQuery(seniorManager);
+    mockGetAdverseActionDraft.mockResolvedValue(sampleDraft);
+
+    await request(app)
+      .get("/screening/app-001/adverse-action/draft?reasonDetail=a&reasonDetail=b")
+      .set("Authorization", tokenFor(seniorManager));
+
+    expect(mockGetAdverseActionDraft).toHaveBeenCalledWith("app-001", undefined);
+  });
+
+  it("returns 400 when the service throws (e.g. application not found)", async () => {
+    mockAuthQuery(seniorManager);
+    mockGetAdverseActionDraft.mockRejectedValue(new Error("Application not found: app-001"));
+
+    const res = await request(app)
+      .get("/screening/app-001/adverse-action/draft")
+      .set("Authorization", tokenFor(seniorManager));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/application not found/i);
   });
 });

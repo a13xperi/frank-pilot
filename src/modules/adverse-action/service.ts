@@ -135,6 +135,61 @@ export class AdverseActionService {
   }
 
   /**
+   * Render an FCRA § 1681m adverse-action notice WITHOUT committing or sending
+   * it. Lets staff preview the exact denial text before they resolve a held
+   * application into screening_failed (which is the single send path —
+   * sendNotice — used on resolve).
+   *
+   * Performs the SAME applicant-name + property-name lookups as sendNotice and
+   * calls the SAME buildNoticeText, so the preview is byte-identical to what
+   * sendNotice would persist for the same reasonDetail. It MUST NOT insert into
+   * adverse_action_notices and MUST NOT fire any SMS — it is a pure render.
+   *
+   * @param applicationId  The application a denial is being previewed for
+   * @param reasonDetail   Optional human-readable elaboration for the notice
+   */
+  async generateNoticeDraft(
+    applicationId: string,
+    reasonDetail?: string
+  ): Promise<{
+    applicationId: string;
+    applicantName: string;
+    propertyName: string;
+    noticeText: string;
+  }> {
+    // Identical lookup to sendNotice — applicant name + property name only.
+    const appResult = await query(
+      `SELECT a.first_name, a.last_name, a.email, a.phone,
+              p.name AS property_name
+       FROM applications a
+       JOIN properties p ON a.property_id = p.id
+       WHERE a.id = $1`,
+      [applicationId]
+    );
+
+    if (appResult.rows.length === 0) {
+      throw new Error(`Application not found: ${applicationId}`);
+    }
+
+    const app = appResult.rows[0];
+    const applicantName = `${app.first_name} ${app.last_name}`;
+
+    const noticeText = this.buildNoticeText(
+      applicantName,
+      app.property_name,
+      reasonDetail
+    );
+
+    // Pure render: no INSERT into adverse_action_notices, no SMS, no audit log.
+    return {
+      applicationId,
+      applicantName,
+      propertyName: app.property_name,
+      noticeText,
+    };
+  }
+
+  /**
    * Retrieve the most recently sent adverse action notice for an application.
    * Returns null if no notice has been sent yet.
    */

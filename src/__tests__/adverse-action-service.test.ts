@@ -216,6 +216,63 @@ describe("AdverseActionService.sendNotice()", () => {
   });
 });
 
+// ── generateNoticeDraft() ────────────────────────────────────────────────────
+
+describe("AdverseActionService.generateNoticeDraft()", () => {
+  let service: AdverseActionService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new AdverseActionService();
+  });
+
+  it("throws when application is not found", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+
+    await expect(
+      service.generateNoticeDraft(APP_ID)
+    ).rejects.toThrow(`Application not found: ${APP_ID}`);
+  });
+
+  it("renders a non-empty FCRA notice text from the same lookup as sendNotice", async () => {
+    mockAppQuery({ propertyName: "Sunrise Gardens" });
+
+    const draft = await service.generateNoticeDraft(APP_ID, "Manual review denial: criminal history");
+
+    expect(draft.applicationId).toBe(APP_ID);
+    expect(draft.applicantName).toBe("Jane Doe");
+    expect(draft.propertyName).toBe("Sunrise Gardens");
+    expect(draft.noticeText).toBeTruthy();
+    expect(draft.noticeText).toContain("Sunrise Gardens");
+    expect(draft.noticeText).toMatch(/Fair Credit Reporting Act/);
+    expect(draft.noticeText).toContain("Manual review denial: criminal history");
+  });
+
+  it("does a single SELECT lookup and NO INSERT (pure render — no commit)", async () => {
+    mockAppQuery();
+    // Deliberately do NOT queue an INSERT result. If the code attempted an
+    // INSERT it would consume an undefined mock return and the row read would
+    // throw — but more directly we assert exactly one query and that it is a SELECT.
+
+    await service.generateNoticeDraft(APP_ID);
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const onlyCall = mockQuery.mock.calls[0]!;
+    expect(onlyCall[0]).toMatch(/SELECT/i);
+    expect(onlyCall[0]).not.toMatch(/INSERT INTO adverse_action_notices/i);
+  });
+
+  it("sends NO SMS and writes NO audit log (it is a preview, not a sent notice)", async () => {
+    mockAppQuery({ phone: "+17025550100" });
+
+    await service.generateNoticeDraft(APP_ID);
+
+    await new Promise((r) => setImmediate(r));
+    expect(mockNotifyDenied).not.toHaveBeenCalled();
+    expect(mockWriteAuditLog).not.toHaveBeenCalled();
+  });
+});
+
 // ── getNotice() ────────────────────────────────────────────────────────────
 
 describe("AdverseActionService.getNotice()", () => {

@@ -697,12 +697,35 @@ export class ScreeningService {
       `SELECT id, first_name, last_name, property_id, created_at,
               overall_screening_result, identity_verification_result,
               background_check_result, credit_check_result,
-              compliance_check_result, status_history
+              compliance_check_result, status_history,
+              identity_verification_details, identity_verification_completed_at,
+              background_check_details, background_check_completed_at,
+              credit_check_details, credit_check_completed_at,
+              compliance_check_details, compliance_check_completed_at
          FROM applications
         WHERE status = 'screening_review'
         ORDER BY created_at ASC`
     );
     return result.rows;
+  }
+
+  /**
+   * Render the FCRA § 1681m adverse-action notice a manual denial WOULD send,
+   * without committing or sending it — staff preview the denial text before
+   * they resolve a held application via resolveReview('fail'). Thin delegator to
+   * AdverseActionService.generateNoticeDraft (the same member resolveReview uses
+   * to actually sendNotice). No INSERT, no SMS — pure render.
+   */
+  async getAdverseActionDraft(
+    applicationId: string,
+    reasonDetail?: string
+  ): Promise<{
+    applicationId: string;
+    applicantName: string;
+    propertyName: string;
+    noticeText: string;
+  }> {
+    return this.adverseAction.generateNoticeDraft(applicationId, reasonDetail);
   }
 
   /**
@@ -733,6 +756,13 @@ export class ScreeningService {
 
     // FCRA § 1681m: send adverse-action notice on a manual denial. Non-blocking
     // and gated on the CAS winning so a concurrent resolution can't double-send.
+    //
+    // reasonDetail MUST be the raw notes — byte-identical to what the staffer
+    // previewed via getAdverseActionDraft(id, notes). Do NOT prefix or otherwise
+    // mutate it here: the applicant must receive the exact notice text that was
+    // reviewed and approved (preview === sent). The "manual review" framing lives
+    // in the manual_override_fail status-transition audit recorded above, not in
+    // the applicant-facing letter.
     if (decision === "fail" && changed) {
       this.adverseAction
         .sendNotice(
@@ -740,7 +770,7 @@ export class ScreeningService {
           reviewerId,
           reviewerRole,
           "screening_failed",
-          "Manual screening review denial: " + notes
+          notes
         )
         .catch((err: Error) =>
           logger.error("Failed to send FCRA adverse action notice after manual review denial", {

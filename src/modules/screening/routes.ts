@@ -144,6 +144,34 @@ router.post(
   }
 );
 
+// Preview the FCRA adverse-action notice a manual denial would send, WITHOUT
+// committing or sending it. Guarded by screening:initiate (only staff who can
+// deny may preview the denial). Optional reasonDetail query param mirrors the
+// detail a resolveReview('fail') would stamp on the notice.
+router.get(
+  "/:applicationId/adverse-action/draft",
+  authenticate,
+  requirePermission("screening:initiate"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const reasonDetail =
+        typeof req.query.reasonDetail === "string" ? req.query.reasonDetail : undefined;
+
+      const draft = await screeningService.getAdverseActionDraft(
+        param(req.params.applicationId),
+        reasonDetail
+      );
+      res.json({ draft });
+    } catch (err: any) {
+      logger.error("Failed to generate adverse-action draft", {
+        error: err.message,
+        applicationId: param(req.params.applicationId),
+      });
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
 // Get screening results (Senior Manager+)
 router.get(
   "/:applicationId/results",
