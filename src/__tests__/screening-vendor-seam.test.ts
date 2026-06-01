@@ -17,6 +17,7 @@
 import { resolveVendor, resolveVendorName } from "../modules/screening/vendors/registry";
 import { SandboxVendor } from "../modules/screening/vendors/sandbox-vendor";
 import { PlaidVendor } from "../modules/screening/vendors/plaid-vendor";
+import { WorkNumberVendor } from "../modules/screening/vendors/work-number-vendor";
 import { STUB_GATE_ERROR } from "../modules/screening/stub-policy";
 
 jest.mock("../utils/logger", () => ({
@@ -36,6 +37,8 @@ const ENV_KEYS = [
   "PLAID_CLIENT_ID",
   "PLAID_SECRET",
   "PLAID_ENV",
+  "WORK_NUMBER_API_KEY",
+  "WORK_NUMBER_API_URL",
 ];
 
 const saved: Record<string, string | undefined> = {};
@@ -101,6 +104,17 @@ describe("registry.resolveVendor()", () => {
     process.env.SCREENING_VENDOR_INCOME = "  PLAID  ";
     expect(resolveVendorName("income")).toBe("plaid");
   });
+
+  it("resolves worknumber for employment but refuses it elsewhere", () => {
+    process.env.SCREENING_VENDOR_EMPLOYMENT = "worknumber";
+    expect(resolveVendor("employment").name).toBe("worknumber");
+    // Globally selecting worknumber must NOT silently pass non-employment checks.
+    process.env.SCREENING_VENDOR = "worknumber";
+    delete process.env.SCREENING_VENDOR_EMPLOYMENT;
+    expect(() => resolveVendor("background")).toThrow(/does not support the background check/i);
+    expect(() => resolveVendor("income")).toThrow(/does not support the income check/i);
+    expect(resolveVendor("employment").name).toBe("worknumber");
+  });
 });
 
 // ── SandboxVendor: self-gating fail-loud ───────────────────────────────────────
@@ -150,8 +164,25 @@ describe("SandboxVendor — self-gating (the reason 'sandbox' is a safe default)
     expect(nsopwMatch.records).toHaveLength(1);
     expect(nsopwMatch.records[0].riskTier).toBe("high");
 
+    // Employment demo tags (the Work Number end-to-end loop fixtures).
+    const empDispute = await v.employment({ ...person(), ssn: "123-45-6789", screeningTag: "wn_employer_dispute" });
+    expect(empDispute.result).toBe("review_required");
+    const empMismatch = await v.employment({ ...person(), ssn: "123-45-6789", screeningTag: "wn_income_mismatch" });
+    expect(empMismatch.result).toBe("verified");
+    expect(empMismatch.details.annualizedIncome).toBe(30000); // trips the >15% Plaid cross-check
+
     // Unknown tag → clean default (mirrors the old mockResponse fallthrough).
     expect((await v.income({ ...person(), screeningTag: "no_such_tag" })).annualIncomeCents).toBe(5400000);
+    expect((await v.employment({ ...person(), ssn: "1", screeningTag: "no_such_tag" })).result).toBe("verified");
+  });
+
+  it("the wn_vendor_outage employment tag THROWS (drives the fail-loud could_not_screen HOLD)", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.MOCK_MODE = "1";
+    const v = new SandboxVendor();
+    await expect(
+      v.employment({ ...person(), ssn: "123-45-6789", screeningTag: "wn_vendor_outage" })
+    ).rejects.toThrow(/vendor outage/i);
   });
 
   it("supports() is true for every domain", () => {
@@ -270,6 +301,118 @@ describe("PlaidVendor — dormant without creds, live (mocked) with creds", () =
       // Only the transactions call — no create/exchange.
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock.mock.calls[0][0]).toBe("https://sandbox.plaid.com/transactions/get");
+    });
+  });
+});
+
+// ── WorkNumberVendor: dormant Equifax/TWN employment scaffold ──────────────────
+
+describe("WorkNumberVendor — dormant without a key, live (mocked) with a key", () => {
+  const emp = () => ({ firstName: "Jane", lastName: "Doe", ssn: "123-45-6789", dateOfBirth: "1990-06-15" });
+
+  it("supports only the employment domain", () => {
+    const v = new WorkNumberVendor();
+    expect(v.supports("employment")).toBe(true);
+    expect(v.supports("income")).toBe(false);
+    expect(v.supports("background")).toBe(false);
+    expect(v.supports("credit")).toBe(false);
+    expect(v.supports("nsopw")).toBe(false);
+  });
+
+  it("non-employment methods throw defensively", async () => {
+    const v = new WorkNumberVendor();
+    await expect(v.background({ ...person(), ssnLast4: "6789", state: "NV" })).rejects.toThrow(/supports only the employment check/i);
+    await expect(v.income(person())).rejects.toThrow(/supports only the employment check/i);
+  });
+
+  it("no key + gate closed → THROWS STUB_GATE_ERROR (stays dormant, fail-loud — propagates to could_not_screen)", async () => {
+    disableStub();
+    await expect(new WorkNumberVendor().employment(emp())).rejects.toThrow(STUB_GATE_ERROR);
+  });
+
+  it("no key + gate open → returns the deterministic stub (verified)", async () => {
+    // jest NODE_ENV=test keeps the gate open
+    const r = await new WorkNumberVendor().employment(emp());
+    expect(r.result).toBe("verified");
+    expect(r.details.currentEmployer).toBe("STUB Employer Inc.");
+  });
+
+  describe("with a key (mocked fetch)", () => {
+    let fetchMock: jest.Mock;
+    const origFetch = global.fetch;
+
+    beforeEach(() => {
+      disableStub(); // prove the live path runs even with the stub gate closed
+      process.env.WORK_NUMBER_API_KEY = "twn-test-key";
+      process.env.WORK_NUMBER_API_URL = "https://api.twn.test";
+      fetchMock = jest.fn();
+      (global as any).fetch = fetchMock;
+    });
+
+    afterEach(() => {
+      (global as any).fetch = origFetch;
+    });
+
+    function ok(json: unknown) {
+      return { ok: true, status: 200, json: async () => json };
+    }
+
+    it("POSTs to /v1/verifications with a Bearer token and the applicant body", async () => {
+      fetchMock.mockResolvedValueOnce(
+        ok({ employments: [{ status: "active", employerName: "Acme Co", annualizedIncome: 72000 }] })
+      );
+      const r = await new WorkNumberVendor().employment(emp());
+      expect(r.result).toBe("verified");
+      expect(r.details.currentEmployer).toBe("Acme Co");
+      expect(r.details.annualizedIncome).toBe(72000);
+
+      const [url, opts] = fetchMock.mock.calls[0];
+      expect(url).toBe("https://api.twn.test/v1/verifications");
+      expect((opts as any).method).toBe("POST");
+      expect((opts as any).headers.Authorization).toBe("Bearer twn-test-key");
+      const body = JSON.parse((opts as any).body);
+      expect(body.ssn).toBe("123-45-6789");
+      expect(body.firstName).toBe("Jane");
+    });
+
+    it("maps an empty employment list to no_record (a real verdict, not a failure)", async () => {
+      fetchMock.mockResolvedValueOnce(ok({ employments: [] }));
+      const r = await new WorkNumberVendor().employment(emp());
+      expect(r.result).toBe("no_record");
+    });
+
+    it("maps a record with no income to partial", async () => {
+      fetchMock.mockResolvedValueOnce(ok({ employments: [{ status: "active", employerName: "Acme Co" }] }));
+      const r = await new WorkNumberVendor().employment(emp());
+      expect(r.result).toBe("partial");
+      expect(r.details.currentEmployer).toBe("Acme Co");
+    });
+
+    it("maps multiple active employers to review_required", async () => {
+      fetchMock.mockResolvedValueOnce(
+        ok({
+          employments: [
+            { status: "active", employerName: "Acme Co", annualizedIncome: 50000 },
+            { status: "active", employerName: "Globex", annualizedIncome: 40000 },
+          ],
+        })
+      );
+      const r = await new WorkNumberVendor().employment(emp());
+      expect(r.result).toBe("review_required");
+    });
+
+    it("THROWS on a TWN HTTP error (→ propagates to could_not_screen, never a false pass)", async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ code: "SERVICE_UNAVAILABLE", message: "down" }),
+      });
+      await expect(new WorkNumberVendor().employment(emp())).rejects.toThrow(/SERVICE_UNAVAILABLE/);
+    });
+
+    it("THROWS on a network error rather than fabricating a verdict", async () => {
+      fetchMock.mockRejectedValueOnce(new Error("ECONNRESET"));
+      await expect(new WorkNumberVendor().employment(emp())).rejects.toThrow(/ECONNRESET/);
     });
   });
 });

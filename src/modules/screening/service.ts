@@ -453,6 +453,7 @@ export class ScreeningService {
                 lastName: app.last_name,
                 ssn: ssnDecrypted,
                 dateOfBirth: dob,
+                screeningTag,
               })
               .then((value) => ({ ok: true as const, value }))
               .catch((error: Error) => ({ ok: false as const, error }))
@@ -762,7 +763,10 @@ export class ScreeningService {
               identity_verification_details, identity_verification_completed_at,
               background_check_details, background_check_completed_at,
               credit_check_details, credit_check_completed_at,
-              compliance_check_details, compliance_check_completed_at
+              compliance_check_details, compliance_check_completed_at,
+              income_verification_result, income_verification_details,
+              work_number_result, work_number_details,
+              nsopw_result, nsopw_details
          FROM applications
         WHERE status = 'screening_review'
         ORDER BY created_at ASC`

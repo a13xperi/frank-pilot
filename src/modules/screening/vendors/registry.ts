@@ -1,5 +1,6 @@
 import { SandboxVendor } from "./sandbox-vendor";
 import { PlaidVendor } from "./plaid-vendor";
+import { WorkNumberVendor } from "./work-number-vendor";
 import type { ScreeningVendor, ScreeningCheckDomain } from "./types";
 
 /**
@@ -27,6 +28,7 @@ type VendorFactory = () => ScreeningVendor;
 const VENDOR_FACTORIES: Record<string, VendorFactory> = {
   sandbox: () => new SandboxVendor(),
   plaid: () => new PlaidVendor(),
+  worknumber: () => new WorkNumberVendor(),
 };
 
 export function resolveVendorName(domain: ScreeningCheckDomain): string {

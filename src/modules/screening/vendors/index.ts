@@ -9,3 +9,4 @@ export * from "./types";
 export { resolveVendor, resolveVendorName, DEFAULT_SCREENING_VENDOR } from "./registry";
 export { SandboxVendor } from "./sandbox-vendor";
 export { PlaidVendor } from "./plaid-vendor";
+export { WorkNumberVendor } from "./work-number-vendor";

@@ -36,6 +36,9 @@ export class WorkNumberService {
     lastName: string;
     ssn: string;
     dateOfBirth: string;
+    // Threaded through to the vendor for MOCK_MODE demo fixtures (the sandbox
+    // employment tags). Absent on the real production path.
+    screeningTag?: string;
   }): Promise<WorkNumberResult> {
     logger.info("Initiating Work Number employment verification", {
       applicant: `${input.firstName} ${input.lastName}`,
