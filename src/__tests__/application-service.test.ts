@@ -80,6 +80,30 @@ jest.mock("../modules/screening/service", () => ({
   })),
 }));
 
+// Consumer-report CRA capture collaborators (CONSUMER_REPORT_ENABLED path).
+// The consent module + both CRA clients are mocked; references are deferred into
+// closures so the `mock`-prefixed vars are read lazily (no hoist TDZ).
+const mockGetAuthorization = jest.fn();
+const mockRecordAuthorization = jest.fn();
+const mockBgCreateReport = jest.fn();
+const mockCreditCreateReport = jest.fn();
+jest.mock("../modules/screening/consumer-report-consent", () => ({
+  getAuthorization: (...a: unknown[]) => mockGetAuthorization(...a),
+  recordAuthorization: (...a: unknown[]) => mockRecordAuthorization(...a),
+  getDisclosure: () => ({ version: "2026-06-01", text: "DISCLOSURE", hash: "h" }),
+  FCRA_DISCLOSURE_VERSION: "2026-06-01",
+}));
+jest.mock("../modules/screening/background-check", () => ({
+  BackgroundCheckService: jest.fn().mockImplementation(() => ({
+    createReport: (...a: unknown[]) => mockBgCreateReport(...a),
+  })),
+}));
+jest.mock("../modules/screening/credit-check", () => ({
+  CreditCheckService: jest.fn().mockImplementation(() => ({
+    createReport: (...a: unknown[]) => mockCreditCreateReport(...a),
+  })),
+}));
+
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockTransaction = transaction as jest.MockedFunction<typeof transaction>;
 const mockEncrypt = encrypt as jest.MockedFunction<typeof encrypt>;
@@ -397,6 +421,157 @@ describe("ApplicationService.submit() — auto-screening on submit", () => {
     expect(result.status).toBe("submitted");
     expect(mockTransition).toHaveBeenCalledTimes(1);
     expect(mockRunFullScreening).toHaveBeenCalled();
+  });
+});
+
+// ── submit() — FCRA consumer-report consent (CONSUMER_REPORT_ENABLED) ─────────
+
+describe("ApplicationService.submit() — FCRA consumer-report consent", () => {
+  const ORIGINAL_FLAG = process.env.CONSUMER_REPORT_ENABLED;
+  const submittedRow = { id: "app-001", status: "submitted", submitted_at: new Date() };
+  const applicantRow = {
+    first_name: "Jane",
+    last_name: "Doe",
+    ssn_encrypted: null,
+    date_of_birth_encrypted: null,
+    current_state: "NV",
+  };
+
+  /** Grab the persist-UPDATE call that stamps screening_authorization_at = $6. */
+  function authStampParams() {
+    const call = mockQuery.mock.calls.find(
+      (c) => typeof c[0] === "string" && c[0].includes("screening_authorization_at = $6")
+    );
+    return call ? (call[1] as unknown[]) : undefined;
+  }
+
+  beforeEach(() => {
+    mockQuery.mockReset();
+    mockWriteAuditLog.mockReset();
+    mockTransition.mockReset();
+    mockGetAuthorization.mockReset();
+    mockRecordAuthorization.mockReset();
+    mockBgCreateReport.mockReset();
+    mockCreditCreateReport.mockReset();
+    mockTransition.mockResolvedValue({ changed: true, status: "awaiting_consumer_report" } as any);
+    mockBgCreateReport.mockResolvedValue({ reportId: "bg_1", status: "pending", url: "https://bg" });
+    mockCreditCreateReport.mockResolvedValue({ reportId: "cr_1", status: "pending", url: "https://cr" });
+  });
+
+  afterEach(() => {
+    if (ORIGINAL_FLAG === undefined) delete process.env.CONSUMER_REPORT_ENABLED;
+    else process.env.CONSUMER_REPORT_ENABLED = ORIGINAL_FLAG;
+  });
+
+  it("flag off ⇒ consent ignored, no authorization, no report orders (byte-identical)", async () => {
+    delete process.env.CONSUMER_REPORT_ENABLED;
+    mockQuery.mockResolvedValue(qr([submittedRow]));
+
+    const service = makeService();
+    const result = await service.submit("app-001", "user-001", "applicant", undefined, {
+      authorized: true,
+      disclosureVersion: "2026-06-01",
+    });
+
+    expect(result.status).toBe("submitted");
+    expect(mockRecordAuthorization).not.toHaveBeenCalled();
+    expect(mockGetAuthorization).not.toHaveBeenCalled();
+    expect(mockBgCreateReport).not.toHaveBeenCalled();
+    expect(mockCreditCreateReport).not.toHaveBeenCalled();
+  });
+
+  it("flag on + no consent + none on file ⇒ consentRequired, no orders, app stays submitted", async () => {
+    process.env.CONSUMER_REPORT_ENABLED = "true";
+    mockQuery.mockResolvedValue(qr([submittedRow])); // only the status UPDATE runs
+    mockGetAuthorization.mockResolvedValue(null);
+
+    const service = makeService();
+    const result = await service.submit("app-001", "user-001", "applicant");
+
+    expect(result.consumerReportConsentRequired).toBe(true);
+    expect(result.status).toBe("submitted");
+    expect(mockRecordAuthorization).not.toHaveBeenCalled();
+    expect(mockBgCreateReport).not.toHaveBeenCalled();
+    expect(mockTransition).not.toHaveBeenCalled();
+  });
+
+  it("flag on + consent affirmed ⇒ records authorization, stamps screening_authorization_at to it, creates orders", async () => {
+    process.env.CONSUMER_REPORT_ENABLED = "true";
+    const authorizedAt = "2026-06-01T10:00:00.000Z";
+    mockRecordAuthorization.mockResolvedValue({ authorizedAt, alreadyRecorded: false });
+    mockQuery
+      .mockResolvedValueOnce(qr([submittedRow])) // status UPDATE
+      .mockResolvedValueOnce(qr([applicantRow])) // appRow SELECT
+      .mockResolvedValueOnce(qr([])); // persist UPDATE
+
+    const service = makeService();
+    const result = await service.submit("app-001", "user-001", "applicant", undefined, {
+      authorized: true,
+      disclosureVersion: "2026-06-01",
+      ip: "9.9.9.9",
+      userAgent: "UA/1.0",
+    });
+
+    expect(result.status).toBe("awaiting_consumer_report");
+    expect(mockRecordAuthorization).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applicationId: "app-001",
+        applicantId: "user-001",
+        applicantRole: "applicant",
+        disclosureVersion: "2026-06-01",
+        ip: "9.9.9.9",
+        userAgent: "UA/1.0",
+      })
+    );
+    expect(mockBgCreateReport).toHaveBeenCalled();
+    expect(mockCreditCreateReport).toHaveBeenCalled();
+
+    // The pull is stamped with the AUTHORIZATION timestamp, not order-creation NOW().
+    const params = authStampParams();
+    expect(params).toBeDefined();
+    expect(params![5]).toBe(authorizedAt);
+  });
+
+  it("flag on + valid authorization already on file (no fresh consent) ⇒ uses stored authorizedAt, creates orders", async () => {
+    process.env.CONSUMER_REPORT_ENABLED = "true";
+    const storedAt = "2026-05-30T09:00:00.000Z";
+    mockGetAuthorization.mockResolvedValue({
+      applicationId: "app-001",
+      applicantId: "user-001",
+      disclosureVersion: "2026-06-01",
+      disclosureHash: "h",
+      method: "in_app_checkbox",
+      authorizedAt: storedAt,
+    });
+    mockQuery
+      .mockResolvedValueOnce(qr([submittedRow]))
+      .mockResolvedValueOnce(qr([applicantRow]))
+      .mockResolvedValueOnce(qr([]));
+
+    const service = makeService();
+    const result = await service.submit("app-001", "user-001", "applicant"); // no consent arg
+
+    expect(result.status).toBe("awaiting_consumer_report");
+    expect(mockRecordAuthorization).not.toHaveBeenCalled(); // reused existing
+    expect(mockBgCreateReport).toHaveBeenCalled();
+    const params = authStampParams();
+    expect(params![5]).toBe(storedAt);
+  });
+
+  it("flag on + consent against a superseded disclosure version ⇒ consentRequired, no orders", async () => {
+    process.env.CONSUMER_REPORT_ENABLED = "true";
+    mockQuery.mockResolvedValue(qr([submittedRow]));
+
+    const service = makeService();
+    const result = await service.submit("app-001", "user-001", "applicant", undefined, {
+      authorized: true,
+      disclosureVersion: "2020-01-01", // stale
+    });
+
+    expect(result.consumerReportConsentRequired).toBe(true);
+    expect(mockRecordAuthorization).not.toHaveBeenCalled();
+    expect(mockBgCreateReport).not.toHaveBeenCalled();
+    expect(mockTransition).not.toHaveBeenCalled();
   });
 });
 

@@ -209,7 +209,13 @@ export class ApplicationService {
     applicationId: string,
     submittedBy: string,
     submitterRole: string,
-    returnUrl?: string
+    returnUrl?: string,
+    consumerReportConsent?: {
+      authorized: boolean;
+      disclosureVersion?: string;
+      ip?: string | null;
+      userAgent?: string | null;
+    }
   ): Promise<any> {
     const result = await query(
       `UPDATE applications
@@ -300,6 +306,47 @@ export class ApplicationService {
     // once the reports resolve, not synchronously here.
     if (process.env.CONSUMER_REPORT_ENABLED === "true") {
       try {
+        // FCRA §1681b — never procure a consumer report without the applicant's
+        // authorization. Honor an authorization already on file (idempotent
+        // re-submit) or capture a freshly-affirmed consent; otherwise do NOT
+        // create any report order. Leave the app in `submitted` and tell the
+        // caller consent is required (the route turns this into a 400 + the
+        // disclosure to render). Fail-loud: we never pull on an unauthorized app,
+        // and we never stamp screening_authorization_at without a real record.
+        const {
+          getAuthorization,
+          recordAuthorization,
+          FCRA_DISCLOSURE_VERSION,
+        } = await import("../screening/consumer-report-consent");
+
+        let authorizedAt: string;
+        if (consumerReportConsent?.authorized === true) {
+          // Consent given against a superseded disclosure ⇒ re-prompt (do not
+          // record a stale authorization).
+          if (
+            consumerReportConsent.disclosureVersion &&
+            consumerReportConsent.disclosureVersion !== FCRA_DISCLOSURE_VERSION
+          ) {
+            return { ...result.rows[0], consumerReportConsentRequired: true };
+          }
+          const rec = await recordAuthorization({
+            applicationId,
+            applicantId: submittedBy,
+            applicantRole: submitterRole,
+            disclosureVersion: consumerReportConsent.disclosureVersion,
+            ip: consumerReportConsent.ip ?? null,
+            userAgent: consumerReportConsent.userAgent ?? null,
+          });
+          authorizedAt = rec.authorizedAt;
+        } else {
+          const existing = await getAuthorization(applicationId);
+          if (existing && existing.disclosureVersion === FCRA_DISCLOSURE_VERSION) {
+            authorizedAt = existing.authorizedAt;
+          } else {
+            return { ...result.rows[0], consumerReportConsentRequired: true };
+          }
+        }
+
         const { BackgroundCheckService } = await import(
           "../screening/background-check"
         );
@@ -357,13 +404,16 @@ export class ApplicationService {
         // Persist ONLY the report references + categorical statuses + the
         // applicant-authorization timestamp. NEVER charge narratives, tradeline
         // detail, addresses, or full DOB/SSN — those live on the CRA.
+        // screening_authorization_at is bound to the ACTUAL authorization record
+        // (consumer_report_authorizations), not order-creation time — the pull is
+        // provably tied to a captured §1681b authorization.
         await query(
           `UPDATE applications SET
              background_report_id = $2,
              credit_report_id = $3,
              consumer_report_background_status = $4,
              consumer_report_credit_status = $5,
-             screening_authorization_at = NOW()
+             screening_authorization_at = $6
            WHERE id = $1`,
           [
             applicationId,
@@ -371,6 +421,7 @@ export class ApplicationService {
             credit.reportId,
             background.status,
             credit.status,
+            authorizedAt,
           ]
         );
 

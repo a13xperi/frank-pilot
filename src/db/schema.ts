@@ -81,6 +81,7 @@ CREATE TYPE audit_action AS ENUM (
   'screening_completed',
   'background_check_completed',
   'credit_check_completed',
+  'consumer_report_authorized',
   'compliance_check_completed',
   'tier1_approved',
   'tier1_denied',
@@ -1269,6 +1270,29 @@ CREATE TABLE IF NOT EXISTS cra_webhook_dlq (
   attempt_count   INT NOT NULL DEFAULT 1,
   first_failed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_failed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- FCRA §1681b(b)(2) consumer-report authorization capture. Before Frank (the
+-- end user) procures a Checkr/TransUnion consumer report it must obtain the
+-- applicant's clear-and-conspicuous disclosure + written authorization. This is
+-- the durable evidentiary record (who/when/disclosure version + SHA-256 hash of
+-- the exact text shown/method/IP/UA) — same shape as lease_signatures. One
+-- authorization per application (application_id UNIQUE, written ON CONFLICT DO
+-- NOTHING so the first authorization wins and re-submits are idempotent). See
+-- src/modules/screening/consumer-report-consent.ts and
+-- src/db/migrations/2026-06-01-fcra-consent.sql.
+CREATE TABLE IF NOT EXISTS consumer_report_authorizations (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  application_id     UUID NOT NULL UNIQUE,
+  applicant_id       UUID,
+  applicant_role     TEXT,
+  disclosure_version TEXT NOT NULL,
+  disclosure_hash    TEXT NOT NULL,
+  method             TEXT NOT NULL DEFAULT 'in_app_checkbox',
+  authorized_ip      TEXT,
+  user_agent         TEXT,
+  authorized_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
