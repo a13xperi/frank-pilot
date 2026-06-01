@@ -116,11 +116,17 @@ export class ScreeningService {
     const ssnLast4 = ssnDecrypted.slice(-4);
     const dob = decrypt(app.date_of_birth_encrypted);
 
-    // Identity verification — runs FIRST. Persona primary / Stripe Identity
-    // fallback. Rejection short-circuits the pipeline (FCRA adverse-action
-    // notice mirrors the duplicate-SSN early-exit below); review_required
-    // joins the overall-result aggregation alongside background/credit/compliance.
-    const identityResult = await this.identity.verify({
+    // Identity verification — runs FIRST. Rejection short-circuits the pipeline
+    // (FCRA adverse-action notice mirrors the duplicate-SSN early-exit below);
+    // review_required joins the overall-result aggregation alongside
+    // background/credit/compliance.
+    //
+    // resolve() (not verify()) is the screening-time call: under
+    // IDENTITY_VERIFICATION_ENABLED it READS the Stripe Identity verdict the
+    // webhook already persisted (a still-pending capture → could_not_screen
+    // HOLD). MOCK/stub/keyless configs are byte-identical to the legacy verify().
+    const identityResult = await this.identity.resolve({
+      applicationId,
       firstName: app.first_name,
       lastName: app.last_name,
       dateOfBirth: dob,

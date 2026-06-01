@@ -46,6 +46,9 @@ jest.mock("../modules/screening/compliance", () => ({
 
 jest.mock("../modules/screening/identity-verification", () => ({
   IdentityVerificationService: jest.fn().mockImplementation(() => ({
+    // resolve() is the screening-time entry point (Phase 4b). verify() is kept
+    // mocked too since the real class still exports it (legacy/MOCK path).
+    resolve: jest.fn(),
     verify: jest.fn(),
   })),
 }));
@@ -192,7 +195,7 @@ describe("ScreeningService.runFullScreening", () => {
     mockAdverseAction = (service as any).adverseAction;
 
     // Default: identity verified + all vendor checks pass
-    mockIdentity.verify.mockResolvedValue(makeIdentityResult("verified"));
+    mockIdentity.resolve.mockResolvedValue(makeIdentityResult("verified"));
     mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("pass"));
     mockCredit.runCheck.mockResolvedValue(makeCreditResult("pass"));
     mockCompliance.runCheck.mockResolvedValue(makeComplianceResult("pass"));
@@ -565,7 +568,7 @@ describe("ScreeningService.runFullScreening", () => {
   // ── Identity verification (Persona / Stripe Identity) ─────────────────────
 
   it("verified identity passes through; overall reflects downstream checks only", async () => {
-    mockIdentity.verify.mockResolvedValue(makeIdentityResult("verified"));
+    mockIdentity.resolve.mockResolvedValue(makeIdentityResult("verified"));
 
     const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
 
@@ -577,16 +580,16 @@ describe("ScreeningService.runFullScreening", () => {
     expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
   });
 
-  it("threads screeningTag through to identity.verify", async () => {
+  it("threads applicationId + screeningTag through to identity.resolve", async () => {
     await service.runFullScreening("app-001", "user-1", "leasing_agent", "id_verification_fail");
 
-    expect(mockIdentity.verify).toHaveBeenCalledWith(
-      expect.objectContaining({ screeningTag: "id_verification_fail" })
+    expect(mockIdentity.resolve).toHaveBeenCalledWith(
+      expect.objectContaining({ applicationId: "app-001", screeningTag: "id_verification_fail" })
     );
   });
 
   it("identity review_required runs full pipeline; overall becomes review_required when no fails", async () => {
-    mockIdentity.verify.mockResolvedValue(makeIdentityResult("review_required"));
+    mockIdentity.resolve.mockResolvedValue(makeIdentityResult("review_required"));
 
     const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
 
@@ -599,7 +602,7 @@ describe("ScreeningService.runFullScreening", () => {
   });
 
   it("identity rejected short-circuits the pipeline with FCRA adverse-action notice", async () => {
-    mockIdentity.verify.mockResolvedValue(makeIdentityResult("rejected"));
+    mockIdentity.resolve.mockResolvedValue(makeIdentityResult("rejected"));
 
     const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
 

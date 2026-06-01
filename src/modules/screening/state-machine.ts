@@ -147,6 +147,7 @@ export async function transition(input: TransitionInput): Promise<void> {
 /** Real application_status values touched by the screening pipeline. */
 export type AppStatus =
   | "submitted"
+  | "awaiting_identity"
   | "screening"
   | "screening_passed"
   | "screening_failed"
@@ -160,6 +161,14 @@ interface AppStatusTransition {
 
 export const APP_STATUS_TRANSITIONS: ReadonlyArray<AppStatusTransition> = [
   { from: "submitted", to: "screening", trigger: "screening_started" },
+  // Stripe Identity (Phase 4b): submit() creates a VerificationSession and
+  // parks the app in awaiting_identity until the webhook lands a verdict.
+  // The webhook then advances awaiting_identity -> screening (verdict in hand,
+  // run the checks) or -> screening_review (could_not_screen HOLD:
+  // pending/processing/canceled/unmappable session — never an auto-pass).
+  { from: "submitted", to: "awaiting_identity", trigger: "identity_verification_started" },
+  { from: "awaiting_identity", to: "screening", trigger: "identity_session_resolved" },
+  { from: "awaiting_identity", to: "screening_review", trigger: "could_not_screen" },
   { from: "screening", to: "screening_passed", trigger: "all_checks_passed" },
   { from: "screening", to: "screening_passed", trigger: "review_required_passthrough" },
   { from: "screening", to: "screening_failed", trigger: "any_check_failed" },

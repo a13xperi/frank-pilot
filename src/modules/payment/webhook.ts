@@ -5,10 +5,14 @@ import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 import { getStripe, expectedLivemode } from "../../lib/stripe";
+import { decrypt } from "../../utils/encryption";
 import { stampTape } from "../tape";
 import { buildIdempotencyKey, markStatus } from "./idempotency";
 import { LedgerService } from "../ledger/service";
 import { getEmailService } from "../integrations/email";
+import { IdentityVerificationService } from "../screening/identity-verification";
+import type { IdentityVerificationResult } from "../screening/identity-verification";
+import { transitionApplicationStatus } from "../screening/state-machine";
 
 /**
  * Stripe webhook receiver.
@@ -407,6 +411,196 @@ async function handleChargeRefunded(event: Stripe.Event): Promise<void> {
   })();
 }
 
+// IdentityVerificationResult.result (verified/rejected/review_required/
+// could_not_screen) → the `screening_result` enum the application row stores.
+// Duplicated (not imported) from screening/service.ts on purpose: keeps the
+// webhook's module graph from eagerly pulling in the whole screening subsystem
+// for a four-line mapper. could_not_screen passes straight through so the row
+// reflects the HOLD rather than a pass.
+function mapIdentityResultToScreeningEnum(
+  r: IdentityVerificationResult["result"]
+): "pass" | "fail" | "review_required" | "could_not_screen" {
+  if (r === "verified") return "pass";
+  if (r === "rejected") return "fail";
+  if (r === "could_not_screen") return "could_not_screen";
+  return "review_required";
+}
+
+/**
+ * Stripe Identity verdict handler (Phase 4b).
+ *
+ * Rides the EXISTING /api/payments/webhook endpoint — same signing secret,
+ * idempotency, livemode guard, and DLQ as the payment events. Lands the verdict
+ * onto the application row and unblocks the app out of `awaiting_identity`:
+ *
+ *   - `processing`              → not terminal; record session_status, wait.
+ *   - `verified` / `requires_input` → persist verdict, advance → `screening`;
+ *     when SCREENING_ON_SUBMIT_ENABLED, fire the full pipeline (which re-reads
+ *     this verdict via identity.resolve() — no re-capture). Otherwise the app
+ *     waits in `screening` for staff to run manual /screen.
+ *   - `canceled` / unmappable   → could_not_screen → HOLD in `screening_review`.
+ *     NEVER an auto-pass.
+ *
+ * The persist + both transitions are CAS-guarded on `status = 'awaiting_identity'`,
+ * so a duplicate or out-of-order delivery after the app already advanced is a
+ * no-op (belt-and-suspenders alongside `stripe_processed_events`).
+ */
+async function handleIdentityVerificationSession(event: Stripe.Event): Promise<void> {
+  const session = event.data.object as Stripe.Identity.VerificationSession;
+  const applicationId = (session.metadata ?? {}).applicationId;
+  if (!applicationId) {
+    logger.warn("Identity verification session missing applicationId metadata", {
+      sessionId: session.id,
+      type: event.type,
+    });
+    return;
+  }
+
+  // `processing` is non-terminal — Stripe is still evaluating. Record the
+  // status and wait for the verified/requires_input/canceled event to follow.
+  if (session.status === "processing") {
+    await query(
+      `UPDATE applications SET identity_session_status = $2
+        WHERE id = $1 AND status = 'awaiting_identity'`,
+      [applicationId, session.status]
+    );
+    logger.info("Identity verification session processing", {
+      sessionId: session.id,
+      applicationId,
+    });
+    return;
+  }
+
+  // Terminal verdict — retrieve with the report expanded (the event payload
+  // omits it) so we can map per-check document/selfie detail.
+  const stripe = getStripe();
+  const full = await stripe.identity.verificationSessions.retrieve(session.id, {
+    expand: ["last_verification_report"],
+  });
+
+  // Application context for the transient name/DOB cross-check — used only to
+  // derive a categorical `name_dob_mismatch` risk signal, never persisted.
+  const ctx = await query(
+    `SELECT a.submitted_by, u.role AS submitter_role,
+            a.first_name, a.last_name, a.date_of_birth_encrypted
+       FROM applications a
+       LEFT JOIN users u ON u.id = a.submitted_by
+      WHERE a.id = $1`,
+    [applicationId]
+  );
+  if (ctx.rows.length === 0) {
+    logger.warn("Identity verification session for unknown application", {
+      sessionId: session.id,
+      applicationId,
+    });
+    return;
+  }
+  const row = ctx.rows[0];
+  let expected: { firstName?: string; lastName?: string; dateOfBirth?: string };
+  try {
+    expected = {
+      firstName: row.first_name ?? undefined,
+      lastName: row.last_name ?? undefined,
+      dateOfBirth: row.date_of_birth_encrypted ? decrypt(row.date_of_birth_encrypted) : undefined,
+    };
+  } catch {
+    // DOB decrypt failed — fall back to name-only cross-check rather than throw.
+    expected = { firstName: row.first_name ?? undefined, lastName: row.last_name ?? undefined };
+  }
+
+  const result = new IdentityVerificationService().mapStripeSessionToResult(full, expected);
+  const screeningResult = mapIdentityResultToScreeningEnum(result.result);
+
+  // Persist the verdict, guarded to awaiting_identity so a late/duplicate event
+  // can't clobber a row that already advanced. identity_verification_details
+  // holds the FULL result here — identity.resolve() reads it back exactly once.
+  const persisted = await query(
+    `UPDATE applications SET
+        identity_verification_result = $2,
+        identity_verification_details = $3,
+        identity_verification_completed_at = NOW(),
+        identity_session_status = $4
+      WHERE id = $1 AND status = 'awaiting_identity'
+      RETURNING id`,
+    [applicationId, screeningResult, JSON.stringify(result), full.status]
+  );
+
+  if (persisted.rows.length === 0) {
+    logger.info("Identity verdict ignored — application not awaiting identity", {
+      sessionId: session.id,
+      applicationId,
+      eventType: event.type,
+    });
+    return;
+  }
+
+  await writeAuditLog({
+    // Reuses the existing audit_action member (no enum migration); actor lives
+    // in details since the Stripe webhook has no user actor.
+    action: "identity_verification_completed",
+    applicationId,
+    resourceType: "application",
+    details: {
+      actor: "stripe-webhook",
+      result: result.result,
+      sessionStatus: full.status,
+      idType: result.idType,
+      riskSignals: result.details.riskSignals,
+      sessionId: full.id,
+    },
+  });
+
+  // could_not_screen (canceled / unmappable) → HOLD directly in screening_review.
+  if (result.result === "could_not_screen") {
+    await transitionApplicationStatus({
+      applicationId,
+      from: "awaiting_identity",
+      to: "screening_review",
+      trigger: "could_not_screen",
+      evidence: { source: "stripe_identity_webhook", sessionStatus: full.status },
+    });
+    await query(
+      `UPDATE applications SET overall_screening_result = 'could_not_screen'
+        WHERE id = $1 AND overall_screening_result IS NULL`,
+      [applicationId]
+    );
+    return;
+  }
+
+  // Verdict in hand → advance into `screening` so the app is screenable.
+  const advanced = await transitionApplicationStatus({
+    applicationId,
+    from: "awaiting_identity",
+    to: "screening",
+    trigger: "identity_session_resolved",
+    actorId: row.submitted_by ?? undefined,
+    actorRole: row.submitter_role ?? undefined,
+    evidence: { source: "stripe_identity_webhook", result: result.result },
+  });
+  if (!advanced.changed) return;
+
+  // Only fire the full pipeline when auto-on-submit is armed AND we have a real
+  // submitter (the audit/actor columns are UUID-typed). resolve() will read the
+  // verdict we just persisted. Otherwise the app rests in `screening` for staff
+  // to run manual /screen.
+  if (process.env.SCREENING_ON_SUBMIT_ENABLED === "true" && row.submitted_by) {
+    const initiatedBy = row.submitted_by as string;
+    const initiatorRole = (row.submitter_role as string) ?? "applicant";
+    void (async () => {
+      try {
+        const { ScreeningService } = await import("../screening/service");
+        await new ScreeningService().runFullScreening(applicationId, initiatedBy, initiatorRole);
+      } catch (err) {
+        logger.error("Post-identity screening pipeline failed", {
+          applicationId,
+          sessionId: full.id,
+          error: (err as Error).message,
+        });
+      }
+    })();
+  }
+}
+
 async function dispatch(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "payment_intent.succeeded":
@@ -417,6 +611,12 @@ async function dispatch(event: Stripe.Event): Promise<void> {
       return;
     case "charge.refunded":
       await handleChargeRefunded(event);
+      return;
+    case "identity.verification_session.verified":
+    case "identity.verification_session.requires_input":
+    case "identity.verification_session.processing":
+    case "identity.verification_session.canceled":
+      await handleIdentityVerificationSession(event);
       return;
     default:
       logger.info("Stripe webhook event ignored", { type: event.type, id: event.id });

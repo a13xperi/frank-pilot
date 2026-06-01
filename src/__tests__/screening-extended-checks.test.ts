@@ -44,7 +44,7 @@ jest.mock("../modules/screening/compliance", () => ({
   ComplianceService: jest.fn().mockImplementation(() => ({ runCheck: jest.fn() })),
 }));
 jest.mock("../modules/screening/identity-verification", () => ({
-  IdentityVerificationService: jest.fn().mockImplementation(() => ({ verify: jest.fn() })),
+  IdentityVerificationService: jest.fn().mockImplementation(() => ({ resolve: jest.fn() })),
 }));
 // Fraud is mocked, but unlike the legacy suite we ALSO stub checkIncomeMismatch
 // (the cross-check call site). Default: no mismatch.
@@ -141,7 +141,7 @@ describe("ScreeningService — Phase 4a extended checks (SCREENING_EXTENDED_CHEC
     mockCompliance = (service as any).compliance;
     mockFraud = (service as any).fraud;
 
-    mockIdentity.verify.mockResolvedValue({
+    mockIdentity.resolve.mockResolvedValue({
       result: "verified",
       confidence: 0.95,
       idType: "driver_license",
