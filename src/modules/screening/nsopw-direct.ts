@@ -1,5 +1,5 @@
 import { logger } from "../../utils/logger";
-import { shouldUseScreeningStub, STUB_GATE_ERROR } from "./stub-policy";
+import { resolveVendor } from "./vendors";
 
 export interface NsopwDirectResult {
   result: "no_match" | "match" | "review_required";
@@ -27,22 +27,11 @@ export interface NsopwDirectResult {
  * denial. If vendor and direct disagree, the orchestrator MUST hold for manual
  * review — never auto-pass on a partial match.
  *
- * Implementation notes:
- * - NSOPW.gov's public Web Services API requires registered access; in
- *   practice we proxy via a wrapper service (Sterling NSOPW endpoint or
- *   Inflection's NSOPW check) and treat NSOPW_API_KEY as the wrapper's key.
- * - The free direct-scrape path is fragile and rate-limited; not recommended
- *   for production. Stub fallback below mimics the wrapper response shape.
+ * The raw registry response comes from the screening vendor seam
+ * (resolveVendor("nsopw")); this service owns only the match evaluation and the
+ * catch → review_required HOLD (never auto-clears on a vendor failure).
  */
 export class NsopwDirectService {
-  private apiUrl: string;
-  private apiKey: string;
-
-  constructor() {
-    this.apiUrl = process.env.NSOPW_API_URL || "https://api.nsopw-proxy.example.com";
-    this.apiKey = process.env.NSOPW_API_KEY || "";
-  }
-
   async check(input: {
     firstName: string;
     lastName: string;
@@ -85,50 +74,10 @@ export class NsopwDirectService {
     states: string[];
     screeningTag?: string;
   }): Promise<any> {
-    if (process.env.MOCK_MODE === "1" && input.screeningTag) {
-      return this.mockResponse(input.screeningTag);
-    }
-
-    if (!this.apiKey || this.apiKey === "changeme") {
-      if (!shouldUseScreeningStub()) {
-        throw new Error(STUB_GATE_ERROR);
-      }
-      logger.warn("Using stub direct NSOPW check — no API key configured (stub policy allows fallback)");
-      return {
-        records: [],
-        searchedStates: input.states,
-        confidence: 0.99,
-        riskSignals: [],
-      };
-    }
-
-    throw new Error("Production direct NSOPW integration not yet configured");
-  }
-
-  private mockResponse(tag: string): any {
-    if (tag === "deny_sex_offender") {
-      return {
-        records: [
-          {
-            state: "NV",
-            nameMatch: true,
-            dobMatch: true,
-            addressHint: "Reno, NV (last known)",
-            riskTier: "high",
-          },
-        ],
-        searchedStates: ["NV"],
-        confidence: 0.98,
-        riskSignals: ["registry_match_name_and_dob"],
-      };
-    }
-
-    return {
-      records: [],
-      searchedStates: ["NV"],
-      confidence: 0.99,
-      riskSignals: [],
-    };
+    // Delegate the raw registry pull to the configured vendor. The vendor
+    // self-gates on the stub policy: keyless production THROWS here → caught
+    // above → review_required (a vendor outage never auto-clears the §5.856 gate).
+    return resolveVendor("nsopw").nsopw(input);
   }
 
   private evaluateResults(response: any, searchedStates: string[]): NsopwDirectResult {
