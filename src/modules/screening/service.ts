@@ -550,24 +550,38 @@ export class ScreeningService {
       [applicationId, overallResult]
     );
 
-    // fail              -> screening_failed  / any_check_failed
-    // could_not_screen  -> screening_review  / could_not_screen   (NEW: a HOLD)
-    // review_required   -> screening_passed  / review_required_passthrough
-    // pass              -> screening_passed  / all_checks_passed
+    // The background check flags a discretionary criminal record that requires a
+    // HUD/FHA individualized assessment (Castro §III.B). This is surfaced as a
+    // review_required result tagged with decision="individualized_review". It
+    // must HOLD in screening_review — never auto-fail (no time-blind ban) and
+    // never auto-pass via the review_required passthrough. A genuine fail or a
+    // could_not_screen still outranks it (both already HOLD or deny).
+    const backgroundNeedsAssessment =
+      backgroundResult.details.decision === "individualized_review";
+
+    // fail                          -> screening_failed  / any_check_failed
+    // could_not_screen              -> screening_review  / could_not_screen
+    // individualized assessment     -> screening_review  / individualized_assessment_required
+    // review_required (passthrough) -> screening_passed  / review_required_passthrough
+    // pass                          -> screening_passed  / all_checks_passed
     const finalStatus =
       overallResult === "fail"
         ? "screening_failed"
         : overallResult === "could_not_screen"
           ? "screening_review"
-          : "screening_passed";
+          : backgroundNeedsAssessment
+            ? "screening_review"
+            : "screening_passed";
     const finalTrigger =
       overallResult === "fail"
         ? "any_check_failed"
         : overallResult === "could_not_screen"
           ? "could_not_screen"
-          : overallResult === "review_required"
-            ? "review_required_passthrough"
-            : "all_checks_passed";
+          : backgroundNeedsAssessment
+            ? "individualized_assessment_required"
+            : overallResult === "review_required"
+              ? "review_required_passthrough"
+              : "all_checks_passed";
 
     const { changed } = await transitionApplicationStatus({
       applicationId,
@@ -580,6 +594,7 @@ export class ScreeningService {
         overallResult,
         identity: identityScreeningResult,
         background: backgroundResult.result,
+        backgroundDecision: backgroundResult.details.decision,
         credit: creditResult.result,
         compliance: complianceResult.result,
         // Flag-off → empty spread → identical evidence object as before.
@@ -649,7 +664,7 @@ export class ScreeningService {
         actorId: initiatedBy,
         actorRole: initiatorRole,
         applicationId,
-        details: { overallResult, newStatus: finalStatus },
+        details: { overallResult, newStatus: finalStatus, backgroundDecision: backgroundResult.details.decision },
       }),
     ]);
 
