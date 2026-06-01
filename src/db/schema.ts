@@ -25,6 +25,11 @@ CREATE TYPE user_role AS ENUM (
 CREATE TYPE application_status AS ENUM (
   'draft',
   'submitted',
+  -- Stripe Identity (Phase 4b): waiting on the applicant to finish their
+  -- hosted/embedded ID + selfie capture. The webhook advances this to
+  -- 'screening' once a verdict lands. Distinguishes "pending capture" from
+  -- "screening running" so the screening_review HOLD queue stays clean.
+  'awaiting_identity',
   'screening',
   'screening_passed',
   'screening_failed',
@@ -396,6 +401,14 @@ CREATE TABLE applications (
   identity_verification_result screening_result,
   identity_verification_details JSONB,
   identity_verification_completed_at TIMESTAMPTZ,
+
+  -- Stripe Identity session reference (Phase 4b). We persist ONLY the vs_
+  -- session id + categorical session status here -- never name/DOB/document
+  -- numbers/images (those live on Stripe). The mapped verdict lands in the
+  -- identity_verification_* columns above via the webhook.
+  identity_session_id TEXT,
+  identity_session_status TEXT,
+  identity_session_created_at TIMESTAMPTZ,
 
   background_check_result screening_result,
   background_check_details JSONB,

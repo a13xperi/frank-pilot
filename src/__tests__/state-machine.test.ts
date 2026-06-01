@@ -169,15 +169,18 @@ describe("transitionApplicationStatus (application_status chokepoint)", () => {
     jest.clearAllMocks();
   });
 
-  it("APP_STATUS_TRANSITIONS fans out from submitted/screening (+screening_review hold) into the screening terminals", () => {
-    // screening_review is a NEW non-terminal hold: a could-not-screen pipeline
+  it("APP_STATUS_TRANSITIONS fans out from submitted/awaiting_identity/screening (+screening_review hold) into the screening terminals", () => {
+    // screening_review is a non-terminal hold: a could-not-screen pipeline
     // lands there, and staff resolve it forward to passed/failed. It is both a
     // `to` (from screening) and a `from` (manual override out).
+    // awaiting_identity (Phase 4b) sits between submitted and screening: the app
+    // waits there for the applicant's Stripe Identity capture, then the webhook
+    // advances it into `screening` (or `screening_review` on could_not_screen).
     const froms = new Set(APP_STATUS_TRANSITIONS.map((t) => t.from));
-    expect(froms).toEqual(new Set(["submitted", "screening", "screening_review"]));
+    expect(froms).toEqual(new Set(["submitted", "awaiting_identity", "screening", "screening_review"]));
     expect(
       APP_STATUS_TRANSITIONS.every((t) =>
-        ["screening", "screening_review", "screening_passed", "screening_failed"].includes(t.to)
+        ["awaiting_identity", "screening", "screening_review", "screening_passed", "screening_failed"].includes(t.to)
       )
     ).toBe(true);
   });

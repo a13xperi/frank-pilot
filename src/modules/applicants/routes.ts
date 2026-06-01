@@ -323,16 +323,73 @@ router.post(
         return;
       }
 
+      // Optional return URL for the Stripe Identity hosted flow (Phase 4b). When
+      // IDENTITY_VERIFICATION_ENABLED is on, submit() returns an `identity`
+      // session ({url, clientSecret, status}) and parks the app in
+      // awaiting_identity; flag off, this is ignored.
+      const returnUrl =
+        typeof req.body?.returnUrl === "string" ? req.body.returnUrl : undefined;
+
       const result = await applicationService.submit(
         draft.rows[0].id,
         req.user.id,
-        req.user.role
+        req.user.role,
+        returnUrl
       );
 
       res.json(result);
     } catch (err: any) {
       logger.error("Applicant submit-draft failed", { error: (err as Error).message });
       res.status(500).json({ error: "Failed to submit application" });
+    }
+  }
+);
+
+// Poll the applicant's most recent Stripe Identity verification (Phase 4b).
+// Ownership-gated via user_applications (not RBAC), mirroring submit-draft. The
+// apply-wizard's StepIdentity polls this after redirecting to the hosted flow:
+// `complete` flips true once the webhook advances the app out of
+// awaiting_identity. Returns only categorical status — never PII.
+router.get(
+  "/me/applications/identity-status",
+  authenticate,
+  requireEmailVerified,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user || !["applicant", "tenant"].includes(req.user.role)) {
+        res.status(403).json({ error: "Applicant role required" });
+        return;
+      }
+
+      const row = await query(
+        `SELECT a.id, a.status, a.identity_session_status, a.identity_verification_result
+           FROM user_applications ua
+           JOIN applications a ON a.id = ua.application_id
+          WHERE ua.user_id = $1
+            AND a.identity_session_id IS NOT NULL
+          ORDER BY a.identity_session_created_at DESC NULLS LAST, a.created_at DESC
+          LIMIT 1`,
+        [req.user.id]
+      );
+
+      if (row.rows.length === 0) {
+        res.status(404).json({ error: "No identity verification in progress" });
+        return;
+      }
+
+      const app = row.rows[0];
+      res.json({
+        applicationId: app.id,
+        status: app.status,
+        identitySessionStatus: app.identity_session_status,
+        identityResult: app.identity_verification_result,
+        complete: app.status !== "awaiting_identity",
+      });
+    } catch (err: any) {
+      logger.error("Applicant identity-status poll failed", {
+        error: (err as Error).message,
+      });
+      res.status(500).json({ error: "Failed to fetch identity status" });
     }
   }
 );

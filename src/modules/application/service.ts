@@ -205,7 +205,12 @@ export class ApplicationService {
     return result;
   }
 
-  async submit(applicationId: string, submittedBy: string, submitterRole: string): Promise<any> {
+  async submit(
+    applicationId: string,
+    submittedBy: string,
+    submitterRole: string,
+    returnUrl?: string
+  ): Promise<any> {
     const result = await query(
       `UPDATE applications
        SET status = 'submitted', submitted_at = NOW(), submitted_by = $2
@@ -227,6 +232,62 @@ export class ApplicationService {
       resourceId: applicationId,
       details: { status: "submitted" },
     });
+
+    // Phase 4b — Stripe Identity capture on submit, dark behind
+    // IDENTITY_VERIFICATION_ENABLED (independent of SCREENING_ON_SUBMIT_ENABLED).
+    // When armed: create a Stripe Identity VerificationSession and park the app
+    // in `awaiting_identity` until the applicant completes capture and the
+    // webhook lands a verdict (which then advances it into screening). The
+    // session url/clientSecret is returned so the caller can redirect/embed.
+    // This branch takes precedence over the legacy auto-screen path below —
+    // screening is kicked by the webhook once identity resolves.
+    if (process.env.IDENTITY_VERIFICATION_ENABLED === "true") {
+      try {
+        const { IdentityVerificationService } = await import(
+          "../screening/identity-verification"
+        );
+        const session = await new IdentityVerificationService().createSession({
+          applicationId,
+          returnUrl,
+        });
+        await transitionApplicationStatus({
+          applicationId,
+          from: "submitted",
+          to: "awaiting_identity",
+          trigger: "identity_verification_started",
+          actorId: submittedBy,
+          actorRole: submitterRole,
+          evidence: { source: "submit_identity_capture", sessionId: session.id },
+        });
+        await query(
+          `UPDATE applications SET
+             identity_session_id = $2,
+             identity_session_status = $3,
+             identity_session_created_at = NOW()
+           WHERE id = $1`,
+          [applicationId, session.id, session.status]
+        );
+        return {
+          ...result.rows[0],
+          status: "awaiting_identity",
+          identity: {
+            url: session.url,
+            clientSecret: session.clientSecret,
+            status: session.status,
+          },
+        };
+      } catch (err) {
+        // Session creation failed. Do NOT silently fall through to a normal
+        // submit (that would skip the identity gate entirely). Leave the app in
+        // `submitted` — staff/poll see no session — and surface loudly. This is
+        // fail-loud, not fail-open.
+        logger.error("Failed to create Stripe Identity session on submit", {
+          error: (err as Error).message,
+          applicationId,
+        });
+        return result.rows[0];
+      }
+    }
 
     // Auto-screening on submit — dark-deployed behind SCREENING_ON_SUBMIT_ENABLED.
     // Flag off ⇒ byte-for-byte current behavior (manual /screen only). When on,

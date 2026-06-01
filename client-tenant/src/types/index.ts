@@ -23,6 +23,7 @@ export interface ApiError {
 export type ApplicationStatus =
   | 'draft'
   | 'submitted'
+  | 'awaiting_identity'
   | 'screening'
   | 'screening_passed'
   | 'screening_failed'

@@ -56,6 +56,10 @@ function stageFor(status: string): StageState {
 
   if (status === 'submitted') return { current: 'submitted', done: new Set() };
 
+  // awaiting_identity (Phase 4b) — submitted, now completing the Stripe Identity
+  // capture; screening (docs) has not started yet. Stays in the submitted stage.
+  if (status === 'awaiting_identity') return { current: 'submitted', done: new Set() };
+
   if (status.startsWith('screening')) {
     return { current: 'docs', done: new Set(['submitted']) };
   }
@@ -90,6 +94,7 @@ function stageFor(status: string): StageState {
 const STATUS_BADGE: Record<string, { label: string; bg: string; fg: string }> = {
   draft: { label: 'Draft', bg: HF.warnLo, fg: HF.warn },
   submitted: { label: 'Submitted', bg: HF.accentLo, fg: HF.accentInk },
+  awaiting_identity: { label: 'Verify identity', bg: HF.accentLo, fg: HF.accentInk },
   screening: { label: 'Screening', bg: HF.accentLo, fg: HF.accentInk },
   screening_passed: { label: 'Screening passed', bg: HF.okLo, fg: HF.ok },
   screening_review: { label: 'Under review', bg: HF.warnLo, fg: HF.warn },
@@ -107,6 +112,7 @@ const STATUS_BADGE: Record<string, { label: string; bg: string; fg: string }> = 
 const SUBTITLE: Partial<Record<string, string>> = {
   draft: 'Finish your application to enter the queue.',
   submitted: 'We received your application. Frank is reviewing it next.',
+  awaiting_identity: 'One quick step: verify your identity to continue. Check your email or the apply tab for the secure link.',
   screening: 'Frank is verifying your documents.',
   screening_passed: 'Documents verified. The PM will review your file next.',
   screening_review: 'Your application is under review by our team — no action needed yet.',
