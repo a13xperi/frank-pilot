@@ -2,18 +2,18 @@
  * BP-02 Compliance Tape — apply-smoke replay tests.
  *
  * Replays the 5 BP-03b stamp kinds in the order an apply-smoke session emits
- * them, using the TapeService + an in-memory repository. Asserts the complete
- * chain comes out correctly formed.
+ * them, using the real TapeService (Lane B) + an in-memory repository. Asserts
+ * the complete chain comes out correctly formed.
  *
- * If Lane B (service.ts) or Lane C (events/) are not on this branch, the suite
- * is skipped gracefully — it will un-skip during Phase 2 integration.
- *
- * TODO: Skipped: Lane B (src/modules/tape/service.ts) not yet on this branch
- * — un-skip after Phase 2 integration.
+ * Lane B exports a FACTORY — createTapeService(repo) — not a class. The service
+ * resolves scope from event.payload.subjectId; makeApplyEvent sets subjectId to
+ * the applicantId, so every stamp lands in that applicant's chain.
  */
 
 import { randomUUID } from "node:crypto";
 import { GENESIS_HASH } from "../hashing";
+import { createTapeService } from "../service";
+import type { TapeService } from "../service";
 import type {
   TapeEntry,
   TapeEvent,
@@ -110,59 +110,17 @@ function makeApplyEvent(
   return { kind, payload };
 }
 
-// ── Service import (lazy — skip if Lane B not present) ───────────────────────
-//
-// We use a runtime require() via a variable-path trick so TypeScript does NOT
-// resolve the module statically — the file may not exist on this branch, and
-// a static import would cause a compile error.
-
-/* eslint-disable @typescript-eslint/no-require-imports */
-let TapeService: { new (repo: TapeRepository): { stamp: Function; verify: Function } } | null = null;
-
-beforeAll(() => {
-  try {
-    // Indirect require so tsc doesn't resolve the path statically.
-    const servicePath = require.resolve(__dirname + "/../service");
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require(servicePath) as { TapeService?: unknown; default?: unknown };
-    TapeService =
-      (mod.TapeService as typeof TapeService) ??
-      (mod.default as typeof TapeService) ??
-      null;
-  } catch {
-    TapeService = null;
-  }
-});
-
 // ── Replay tests ──────────────────────────────────────────────────────────────
 
 describe("Apply-smoke replay: 5 BP-03b stamps in sequence", () => {
-  it("module import check — passes gracefully whether Lane B is present or not", () => {
-    // Always passes. Communicates availability to the reader.
-    if (TapeService === null) {
-      console.log(
-        "[SKIP] TapeService not available on this branch — un-skip after Phase 2 integration."
-      );
-    }
-    expect(true).toBe(true);
-  });
-
   it("5 stamps in → 5 entries out with monotonically increasing sequence (1..5)", async () => {
-    if (TapeService === null) {
-      console.log(
-        "[SKIP] TapeService not available on this branch — un-skip after Phase 2."
-      );
-      return;
-    }
-
     const applicantId = "applicant-replay-01";
-    const scope: TapeScope = { type: "applicant", applicantId };
     const repo = new InMemoryTapeRepository();
-    const service = new TapeService(repo);
+    const service: TapeService = createTapeService(repo);
 
     const entries: TapeEntry[] = [];
     for (const kind of APPLY_SMOKE_KINDS) {
-      const entry = await service.stamp(makeApplyEvent(kind, applicantId), scope);
+      const entry = await service.stamp(makeApplyEvent(kind, applicantId));
       entries.push(entry);
     }
 
@@ -176,21 +134,13 @@ describe("Apply-smoke replay: 5 BP-03b stamps in sequence", () => {
   });
 
   it("all 5 entries have the correct prevHash chain", async () => {
-    if (TapeService === null) {
-      console.log(
-        "[SKIP] TapeService not available on this branch — un-skip after Phase 2."
-      );
-      return;
-    }
-
     const applicantId = "applicant-replay-02";
-    const scope: TapeScope = { type: "applicant", applicantId };
     const repo = new InMemoryTapeRepository();
-    const service = new TapeService(repo);
+    const service: TapeService = createTapeService(repo);
 
     const entries: TapeEntry[] = [];
     for (const kind of APPLY_SMOKE_KINDS) {
-      entries.push(await service.stamp(makeApplyEvent(kind, applicantId), scope));
+      entries.push(await service.stamp(makeApplyEvent(kind, applicantId)));
     }
 
     // First entry's prevHash = GENESIS_HASH hex
@@ -203,20 +153,13 @@ describe("Apply-smoke replay: 5 BP-03b stamps in sequence", () => {
   });
 
   it("verify() returns {ok:true, lastSequence:5} after the 5-stamp apply-smoke run", async () => {
-    if (TapeService === null) {
-      console.log(
-        "[SKIP] TapeService not available on this branch — un-skip after Phase 2."
-      );
-      return;
-    }
-
     const applicantId = "applicant-replay-03";
     const scope: TapeScope = { type: "applicant", applicantId };
     const repo = new InMemoryTapeRepository();
-    const service = new TapeService(repo);
+    const service: TapeService = createTapeService(repo);
 
     for (const kind of APPLY_SMOKE_KINDS) {
-      await service.stamp(makeApplyEvent(kind, applicantId), scope);
+      await service.stamp(makeApplyEvent(kind, applicantId));
     }
 
     const result = await service.verify(scope);
@@ -225,21 +168,13 @@ describe("Apply-smoke replay: 5 BP-03b stamps in sequence", () => {
   });
 
   it("each entry carries the correct HUD citation from TAPE_CITATIONS", async () => {
-    if (TapeService === null) {
-      console.log(
-        "[SKIP] TapeService not available on this branch — un-skip after Phase 2."
-      );
-      return;
-    }
-
     const applicantId = "applicant-replay-04";
-    const scope: TapeScope = { type: "applicant", applicantId };
     const repo = new InMemoryTapeRepository();
-    const service = new TapeService(repo);
+    const service: TapeService = createTapeService(repo);
 
     const entries: TapeEntry[] = [];
     for (const kind of APPLY_SMOKE_KINDS) {
-      entries.push(await service.stamp(makeApplyEvent(kind, applicantId), scope));
+      entries.push(await service.stamp(makeApplyEvent(kind, applicantId)));
     }
 
     for (let i = 0; i < APPLY_SMOKE_KINDS.length; i++) {

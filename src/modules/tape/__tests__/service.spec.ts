@@ -1,17 +1,23 @@
 /**
  * BP-02 Compliance Tape — service contract tests.
  *
- * These tests validate the TapeService contract defined in Lane B
- * (src/modules/tape/service.ts). If Lane B has not yet been merged on this
- * branch, the suite is skipped gracefully — it will un-skip during Phase 2
- * integration when all lanes are merged together.
+ * Validates the TapeService contract (src/modules/tape/service.ts, Lane B):
+ * the hash-chain stamp() sequence/prevHash/entryHash invariants and verify()'s
+ * detection of payload mutation and fabricated entries.
  *
- * The in-memory TapeRepository fake mirrors the TapeRepository interface
- * exactly. No IO, no database required.
+ * Lane B exports a FACTORY — createTapeService(repo) — not a class, so the
+ * suite constructs the service via the factory against an in-memory repository
+ * fake that mirrors the TapeRepository interface exactly. No IO, no database.
+ *
+ * Scope note: the real stamp() resolves scope from event.payload.subjectId
+ * (the applicant id), so each fixture event's subjectId MUST match the scope it
+ * is later verified / mutated under.
  */
 
 import { randomUUID } from "node:crypto";
 import { computeEntryHash, GENESIS_HASH, hashToHex } from "../hashing";
+import { createTapeService } from "../service";
+import type { TapeService } from "../service";
 import type {
   TapeEntry,
   TapeEvent,
@@ -112,74 +118,22 @@ function makeScope(applicantId: string): TapeScope {
   return { type: "applicant", applicantId };
 }
 
-// ── Service import (lazy — skip if Lane B not present) ───────────────────────
-
-// TODO: Skipped: Lane B (src/modules/tape/service.ts) not yet on this branch
-// — un-skip after Phase 2 integration.
-//
-// We use a runtime require() via a variable-path trick so TypeScript does NOT
-// resolve the module statically — the file may not exist on this branch, and
-// a static import would cause a compile error.
-
-/* eslint-disable @typescript-eslint/no-require-imports */
-let TapeService: { new (repo: TapeRepository): { stamp: Function; verify: Function } } | null = null;
-
-beforeAll(() => {
-  try {
-    // Indirect require so tsc doesn't resolve the path statically.
-    const servicePath = require.resolve(__dirname + "/../service");
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require(servicePath) as { TapeService?: unknown; default?: unknown };
-    TapeService =
-      (mod.TapeService as typeof TapeService) ??
-      (mod.default as typeof TapeService) ??
-      null;
-  } catch {
-    TapeService = null;
-  }
-});
-
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("TapeService", () => {
-  describe.skip(
-    "TODO: Skipped: Lane B (src/modules/tape/service.ts) not yet on this branch — un-skip after Phase 2 integration.",
-    () => {}
-  );
-
-  // We use a dynamic describe wrapper so skipping is decided at runtime.
-  // The outer describe always registers; inner ones check TapeService.
-  it("service module resolves or test suite is skipped gracefully", () => {
-    if (TapeService === null) {
-      // Not yet available — this is expected on bp-02/lane-f-tests standalone.
-      expect(true).toBe(true); // pass
-      return;
-    }
-    expect(typeof TapeService).toBe("function");
-  });
-
-  describe("stamp() — when Lane B is available", () => {
+  describe("stamp()", () => {
     let repo: InMemoryTapeRepository;
-    let service: { stamp: Function; verify: Function };
+    let service: TapeService;
 
     beforeEach(() => {
-      if (TapeService === null) return;
       repo = new InMemoryTapeRepository();
-      service = new TapeService(repo);
+      service = createTapeService(repo);
     });
 
     it("first stamp on an empty scope: sequence=1, prevHash=GENESIS_HASH hex, entryHash matches computeEntryHash", async () => {
-      if (TapeService === null) {
-        console.log(
-          "[SKIP] TapeService not available on this branch — un-skip after Phase 2."
-        );
-        return;
-      }
-
-      const scope = makeScope("applicant-001");
       const event = makeEvent("WELCOME_LETTER_DELIVERED");
 
-      const entry: TapeEntry = await service.stamp(event, scope);
+      const entry: TapeEntry = await service.stamp(event);
 
       expect(entry.sequence).toBe(1);
       expect(entry.prevHash).toBe(GENESIS_HASH.toString("hex"));
@@ -200,18 +154,11 @@ describe("TapeService", () => {
     });
 
     it("second stamp: sequence=2, prevHash=first entry's entryHash, entryHash recomputable", async () => {
-      if (TapeService === null) {
-        console.log(
-          "[SKIP] TapeService not available on this branch — un-skip after Phase 2."
-        );
-        return;
-      }
-
-      const scope = makeScope("applicant-002");
-      const first = await service.stamp(makeEvent("WELCOME_LETTER_DELIVERED"), scope);
+      // Both events default to subjectId "applicant-001", so both resolve to the
+      // same applicant scope and chain together.
+      const first = await service.stamp(makeEvent("WELCOME_LETTER_DELIVERED"));
       const second = await service.stamp(
-        makeEvent("HUD_928_1_FAIR_HOUSING_POSTED"),
-        scope
+        makeEvent("HUD_928_1_FAIR_HOUSING_POSTED")
       );
 
       expect(second.sequence).toBe(2);
@@ -229,27 +176,17 @@ describe("TapeService", () => {
     });
 
     it("scopes are independent: stamping for applicantA does NOT affect applicantB's sequence", async () => {
-      if (TapeService === null) {
-        console.log(
-          "[SKIP] TapeService not available on this branch — un-skip after Phase 2."
-        );
-        return;
-      }
-
-      const scopeA = makeScope("applicant-A");
-      const scopeB = makeScope("applicant-B");
-
-      // Stamp 3 events for A, then 1 for B.
-      await service.stamp(makeEvent("WELCOME_LETTER_DELIVERED", "applicant-A"), scopeA);
+      // Scope is resolved from each event's subjectId.
+      await service.stamp(makeEvent("WELCOME_LETTER_DELIVERED", "applicant-A"));
       await service.stamp(
-        makeEvent("HUD_928_1_FAIR_HOUSING_POSTED", "applicant-A"),
-        scopeA
+        makeEvent("HUD_928_1_FAIR_HOUSING_POSTED", "applicant-A")
       );
-      await service.stamp(makeEvent("WAITING_LIST_APP_CAPTURED", "applicant-A"), scopeA);
+      await service.stamp(
+        makeEvent("WAITING_LIST_APP_CAPTURED", "applicant-A")
+      );
 
       const firstB = await service.stamp(
-        makeEvent("WELCOME_LETTER_DELIVERED", "applicant-B"),
-        scopeB
+        makeEvent("WELCOME_LETTER_DELIVERED", "applicant-B")
       );
 
       // B's first stamp must start at sequence=1 regardless of A's chain.
@@ -258,25 +195,18 @@ describe("TapeService", () => {
     });
   });
 
-  describe("verify() — when Lane B is available", () => {
+  describe("verify()", () => {
     let repo: InMemoryTapeRepository;
-    let service: { stamp: Function; verify: Function };
+    let service: TapeService;
 
     beforeEach(() => {
-      if (TapeService === null) return;
       repo = new InMemoryTapeRepository();
-      service = new TapeService(repo);
+      service = createTapeService(repo);
     });
 
     it("verify() on a clean 5-entry chain returns {ok:true, lastSequence:5}", async () => {
-      if (TapeService === null) {
-        console.log(
-          "[SKIP] TapeService not available on this branch — un-skip after Phase 2."
-        );
-        return;
-      }
-
-      const scope = makeScope("applicant-verify-clean");
+      const applicantId = "applicant-verify-clean";
+      const scope = makeScope(applicantId);
       const kinds: Array<keyof typeof TAPE_CITATIONS> = [
         "WELCOME_LETTER_DELIVERED",
         "HUD_928_1_FAIR_HOUSING_POSTED",
@@ -285,7 +215,7 @@ describe("TapeService", () => {
         "POSITION_LETTER_SENT",
       ];
       for (const kind of kinds) {
-        await service.stamp(makeEvent(kind), scope);
+        await service.stamp(makeEvent(kind, applicantId));
       }
 
       const result = await service.verify(scope);
@@ -294,14 +224,8 @@ describe("TapeService", () => {
     });
 
     it("verify() on a chain with mutated payload at sequence=3 returns {ok:false, brokeAt:3, reason set}", async () => {
-      if (TapeService === null) {
-        console.log(
-          "[SKIP] TapeService not available on this branch — un-skip after Phase 2."
-        );
-        return;
-      }
-
-      const scope = makeScope("applicant-verify-tampered");
+      const applicantId = "applicant-verify-tampered";
+      const scope = makeScope(applicantId);
       const kinds: Array<keyof typeof TAPE_CITATIONS> = [
         "WELCOME_LETTER_DELIVERED",
         "HUD_928_1_FAIR_HOUSING_POSTED",
@@ -310,7 +234,7 @@ describe("TapeService", () => {
         "POSITION_LETTER_SENT",
       ];
       for (const kind of kinds) {
-        await service.stamp(makeEvent(kind), scope);
+        await service.stamp(makeEvent(kind, applicantId));
       }
 
       // Tamper: mutate the payload at sequence=3 without updating the hash.
@@ -331,20 +255,14 @@ describe("TapeService", () => {
     });
 
     it("verify() on a chain with a fabricated entry (wrong prevHash) returns {ok:false, brokeAt:<that seq>, reason set}", async () => {
-      if (TapeService === null) {
-        console.log(
-          "[SKIP] TapeService not available on this branch — un-skip after Phase 2."
-        );
-        return;
-      }
-
-      const scope = makeScope("applicant-verify-fabricated");
+      const applicantId = "applicant-verify-fabricated";
+      const scope = makeScope(applicantId);
       const kinds: Array<keyof typeof TAPE_CITATIONS> = [
         "WELCOME_LETTER_DELIVERED",
         "HUD_928_1_FAIR_HOUSING_POSTED",
       ];
       for (const kind of kinds) {
-        await service.stamp(makeEvent(kind), scope);
+        await service.stamp(makeEvent(kind, applicantId));
       }
 
       // Inject a fabricated entry at sequence=3 with a wrong prevHash.
@@ -371,7 +289,7 @@ describe("TapeService", () => {
         sequence: 3,
         kind: "WAITING_LIST_APP_CAPTURED",
         citation: TAPE_CITATIONS.WAITING_LIST_APP_CAPTURED,
-        applicantId: "applicant-verify-fabricated",
+        applicantId,
         payload: fakePayload,
         prevHash: wrongPrevHash,
         entryHash: fakeEntryHash,
