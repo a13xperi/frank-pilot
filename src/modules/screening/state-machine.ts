@@ -148,6 +148,7 @@ export async function transition(input: TransitionInput): Promise<void> {
 export type AppStatus =
   | "submitted"
   | "awaiting_identity"
+  | "awaiting_consumer_report"
   | "screening"
   | "screening_passed"
   | "screening_failed"
@@ -169,6 +170,16 @@ export const APP_STATUS_TRANSITIONS: ReadonlyArray<AppStatusTransition> = [
   { from: "submitted", to: "awaiting_identity", trigger: "identity_verification_started" },
   { from: "awaiting_identity", to: "screening", trigger: "identity_session_resolved" },
   { from: "awaiting_identity", to: "screening_review", trigger: "could_not_screen" },
+  // Consumer-report CRA (Checkr background + TransUnion ShareAble credit):
+  // submit() creates the report order(s) and parks the app in
+  // awaiting_consumer_report until the webhook lands a verdict. The webhook then
+  // advances awaiting_consumer_report -> screening (verdict in hand, run the
+  // checks) or -> screening_review (could_not_screen HOLD: report
+  // pending/canceled/unmappable — never an auto-pass). Mirrors the identity
+  // triple above.
+  { from: "submitted", to: "awaiting_consumer_report", trigger: "consumer_report_started" },
+  { from: "awaiting_consumer_report", to: "screening", trigger: "consumer_report_resolved" },
+  { from: "awaiting_consumer_report", to: "screening_review", trigger: "could_not_screen" },
   { from: "screening", to: "screening_passed", trigger: "all_checks_passed" },
   { from: "screening", to: "screening_passed", trigger: "review_required_passthrough" },
   { from: "screening", to: "screening_failed", trigger: "any_check_failed" },

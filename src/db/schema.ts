@@ -1249,6 +1249,28 @@ CREATE TABLE IF NOT EXISTS stripe_webhook_dlq (
   last_failed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Consumer-report CRA webhook idempotency + DLQ (Checkr background + TransUnion
+-- ShareAble credit). Same pattern as the Stripe receiver above. See
+-- src/modules/screening/cra-webhook.ts and
+-- src/db/migrations/2026-06-01-applications-consumer-report.sql.
+CREATE TABLE IF NOT EXISTS cra_processed_events (
+  event_id       TEXT PRIMARY KEY,
+  domain         TEXT NOT NULL,
+  application_id UUID,
+  processed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cra_webhook_dlq (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id        TEXT UNIQUE NOT NULL,
+  domain          TEXT NOT NULL,
+  raw_payload     JSONB NOT NULL,
+  error_message   TEXT,
+  attempt_count   INT NOT NULL DEFAULT 1,
+  first_failed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_failed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ============================================================
 -- Voice intake — ElevenLabs Conv. AI post-call persistence
 -- See src/modules/voice-intake/webhook.ts and

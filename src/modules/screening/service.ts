@@ -317,30 +317,54 @@ export class ScreeningService {
       }
     }
 
+    // Background + credit SOURCE selection.
+    //
+    // CONSUMER_REPORT_ENABLED gates whether background/credit are pulled
+    // synchronously here (the historical path) or READ from a webhook-persisted
+    // CRA verdict (Checkr / TransUnion ShareAble, applicant-mediated).
+    //
+    //   - flag OFF (default) → `runCheck(...)`: byte-identical to today. The
+    //     vendor seam produces the raw response inline (sandbox stub / MOCK /
+    //     real income vendor) and the service evaluates it. Ships DARK.
+    //   - flag ON → `resolve(applicationId)`: the CRA report was created at
+    //     submit() and its verdict landed via webhook onto the application row;
+    //     resolve() reads it. A report still pending → could_not_screen HOLD.
+    //
+    // Either source returns the IDENTICAL BackgroundCheckResult / CreditCheckResult
+    // shape, so the persist + aggregation below are unchanged regardless of source.
+    const consumerReportEnabled = process.env.CONSUMER_REPORT_ENABLED === "true";
+
     // Run all checks in parallel
     const [backgroundResult, creditResult, complianceResult] = await Promise.all([
-      this.backgroundCheck.runCheck({
-        firstName: app.first_name,
-        lastName: app.last_name,
-        ssnLast4,
-        dateOfBirth: dob,
-        state: app.current_state || "NV",
-        // Thread the demo tag through to the background vendor, exactly as we
-        // already do for identity and the extended checks (plaid/nsopw/work-
-        // number). The sandbox vendor honors it ONLY under MOCK_MODE=1, so this
-        // is byte-identical in real keyless prod (the applicant funnel never
-        // sends a tag, and outside MOCK_MODE the vendor ignores it). It makes
-        // the documented MOCK background tags (deny_felony, deny_sex_offender,
-        // review_misdemeanors) reachable end-to-end — e.g. to exercise the
-        // HUD/FHA criminal-decision engine's individualized-review HOLD.
-        screeningTag,
-      }),
-      this.creditCheck.runCheck({
-        firstName: app.first_name,
-        lastName: app.last_name,
-        ssnLast4,
-        dateOfBirth: dob,
-      }),
+      // When the consumer-report flag is ON, the verdict was ordered at submit()
+      // and landed via the CRA webhook; resolve() reads it back. When OFF, fall
+      // through to the synchronous sandbox seam — byte-identical to pre-#4 main.
+      consumerReportEnabled
+        ? this.backgroundCheck.resolve(applicationId)
+        : this.backgroundCheck.runCheck({
+            firstName: app.first_name,
+            lastName: app.last_name,
+            ssnLast4,
+            dateOfBirth: dob,
+            state: app.current_state || "NV",
+            // Thread the demo tag through to the background vendor, exactly as we
+            // already do for identity and the extended checks (plaid/nsopw/work-
+            // number). The sandbox vendor honors it ONLY under MOCK_MODE=1, so this
+            // is byte-identical in real keyless prod (the applicant funnel never
+            // sends a tag, and outside MOCK_MODE the vendor ignores it). It makes
+            // the documented MOCK background tags (deny_felony, deny_sex_offender,
+            // review_misdemeanors) reachable end-to-end — e.g. to exercise the
+            // HUD/FHA criminal-decision engine's individualized-review HOLD.
+            screeningTag,
+          }),
+      consumerReportEnabled
+        ? this.creditCheck.resolve(applicationId)
+        : this.creditCheck.runCheck({
+            firstName: app.first_name,
+            lastName: app.last_name,
+            ssnLast4,
+            dateOfBirth: dob,
+          }),
       this.compliance.runCheck({
         propertyId: app.property_id,
         annualIncome: parseFloat(app.annual_income || "0"),

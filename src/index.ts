@@ -20,6 +20,7 @@ import screeningRoutes from "./modules/screening/routes";
 import approvalRoutes from "./modules/approval/routes";
 import paymentRoutes from "./modules/payment/routes";
 import paymentWebhookRouter from "./modules/payment/webhook";
+import craWebhookRouter from "./modules/screening/cra-webhook";
 import { assertStripeProdConfig } from "./modules/payment/boot-guard";
 import {
   voiceIntakeWebhookRouter,
@@ -114,6 +115,13 @@ app.use("/api/webhooks/elevenlabs/post-call", voiceIntakeWebhookRouter);
 // independently of the post-call flag so the receiver can ride along into
 // prod (dark, returning 503) before any tool handler is wired.
 app.use("/api/webhooks/elevenlabs/tools", voiceToolCallbackRouter);
+
+// Consumer-report CRA webhook (Checkr background + TransUnion ShareAble credit) —
+// same raw-body constraint as the receivers above (signature verification needs
+// the unparsed bytes). The router self-gates on CRA_WEBHOOK_SECRET (503 until a
+// contract is signed), so it can ride into prod dark. Do not move below the JSON
+// parser. See modules/screening/cra-webhook.ts.
+app.use("/api/webhooks/cra", craWebhookRouter);
 
 app.use(express.json({ limit: "1mb" }));
 
