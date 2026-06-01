@@ -48,6 +48,8 @@ import tenantRoutes from "./modules/tenant/routes";
 import messagesRoutes from "./modules/messages/routes";
 import tapeRoutes from "./modules/tape/routes";
 import { createTapeViewerRoutes } from "./modules/tape/routes-viewer";
+import { createTapeService } from "./modules/tape/service";
+import { PgTapeRepository } from "./modules/tape/repository";
 import { qaRouter } from "./modules/qa/routes";
 import { housingQaRouter } from "./modules/housing-qa/routes";
 import acquisitionRoutes from "./modules/acquisitions/routes";
@@ -219,28 +221,18 @@ app.use("/api/saved", savedRoutes);
 app.use("/api/tape", tapeRoutes);
 
 // BP-02 compliance tape viewer (operator-only: list, verify, export.pdf).
-// TODO(BP-02-Phase-2): Replace the stub service below with the real TapeService
-// from Lane B once it is wired. The stub returns 503 for all calls so the
-// routes exist but remain inert until Phase 2 completes.
+// Phase 2 cutover: the real TapeService (Lane B) is wired here, replacing the
+// inert Phase-1 stub. The viewer now serves live hash-chain reads / verify /
+// PDF export against the compliance_tape table. The verify-cron in
+// src/scheduler.ts shares the same service + repository wiring.
 //
 // Flag-gated on COMPLIANCE_TAPE_V2_ENABLED (mirrors the verify-cron gate in
 // src/scheduler.ts). When the flag is off the routes are NOT mounted, so a
-// request to /api/compliance-tape/* falls through to the 404 handler below
-// rather than returning the 503 stub.
+// request to /api/compliance-tape/* falls through to the 404 handler below.
 if (process.env.COMPLIANCE_TAPE_V2_ENABLED === "true") {
   app.use(
     "/api/compliance-tape",
-    createTapeViewerRoutes({
-      async list() {
-        throw Object.assign(new Error("service not wired"), { stub: true });
-      },
-      async verify() {
-        throw Object.assign(new Error("service not wired"), { stub: true });
-      },
-      async exportPdf() {
-        throw Object.assign(new Error("service not wired"), { stub: true });
-      },
-    })
+    createTapeViewerRoutes(createTapeService(new PgTapeRepository()))
   );
   logger.info("BP-02 compliance-tape viewer routes mounted");
 } else {
