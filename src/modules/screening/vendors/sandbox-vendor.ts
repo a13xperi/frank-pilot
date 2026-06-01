@@ -225,10 +225,22 @@ export class SandboxVendor implements ScreeningVendor {
 
   // ── employment ──────────────────────────────────────────────────────────────
 
-  async employment(_input: EmploymentVendorInput): Promise<EmploymentVendorResponse> {
-    // No demo tags for employment — work-number.ts never passed a screeningTag.
+  async employment(input: EmploymentVendorInput): Promise<EmploymentVendorResponse> {
+    if (process.env.MOCK_MODE === "1" && input.screeningTag) {
+      // Demo tags drive the end-to-end loop (one applicant into the Review tab +
+      // FCRA preview) without any vendor credentials. The "outage" tag THROWS on
+      // purpose so the P1 fail-loud path runs: work-number.ts has no catch, the
+      // throw propagates, and service.ts contains it as could_not_screen →
+      // screening_review. The non-throw tags exercise the verified / review
+      // verdict branches and the Plaid income cross-check.
+      return this.employmentFixture(input.screeningTag);
+    }
     this.requireGate();
     logger.warn("Using sandbox Work Number verification — deterministic stub (stub policy allows fallback)");
+    return this.employmentClean();
+  }
+
+  private employmentClean(): EmploymentVendorResponse {
     return {
       result: "verified",
       details: {
@@ -241,5 +253,45 @@ export class SandboxVendor implements ScreeningVendor {
         rawResponse: { stub: true },
       },
     };
+  }
+
+  private employmentFixture(tag: string): EmploymentVendorResponse {
+    if (tag === "wn_vendor_outage") {
+      // Synthetic hard vendor failure → exercises the fail-loud could_not_screen
+      // HOLD. Mirrors a real keyless-prod gate throw / TWN 5xx.
+      throw new Error(
+        "Work Number vendor outage (synthetic) — employment verification unavailable"
+      );
+    }
+    if (tag === "wn_employer_dispute") {
+      return {
+        result: "review_required",
+        details: {
+          currentEmployer: "Disputed Employer LLC",
+          employmentStatus: "unknown",
+          hireDate: "2022-06-01",
+          terminationDate: null,
+          incomeSource: "employer_reported",
+          rawResponse: { stub: true, tag },
+        },
+      };
+    }
+    if (tag === "wn_income_mismatch") {
+      // Verified, but W-2 income far below the Plaid bank figure → trips the
+      // >15% income cross-check in service.ts and forces review_required.
+      return {
+        result: "verified",
+        details: {
+          currentEmployer: "Acme Co",
+          employmentStatus: "active",
+          hireDate: "2021-03-15",
+          terminationDate: null,
+          annualizedIncome: 30000,
+          incomeSource: "employer_reported",
+          rawResponse: { stub: true, tag },
+        },
+      };
+    }
+    return this.employmentClean();
   }
 }

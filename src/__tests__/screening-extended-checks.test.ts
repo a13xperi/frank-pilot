@@ -261,6 +261,33 @@ describe("ScreeningService — Phase 4a extended checks (SCREENING_EXTENDED_CHEC
     );
   });
 
+  // ── Demo runtime config: MOCK_MODE on, gate OPEN, tag drives the throw ────────
+  // This is the actual config behind the "one applicant lands in the Review tab"
+  // demo claim (vs the keyless case above which proves the prod failure mode).
+
+  it("flag ON + MOCK_MODE + declared employer + wn_vendor_outage tag → could_not_screen → screening_review (demo loop)", async () => {
+    process.env.SCREENING_EXTENDED_CHECKS_ENABLED = "true";
+    process.env.MOCK_MODE = "1"; // gate stays OPEN; the tag path runs before requireGate
+    setApp({ employer_name: "Acme Corp" }); // forces Work Number to run
+    mockTransition.mockResolvedValue({ changed: true, status: "screening_review" } as any);
+
+    // Must RESOLVE — the synthetic outage throw is contained at the call site.
+    const result = await service.runFullScreening(
+      "app-001",
+      "u1",
+      "leasing_agent",
+      "wn_vendor_outage"
+    );
+
+    expect(result.overallResult).toBe("could_not_screen");
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_review", trigger: "could_not_screen" })
+    );
+    expect(mockTransition).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_passed" })
+    );
+  });
+
   it("flag ON + keyless production + NO declared employer → Plaid/NSOPW HOLD as review_required (no could_not_screen)", async () => {
     process.env.SCREENING_EXTENDED_CHECKS_ENABLED = "true";
     process.env.NODE_ENV = "production";
