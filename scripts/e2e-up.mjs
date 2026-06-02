@@ -14,8 +14,7 @@
 // child stack itself in CI follow-ups).
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { userInfo } from "node:os";
 import net from "node:net";
 import http from "node:http";
@@ -145,81 +144,17 @@ async function ensurePostgres() {
   throw new Error("postgres did not become ready within 30s");
 }
 
-function isSchemaInitialized() {
-  // schema.ts uses bare `CREATE TYPE user_role …`, which is not idempotent.
-  // Use psql to detect whether the type already exists, and skip migrate if so.
-  const env = { ...process.env, ...DB_ENV };
-  const r = spawnSync(
-    "psql",
-    [
-      "-h",
-      env.DB_HOST ?? "localhost",
-      "-p",
-      env.DB_PORT ?? "5432",
-      "-U",
-      env.DB_USER ?? userInfo().username,
-      "-d",
-      env.DB_NAME ?? "frank_pilot",
-      "-tAc",
-      "SELECT to_regtype('user_role') IS NOT NULL;",
-    ],
-    { encoding: "utf8" }
-  );
-  return r.status === 0 && r.stdout.trim() === "t";
-}
-
-function applyMigrationFiles() {
-  // The migration files under src/db/migrations are append-only deltas that
-  // each use `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE … IF NOT EXISTS`,
-  // so they're safe to re-apply on every boot. Catches schema drift between
-  // a long-lived dev DB and newer migrations.
-  const dir = "src/db/migrations";
-  if (!existsSync(dir)) return;
-  const env = { ...process.env, ...DB_ENV };
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
-  for (const f of files) {
-    const r = spawnSync(
-      "psql",
-      [
-        "-h",
-        env.DB_HOST ?? "localhost",
-        "-p",
-        env.DB_PORT ?? "5432",
-        "-U",
-        env.DB_USER ?? userInfo().username,
-        "-d",
-        env.DB_NAME ?? "frank_pilot",
-        "-v",
-        "ON_ERROR_STOP=1",
-        "-q",
-        "-f",
-        join(dir, f),
-      ],
-      { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" }
-    );
-    if (r.status !== 0) {
-      const stderr = (r.stderr ?? "").trim();
-      // Suppress only the duplicate-column noise from `ADD COLUMN IF NOT
-      // EXISTS` not being supported on older Postgres — every other error
-      // bubbles up.
-      throw new Error(`migration ${f} failed:\n${stderr}`);
-    }
-  }
-}
-
 async function runMigrateAndSeed() {
-  if (isSchemaInitialized()) {
-    log("e2e-up", "schema already initialized — applying any missing migrations");
-    applyMigrationFiles();
-  } else {
-    const r = spawnSync("npm", ["run", "migrate"], {
-      stdio: "inherit",
-      env: { ...process.env, ...DB_ENV },
-    });
-    if (r.status !== 0) throw new Error("npm run migrate failed");
-  }
+  // `npm run migrate` is now the single provisioning path: it runs the
+  // idempotent base schema AND applies any pending tracked deltas
+  // (src/db/migrate.ts). Safe on both a fresh DB and a long-lived dev DB —
+  // so we always just call it, no fork on whether the schema pre-exists.
+  const r = spawnSync("npm", ["run", "migrate"], {
+    stdio: "inherit",
+    env: { ...process.env, ...DB_ENV },
+  });
+  if (r.status !== 0) throw new Error("npm run migrate failed");
+
   const s = spawnSync("npm", ["run", "seed"], {
     stdio: "inherit",
     env: { ...process.env, ...DB_ENV },

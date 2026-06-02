@@ -29,6 +29,71 @@ jobs:
       - name: Run tests
         run: npm test -- --ci
 
+  migrate-check:
+    name: migrate-check (provisioning convergence + idempotency)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: frank_pilot_migrate_check
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/frank_pilot_migrate_check
+      NODE_ENV: development
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # First run on a fresh DB: idempotent base schema + every tracked delta.
+      - name: Migrate (fresh DB)
+        run: npm run migrate
+
+      # Convergence: deltas actually ran on a fresh DB. voice_browser_sessions
+      # is a migration-ONLY object (not in schema.ts) — before this runner,
+      # `npm run migrate` skipped it and the table was missing from CI/fresh
+      # installs. Also assert schema_migrations tracked exactly one row per file.
+      - name: Assert migration-only objects + tracking are present
+        run: |
+          set -euo pipefail
+          have=$(psql "$DATABASE_URL" -tAc "SELECT to_regclass('public.voice_browser_sessions') IS NOT NULL")
+          test "$have" = "t" || { echo "voice_browser_sessions missing — deltas did not apply"; exit 1; }
+          files=$(ls src/db/migrations/*.sql | wc -l | tr -d ' ')
+          rows=$(psql "$DATABASE_URL" -tAc "SELECT count(*) FROM schema_migrations")
+          echo "delta files=$files  schema_migrations rows=$rows"
+          test "$files" = "$rows" || { echo "tracking mismatch: $rows tracked vs $files files"; exit 1; }
+
+      # Idempotency: a second run must apply nothing and must not error.
+      - name: Migrate again (must be a no-op)
+        run: |
+          set -euo pipefail
+          out=$(npm run migrate 2>&1)
+          echo "$out"
+          echo "$out" | grep -q "0 pending" || { echo "second migrate was not a no-op"; exit 1; }
+
+      - name: Show migration status
+        run: npm run migrate status
+
   client-tenant:
     name: client-tenant (tsc + vite build + vitest)
     runs-on: ubuntu-latest

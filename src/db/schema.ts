@@ -12,6 +12,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ENUMS
 -- ============================================================
 
+DO $$ BEGIN
 CREATE TYPE user_role AS ENUM (
   'leasing_agent',
   'senior_manager',
@@ -21,7 +22,9 @@ CREATE TYPE user_role AS ENUM (
   'applicant',
   'tenant'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE application_status AS ENUM (
   'draft',
   'submitted',
@@ -48,32 +51,40 @@ CREATE TYPE application_status AS ENUM (
   'onboarded',
   'cancelled'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE screening_result AS ENUM (
   'pass',
   'fail',
   'review_required',
   'could_not_screen'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- Entry path for an application. 'web' is the historical default; 'voice'
 -- means ElevenLabs Conv. AI intake (voice_intake_calls join on
 -- applications.voice_call_id), 'sms' for SMS-funnel applicants, 'operator'
 -- for rows created by PM staff.
+DO $$ BEGIN
 CREATE TYPE application_source AS ENUM (
   'web',
   'voice',
   'sms',
   'operator'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE payment_method AS ENUM (
   'ach',
   'credit_card',
   'debit_card',
   'bank_transfer'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE audit_action AS ENUM (
   'application_created',
   'application_submitted',
@@ -158,7 +169,9 @@ CREATE TYPE audit_action AS ENUM (
   -- the screening pipeline (transitionApplicationStatus chokepoint).
   'screening_state_transition'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE fraud_flag_type AS ENUM (
   'duplicate_ssn',
   'address_fraud',
@@ -166,7 +179,9 @@ CREATE TYPE fraud_flag_type AS ENUM (
   'unusual_approval_speed',
   'manual_override'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE modification_type AS ENUM (
   'rent_increase',
   'tenant_substitution',
@@ -174,71 +189,101 @@ CREATE TYPE modification_type AS ENUM (
   'pet_policy_change',
   'other'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE property_type AS ENUM ('senior', 'family', 'mixed_use');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE recertification_type AS ENUM ('annual', 'interim');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE ledger_entry_type AS ENUM (
   'rent_charge', 'late_fee', 'nsf_fee', 'payment', 'credit',
   'concession', 'adjustment', 'pro_rated_rent', 'extended_guest_fee',
   'early_termination_fee', 'refund'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE ledger_entry_status AS ENUM ('posted', 'reversed', 'pending');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE violation_type AS ENUM (
   'nonpayment', 'late_payment_pattern', 'lease_violation',
   'noise_disturbance', 'property_damage', 'unauthorized_occupant',
   'drug_violation', 'criminal_activity', 'unauthorized_pet',
   'health_safety', 'other'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE violation_status AS ENUM (
   'reported', 'warning_issued', 'notice_served',
   'cure_period', 'escalated', 'resolved', 'dismissed'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE notice_type AS ENUM (
   'pay_or_quit_7day', 'perform_or_quit_5day', 'quit_tenancy_at_will_5day',
   'unlawful_detainer_5day', 'no_cause_7day', 'no_cause_30day',
   'nonpayment_cares_30day', 'nuisance_quit_3day', 'cure_or_quit_5day',
   'rent_increase_30day'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE renewal_status AS ENUM (
   'pending_offer', 'offered', 'accepted', 'declined',
   'counter_offered', 'approved', 'expired'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE inspection_type AS ENUM (
   'monthly', 'move_in', 'move_out', 'annual', 'emergency', 'hqs', 'smoke_detector'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE inspection_status AS ENUM (
   'scheduled', 'notice_sent', 'in_progress', 'completed', 'cancelled', 'overdue'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE work_order_status AS ENUM (
   'submitted', 'assigned', 'in_progress', 'completed', 'cancelled', 'on_hold'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE work_order_priority AS ENUM (
   'emergency', 'urgent', 'routine', 'low'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE moveout_status AS ENUM (
   'notice_received', 'pre_inspection_scheduled', 'pre_inspection_complete',
   'vacated', 'final_inspection_complete', 'deposit_calculated',
   'deposit_sent', 'closed', 'collections'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE eviction_case_status AS ENUM (
   'pre_filing', 'notice_served', 'notice_expired',
   'filed', 'hearing_scheduled', 'judgment',
   'writ_issued', 'executed', 'dismissed', 'settled'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+DO $$ BEGIN
 CREATE TYPE recertification_status AS ENUM (
   'pending',
   'reminder_120',
@@ -251,6 +296,7 @@ CREATE TYPE recertification_status AS ENUM (
   'overdue',
   'market_rent_applied'
 );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ============================================================
 -- TABLES
@@ -260,7 +306,7 @@ CREATE TYPE recertification_status AS ENUM (
 -- email_verified_at is the persistent proof an account holder controls the email:
 -- stamped by verifyMagicLink (and by password-login backfill on existing accounts);
 -- gates state-changing/PII routes via requireEmailVerified middleware.
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255),
@@ -281,7 +327,7 @@ CREATE TABLE users (
 );
 
 -- Magic-link tokens for passwordless tenant/applicant login
-CREATE TABLE magic_link_tokens (
+CREATE TABLE IF NOT EXISTS magic_link_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   token_hash VARCHAR(64) NOT NULL UNIQUE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -289,11 +335,11 @@ CREATE TABLE magic_link_tokens (
   used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX idx_magic_link_tokens_hash ON magic_link_tokens(token_hash);
-CREATE INDEX idx_magic_link_tokens_user ON magic_link_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_magic_link_tokens_hash ON magic_link_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_magic_link_tokens_user ON magic_link_tokens(user_id);
 
 -- Properties
-CREATE TABLE properties (
+CREATE TABLE IF NOT EXISTS properties (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
   address_line1 VARCHAR(255) NOT NULL,
@@ -335,7 +381,7 @@ CREATE TABLE properties (
 );
 
 -- Tenant Applications
-CREATE TABLE applications (
+CREATE TABLE IF NOT EXISTS applications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   property_id UUID NOT NULL REFERENCES properties(id),
   unit_number VARCHAR(20),
@@ -503,7 +549,7 @@ CREATE TABLE applications (
 -- BEFORE units so units.building_id can reference it inline. BINs are nullable
 -- (5 are blank in the GPMG source) and never invented; bin_confidence flags
 -- the provisional fletcher mapping. Mirrors 2026-05-30-buildings-bin.sql.
-CREATE TABLE buildings (
+CREATE TABLE IF NOT EXISTS buildings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   property_id   UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
   building_code VARCHAR(20) NOT NULL,
@@ -518,11 +564,11 @@ CREATE TABLE buildings (
 );
 
 -- A BIN is globally unique when present; NULLs are exempt.
-CREATE UNIQUE INDEX idx_buildings_bin ON buildings(bin) WHERE bin IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_buildings_bin ON buildings(bin) WHERE bin IS NOT NULL;
 
 -- Individual units, generated from properties.unit_mix. Status drives the
 -- unit-picker funnel: available → held (during applicant claim) → leased.
-CREATE TABLE units (
+CREATE TABLE IF NOT EXISTS units (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
   unit_number VARCHAR(20) NOT NULL,
@@ -547,25 +593,26 @@ CREATE TABLE units (
 );
 
 -- Units indexes (mirrors 2026-05-14-units-and-intent.sql migration)
-CREATE INDEX idx_units_property_status ON units(property_id, status);
-CREATE INDEX idx_units_available ON units(status) WHERE status = 'available';
-CREATE INDEX idx_units_bedrooms_rent ON units(bedrooms, monthly_rent);
+CREATE INDEX IF NOT EXISTS idx_units_property_status ON units(property_id, status);
+CREATE INDEX IF NOT EXISTS idx_units_available ON units(status) WHERE status = 'available';
+CREATE INDEX IF NOT EXISTS idx_units_bedrooms_rent ON units(bedrooms, monthly_rent);
 -- Stale-hold scan support for the lazy-expire path in GET /applicants/units.
-CREATE INDEX idx_units_held_expires ON units(claim_expires_at) WHERE status = 'held';
+CREATE INDEX IF NOT EXISTS idx_units_held_expires ON units(claim_expires_at) WHERE status = 'held';
 -- LIHTC §42 Phase A: index the building FK (mirrors 2026-05-30-buildings-bin.sql).
-CREATE INDEX idx_units_building ON units(building_id);
+CREATE INDEX IF NOT EXISTS idx_units_building ON units(building_id);
 
 -- LIHTC §42 Phase A: Form 8609 line 8b (multi-building project as one). NULL = unknown.
 -- Declared post-hoc because the properties table is created earlier in this bootstrap SQL.
-ALTER TABLE properties ADD COLUMN election_8b BOOLEAN;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS election_8b BOOLEAN;
 
 -- FK from applications.claimed_unit_id → units(id). Declared post-units because
 -- the applications table is created earlier in this bootstrap SQL.
+ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_claimed_unit_id_fkey;
 ALTER TABLE applications
   ADD CONSTRAINT applications_claimed_unit_id_fkey
   FOREIGN KEY (claimed_unit_id) REFERENCES units(id) ON DELETE SET NULL;
 
-CREATE INDEX idx_applications_claimed_unit ON applications(claimed_unit_id);
+CREATE INDEX IF NOT EXISTS idx_applications_claimed_unit ON applications(claimed_unit_id);
 
 -- Position-aware waitlist (gpmglv-gap wedge #5).
 -- One row per (property, bedroom_count, user). Position is derived from
@@ -573,7 +620,7 @@ CREATE INDEX idx_applications_claimed_unit ON applications(claimed_unit_id);
 -- last_notified_position snapshot what we last told the applicant so the
 -- API can compute monthly "moved up N spots" movement without storing a
 -- per-day position history.
-CREATE TABLE waitlist_entries (
+CREATE TABLE IF NOT EXISTS waitlist_entries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
   bedroom_count SMALLINT NOT NULL,
@@ -584,9 +631,9 @@ CREATE TABLE waitlist_entries (
   UNIQUE (property_id, bedroom_count, applicant_user_id)
 );
 -- Hot query path: rank by created_at within a (property, bedroom_count) lane.
-CREATE INDEX idx_waitlist_entries_lane_created
+CREATE INDEX IF NOT EXISTS idx_waitlist_entries_lane_created
   ON waitlist_entries(property_id, bedroom_count, created_at);
-CREATE INDEX idx_waitlist_entries_user
+CREATE INDEX IF NOT EXISTS idx_waitlist_entries_user
   ON waitlist_entries(applicant_user_id);
 
 -- Saved-property shortlist + server-side guest sessions (2026-05-24).
@@ -594,7 +641,7 @@ CREATE INDEX idx_waitlist_entries_user
 -- live in the users table (NOT NULL email/name + UNIQUE email), so an anonymous
 -- saver gets a guest_sessions row keyed by an opaque httpOnly cookie; on magic-link
 -- account creation their saved list re-points onto the real user.
-CREATE TABLE guest_sessions (
+CREATE TABLE IF NOT EXISTS guest_sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   token_hash VARCHAR(64) UNIQUE NOT NULL,
   converted_user_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
@@ -602,13 +649,13 @@ CREATE TABLE guest_sessions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX idx_guest_sessions_converted_user
+CREATE INDEX IF NOT EXISTS idx_guest_sessions_converted_user
   ON guest_sessions(converted_user_id);
 
 -- A saved row belongs to EXACTLY ONE owner (guest session OR user) — CHECK
 -- below. On conversion we flip guest_session_id → user_id so the row migrates
 -- in place. Partial-unique indexes block double-saving a property per owner+list.
-CREATE TABLE saved_properties (
+CREATE TABLE IF NOT EXISTS saved_properties (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   guest_session_id UUID NULL REFERENCES guest_sessions(id) ON DELETE CASCADE,
   user_id UUID NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -621,15 +668,15 @@ CREATE TABLE saved_properties (
     OR (guest_session_id IS NULL AND user_id IS NOT NULL)
   )
 );
-CREATE UNIQUE INDEX uq_saved_properties_guest
+CREATE UNIQUE INDEX IF NOT EXISTS uq_saved_properties_guest
   ON saved_properties(guest_session_id, property_id, list_name)
   WHERE guest_session_id IS NOT NULL;
-CREATE UNIQUE INDEX uq_saved_properties_user
+CREATE UNIQUE INDEX IF NOT EXISTS uq_saved_properties_user
   ON saved_properties(user_id, property_id, list_name)
   WHERE user_id IS NOT NULL;
-CREATE INDEX idx_saved_properties_guest
+CREATE INDEX IF NOT EXISTS idx_saved_properties_guest
   ON saved_properties(guest_session_id) WHERE guest_session_id IS NOT NULL;
-CREATE INDEX idx_saved_properties_user
+CREATE INDEX IF NOT EXISTS idx_saved_properties_user
   ON saved_properties(user_id) WHERE user_id IS NOT NULL;
 
 -- BP-02 Compliance Tape — append-only hash-chained audit ledger.
@@ -638,7 +685,7 @@ CREATE INDEX idx_saved_properties_user
 -- Hash chain: each row's prev_hash = previous row's entry_hash; entry_hash =
 -- SHA-256(sequence || prev_hash || canonicalJson(payload) || created_at).
 -- See docs/bp-02-contracts.md and src/modules/tape/{types,hashing,api-contract}.ts.
-CREATE TABLE compliance_tape (
+CREATE TABLE IF NOT EXISTS compliance_tape (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   sequence BIGINT NOT NULL CHECK (sequence >= 1),
   kind TEXT NOT NULL,
@@ -654,13 +701,13 @@ CREATE TABLE compliance_tape (
 -- Per-scope monotonic sequence: applicant_id NULL collapses to a sentinel
 -- UUID so the same index enforces "no gaps, no dupes per scope" for both
 -- the per-applicant chain and the global chain.
-CREATE UNIQUE INDEX idx_compliance_tape_scope_sequence
+CREATE UNIQUE INDEX IF NOT EXISTS idx_compliance_tape_scope_sequence
   ON compliance_tape (
     COALESCE(applicant_id, '00000000-0000-0000-0000-000000000000'::uuid),
     sequence
   );
 
-CREATE INDEX idx_compliance_tape_applicant_sequence
+CREATE INDEX IF NOT EXISTS idx_compliance_tape_applicant_sequence
   ON compliance_tape (applicant_id, sequence)
   WHERE applicant_id IS NOT NULL;
 
@@ -669,7 +716,7 @@ CREATE INDEX idx_compliance_tape_applicant_sequence
 -- so stamps without a session_id remain insertable as separate rows (no
 -- idempotency unless caller passes a session_id). A partial index would force
 -- ON CONFLICT to repeat the WHERE predicate; non-partial avoids that.
-CREATE UNIQUE INDEX idx_compliance_tape_kind_session
+CREATE UNIQUE INDEX IF NOT EXISTS idx_compliance_tape_kind_session
   ON compliance_tape (kind, session_id);
 
 CREATE OR REPLACE FUNCTION compliance_tape_reject_mutation()
@@ -695,7 +742,7 @@ CREATE TRIGGER compliance_tape_no_truncate
   EXECUTE FUNCTION compliance_tape_reject_mutation();
 
 -- Tenant/applicant join to applications (multiple users per application: primary, co-applicant, household member)
-CREATE TABLE user_applications (
+CREATE TABLE IF NOT EXISTS user_applications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
@@ -703,11 +750,11 @@ CREATE TABLE user_applications (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (user_id, application_id)
 );
-CREATE INDEX idx_user_applications_user ON user_applications(user_id);
-CREATE INDEX idx_user_applications_app ON user_applications(application_id);
+CREATE INDEX IF NOT EXISTS idx_user_applications_user ON user_applications(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_applications_app ON user_applications(application_id);
 
 -- Fraud Flags
-CREATE TABLE fraud_flags (
+CREATE TABLE IF NOT EXISTS fraud_flags (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id),
   flag_type fraud_flag_type NOT NULL,
@@ -721,7 +768,7 @@ CREATE TABLE fraud_flags (
 );
 
 -- Lease Modifications (Decision Matrix)
-CREATE TABLE lease_modifications (
+CREATE TABLE IF NOT EXISTS lease_modifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id),
   modification_type modification_type NOT NULL,
@@ -749,7 +796,7 @@ CREATE TABLE lease_modifications (
 );
 
 -- Known Problem Addresses (fraud detection)
-CREATE TABLE known_problem_addresses (
+CREATE TABLE IF NOT EXISTS known_problem_addresses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   address_line1 VARCHAR(255) NOT NULL,
   city VARCHAR(100),
@@ -764,7 +811,7 @@ CREATE TABLE known_problem_addresses (
 -- FCRA Adverse Action Notices (15 U.S.C. § 1681m)
 -- Required whenever adverse action is taken based on consumer report information.
 -- Records are immutable; use resend to create a new record instead of updating.
-CREATE TABLE adverse_action_notices (
+CREATE TABLE IF NOT EXISTS adverse_action_notices (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id),
   sent_by UUID REFERENCES users(id),
@@ -777,7 +824,7 @@ CREATE TABLE adverse_action_notices (
 );
 
 -- Inspections (Module 10)
-CREATE TABLE inspections (
+CREATE TABLE IF NOT EXISTS inspections (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   property_id UUID NOT NULL REFERENCES properties(id),
   application_id UUID REFERENCES applications(id),
@@ -801,7 +848,7 @@ CREATE TABLE inspections (
 );
 
 -- Work Orders (Module 10)
-CREATE TABLE work_orders (
+CREATE TABLE IF NOT EXISTS work_orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   property_id UUID NOT NULL REFERENCES properties(id),
   application_id UUID REFERENCES applications(id),
@@ -827,7 +874,7 @@ CREATE TABLE work_orders (
 );
 
 -- Lease Renewals (Module 8)
-CREATE TABLE lease_renewals (
+CREATE TABLE IF NOT EXISTS lease_renewals (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id),
   property_id UUID NOT NULL REFERENCES properties(id),
@@ -852,7 +899,7 @@ CREATE TABLE lease_renewals (
 );
 
 -- Move-Outs (Module 8)
-CREATE TABLE move_outs (
+CREATE TABLE IF NOT EXISTS move_outs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id),
   property_id UUID NOT NULL REFERENCES properties(id),
@@ -880,7 +927,7 @@ CREATE TABLE move_outs (
 );
 
 -- Lease Violations (Module 9: Eviction & Violation Workflow)
-CREATE TABLE lease_violations (
+CREATE TABLE IF NOT EXISTS lease_violations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id),
   property_id UUID NOT NULL REFERENCES properties(id),
@@ -903,7 +950,7 @@ CREATE TABLE lease_violations (
 );
 
 -- Eviction Notices (NV Regional Justice Center form templates)
-CREATE TABLE eviction_notices (
+CREATE TABLE IF NOT EXISTS eviction_notices (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id),
   violation_id UUID REFERENCES lease_violations(id),
@@ -923,7 +970,7 @@ CREATE TABLE eviction_notices (
 );
 
 -- Eviction Cases (court filing and execution tracking)
-CREATE TABLE eviction_cases (
+CREATE TABLE IF NOT EXISTS eviction_cases (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id),
   property_id UUID NOT NULL REFERENCES properties(id),
@@ -945,7 +992,7 @@ CREATE TABLE eviction_cases (
 );
 
 -- Tenant Ledger (Module 6: Double-entry financial tracking)
-CREATE TABLE tenant_ledger (
+CREATE TABLE IF NOT EXISTS tenant_ledger (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id),
   property_id UUID NOT NULL REFERENCES properties(id),
@@ -964,7 +1011,7 @@ CREATE TABLE tenant_ledger (
 );
 
 -- Recertifications (Module 7: Annual/Interim HUD recertification tracking)
-CREATE TABLE recertifications (
+CREATE TABLE IF NOT EXISTS recertifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id),
   property_id UUID NOT NULL REFERENCES properties(id),
@@ -1030,7 +1077,7 @@ CREATE TABLE recertifications (
 );
 
 -- Application Messages (Module 16: My Application + two-way staff/applicant thread)
-CREATE TABLE application_messages (
+CREATE TABLE IF NOT EXISTS application_messages (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
   sender_user_id UUID NOT NULL REFERENCES users(id),
@@ -1039,13 +1086,13 @@ CREATE TABLE application_messages (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   read_at TIMESTAMPTZ
 );
-CREATE INDEX idx_application_messages_app_created
+CREATE INDEX IF NOT EXISTS idx_application_messages_app_created
   ON application_messages(application_id, created_at DESC);
-CREATE INDEX idx_application_messages_sender
+CREATE INDEX IF NOT EXISTS idx_application_messages_sender
   ON application_messages(sender_user_id);
 
 -- Audit Log (immutable, append-only)
-CREATE TABLE audit_log (
+CREATE TABLE IF NOT EXISTS audit_log (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   action audit_action NOT NULL,
   actor_id UUID REFERENCES users(id),
@@ -1060,7 +1107,7 @@ CREATE TABLE audit_log (
 );
 
 -- AMI Limits (HUD Area Median Income)
-CREATE TABLE ami_limits (
+CREATE TABLE IF NOT EXISTS ami_limits (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   area VARCHAR(100) NOT NULL,
   year INTEGER NOT NULL,
@@ -1077,61 +1124,61 @@ CREATE TABLE ami_limits (
 -- INDEXES
 -- ============================================================
 
-CREATE INDEX idx_applications_status ON applications(status);
-CREATE INDEX idx_applications_property ON applications(property_id);
-CREATE INDEX idx_applications_ssn_hash ON applications(ssn_hash);
-CREATE INDEX idx_applications_submitted_at ON applications(submitted_at);
-CREATE INDEX idx_applications_created_at ON applications(created_at);
+CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
+CREATE INDEX IF NOT EXISTS idx_applications_property ON applications(property_id);
+CREATE INDEX IF NOT EXISTS idx_applications_ssn_hash ON applications(ssn_hash);
+CREATE INDEX IF NOT EXISTS idx_applications_submitted_at ON applications(submitted_at);
+CREATE INDEX IF NOT EXISTS idx_applications_created_at ON applications(created_at);
 
-CREATE INDEX idx_fraud_flags_application ON fraud_flags(application_id);
-CREATE INDEX idx_fraud_flags_unresolved ON fraud_flags(application_id) WHERE resolved = false;
+CREATE INDEX IF NOT EXISTS idx_fraud_flags_application ON fraud_flags(application_id);
+CREATE INDEX IF NOT EXISTS idx_fraud_flags_unresolved ON fraud_flags(application_id) WHERE resolved = false;
 
-CREATE INDEX idx_audit_log_action ON audit_log(action);
-CREATE INDEX idx_audit_log_actor ON audit_log(actor_id);
-CREATE INDEX idx_audit_log_application ON audit_log(application_id);
-CREATE INDEX idx_audit_log_created_at ON audit_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_application ON audit_log(application_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
 
-CREATE INDEX idx_lease_modifications_application ON lease_modifications(application_id);
-CREATE INDEX idx_lease_modifications_status ON lease_modifications(status);
+CREATE INDEX IF NOT EXISTS idx_lease_modifications_application ON lease_modifications(application_id);
+CREATE INDEX IF NOT EXISTS idx_lease_modifications_status ON lease_modifications(status);
 
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
-CREATE INDEX idx_inspections_property ON inspections(property_id);
-CREATE INDEX idx_inspections_status ON inspections(status);
-CREATE INDEX idx_inspections_scheduled ON inspections(scheduled_date);
-CREATE INDEX idx_work_orders_property ON work_orders(property_id);
-CREATE INDEX idx_work_orders_status ON work_orders(status);
-CREATE INDEX idx_work_orders_priority ON work_orders(priority);
+CREATE INDEX IF NOT EXISTS idx_inspections_property ON inspections(property_id);
+CREATE INDEX IF NOT EXISTS idx_inspections_status ON inspections(status);
+CREATE INDEX IF NOT EXISTS idx_inspections_scheduled ON inspections(scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_work_orders_property ON work_orders(property_id);
+CREATE INDEX IF NOT EXISTS idx_work_orders_status ON work_orders(status);
+CREATE INDEX IF NOT EXISTS idx_work_orders_priority ON work_orders(priority);
 
-CREATE INDEX idx_renewals_application ON lease_renewals(application_id);
-CREATE INDEX idx_renewals_status ON lease_renewals(status);
-CREATE INDEX idx_moveouts_application ON move_outs(application_id);
-CREATE INDEX idx_moveouts_status ON move_outs(status);
-CREATE INDEX idx_moveouts_deadline ON move_outs(deposit_deadline);
+CREATE INDEX IF NOT EXISTS idx_renewals_application ON lease_renewals(application_id);
+CREATE INDEX IF NOT EXISTS idx_renewals_status ON lease_renewals(status);
+CREATE INDEX IF NOT EXISTS idx_moveouts_application ON move_outs(application_id);
+CREATE INDEX IF NOT EXISTS idx_moveouts_status ON move_outs(status);
+CREATE INDEX IF NOT EXISTS idx_moveouts_deadline ON move_outs(deposit_deadline);
 
-CREATE INDEX idx_violations_application ON lease_violations(application_id);
-CREATE INDEX idx_violations_property ON lease_violations(property_id);
-CREATE INDEX idx_violations_status ON lease_violations(status);
-CREATE INDEX idx_violations_type ON lease_violations(violation_type);
-CREATE INDEX idx_eviction_notices_application ON eviction_notices(application_id);
-CREATE INDEX idx_eviction_notices_type ON eviction_notices(notice_type);
-CREATE INDEX idx_eviction_cases_application ON eviction_cases(application_id);
-CREATE INDEX idx_eviction_cases_status ON eviction_cases(status);
+CREATE INDEX IF NOT EXISTS idx_violations_application ON lease_violations(application_id);
+CREATE INDEX IF NOT EXISTS idx_violations_property ON lease_violations(property_id);
+CREATE INDEX IF NOT EXISTS idx_violations_status ON lease_violations(status);
+CREATE INDEX IF NOT EXISTS idx_violations_type ON lease_violations(violation_type);
+CREATE INDEX IF NOT EXISTS idx_eviction_notices_application ON eviction_notices(application_id);
+CREATE INDEX IF NOT EXISTS idx_eviction_notices_type ON eviction_notices(notice_type);
+CREATE INDEX IF NOT EXISTS idx_eviction_cases_application ON eviction_cases(application_id);
+CREATE INDEX IF NOT EXISTS idx_eviction_cases_status ON eviction_cases(status);
 
-CREATE INDEX idx_ledger_application ON tenant_ledger(application_id);
-CREATE INDEX idx_ledger_property ON tenant_ledger(property_id);
-CREATE INDEX idx_ledger_billing_period ON tenant_ledger(billing_period);
-CREATE INDEX idx_ledger_entry_type ON tenant_ledger(entry_type);
-CREATE INDEX idx_ledger_due_date ON tenant_ledger(due_date);
+CREATE INDEX IF NOT EXISTS idx_ledger_application ON tenant_ledger(application_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_property ON tenant_ledger(property_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_billing_period ON tenant_ledger(billing_period);
+CREATE INDEX IF NOT EXISTS idx_ledger_entry_type ON tenant_ledger(entry_type);
+CREATE INDEX IF NOT EXISTS idx_ledger_due_date ON tenant_ledger(due_date);
 
-CREATE INDEX idx_recertifications_application ON recertifications(application_id);
-CREATE INDEX idx_recertifications_property ON recertifications(property_id);
-CREATE INDEX idx_recertifications_status ON recertifications(status);
-CREATE INDEX idx_recertifications_anniversary ON recertifications(anniversary_date);
-CREATE INDEX idx_recertifications_cutoff ON recertifications(cutoff_date);
+CREATE INDEX IF NOT EXISTS idx_recertifications_application ON recertifications(application_id);
+CREATE INDEX IF NOT EXISTS idx_recertifications_property ON recertifications(property_id);
+CREATE INDEX IF NOT EXISTS idx_recertifications_status ON recertifications(status);
+CREATE INDEX IF NOT EXISTS idx_recertifications_anniversary ON recertifications(anniversary_date);
+CREATE INDEX IF NOT EXISTS idx_recertifications_cutoff ON recertifications(cutoff_date);
 -- QAP Phase 3.2: surface open NAU obligations for the follow-up queue.
-CREATE INDEX idx_recertifications_nau_open ON recertifications(nau_status) WHERE nau_status = 'open';
+CREATE INDEX IF NOT EXISTS idx_recertifications_nau_open ON recertifications(nau_status) WHERE nau_status = 'open';
 
 -- ============================================================
 -- TRIGGERS
@@ -1146,46 +1193,57 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
 CREATE TRIGGER trg_users_updated_at
   BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trg_applications_updated_at ON applications;
 CREATE TRIGGER trg_applications_updated_at
   BEFORE UPDATE ON applications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trg_properties_updated_at ON properties;
 CREATE TRIGGER trg_properties_updated_at
   BEFORE UPDATE ON properties
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trg_lease_modifications_updated_at ON lease_modifications;
 CREATE TRIGGER trg_lease_modifications_updated_at
   BEFORE UPDATE ON lease_modifications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trg_recertifications_updated_at ON recertifications;
 CREATE TRIGGER trg_recertifications_updated_at
   BEFORE UPDATE ON recertifications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trg_inspections_updated_at ON inspections;
 CREATE TRIGGER trg_inspections_updated_at
   BEFORE UPDATE ON inspections
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trg_work_orders_updated_at ON work_orders;
 CREATE TRIGGER trg_work_orders_updated_at
   BEFORE UPDATE ON work_orders
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trg_renewals_updated_at ON lease_renewals;
 CREATE TRIGGER trg_renewals_updated_at
   BEFORE UPDATE ON lease_renewals
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trg_moveouts_updated_at ON move_outs;
 CREATE TRIGGER trg_moveouts_updated_at
   BEFORE UPDATE ON move_outs
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trg_violations_updated_at ON lease_violations;
 CREATE TRIGGER trg_violations_updated_at
   BEFORE UPDATE ON lease_violations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trg_eviction_cases_updated_at ON eviction_cases;
 CREATE TRIGGER trg_eviction_cases_updated_at
   BEFORE UPDATE ON eviction_cases
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -1198,6 +1256,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_audit_log_immutable ON audit_log;
 CREATE TRIGGER trg_audit_log_immutable
   BEFORE UPDATE OR DELETE ON audit_log
   FOR EACH ROW EXECUTE FUNCTION prevent_audit_modification();
