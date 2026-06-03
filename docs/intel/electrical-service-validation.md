@@ -53,11 +53,13 @@ All three APNs return **exactly 1 feature**. Two caveats surfaced:
 | 13922810039 (Owens) | **0.0** | 169,361 (≈3.9 ac) | acreage field **unpopulated** → the "~3.9 ac" figure is **geometry-derived** (`Shape.area`), not assessor |
 | 13922899006 (Yale)  | 8.52 | 371,296 | assessor + geometry agree ✓ |
 
-> ⚠️ **Owens condo/plat flag.** APN `…039` sits inside a run of 40 sequential zero-acre parcels
-> (`13922810001`–`…040`); the real land parcels nearby are numbered separately (`…051` 6.89 ac, `…053` 5.81 ac).
-> That pattern is the signature of a **condominium / platted regime** — the 72-unit Owens property may map to
-> **multiple APNs and possibly multiple meters**, the inverse of the Donna 1&2 collapse. Confirm the full APN
-> set for Owens in Stage 2 (EnerGov) before assuming a single electrical service.
+> **Owens `ASSR_ACRES=0` — calibrated, low concern.** Neighbor geometries are a *mix* of lot sizes
+> (`…037` 0.22 ac, `…038` 0.19 ac, `…039` **3.9 ac**, `…040` 1.76 ac, `…051` 6.91 ac, `…053` 5.81 ac), i.e.
+> a normal platted block, **not** a uniform condo-airspace plat (which would be many identical tiny units).
+> `…039` is a single coherent 3.9-ac parcel. The zero-acre flag tracks **tax-exempt / newer** parcels
+> (`…037`–`…040` all 0; older `…051/…053` populated) — consistent with Owens being senior/affordable
+> (likely tax-exempt) housing, not a missing or fragmented parcel. **Single-service assumption stands**;
+> still confirm the meter count at Stage 2, but treat one-APN-one-service as the baseline.
 
 ---
 
@@ -122,7 +124,7 @@ above facility information to [requestor].]
 | Property | Address | APN | Proposed service assumption | Evidence found | Source URL / record ID | Inferred? | Confidence | Gaps / follow-up |
 |----------|---------|-----|-----------------------------|----------------|------------------------|-----------|------------|------------------|
 | Donna Louise (1&2) | 6225 Donna St, NLV 89081 | 12426199007 | ⚠️ generic (see note) | _(Assessor parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Run EnerGov; send NV Energy request |
-| Owens Senior Housing | 1626 Davis Pl, NLV 89030 | 13922810039 | ⚠️ generic | _(Parcel geometry confirmed; `ASSR_ACRES=0` → see condo/plat flag; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Confirm full APN set (condo regime?); run EnerGov; send NV Energy request |
+| Owens Senior Housing | 1626 Davis Pl, NLV 89030 | 13922810039 | ⚠️ generic | _(Parcel geometry confirmed 3.9 ac; `ASSR_ACRES=0` = tax-exempt field, not fragmentation; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Run EnerGov (confirm meter count); send NV Energy request |
 | Yale Keyes Senior Apts | 1705 Yale St, NLV 89030 | 13922899006 | ⚠️ generic | _(Assessor parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Run EnerGov; send NV Energy request |
 
 ### Confidence rubric
@@ -143,7 +145,6 @@ above facility information to [requestor].]
 4. **Roster collapsed 4 buildings → 3 parcels** (Donna Louise 1 & 2 share APN 12426199007).
 
 ## Next actions
-- [ ] **Owens condo/plat:** confirm whether the 72-unit property spans >1 APN (EnerGov + Assessor real-property record). If so, the single-service assumption breaks.
-- [ ] Stage 2: EnerGov permit search for 3 APNs (manual) → fill evidence table.
+- [ ] Stage 2: EnerGov permit search for 3 APNs (manual) → fill evidence table. (For Owens, confirm meter count — baseline is single service; condo regime ruled out by geometry.)
 - [ ] Stage 3: send NV Energy facility request (needs owner authorization signature).
 - [ ] Optional: extend to remaining 13 GPMG buildings (Las Vegas + Henderson — **different** permit portals).
