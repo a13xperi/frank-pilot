@@ -44,14 +44,14 @@ For **each premise / meter**, please confirm:
 
 We can provide account numbers, premise IDs, or a site contact on request to speed records lookup.
 
-**Owner authorization:** I, `[owner/agent name]`, as `[title]` for `[GPMG owner entity — exact legal name]`,
+**Owner authorization:** I, `[owner/agent name]`, as `[title]` for **Donna Louise LLC**,
 authorize NV Energy to release the above facility and service-planning information to the requestor named above.
 
 Thank you,
 
 `[Signature]`
 `[Name]` · `[Title]`
-`[GPMG owner entity]`
+Donna Louise LLC
 `[email]` · `[phone]`
 
 ---
@@ -62,7 +62,7 @@ Thank you,
 |-------|------------------|-------|
 | `[Owner / authorized agent name]` | From line, auth block, signature | Person NV Energy can verify as authorized |
 | `[title]` | From line, auth block, signature | e.g., Asset Manager, Managing Member |
-| `[GPMG owner entity — exact legal name]` | auth block, signature | The exact entity on the deed/account (per-parcel LLC?) |
+| ~~`[GPMG owner entity]`~~ → **Donna Louise LLC** | auth block, signature | ✅ filled. ⚠️ confirm this entity is owner-of-record for **all 3** APNs — see note below; if not, Owens/Yale need their own authorization |
 | `[email]` · `[phone]` | From line, signature | Reply-to the utility will use |
 
 > ⚠️ If the three parcels are held by **different ownership LLCs**, NV Energy may require a separate
