@@ -62,12 +62,11 @@ Donna Louise LLC
 |-------|------------------|-------|
 | `[Owner / authorized agent name]` | From line, auth block, signature | Person NV Energy can verify as authorized |
 | `[title]` | From line, auth block, signature | e.g., Asset Manager, Managing Member |
-| ~~`[GPMG owner entity]`~~ → **Donna Louise LLC** | auth block, signature | ✅ filled. ⚠️ confirm this entity is owner-of-record for **all 3** APNs — see note below; if not, Owens/Yale need their own authorization |
+| ~~`[GPMG owner entity]`~~ → **Donna Louise LLC** | auth block, signature | ✅ filled + confirmed owner-of-record for all 3 APNs (owner, 2026-06-03) — combined request is correct |
 | `[email]` · `[phone]` | From line, signature | Reply-to the utility will use |
 
-> ⚠️ If the three parcels are held by **different ownership LLCs**, NV Energy may require a separate
-> authorization per entity. Confirm the deed/account holder per APN before sending; if they differ, split this
-> into one request per entity (the property table can stay identical).
+> ✅ **Ownership confirmed (owner, 2026-06-03):** Donna Louise LLC is owner-of-record for all three parcels,
+> so the single combined request + one authorization is correct. No per-entity split needed.
 
 ## After it sends
 - Log the send date here and set the three Stage-4 rows to **"Likely + NV Energy request pending"** until reply.
