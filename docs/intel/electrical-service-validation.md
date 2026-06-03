@@ -82,7 +82,7 @@ parcels got** — treat acreage as indicative; re-verify the one flagged anomaly
 | 13921699052 | Louise Shell Senior | 2101 N MLK Blvd | 89106 | Las Vegas | 4.08 |
 | 13922810039 | Owens Senior Housing | 1626 Davis Pl | 89030 | **North Las Vegas** | 0.0 † |
 | 13935201001 | Senator Harry Reid Senior | 328 N 11th St | 89101 | Las Vegas | 2.58 |
-| 13925297003 | Senator Richard Bryan Senior | 2651 Searles Ave | 89101 | Las Vegas | ⚠️ 0.015 |
+| 13925101022 | Senator Richard Bryan Senior | 2651 Searles Ave | 89101 | Las Vegas | 6.08 ✅ |
 | 17908399001 | Smith Williams Senior | 575 E Lake Mead Pkwy | 89015 | **Henderson** | 14.54 |
 | **13922899006** | Yale Keyes Senior | 1705 Yale St | 89030 | **North Las Vegas** | 8.52 |
 
@@ -104,9 +104,13 @@ parcels got** — treat acreage as indicative; re-verify the one flagged anomaly
 > ⚠️ **AHJ trap:** the 10 "Las Vegas" mailing addresses split between **City of Las Vegas** (incorporated) and
 > **unincorporated Clark County** — different portals. The worksheet carries the per-parcel determination method.
 
-> ⚠️ **One anomaly to re-validate:** **Senator Richard Bryan** `13925297003` returned **0.015 ac (~640 ft²)** —
-> far too small for the complex; the geocoded point likely hit a sliver/common parcel, not the building lot.
-> Re-run with the address / `where=APN` second pass before trusting this APN.
+> ✅ **Anomaly RESOLVED (2026-06-03):** the first-pass **Senator Richard Bryan** hit `13925297003` was a
+> **0.015 ac (~640 ft²) sliver** — confirmed wrong. Re-validated via three independent geocoders + the
+> **Clark County Assessor real property record**, which is authoritative: **APN `13925101022`**, owner
+> **SOUTHERN NV HOUSING AUTHORITY** (c/o C Rowe), situs **2651 Searles Ave**, **6.08 ac**, use **33.150 low-rise
+> apartments (1–3 story, 5+ units)**, **165 dwelling units**, **built 2007**. The Census TIGER geocoder mis-pointed
+> to an adjacent 0.67-ac frontage parcel (`13925199028`); the county's own geocoder + owner record settled it.
+> Source: `maps.clarkcountynv.gov/assessor/AssessorParcelDetail/parceldetail.aspx?hdnParcel=13925101022`.
 
 ---
 
@@ -195,7 +199,7 @@ above facility information to [requestor].]
 | Juan Garcia Garden | 2851 Sunrise Ave, LV 89101 | 13936402015 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
 | Louise Shell Senior | 2101 N MLK Blvd, LV 89106 | 13921699052 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
 | Senator Harry Reid Senior | 328 N 11th St, LV 89101 | 13935201001 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
-| Senator Richard Bryan Senior | 2651 Searles Ave, LV 89101 | 13925297003 ⚠️ | ⚠️ generic | _(APN returned 0.015-ac sliver — **provisional**; key by address until re-verified)_ | ArcGIS Parcels/1 | — | Parcel: **Provisional** · Transformer: **Unknown** | Re-verify APN; AHJ → permit dig; NV Energy request (by address) |
+| Senator Richard Bryan Senior | 2651 Searles Ave, LV 89101 | 13925101022 ✅ | ⚠️ generic | _(**Assessor-verified**: owner SOUTHERN NV HOUSING AUTHORITY, 6.08 ac, use 33.150 low-rise apts, 165 units, blt 2007; electrical TBD)_ | Assessor `parceldetail.aspx?hdnParcel=13925101022` | — | Parcel: **Confirmed (owner-verified)** · Transformer: **Unknown** | AHJ (CLV/Clark Co.) → permit dig; NV Energy request |
 | Smith Williams Senior | 575 E Lake Mead Pkwy, Henderson 89015 | 17908399001 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Henderson EnerGov permit dig; NV Energy request |
 
 ### Confidence rubric
@@ -227,4 +231,5 @@ above facility information to [requestor].]
 - [x] ✅ Stage 1 APN extended to all 17 GPMG buildings (→ 14 parcels; see "Stage 1 (extended)").
 - [x] ✅ Stage 2 SOP extended past NLV — worksheet now covers City of LV / unincorporated Clark County / Henderson.
 - [x] ✅ Stage 3 NV Energy request extended to the full 14-parcel portfolio.
-- [ ] Re-validate the **Senator Richard Bryan** APN `13925297003` (0.015 ac sliver hit) via the address / `where=APN` second pass.
+- [x] ✅ Re-validated the **Senator Richard Bryan** APN: sliver `13925297003` was wrong → corrected to **`13925101022`** (Assessor owner-verified: SOUTHERN NV HOUSING AUTHORITY, 6.08 ac, 165 units, blt 2007). 2026-06-03.
+- [ ] **Owner-verify the other 13 parcels** the same way — the Assessor detail page `parceldetail.aspx?hdnParcel=<APN>` returns owner + situs + use code + unit count + year built, which also satisfies the "confirm owner-of-record entity" prerequisite for the NV Energy requests above. (Bryan done; 13 to go.)
