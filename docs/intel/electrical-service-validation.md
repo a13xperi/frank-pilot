@@ -262,7 +262,7 @@ is the Stack's **generic** 180 kW-firm / 250 kW-inverter site target, *not* a pe
    the Assessor detail page is mandatory** and is now done for all 17 — this is the most important methodological
    finding of the run.
 6. **Stage 2 spans 4 permit jurisdictions** — **10 City of Las Vegas, 4 NLV EnerGov, 2 unincorporated Clark
-   County (Accela), 1 Henderson** EnerGov. All SOP'd in the portfolio worksheet (which needs re-keying to the
+   County (Accela), 1 Henderson** EnerGov. All SOP'd in the portfolio worksheet (now re-keyed to the
    corrected APNs).
 7. **Two parcels need a GPMG ownership confirmation** before NV Energy authorization — Fletcher (1503 `…504001`
    18u vs adjacent 1403 `…504002` 42u, same owner) and O'Callaghan (built bldg `…518004` "1501 LLC" vs adjacent
@@ -271,7 +271,7 @@ is the Stack's **generic** 180 kW-firm / 250 kW-inverter site target, *not* a pe
 ## Next actions
 - [x] ✅ **Owner-verified all 17 parcels** via the Assessor detail page (2026-06-03): owner-of-record, situs, use, units, year built. **9 of 14 first-pass APNs were wrong** → corrected (see master table + correction note). Reversed both "collapse" assumptions (Donna = 2 parcels; H St = 3 parcels) → **17 buildings = 17 parcels**. Satisfies the owner-of-record prerequisite for the NV Energy requests.
 - [x] ✅ Stage 2 prerequisite: AHJ resolved for every parcel (centroid vs. county `Cities` layer) — **10 City of Las Vegas, 4 NLV, 2 unincorporated Clark County (Luther Mack, Meacham / Enterprise), 1 Henderson.**
-- [ ] **Re-key the two sibling files to the corrected APNs** before using them: [`permit-stage2-worksheet.md`](./permit-stage2-worksheet.md) and [`nv-energy-service-request.md`](./nv-energy-service-request.md) still carry the old 14-parcel / wrong-APN set.
+- [x] ✅ **Re-keyed both sibling files to the corrected APNs** (2026-06-03): [`permit-stage2-worksheet.md`](./permit-stage2-worksheet.md) and [`nv-energy-service-request.md`](./nv-energy-service-request.md) now carry the 17-parcel / owner-verified set — consistent with this master doc.
 - [ ] **GPMG to confirm 3 ownership questions** (block-level ambiguity): Fletcher 1503 `…504001` (18u) vs 1403 `…504002` (42u); O'Callaghan built bldg `…518004` (not the adjacent CDPC vacant lot `…518005`); Smith Williams service-account holder vs fee owner CHURCH COMMUNITY BAPTIST (ground lease?).
 - [ ] Stage 2: permit dig for all **17 parcels** (manual) → fill evidence table. Confirm meter topology on the H St campus (3 parcels — separate or shared service?) and the 2 Donna parcels.
 - [ ] Stage 3: send NV Energy facility request (all owners now verified — authorize per owner entity; see Stage 3 owner list).
