@@ -4,8 +4,9 @@
 southern Nevada, so a single utility request can cover the whole portfolio regardless of permitting city —
 **the only thing that splits the request is owner-of-record authorization** (see authorization section).
 
-**Status:** The **3 North Las Vegas parcels are send-ready** (owner = Donna Louise LLC, confirmed). The other
-**11 parcels need their owner-of-record entity confirmed** before they can be authorized — placeholders below.
+**Status:** The **3 North Las Vegas parcels are send-ready** (owner = Donna Louise LLC, confirmed); **Senator
+Richard Bryan** is owner-confirmed too (Southern Nevada Housing Authority, per Assessor). The remaining
+**10 parcels need their owner-of-record entity confirmed** before they can be authorized — placeholders below.
 
 **Why this is the critical path:** NV Energy transformer kVA is in **no** public record. This request is the
 *only* path to a "Confirmed" transformer rating. Send via NV Energy Builder/Developer Services
@@ -42,12 +43,12 @@ generation/storage, and need the as-built service facts to do so.
 | 10 | Juan Garcia Garden | 2851 Sunrise Ave | Las Vegas 89101 | 13936402015 | — |
 | 11 | Louise Shell Senior | 2101 N MLK Blvd | Las Vegas 89106 | 13921699052 | — |
 | 12 | Senator Harry Reid Senior | 328 N 11th St | Las Vegas 89101 | 13935201001 | — |
-| 13 | Senator Richard Bryan Senior | 2651 Searles Ave | Las Vegas 89101 | 13925297003 † | — |
+| 13 | Senator Richard Bryan Senior | 2651 Searles Ave | Las Vegas 89101 | **13925101022** | 165 |
 | 14 | Smith Williams Senior | 575 E Lake Mead Pkwy | Henderson 89015 | 17908399001 | — |
 
-> Units for rows 4–14 are being compiled and are not required for the lookup. **† APN `13925297003`
-> (Senator Richard Bryan) is provisional** — the Stage-1 geocode returned a 0.015-ac sliver; please key this
-> premise by **address (2651 Searles Ave)** rather than APN until the parcel is re-verified.
+> Units for rows 4–12 & 14 are being compiled and are not required for the lookup. **Senator Richard Bryan APN
+> is confirmed `13925101022`** (Assessor real-property record — owner Southern Nevada Housing Authority, 6.08 ac,
+> 165 units, built 2007); the earlier `13925297003` was a wrong 0.015-ac sliver, now corrected.
 
 For **each premise / meter**, please confirm:
 
@@ -91,7 +92,7 @@ on a combined letter is fine; otherwise split per entity.
 | `[entity for APN 13936402015]` | 13936402015 | `[name / title]` | `__________ / ____` |
 | `[entity for APN 13921699052]` | 13921699052 | `[name / title]` | `__________ / ____` |
 | `[entity for APN 13935201001]` | 13935201001 | `[name / title]` | `__________ / ____` |
-| `[entity for APN 13925297003]` | 13925297003 (re-verify APN) | `[name / title]` | `__________ / ____` |
+| **Southern Nevada Housing Authority** (per Assessor record) | 13925101022 | `[name / title]` | `__________ / ____` |
 | `[entity for APN 17908399001]` | 17908399001 | `[name / title]` | `__________ / ____` |
 
 > Authorization wording per entity: *"I, [name], as [title] for [entity], authorize NV Energy to release the
@@ -105,8 +106,9 @@ on a combined letter is fine; otherwise split per entity.
 |-------|--------|
 | Requestor identity (`[name]`, `[title]`, `[email]`, `[phone]`) | ⬜ needed |
 | **Donna Louise LLC** authorized-agent signature | ✅ entity confirmed — needs signature |
-| 11 owner-of-record entity names (rows 4–14) | ⬜ needed — confirm deed/account holder per APN |
-| Senator Richard Bryan APN `13925297003` | ⚠️ provisional — re-verify or rely on address |
+| 10 owner-of-record entity names (rows 4–12, 14) | ⬜ needed — confirm deed/account holder per APN |
+| **Southern Nevada Housing Authority** (Bryan, row 13) | ✅ owner confirmed (Assessor) — needs authorized-agent signature |
+| Senator Richard Bryan APN | ✅ resolved `13925101022` (Assessor-verified, 6.08 ac / 165 units) |
 
 ## After it sends
 - Log the send date and set each Stage-4 row to **"Likely + NV Energy request pending"** until reply.

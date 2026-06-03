@@ -93,16 +93,20 @@ parcels got** — treat acreage as indicative; re-verify the one flagged anomaly
   Sarann Knight) → likely **one shared service** for the campus. New find — same collapse pattern as Donna 1 & 2.
 - **Donna Louise 1 & 2** = 2 buildings on one APN `12426199007`.
 
-**Stage 2 permit dig splits across 3+ jurisdictions — all now SOP'd in the portfolio worksheet:**
+**Stage 2 permit dig splits across 4 AHJs — all SOP'd, and the AHJ of every parcel is now resolved:**
 
-| Jurisdiction | Parcels | Stage 2 portal |
-|--------------|---------|----------------|
+| AHJ | Parcels | Stage 2 portal |
+|-----|---------|----------------|
 | North Las Vegas | 3 (Donna, Owens, Yale) | NLV EnerGov (Tyler) — Cloudflare/CSRF, manual ✅ |
-| City of Las Vegas **or** unincorporated Clark County | 10 | CLV Dashboard **or** Clark Co. Accela `CLARKCO` — AHJ determined per parcel ✅ |
+| **City of Las Vegas** | **8** | CLV Dashboard / permit status — manual ✅ |
+| **Unincorporated Clark County** | **2** (Luther Mack, Dr. Paul Meacham — Enterprise twp) | Clark Co. Accela `CLARKCO` — manual ✅ |
 | Henderson | 1 (Smith Williams) | Henderson EnerGov (DSC Online, Tyler) — manual ✅ |
 
-> ⚠️ **AHJ trap:** the 10 "Las Vegas" mailing addresses split between **City of Las Vegas** (incorporated) and
-> **unincorporated Clark County** — different portals. The worksheet carries the per-parcel determination method.
+> ✅ **AHJ trap RESOLVED (2026-06-03).** The 10 "Las Vegas"-mailing parcels were split by point-in-polygon
+> (parcel centroid vs. county `Cities` boundary layer): **8 are City of Las Vegas, 2 are unincorporated Clark
+> County** — Luther Mack (`17716101027`) and Dr. Paul Meacham (`17716199002`), both in the Enterprise township
+> (89123). Method validated against the 4 known parcels (3 NLV + 1 Henderson, all matched). Per-parcel filing in
+> [`permit-stage2-worksheet.md`](./permit-stage2-worksheet.md) §A–§D; provenance in its appendix.
 
 > ✅ **Anomaly RESOLVED (2026-06-03):** the first-pass **Senator Richard Bryan** hit `13925297003` was a
 > **0.015 ac (~640 ft²) sliver** — confirmed wrong. Re-validated via three independent geocoders + the
@@ -190,16 +194,16 @@ above facility information to [requestor].]
 | Donna Louise (1&2) | 6225 Donna St, NLV 89081 | 12426199007 | ⚠️ generic (see note) | _(Assessor parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Run EnerGov; send NV Energy request |
 | Owens Senior Housing | 1626 Davis Pl, NLV 89030 | 13922810039 | ⚠️ generic | _(Parcel geometry confirmed 3.9 ac; `ASSR_ACRES=0` = tax-exempt field, not fragmentation; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Run EnerGov (confirm meter count); send NV Energy request |
 | Yale Keyes Senior Apts | 1705 Yale St, NLV 89030 | 13922899006 | ⚠️ generic | _(Assessor parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Run EnerGov; send NV Energy request |
-| Aldene Kline Barlow / E.M. Robinson / Sarann Knight (3 bldgs) | 1327 H St, LV 89106 | 13928599064 | ⚠️ generic | _(Stage-1 parcel confirmed; 3 bldgs / 1 APN — likely shared service; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ (CLV/Clark Co.) → permit dig (confirm meter count); NV Energy request |
-| David J. Hoggard Family | 1100 W Monroe Ave, LV 89106 | 13928599052 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
-| Luther Mack, Jr. Senior | 8158 Giles St, LV 89123 | 17716101027 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
-| Dr. Paul Meacham Senior | 65 E Windmill Ln, LV 89123 | 17716199002 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
-| Ethel Mae Fletcher | 1503 Laurelhurst Dr, LV 89108 | 13825504002 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
-| Mike O'Callaghan Legacy | 1502 Laurelhurst Dr, LV 89108 | 13825599014 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
-| Juan Garcia Garden | 2851 Sunrise Ave, LV 89101 | 13936402015 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
-| Louise Shell Senior | 2101 N MLK Blvd, LV 89106 | 13921699052 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
-| Senator Harry Reid Senior | 328 N 11th St, LV 89101 | 13935201001 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
-| Senator Richard Bryan Senior | 2651 Searles Ave, LV 89101 | 13925101022 ✅ | ⚠️ generic | _(**Assessor-verified**: owner SOUTHERN NV HOUSING AUTHORITY, 6.08 ac, use 33.150 low-rise apts, 165 units, blt 2007; electrical TBD)_ | Assessor `parceldetail.aspx?hdnParcel=13925101022` | — | Parcel: **Confirmed (owner-verified)** · Transformer: **Unknown** | AHJ (CLV/Clark Co.) → permit dig; NV Energy request |
+| Aldene Kline Barlow / E.M. Robinson / Sarann Knight (3 bldgs) | 1327 H St, LV 89106 | 13928599064 | ⚠️ generic | _(Stage-1 parcel confirmed; 3 bldgs / 1 APN — likely shared service; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | **City of LV** permit dig (confirm meter count); NV Energy request |
+| David J. Hoggard Family | 1100 W Monroe Ave, LV 89106 | 13928599052 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | **City of LV** permit dig; NV Energy request |
+| Luther Mack, Jr. Senior | 8158 Giles St, LV 89123 | 17716101027 | ⚠️ generic | _(Stage-1 parcel confirmed; AHJ = **unincorp. Clark Co.**, Enterprise twp; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | **Unincorp. Clark Co.** (Accela `CLARKCO`) permit dig; NV Energy request |
+| Dr. Paul Meacham Senior | 65 E Windmill Ln, LV 89123 | 17716199002 | ⚠️ generic | _(Stage-1 parcel confirmed; AHJ = **unincorp. Clark Co.**, Enterprise twp; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | **Unincorp. Clark Co.** (Accela `CLARKCO`) permit dig; NV Energy request |
+| Ethel Mae Fletcher | 1503 Laurelhurst Dr, LV 89108 | 13825504002 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | **City of LV** permit dig; NV Energy request |
+| Mike O'Callaghan Legacy | 1502 Laurelhurst Dr, LV 89108 | 13825599014 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | **City of LV** permit dig; NV Energy request |
+| Juan Garcia Garden | 2851 Sunrise Ave, LV 89101 | 13936402015 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | **City of LV** permit dig; NV Energy request |
+| Louise Shell Senior | 2101 N MLK Blvd, LV 89106 | 13921699052 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | **City of LV** permit dig; NV Energy request |
+| Senator Harry Reid Senior | 328 N 11th St, LV 89101 | 13935201001 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | **City of LV** permit dig; NV Energy request |
+| Senator Richard Bryan Senior | 2651 Searles Ave, LV 89101 | 13925101022 ✅ | ⚠️ generic | _(**Assessor-verified**: owner SOUTHERN NV HOUSING AUTHORITY, 6.08 ac, use 33.150 low-rise apts, 165 units, blt 2007; electrical TBD)_ | Assessor `parceldetail.aspx?hdnParcel=13925101022` | — | Parcel: **Confirmed (owner-verified)** · Transformer: **Unknown** | **City of LV** permit dig; NV Energy request |
 | Smith Williams Senior | 575 E Lake Mead Pkwy, Henderson 89015 | 17908399001 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Henderson EnerGov permit dig; NV Energy request |
 
 ### Confidence rubric
@@ -226,7 +230,7 @@ above facility information to [requestor].]
 
 ## Next actions
 - [ ] Stage 2: permit dig for all **14 parcels** (manual) per [`permit-stage2-worksheet.md`](./permit-stage2-worksheet.md) → fill evidence table. (Confirm meter count on the multi-building parcels — Owens single-service baseline; Donna Louise ×2; 1327 H St ×3.)
-- [ ] Stage 2 prerequisite: determine AHJ (City of LV vs unincorporated Clark County) for the 10 "Las Vegas" parcels before searching — method in the worksheet.
+- [x] ✅ Stage 2 prerequisite: AHJ resolved for all 10 "Las Vegas" parcels by point-in-polygon (centroid vs. county `Cities` layer) — **8 City of Las Vegas, 2 unincorporated Clark County** (Luther Mack, Dr. Paul Meacham / Enterprise twp). Filed per-AHJ in the worksheet §A–§D.
 - [ ] Stage 3: send NV Energy facility request per [`nv-energy-service-request.md`](./nv-energy-service-request.md). **3 NLV parcels send-ready (Donna Louise LLC ✅);** confirm owner-of-record entity for the other 11 parcels before authorizing.
 - [x] ✅ Stage 1 APN extended to all 17 GPMG buildings (→ 14 parcels; see "Stage 1 (extended)").
 - [x] ✅ Stage 2 SOP extended past NLV — worksheet now covers City of LV / unincorporated Clark County / Henderson.
