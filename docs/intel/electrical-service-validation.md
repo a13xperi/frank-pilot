@@ -65,8 +65,12 @@ All three APNs return **exactly 1 feature**. Two caveats surfaced:
 
 ## Stage 2 — Permit dig (NLV EnerGov) — MANUAL CHECKLIST
 
+> 📄 **Operator worksheet:** [`energov-stage2-worksheet.md`](./energov-stage2-worksheet.md) — pre-filled search
+> keys + capture table, ~10 min/parcel. (Portal verified behind Cloudflare bot-protection + CSRF 2026-06-03:
+> all JSON-API probes returned HTTP 403 → not scriptable, use a real browser.)
+
 Portal: `https://eg.cityofnorthlasvegas.com/EnerGov_Prod/SelfService#/search`
-(public; CSRF/session-gated → cannot be reliably scripted, do by hand or with a VA).
+(public; CSRF/session-gated + Cloudflare → cannot be reliably scripted, do by hand or with a VA).
 
 Per parcel (run for all 3 APNs above):
 
@@ -92,8 +96,13 @@ Per parcel (run for all 3 APNs above):
 ## Stage 3 — NV Energy confirmation (the only path to "Confirmed")
 
 NV Energy transformer kVA is **not** in any public record. It requires an owner-authorized
-service-planning / facility-confirmation request. Draft below — fill the bracketed fields, send from
-(or CC) the property owner/authorized agent so NV Energy will release facility data.
+service-planning / facility-confirmation request.
+
+> 📄 **Send-ready request:** [`nv-energy-service-request.md`](./nv-energy-service-request.md) — all 3 APNs +
+> property facts pre-filled; complete only the bracketed owner/agent identity + signature, then send.
+
+Draft below (mirrored in the send-ready file) — fill the bracketed fields, send from (or CC) the property
+owner/authorized agent so NV Energy will release facility data.
 
 ```
 To: NV Energy — Service Planning / Builder Services
