@@ -118,7 +118,7 @@ parcels got** — treat acreage as indicative; re-verify the one flagged anomaly
 
 ---
 
-## Stage 2 — Permit dig (3 AHJs, portfolio) — MANUAL CHECKLIST
+## Stage 2 — Permit dig (4 AHJs, portfolio) — MANUAL CHECKLIST
 
 > 📄 **Operator worksheet:** [`permit-stage2-worksheet.md`](./permit-stage2-worksheet.md) — all **14 parcels**
 > split by AHJ (NLV / City of LV / unincorporated Clark County / Henderson), pre-filled search keys + capture
