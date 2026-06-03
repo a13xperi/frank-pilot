@@ -93,13 +93,16 @@ parcels got** — treat acreage as indicative; re-verify the one flagged anomaly
   Sarann Knight) → likely **one shared service** for the campus. New find — same collapse pattern as Donna 1 & 2.
 - **Donna Louise 1 & 2** = 2 buildings on one APN `12426199007`.
 
-**Stage 2 permit dig splits across 3 jurisdictions — each needs its own portal/SOP:**
+**Stage 2 permit dig splits across 3+ jurisdictions — all now SOP'd in the portfolio worksheet:**
 
 | Jurisdiction | Parcels | Stage 2 portal |
 |--------------|---------|----------------|
-| North Las Vegas | 3 (Donna, Owens, Yale) | NLV EnerGov — SOP + worksheet below ✅ |
-| City of Las Vegas | 10 | **City of LV** permit portal — separate SOP needed |
-| Henderson | 1 (Smith Williams) | **Henderson** permit portal — separate SOP needed |
+| North Las Vegas | 3 (Donna, Owens, Yale) | NLV EnerGov (Tyler) — Cloudflare/CSRF, manual ✅ |
+| City of Las Vegas **or** unincorporated Clark County | 10 | CLV Dashboard **or** Clark Co. Accela `CLARKCO` — AHJ determined per parcel ✅ |
+| Henderson | 1 (Smith Williams) | Henderson EnerGov (DSC Online, Tyler) — manual ✅ |
+
+> ⚠️ **AHJ trap:** the 10 "Las Vegas" mailing addresses split between **City of Las Vegas** (incorporated) and
+> **unincorporated Clark County** — different portals. The worksheet carries the per-parcel determination method.
 
 > ⚠️ **One anomaly to re-validate:** **Senator Richard Bryan** `13925297003` returned **0.015 ac (~640 ft²)** —
 > far too small for the complex; the geocoded point likely hit a sliver/common parcel, not the building lot.
@@ -107,16 +110,18 @@ parcels got** — treat acreage as indicative; re-verify the one flagged anomaly
 
 ---
 
-## Stage 2 — Permit dig (NLV EnerGov) — MANUAL CHECKLIST
+## Stage 2 — Permit dig (3 AHJs, portfolio) — MANUAL CHECKLIST
 
-> 📄 **Operator worksheet:** [`energov-stage2-worksheet.md`](./energov-stage2-worksheet.md) — pre-filled search
-> keys + capture table, ~10 min/parcel. (Portal verified behind Cloudflare bot-protection + CSRF 2026-06-03:
-> all JSON-API probes returned HTTP 403 → not scriptable, use a real browser.)
+> 📄 **Operator worksheet:** [`permit-stage2-worksheet.md`](./permit-stage2-worksheet.md) — all **14 parcels**
+> split by AHJ (NLV / City of LV / unincorporated Clark County / Henderson), pre-filled search keys + capture
+> table, ~10 min/parcel. Portal map verified 2026-06-03. Both EnerGov portals (NLV + Henderson) sit behind
+> Cloudflare + CSRF (JSON probes → HTTP 403) → not scriptable, use a real browser.
 
-Portal: `https://eg.cityofnorthlasvegas.com/EnerGov_Prod/SelfService#/search`
-(public; CSRF/session-gated + Cloudflare → cannot be reliably scripted, do by hand or with a VA).
+Portals: NLV EnerGov `eg.cityofnorthlasvegas.com/EnerGov_Prod/SelfService` · City of LV CLV Dashboard ·
+Clark Co. Accela `aca-prod.accela.com/CLARKCO` · Henderson EnerGov `dsconline.cityofhenderson.com`.
+(All public, all manual — see worksheet for the per-AHJ split and determination method.)
 
-Per parcel (run for all 3 APNs above):
+Per parcel (same procedure across all AHJs):
 
 1. Open the portal → **Search** → **Permits** tab.
 2. Search by **address** first (e.g. `6225 Donna`), then re-run by **parcel/APN** to catch records filed under either key.
@@ -142,8 +147,10 @@ Per parcel (run for all 3 APNs above):
 NV Energy transformer kVA is **not** in any public record. It requires an owner-authorized
 service-planning / facility-confirmation request.
 
-> 📄 **Send-ready request:** [`nv-energy-service-request.md`](./nv-energy-service-request.md) — all 3 APNs +
-> property facts pre-filled; complete only the bracketed owner/agent identity + signature, then send.
+> 📄 **Send-ready request:** [`nv-energy-service-request.md`](./nv-energy-service-request.md) — **portfolio
+> version, all 14 parcels** pre-filled (one utility serves all). The **3 NLV parcels are send-ready** (owner =
+> **Donna Louise LLC**, confirmed); the other 11 parcels need their owner-of-record entity confirmed before
+> authorization. Complete the bracketed requestor identity + signature(s), then send.
 
 Draft below (mirrored in the send-ready file) — fill the bracketed fields, send from (or CC) the property
 owner/authorized agent so NV Energy will release facility data.
@@ -179,6 +186,17 @@ above facility information to [requestor].]
 | Donna Louise (1&2) | 6225 Donna St, NLV 89081 | 12426199007 | ⚠️ generic (see note) | _(Assessor parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Run EnerGov; send NV Energy request |
 | Owens Senior Housing | 1626 Davis Pl, NLV 89030 | 13922810039 | ⚠️ generic | _(Parcel geometry confirmed 3.9 ac; `ASSR_ACRES=0` = tax-exempt field, not fragmentation; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Run EnerGov (confirm meter count); send NV Energy request |
 | Yale Keyes Senior Apts | 1705 Yale St, NLV 89030 | 13922899006 | ⚠️ generic | _(Assessor parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Run EnerGov; send NV Energy request |
+| Aldene Kline Barlow / E.M. Robinson / Sarann Knight (3 bldgs) | 1327 H St, LV 89106 | 13928599064 | ⚠️ generic | _(Stage-1 parcel confirmed; 3 bldgs / 1 APN — likely shared service; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ (CLV/Clark Co.) → permit dig (confirm meter count); NV Energy request |
+| David J. Hoggard Family | 1100 W Monroe Ave, LV 89106 | 13928599052 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
+| Luther Mack, Jr. Senior | 8158 Giles St, LV 89123 | 17716101027 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
+| Dr. Paul Meacham Senior | 65 E Windmill Ln, LV 89123 | 17716199002 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
+| Ethel Mae Fletcher | 1503 Laurelhurst Dr, LV 89108 | 13825504002 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
+| Mike O'Callaghan Legacy | 1502 Laurelhurst Dr, LV 89108 | 13825599014 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
+| Juan Garcia Garden | 2851 Sunrise Ave, LV 89101 | 13936402015 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
+| Louise Shell Senior | 2101 N MLK Blvd, LV 89106 | 13921699052 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
+| Senator Harry Reid Senior | 328 N 11th St, LV 89101 | 13935201001 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | AHJ → permit dig; NV Energy request |
+| Senator Richard Bryan Senior | 2651 Searles Ave, LV 89101 | 13925297003 ⚠️ | ⚠️ generic | _(APN returned 0.015-ac sliver — **provisional**; key by address until re-verified)_ | ArcGIS Parcels/1 | — | Parcel: **Provisional** · Transformer: **Unknown** | Re-verify APN; AHJ → permit dig; NV Energy request (by address) |
+| Smith Williams Senior | 575 E Lake Mead Pkwy, Henderson 89015 | 17908399001 | ⚠️ generic | _(Stage-1 parcel confirmed; electrical TBD)_ | ArcGIS Parcels/1 | — | Parcel: Confirmed · Transformer: **Unknown** | Henderson EnerGov permit dig; NV Energy request |
 
 ### Confidence rubric
 - **Confirmed** — record states transformer kVA, *or* NV Energy confirms. **Only here.**
@@ -198,12 +216,15 @@ above facility information to [requestor].]
 4. **Roster collapses on shared parcels.** NLV: Donna Louise 1 & 2 → one APN `12426199007` (4 bldgs → 3
    parcels). Portfolio-wide: also the **1327 H St campus = 3 buildings on one APN** `13928599064` →
    **17 buildings collapse to 14 parcels**. Fewer distinct electrical services than buildings.
-5. **Stage 2 spans 3 permit jurisdictions** — NLV EnerGov (built), **City of Las Vegas** (10 parcels) and
-   **Henderson** (1 parcel) each need their own SOP. Only the NLV portal is worked so far.
+5. **Stage 2 spans 3+ permit jurisdictions** — NLV EnerGov, **City of Las Vegas / unincorporated Clark County**
+   (the 10 "Las Vegas" parcels split by AHJ), and **Henderson** EnerGov. All now SOP'd in the portfolio
+   worksheet; the remaining manual step per "Las Vegas" parcel is the City-of-LV-vs-Clark-County determination.
 
 ## Next actions
-- [ ] Stage 2: EnerGov permit search for 3 APNs (manual) → fill evidence table. (For Owens, confirm meter count — baseline is single service; condo regime ruled out by geometry.)
-- [ ] Stage 3: send NV Energy facility request (needs owner authorization signature).
+- [ ] Stage 2: permit dig for all **14 parcels** (manual) per [`permit-stage2-worksheet.md`](./permit-stage2-worksheet.md) → fill evidence table. (Confirm meter count on the multi-building parcels — Owens single-service baseline; Donna Louise ×2; 1327 H St ×3.)
+- [ ] Stage 2 prerequisite: determine AHJ (City of LV vs unincorporated Clark County) for the 10 "Las Vegas" parcels before searching — method in the worksheet.
+- [ ] Stage 3: send NV Energy facility request per [`nv-energy-service-request.md`](./nv-energy-service-request.md). **3 NLV parcels send-ready (Donna Louise LLC ✅);** confirm owner-of-record entity for the other 11 parcels before authorizing.
 - [x] ✅ Stage 1 APN extended to all 17 GPMG buildings (→ 14 parcels; see "Stage 1 (extended)").
+- [x] ✅ Stage 2 SOP extended past NLV — worksheet now covers City of LV / unincorporated Clark County / Henderson.
+- [x] ✅ Stage 3 NV Energy request extended to the full 14-parcel portfolio.
 - [ ] Re-validate the **Senator Richard Bryan** APN `13925297003` (0.015 ac sliver hit) via the address / `where=APN` second pass.
-- [ ] If validation extends past NLV: build Stage 2 SOPs for the **City of Las Vegas** (10 parcels) and **Henderson** (1 parcel) permit portals.
