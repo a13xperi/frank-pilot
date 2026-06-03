@@ -3,7 +3,9 @@
 **Created:** 2026-06-03
 **Goal:** Cross-validate proposed electrical service assumptions per building and identify the
 authoritative source needed to confirm transformer size.
-**Scope:** 4 North Las Vegas GPMG properties (3 parcels). Process scales to all 17 GPMG buildings.
+**Scope:** Primary deep-dive = 4 North Las Vegas GPMG properties (3 parcels) — Stages 2–4 below.
+**Stage 1 (APN) now extended live to all 17 GPMG buildings → 14 parcels across 3 permit jurisdictions**
+(see "Stage 1 (extended)").
 
 ## Hard rule (governs every "Confidence" value)
 
@@ -60,6 +62,48 @@ All three APNs return **exactly 1 feature**. Two caveats surfaced:
 > (`…037`–`…040` all 0; older `…051/…053` populated) — consistent with Owens being senior/affordable
 > (likely tax-exempt) housing, not a missing or fragmented parcel. **Single-service assumption stands**;
 > still confirm the meter count at Stage 2, but treat one-APN-one-service as the baseline.
+
+### Stage 1 (extended) — all 17 GPMG buildings → 14 parcels, 3 jurisdictions  ✅ DONE (live, 2026-06-03)
+
+Full-portfolio point-in-polygon pull (same Assessor Parcels endpoint). **The 11 non-NLV parcel-rows are
+first-pass (single point query) and have NOT had the `where=APN='…'` second-pass re-validation the 3 NLV
+parcels got** — treat acreage as indicative; re-verify the one flagged anomaly before relying on it.
+
+| APN | Building(s) on parcel | Address | ZIP | Jurisdiction | `ASSR_ACRES` |
+|-----|----------------------|---------|-----|--------------|--------------|
+| **13928599064** | Aldene Kline Barlow **+** Ethel Mae Robinson **+** Sarann Knight | 1327 H St | 89106 | Las Vegas | 0.63 |
+| 13928599052 | David J. Hoggard Family | 1100 W Monroe Ave | 89106 | Las Vegas | 0.35 |
+| **12426199007** | Donna Louise **1 & 2** | 6225 Donna St | 89081 | **North Las Vegas** | 1.28 |
+| 17716101027 | Luther Mack, Jr. Senior | 8158 Giles St | 89123 | Las Vegas | 2.25 |
+| 17716199002 | Dr. Paul Meacham Senior | 65 E Windmill Ln | 89123 | Las Vegas | 0.57 |
+| 13825504002 | Ethel Mae Fletcher | 1503 Laurelhurst Dr | 89108 | Las Vegas | 2.07 |
+| 13825599014 | Mike O'Callaghan Legacy | 1502 Laurelhurst Dr | 89108 | Las Vegas | 0.33 |
+| 13936402015 | Juan Garcia Garden | 2851 Sunrise Ave | 89101 | Las Vegas | 2.94 |
+| 13921699052 | Louise Shell Senior | 2101 N MLK Blvd | 89106 | Las Vegas | 4.08 |
+| 13922810039 | Owens Senior Housing | 1626 Davis Pl | 89030 | **North Las Vegas** | 0.0 † |
+| 13935201001 | Senator Harry Reid Senior | 328 N 11th St | 89101 | Las Vegas | 2.58 |
+| 13925297003 | Senator Richard Bryan Senior | 2651 Searles Ave | 89101 | Las Vegas | ⚠️ 0.015 |
+| 17908399001 | Smith Williams Senior | 575 E Lake Mead Pkwy | 89015 | **Henderson** | 14.54 |
+| **13922899006** | Yale Keyes Senior | 1705 Yale St | 89030 | **North Las Vegas** | 8.52 |
+
+† Owens `0.0` = tax-exempt acreage field (3.9 ac by geometry) — see calibration above, **not** fragmentation.
+
+**17 buildings → 14 distinct parcels**, because two parcels each carry multiple buildings:
+- **1327 H St campus** = **3 buildings on one APN** `13928599064` (Aldene Kline Barlow / Ethel Mae Robinson /
+  Sarann Knight) → likely **one shared service** for the campus. New find — same collapse pattern as Donna 1 & 2.
+- **Donna Louise 1 & 2** = 2 buildings on one APN `12426199007`.
+
+**Stage 2 permit dig splits across 3 jurisdictions — each needs its own portal/SOP:**
+
+| Jurisdiction | Parcels | Stage 2 portal |
+|--------------|---------|----------------|
+| North Las Vegas | 3 (Donna, Owens, Yale) | NLV EnerGov — SOP + worksheet below ✅ |
+| City of Las Vegas | 10 | **City of LV** permit portal — separate SOP needed |
+| Henderson | 1 (Smith Williams) | **Henderson** permit portal — separate SOP needed |
+
+> ⚠️ **One anomaly to re-validate:** **Senator Richard Bryan** `13925297003` returned **0.015 ac (~640 ft²)** —
+> far too small for the complex; the geocoded point likely hit a sliver/common parcel, not the building lot.
+> Re-run with the address / `where=APN` second pass before trusting this APN.
 
 ---
 
@@ -151,9 +195,15 @@ above facility information to [requestor].]
 2. **No APN/parcel data existed in the repo** — Stage 1 created it (table above).
 3. **Only NV Energy can confirm transformer size.** Public records get you to "Likely" at best. The honest
    end-state for most rows will be **"Likely + NV Energy request pending"** until Stage 3 returns.
-4. **Roster collapsed 4 buildings → 3 parcels** (Donna Louise 1 & 2 share APN 12426199007).
+4. **Roster collapses on shared parcels.** NLV: Donna Louise 1 & 2 → one APN `12426199007` (4 bldgs → 3
+   parcels). Portfolio-wide: also the **1327 H St campus = 3 buildings on one APN** `13928599064` →
+   **17 buildings collapse to 14 parcels**. Fewer distinct electrical services than buildings.
+5. **Stage 2 spans 3 permit jurisdictions** — NLV EnerGov (built), **City of Las Vegas** (10 parcels) and
+   **Henderson** (1 parcel) each need their own SOP. Only the NLV portal is worked so far.
 
 ## Next actions
 - [ ] Stage 2: EnerGov permit search for 3 APNs (manual) → fill evidence table. (For Owens, confirm meter count — baseline is single service; condo regime ruled out by geometry.)
 - [ ] Stage 3: send NV Energy facility request (needs owner authorization signature).
-- [ ] Optional: extend to remaining 13 GPMG buildings (Las Vegas + Henderson — **different** permit portals).
+- [x] ✅ Stage 1 APN extended to all 17 GPMG buildings (→ 14 parcels; see "Stage 1 (extended)").
+- [ ] Re-validate the **Senator Richard Bryan** APN `13925297003` (0.015 ac sliver hit) via the address / `where=APN` second pass.
+- [ ] If validation extends past NLV: build Stage 2 SOPs for the **City of Las Vegas** (10 parcels) and **Henderson** (1 parcel) permit portals.
