@@ -200,6 +200,20 @@
     "error": "El pago falló. Intenta de nuevo.",
     "retry": "Reintentar"
   },
+  "consent": {
+    "title": "Autoriza tu verificación de antecedentes y crédito",
+    "intro": "Para procesar tu solicitud necesitamos tu permiso para obtener un informe del consumidor (historial de antecedentes y crédito). Revisa la divulgación a continuación y luego confirma.",
+    "checkbox": "He leído la divulgación anterior y autorizo este informe del consumidor.",
+    "cta": "Autorizar y continuar",
+    "busy": "Autorizando…",
+    "error": "No pudimos registrar tu autorización. Inténtalo de nuevo."
+  },
+  "identity": {
+    "title": "Verifica tu identidad",
+    "intro": "Un paso más: usamos Stripe para verificar de forma segura tu identificación oficial y una selfie rápida. Te llevaremos a una página segura para completarlo y luego regresarás aquí.",
+    "cta": "Continuar a la verificación →",
+    "secured": "🔒 Protegido por Stripe Identity"
+  },
   "confirm": {
     "title": "¡Solicitud iniciada!",
     "subtitle": "Te enviaremos el siguiente paso por email y SMS.",

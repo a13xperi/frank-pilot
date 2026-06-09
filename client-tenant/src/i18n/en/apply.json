@@ -200,6 +200,20 @@
     "error": "Payment failed. Please try again.",
     "retry": "Retry"
   },
+  "consent": {
+    "title": "Authorize your background & credit check",
+    "intro": "To process your application we need your permission to obtain a consumer report (background and credit history). Please review the disclosure below, then confirm.",
+    "checkbox": "I have read the disclosure above and authorize this consumer report.",
+    "cta": "Authorize & continue",
+    "busy": "Authorizing…",
+    "error": "We couldn't record your authorization. Please try again."
+  },
+  "identity": {
+    "title": "Verify your identity",
+    "intro": "One more step: we use Stripe to securely verify your government-issued ID and a quick selfie. You'll be taken to a secure page to finish, then brought right back.",
+    "cta": "Continue to verification →",
+    "secured": "🔒 Secured by Stripe Identity"
+  },
   "confirm": {
     "title": "Application started!",
     "subtitle": "We'll send your next steps by email and SMS.",
