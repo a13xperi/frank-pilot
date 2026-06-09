@@ -64,9 +64,22 @@ For **each premise / meter**, please confirm:
    may share service infrastructure — please confirm whether each parcel is metered separately or shares a
    service: (a) the **1327 H St campus** = 3 adjacent parcels (UT 1/2/3, all CDPC NL LLC); (b) **Donna Louise
    1 & 2** = 2 adjacent parcels (6225 / 6275 Donna St).
-4. **Available / spare capacity** on the serving transformer, and any **recent service-upgrade history** of record.
-5. Whether any **capacity study or service-planning application** would be required for an added load on the
-   order of **~250 kW per site** (on-site solar + battery storage under consideration).
+4. **Available / spare capacity** on the serving transformer, the **current measured peak demand / loading** of
+   record, and any **recent service-upgrade history**.
+5. **Load addition (Electric Service Request):** whether a service-planning study would be required to add a
+   **firm ~180 kW behind-the-meter load** (edge-compute) per site against the existing service — and the
+   process / timeline to file an **Electric Service Request (load letter)**.
+6. **Storage interconnection (Rule 15 South / RE-1):** the pathway to interconnect a **~250 kW / ~400–500 kWh
+   battery energy storage system** per site as a distributed energy resource. We understand a BESS > 25 kW
+   triggers an engineering review against the **15%-of-feeder-peak-load** screen, filed via **PowerClerk** under
+   the **RE-1 design standard** — please confirm the current pathway, whether a **non-export (behind-the-meter)**
+   configuration expedites review, and the **feeder hosting capacity** of record at each premise (or point us to
+   the DRP / hosting-capacity map login).
+
+> **Two separate asks, one letter.** Items 1–5 confirm the *existing service* and screen the *compute load*
+> (Electric Service Request). Item 6 is the *storage interconnection* (Rule 15 South / RE-1 / PowerClerk) — a
+> distinct NV Energy process. The BESS is also the lever that keeps the added compute load inside the existing
+> service: by shaving on-peak demand it holds *net* grid draw down, so most sites may avoid a service upgrade.
 
 We can provide account numbers, premise IDs, or a site contact on request to speed records lookup.
 
@@ -132,3 +145,48 @@ split per entity.
 - Log the send date and set each Stage-4 row to **"Likely + NV Energy request pending"** until reply.
 - On reply: transcribe kVA / voltage / meter count per premise into the Stage-4 evidence table → those rows
   graduate to **Confirmed** (the only rows that ever can).
+
+---
+
+## Gated-layer unlock checklist (what public records can't reach — one action each)
+
+The 2026-06-08 permit dig (white-paper §1.5 / Stage-4b matrix) drove every auth-free public source to its ceiling:
+**all 17 Likely 3-phase, 0 Confirmed.** Four gated layers remain — each a one-action unlock GPMG can perform.
+
+### A. NV Energy Stage-4 request — the **only** path to "Confirmed" (all 17)
+The letter above. Converts inferred service → Confirmed kVA + voltage + phase, and opens the load + storage asks.
+**This is the critical path; B and C below only add permit-level corroboration, never a Confirmed service number.**
+
+### B. Tyler EnerGov contact-login — the 5 contact-gated parcels (service *detail*)
+North Las Vegas (×4) and Henderson (×1) run the same **Tyler EnerGov Self-Service** portal. Public view shows
+permit **Summary only**; **More Info / Fees / Inspections / Attachments are contact-gated** — the electrical
+sub-form (service amps / kVA) and PDF attachments sit behind a free registered login. Action: log in as the owner
+contact and open the electrical-permit attachments.
+
+| Parcel (APN) | Portal | Permit anchors to open |
+|--------------|--------|------------------------|
+| Donna Louise 1 (12426103004) | NLV EnerGov | BD145340 + elec BD150889 / 153590 |
+| Donna Louise 2 (12426103002) | NLV EnerGov | BD145341 + elec BD150892 |
+| Owens Senior (13922810039) | NLV EnerGov | BD96712 (Commercial-New 2008) + 2001 record |
+| Yale Keyes Senior (13922810051) | NLV EnerGov | BD22311 + lapsed 2020 NV Energy dry-utility permit |
+| Smith Williams Senior (17908301011) | Henderson EnerGov | only a **carport** permit sits on this APN — the main building permit was likely filed under the church / fee APN; search owner **CHURCH COMMUNITY BAPTIST** ⚠ |
+
+> Portal-drive note: Tyler EnerGov is an AngularJS form — APN search needs the native-setter input event + click
+> `#button-Search`; the hash `?st=` param does **not** re-run the search (reference memory
+> `energov-portal-gates-service-detail`).
+
+### C. Accela CLARKCO — the 2 deferred unincorporated parcels
+Luther Mack Jr. (17716101027) and Dr. Paul Meacham (17716101026) sit in **unincorporated Clark County** → permits
+live in **Accela**, not CLV/EnerGov. Two paths:
+- **API:** register an OAuth app at `developer.accela.com` for agency **CLARKCO** (`apis.accela.com/v4`), query by APN.
+- **Browser:** drive **`aca-prod.accela.com/CLARKCO`** Citizen Access by APN (existence-only).
+
+Both are already **HIGH-confidence** Likely 120/208 V 3φ (48u / 57u senior, post-2000); this unlock only adds
+permit corroboration — it does **not** change the 3φ call or the Confirmed gate.
+
+### D. NV Energy DRP / hosting-capacity map — feeder-level interconnection (all 17)
+The per-feeder **hosting capacity** that decides BESS interconnection (the 15%-of-peak screen) lives on NV Energy's
+**Distribution Resource Plan (DRP) map**, which is **Okta-login-gated** — not headless-reachable. Action: register
+for NV Energy DER / **PowerClerk** access and pull each premise feeder's hosting-capacity figure. Until then,
+every interconnect verdict stays **provisional AMBER** (§1.5) — this is the second of the two facts (with
+transformer kVA) that no public record carries.

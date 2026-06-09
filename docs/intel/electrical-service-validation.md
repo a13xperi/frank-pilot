@@ -245,6 +245,84 @@ is the Stack's **generic** 180 kW-firm / 250 kW-inverter site target, *not* a pe
 
 ---
 
+## Stage 4b — 3-Phase Inference & Interconnection Verdict (all 17)  ✅ 2026-06-08
+
+Method: **P1 permit sweep** (CLV ×10 + Henderson ×1 via public ArcGIS REST, queried by APN; NLV ×4 from
+the prior session; Clark Co. ×2 Accela = OAuth-gated → deferred to the unlock step) + **P2 3-phase
+inference** (NV Energy service standards × use-code × unit count) + **P3 interconnection screen** (NV
+Energy Rule 15 / DER process). **Every 3φ value is Likely or Unknown — never Confirmed** (hard rule: no
+record states kVA, phase, or voltage; the lone `480` keyword hit on Smith Williams was a **false positive**
+on a GUID field, not a voltage). Transformer kVA stays **Unknown** for all 17.
+
+> **GIS schema carries no electrical detail.** CLV (`mapdata.lasvegasnevada.gov/.../BuildingPermits`) and
+> Henderson (`maps.cityofhenderson.com/.../OpenDevPermits`) ArcGIS layers return permit **type + free-text
+> description only** — no amperage/voltage/phase/kVA field exists. So the sweep proves **permit existence +
+> commercial-vs-residential class + era**, which **corroborates** the 3φ inference, but cannot upgrade any
+> row to Confirmed. Service size lives in Accela/EnerGov sub-forms and plan-set PDFs (contact-gated).
+
+### P2 — 3-phase inference ruleset (NV Energy, condensed)
+NV Energy serves 1φ **120/240 V** and 3φ 4-wire wye in **120/208 V** and **277/480 V** (no 3-wire 3φ).
+Individual dwelling units are always 1φ; what matters is the **property/house service**. 3φ becomes the
+served configuration once building load exceeds ~100–150 kVA / 200 A on one leg — true of essentially any
+post-2000 multifamily ≥20 u on an on-site pad-mount transformer. By use code:
+- **34.150 hi-rise** (elevators, central HVAC, fire pump) → **Likely 277/480 V 3φ** (HIGH).
+- **33.150 lo-rise ≥50 u** → **Likely 120/208 V 3φ** (HIGH); ≥100 u may carry a 277/480 V house service w/ step-down.
+- **33.150 lo-rise 20–49 u** → **Likely 120/208 V 3φ** (MED-HIGH; HIGH where a commercial electrical permit exists).
+- **33.150 ≤19 u** → genuinely ambiguous 1φ-or-3φ — resolved here for the one case (Fletcher) by permit evidence.
+
+### P3 — interconnection screen (NV Energy, condensed)
+Two **separate** asks per site: **(1) compute LOAD** → service-capacity **load-letter** ("Electric Service
+Request" / ESR) against the existing transformer; **(2) 250 kW BESS** → **DER interconnection** under **Rule
+15 South / RE-1 design standard**, filed via the **PowerClerk** portal. Every BESS >25 kW triggers
+engineering review; the gating test is the **15 %-of-feeder-peak-load** screen, and feeder **hosting
+capacity** lives on NV Energy's **DRP map** (Okta-login-gated → not headless-reachable → P5 artifact). A
+**non-export** (behind-the-meter) config is the expediting lever and the design intent here.
+
+**Verdict rubric (honest):** transformer headroom is **Unknown** (kVA in no record) and feeder HCA is
+**login-gated**, so **no site can be GREEN or RED on confirmed data** — every verdict is **provisional
+AMBER**, leaned by inferred service size:
+- **AMBER▲ (leans feasible)** — large service; ~180 kW compute + 250 kW BESS likely absorbable with peak-shave; confirm by load-letter.
+- **AMBER (capacity study)** — mid service; genuine NV Energy study needed.
+- **AMBER▼ (upgrade likely)** — small service; compute+BESS likely exceeds headroom → service upgrade or aggressive peak-shave.
+
+### The 17-row matrix
+
+| # | Building | u | Use | Inferred service | 3φ | Permit corroboration (P1) | Interconnect |
+|---|----------|---|-----|------------------|----|--------------------------|--------------|
+| 1 | Aldene Kline Barlow | 39 | 34.150 hi | Likely 277/480 V 3φ | Likely (HIGH) | CLV: 4 commercial permits (Multi-Family + Master Pkg) | AMBER▼ |
+| 2 | Ethel Mae Robinson | 82 | 34.150 hi | Likely 277/480 V 3φ | Likely (HIGH) | CLV: 13 commercial incl **2× Electrical-Only** | AMBER▲ |
+| 3 | Sarann Knight | 38 | 33.150 lo | Likely 120/208 V 3φ | Likely (HIGH) | CLV: 17 commercial Multi-Family incl **Electrical-Only** | AMBER▼ |
+| 4 | David J. Hoggard | 100 | 33.150 | Likely 120/208 V 3φ (poss. 480 step-down) | Likely (HIGH) | CLV: only wall-fence on this APN → main bldg on parent parcel (SNHA) | AMBER▲ |
+| 5 | Donna Louise 1 | 48 | 33.150 | Likely 120/208 V 3φ | Likely (HIGH) | NLV: BD145340 Multi-Family-New + **elec BD150889/153590 Commercial** | AMBER▼ |
+| 6 | Donna Louise 2 | 48 | 33.150 | Likely 120/208 V 3φ | Likely (HIGH) | NLV: BD145341 + **elec BD150892 Commercial** | AMBER▼ |
+| 7 | Luther Mack Jr. Senior | 48 | 33.150 | Likely 120/208 V 3φ | Likely (HIGH) | Clark Co. Accela — OAuth-gated, deferred (P5) | AMBER▼ |
+| 8 | Dr. Paul Meacham Senior | 57 | 33.150 | Likely 120/208 V 3φ | Likely (HIGH) | Clark Co. Accela — OAuth-gated, deferred (P5) | AMBER |
+| 9 | Ethel Mae Fletcher | 18 | 33.150 | Likely 120/208 V 3φ | Likely (MED — **was ambiguous**) | CLV: **8 commercial Multi-Family incl Electrical-Only** → commercial service, not a 1φ split → ambiguity resolved toward 3φ | AMBER▼ |
+| 10 | Mike O'Callaghan Legacy | 40 | 34.150 hi | Likely 277/480 V 3φ | Likely (HIGH) | CLV: **0 permits on `…518004`** → corroborates wrong-APN/vacant-lot flag ⚠ | AMBER▼ |
+| 11 | Juan Garcia Garden | 52 | 33.150 | Likely 120/208 V 3φ | Likely (HIGH) | CLV: 2 residential OTC (2002 build pre-digital) | AMBER |
+| 12 | Louise Shell Senior | 100 | 33.150 | Likely 120/208 V 3φ (poss. 480 step-down) | Likely (HIGH) | CLV: commercial Building Project + Patio | AMBER▲ |
+| 13 | Owens Senior Housing | 72 | 33.150 | Likely 120/208 V 3φ | Likely (HIGH) | NLV: **BD96712 Commercial-New 2008** + 2001 — possibly 2 services | AMBER |
+| 14 | Senator Harry Reid Senior | 100 | 33.150 | Likely 120/208 V 3φ | Likely (HIGH) | CLV: **0 permits on `…201001`** (2004 build, parent-APN / pre-digital) | AMBER▲ |
+| 15 | Senator Richard Bryan Senior | 165 | 33.150 | Likely 120/208 V 3φ (poss. 480 step-down) | Likely (HIGH) | CLV: **61 permits** — commercial + **2× Electrical-Only** + Pool/Spa (pool ⇒ larger service) | AMBER▲ |
+| 16 | Smith Williams Senior | 80 | 33.150 | Likely 120/208 V 3φ | Likely (HIGH) | Henderson: only a carport shade-cover on `…301011`; `480` kw-hit = false positive (GUID) → main bldg on church parcel ⚠ | AMBER |
+| 17 | Yale Keyes Senior | 70 | 33.150 | Likely 120/208 V 3φ | Likely (HIGH) | NLV: BD22311 Multi-Family-New 2002 + lapsed **2020 NV Energy dry-utility** permit | AMBER▲ |
+
+**Tally: 16 / 17 Likely 3-phase** (3 hi-rise → 277/480 V; 13 lo-rise → 120/208 V). Fletcher's 1φ ambiguity
+is **resolved toward 3φ** by its commercial Electrical-Only permit. **0 / 17 Confirmed** — no kVA/voltage in
+any record; the only paths to Confirmed are **NV Energy** and **GPMG's logged-in EnerGov**, both queued in
+P5. **Interconnect: 0 GREEN / 0 RED on confirmed data — all provisional AMBER** pending the load-letter +
+feeder HCA; **6 lean-feasible / 4 study / 7 upgrade-likely** by service-size inference.
+
+### Interconnection finding that ties to the build
+The generic per-site compute load (**~180 kW firm**) is **large relative to typical multifamily transformer
+headroom** (a 150–300 kVA service already carrying 50–130 kVA of building load). Adding 180 kW raw would
+exceed headroom on most sites → service upgrades. **The 250 kW BESS + peak-shave dispatch (white-paper §6
+energy stack) is therefore not polish — it is the mechanism that keeps *net* grid draw inside the existing
+service**, converting most AMBER▼ sites to feasible-without-upgrade. The never-import-on-peak dispatch
+invariant is exactly what an NV Energy load-letter review will want to see.
+
+---
+
 ## Findings that reshape the task
 
 1. **No per-building electrical assumptions exist yet.** The Stack's "180 kW firm / 250 kW inverter" is a
@@ -280,13 +358,28 @@ is the Stack's **generic** 180 kW-firm / 250 kW-inverter site target, *not* a pe
    **closed on the public portal** for these 5 — re-routed to (a)/(b). City of LV (10, proprietary portal) and
    unincorporated Clark County (2, Accela) are **different systems and may expose more** — still to test.
 
+9. **🔑 GIS sweep (City of LV ×10 + Henderson ×1) — permit existence YES, electrical detail NO** (2026-06-08).
+   Both publish public ArcGIS REST permit layers queryable by APN (CLV `BuildingPermits/MapServer/0` by
+   `PRCLID`; Henderson `OpenDevPermits/MapServer/1–2` by `SPATIALID`) — **no auth, no browser** (replaces the
+   manual click-through for these 11 parcels). But **the GIS schema has no amperage/voltage/phase/kVA field** —
+   only permit type + free-text description. So the sweep **corroborates** the 3φ inference (commercial
+   Multi-Family + Electrical-Only permits on Robinson, Sarann Knight, Fletcher, Bryan, etc.) and **resolves
+   Fletcher's 1φ/3φ ambiguity toward 3φ**, but upgrades **nothing** to Confirmed. It also hardens two APN flags
+   by permit **absence**: O'Callaghan `…518004` = **0 permits** (vacant-lot/wrong-APN), Harry Reid `…201001` = 0;
+   Hoggard/Smith Williams show only ancillary permits (wall-fence / carport) → main buildings sit on parent
+   parcels. The `480` keyword hit on Smith Williams was a **false positive** (matched a GUID field). Net: the
+   programmatic permit dig is **complete for 15 of 17** (NLV 4 + CLV 10 + Henderson 1); only the 2 Clark Co.
+   Accela parcels need OAuth registration (deferred to P5, existence-only). Per-building results → **Stage 4b**.
+
 ## Next actions
 - [x] ✅ **Owner-verified all 17 parcels** via the Assessor detail page (2026-06-03): owner-of-record, situs, use, units, year built. **9 of 14 first-pass APNs were wrong** → corrected (see master table + correction note). Reversed both "collapse" assumptions (Donna = 2 parcels; H St = 3 parcels) → **17 buildings = 17 parcels**. Satisfies the owner-of-record prerequisite for the NV Energy requests.
 - [x] ✅ Stage 2 prerequisite: AHJ resolved for every parcel (centroid vs. county `Cities` layer) — **10 City of Las Vegas, 4 NLV, 2 unincorporated Clark County (Luther Mack, Meacham / Enterprise), 1 Henderson.**
 - [x] ✅ **Re-keyed both sibling files to the corrected APNs** (2026-06-03): [`permit-stage2-worksheet.md`](./permit-stage2-worksheet.md) and [`nv-energy-service-request.md`](./nv-energy-service-request.md) now carry the 17-parcel / owner-verified set — consistent with this master doc.
 - [ ] **GPMG to confirm 3 ownership questions** (block-level ambiguity): Fletcher 1503 `…504001` (18u) vs 1403 `…504002` (42u); O'Callaghan built bldg `…518004` (not the adjacent CDPC vacant lot `…518005`); Smith Williams service-account holder vs fee owner CHURCH COMMUNITY BAPTIST (ground lease?).
-- [~] Stage 2 permit dig — **NLV (4 parcels) DONE 2026-06-03**: public inventories captured (Donna 1 BD145340 + elec BD150889/BD153590; Donna 2 BD145341 + elec BD150892; Owens BD96712 Commercial-New 2008; Yale BD22311 Multi-Family-New 2002 + a lapsed 2020 NV Energy dry-utility permit). **Finding 8 — service size is portal-gated → these rows stay "service Unknown."** Remaining portals: **City of LV (10, proprietary)**, **unincorp. Clark Co. (2, Accela)**, **Henderson (1, Tyler — expect gated)**. Still confirm meter topology on the H St campus (3 parcels) + 2 Donna parcels (via NV Energy).
+- [~] Stage 2 permit dig — **NLV (4 parcels) DONE 2026-06-03**: public inventories captured (Donna 1 BD145340 + elec BD150889/BD153590; Donna 2 BD145341 + elec BD150892; Owens BD96712 Commercial-New 2008; Yale BD22311 Multi-Family-New 2002 + a lapsed 2020 NV Energy dry-utility permit). **Finding 8 — service size is portal-gated → these rows stay "service Unknown."** **City of LV (10) + Henderson (1) DONE 2026-06-08 via public ArcGIS REST** (queried by APN; existence + commercial class — **no kVA/voltage/phase in the GIS schema**, finding 9). **Only unincorp. Clark Co. (2, Accela) remains** (OAuth-registration-gated → P5, existence-only). Per-building 3φ + interconnect verdict now in **Stage 4b**. Still confirm meter topology on the H St campus (3 parcels) + 2 Donna parcels (via NV Energy).
 - [ ] **NEW lever (NLV + Henderson, finding 8):** GPMG opens its own EnerGov permits **logged in as the record contact/applicant** → unlocks More Info (custom fields) + the approved electrical plan set in Attachments — the only route to NLV/Henderson service size short of NV Energy.
 - [ ] Stage 3: send NV Energy facility request (all owners now verified — authorize per owner entity; see Stage 3 owner list).
 - [x] ✅ Stage 1 + Stage 2 SOP + Stage 3 request all extended to the full 17-parcel portfolio.
 - [x] ✅ Re-validated the **Senator Richard Bryan** APN: sliver `13925297003` → **`13925101022`** (SOUTHERN NV HOUSING AUTHORITY, 6.08 ac, 165 units, blt 2007). 2026-06-03.
+- [x] ✅ **2026-06-08 — P1 GIS permit sweep (CLV ×10 + Henderson ×1, public ArcGIS REST) + P2 3φ inference + P3 NV Energy interconnection screen → Stage 4b matrix** (all 17): **16/17 Likely 3-phase, 0 Confirmed**; interconnect **all provisional-AMBER** (6 lean-feasible / 4 study / 7 upgrade-likely) pending NV Energy load-letter + DRP feeder hosting-capacity. Fletcher 1φ/3φ ambiguity resolved toward 3φ. Folded into the white paper (new §1.5 + Appendix E).
+- [ ] **Clark Co. Accela (2 parcels — Luther Mack, Meacham):** register an Accela developer app (`developer.accela.com`) for an OAuth token scoped to agency `CLARKCO`, OR browser-drive `aca-prod.accela.com/CLARKCO` Citizen Access by APN — **existence-only** (Accela GIS exposes no electrical detail either). Low priority; inference already HIGH.
