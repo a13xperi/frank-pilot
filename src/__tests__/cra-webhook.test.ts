@@ -12,6 +12,7 @@
 
 import express from "express";
 import request from "supertest";
+import crypto from "crypto";
 
 const mockTransition = jest.fn();
 const mockRunFullScreening = jest.fn();
@@ -277,5 +278,151 @@ describe("POST /webhook — idempotency", () => {
       (c) => /UPDATE applications SET/i.test(String(c[0])) && /RETURNING id/i.test(String(c[0]))
     );
     expect(persisted).toBe(false);
+  });
+});
+
+describe("POST /webhook — real Checkr path (X-Checkr-Signature)", () => {
+  const CHECKR_SECRET = "checkr_whsec_test";
+  const CANDIDATE_ID = "cand_abc123";
+  const originalCheckrSecret = process.env.CHECKR_WEBHOOK_SECRET;
+  const originalCheckrKey = process.env.CHECKR_API_KEY;
+
+  afterAll(() => {
+    process.env.CHECKR_WEBHOOK_SECRET = originalCheckrSecret;
+    process.env.CHECKR_API_KEY = originalCheckrKey;
+  });
+
+  beforeEach(() => {
+    // Inner beforeEach runs after the outer one — override the SQL mock so the
+    // Checkr candidate_id resolves to our application, dedup misses, persist hits,
+    // and only ONE report has landed (no advance) by default.
+    process.env.CHECKR_WEBHOOK_SECRET = CHECKR_SECRET;
+    delete process.env.CHECKR_API_KEY;
+    mockQuery.mockImplementation((sql: any, params?: any) => {
+      const s = String(sql);
+      if (/background_report_id = \$1/i.test(s)) {
+        // translateCheckrEvent: candidate_id → application id.
+        return Promise.resolve({
+          rows: params?.[0] === CANDIDATE_ID ? [{ id: APP_ID }] : [],
+        }) as any;
+      }
+      if (/cra_processed_events/i.test(s) && /SELECT/i.test(s)) return Promise.resolve({ rows: [] }) as any;
+      if (/UPDATE applications SET/i.test(s) && /RETURNING id/i.test(s)) return Promise.resolve({ rows: [{ id: APP_ID }] }) as any;
+      if (/FROM applications a/i.test(s) && /LEFT JOIN users/i.test(s)) {
+        return Promise.resolve({
+          rows: [
+            {
+              status: "awaiting_consumer_report",
+              background_check_completed_at: new Date(),
+              credit_check_completed_at: null, // only ONE report in
+              submitted_by: "99999999-8888-7777-6666-555555555555",
+              submitter_role: "applicant",
+            },
+          ],
+        }) as any;
+      }
+      return Promise.resolve({ rows: [] }) as any;
+    });
+  });
+
+  // A real Checkr event envelope: { id, type, data: { object } }. The object
+  // carries candidate_id (our join key) + the categorical report fields.
+  function checkrEvent(type: string, objectOverrides: Record<string, unknown> = {}) {
+    return {
+      id: `chkr_evt_${type}`,
+      type,
+      data: {
+        object: {
+          id: "rep_checkr_1",
+          candidate_id: CANDIDATE_ID,
+          sex_offender_search: { records: [] },
+          national_criminal_search: { records: [] },
+          county_criminal_searches: [],
+          ...objectOverrides,
+        },
+      },
+    };
+  }
+
+  // Post on the Checkr path. Default = a valid HMAC-SHA256 hex signature over the
+  // raw body; `sign:false` sends a present-but-invalid signature.
+  function checkrPost(event: object, opts: { sign?: boolean } = {}) {
+    const raw = JSON.stringify(event);
+    const sig =
+      opts.sign === false
+        ? "deadbeef"
+        : crypto.createHmac("sha256", CHECKR_SECRET).update(raw).digest("hex");
+    return request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("x-checkr-signature", sig)
+      .send(raw);
+  }
+
+  it("503 when neither CHECKR_WEBHOOK_SECRET nor CHECKR_API_KEY is set (fail-closed)", async () => {
+    delete process.env.CHECKR_WEBHOOK_SECRET;
+    delete process.env.CHECKR_API_KEY;
+    const res = await checkrPost(checkrEvent("report.completed"));
+    expect(res.status).toBe(503);
+  });
+
+  it("401 on an invalid X-Checkr-Signature (never trust an unverified payload)", async () => {
+    const res = await checkrPost(checkrEvent("report.completed"), { sign: false });
+    expect(res.status).toBe(401);
+  });
+
+  it("accepts a sha256= prefixed signature", async () => {
+    const raw = JSON.stringify(checkrEvent("report.completed"));
+    const hex = crypto.createHmac("sha256", CHECKR_SECRET).update(raw).digest("hex");
+    const res = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("x-checkr-signature", `sha256=${hex}`)
+      .send(raw);
+    expect(res.status).toBe(200);
+  });
+
+  it("report.completed + known candidate → resolves application, persists verdict, 200", async () => {
+    const res = await checkrPost(checkrEvent("report.completed"));
+    expect(res.status).toBe(200);
+    // candidate_id was looked up...
+    const resolved = mockQuery.mock.calls.find((c) => /background_report_id = \$1/i.test(String(c[0])));
+    expect(resolved).toBeTruthy();
+    expect((resolved![1] as any[])[0]).toBe(CANDIDATE_ID);
+    // ...and the mapped verdict persisted, guarded to awaiting_consumer_report.
+    const persist = mockQuery.mock.calls.find(
+      (c) => /UPDATE applications SET/i.test(String(c[0])) && /background_check_details/i.test(String(c[0]))
+    );
+    expect(persist).toBeTruthy();
+    expect(String(persist![0])).toMatch(/status = 'awaiting_consumer_report'/);
+  });
+
+  it("unknown candidate_id → 200 ignored, no persist (Checkr would otherwise retry)", async () => {
+    const res = await checkrPost(checkrEvent("report.completed", { candidate_id: "cand_unknown" }));
+    expect(res.status).toBe(200);
+    expect(res.body.ignored).toBe(true);
+    const persisted = mockQuery.mock.calls.some(
+      (c) => /UPDATE applications SET/i.test(String(c[0])) && /RETURNING id/i.test(String(c[0]))
+    );
+    expect(persisted).toBe(false);
+  });
+
+  it("an unhandled event type (report.created) → 200 ignored, no side effects", async () => {
+    const res = await checkrPost(checkrEvent("report.created"));
+    expect(res.status).toBe(200);
+    expect(res.body.ignored).toBe(true);
+    expect(mockTransition).not.toHaveBeenCalled();
+  });
+
+  it("report.canceled → terminal HOLD in screening_review (never auto-pass)", async () => {
+    const res = await checkrPost(checkrEvent("report.canceled"));
+    expect(res.status).toBe(200);
+    await flush();
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_review", trigger: "could_not_screen" })
+    );
+    expect(mockTransition).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening" })
+    );
   });
 });

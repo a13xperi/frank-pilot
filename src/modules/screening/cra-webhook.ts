@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import express from "express";
+import crypto from "crypto";
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
@@ -23,15 +24,19 @@ import { CreditCheckService } from "./credit-check";
  * are CAS-guarded on `status = 'awaiting_consumer_report'` so a late/duplicate
  * delivery after the app already advanced is a no-op.
  *
- * CREDENTIALING-GATED PARTS (NOT built here — see
- * docs/screening/background-credit-cra-adapter.md §4 vs "Credentialing-gated"):
- *   - Real HMAC signature verification against CHECKR_WEBHOOK_SECRET /
- *     the TransUnion equivalent. Until those secrets exist, the route refuses to
- *     process (503) rather than trust an unsigned payload — fail-closed.
- *   - The exact CRA event envelope shape (event type names, where the report
- *     object + application reference live). The synthetic envelope parsed below
- *     is what the unit tests exercise; the real field paths are marked
- *     `// TODO(credentialing)` and confirmed against a live sandbox before arming.
+ * TWO RECEIVE PATHS, selected by header:
+ *   - REAL CHECKR (`X-Checkr-Signature` present): HMAC-SHA256 verify against
+ *     CHECKR_WEBHOOK_SECRET (or CHECKR_API_KEY), then translate Checkr's
+ *     `{ id, type, data: { object } }` event — resolving our application by the
+ *     report/invitation `candidate_id` (createReport persisted candidate.id as
+ *     background_report_id, since the invitation flow yields no report id at
+ *     create time). Built + tested here; arms when the secret is set.
+ *   - SYNTHETIC (`x-cra-signature` present): the internal envelope the unit
+ *     tests post, gated on CRA_WEBHOOK_SECRET. Preserved byte-identical.
+ *
+ * STILL CREDENTIALING-GATED: the TransUnion ShareAble credit event envelope +
+ * its signing scheme (the credit half of `parseEnvelope`/dispatch is wired, but
+ * the real TU webhook translation lands with the Chunk-4 credit adapter).
  *
  * Error handling: any throw during dispatch parks the payload in `cra_webhook_dlq`
  * and returns 200 — we NEVER 5xx a CRA (it would just retry the broken event).
@@ -159,6 +164,88 @@ function parseEnvelope(body: unknown): CraEventEnvelope | null {
 function isTerminalFailure(status: string): boolean {
   const s = status.toLowerCase();
   return s === "canceled" || s === "cancelled" || s === "suspended" || s === "disputed";
+}
+
+// ── real Checkr ingestion (X-Checkr-Signature + { id, type, data: { object } }) ─
+
+/**
+ * Verify Checkr's `X-Checkr-Signature` — HMAC-SHA256 of the RAW request body,
+ * keyed by the Checkr webhook secret (or the API key, per Checkr's scheme), hex
+ * encoded. Constant-time compare on the raw bytes; an optional `sha256=` prefix
+ * is tolerated. Any malformed input → false (reject), never throws.
+ */
+function verifyCheckrSignature(rawBody: Buffer, header: string, secret: string): boolean {
+  const provided = header.startsWith("sha256=") ? header.slice(7) : header;
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  let a: Buffer;
+  try {
+    a = Buffer.from(provided, "hex");
+  } catch {
+    return false;
+  }
+  const b = Buffer.from(expected, "hex");
+  if (a.length === 0 || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+/**
+ * Map a Checkr event `type` to our categorical status. Returns null for types we
+ * don't act on (e.g. `report.created`, `invitation.created`) so they ack 200 with
+ * no side effects. Credit (TransUnion) is NOT handled here — separate adapter.
+ */
+function checkrEventStatus(type: string): string | null {
+  switch (type) {
+    case "report.completed":
+      return "complete";
+    case "report.canceled":
+    case "report.cancelled":
+      return "canceled";
+    case "report.suspended":
+      return "suspended";
+    case "report.disputed":
+      return "disputed";
+    // The applicant never completed the hosted invitation → terminal, HOLD.
+    case "invitation.expired":
+    case "invitation.deleted":
+      return "canceled";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Translate a real Checkr event (`{ id, type, data: { object } }`) into our
+ * internal CraEventEnvelope, resolving our applicationId from the report /
+ * invitation object's `candidate_id` — createReport persisted candidate.id as
+ * background_report_id (the invitation flow yields no report id at create time,
+ * so candidate_id is the durable join key). Returns null for an event type we
+ * don't act on, a malformed object, or an unknown candidate (→ 200 ack, no-op).
+ */
+async function translateCheckrEvent(body: unknown): Promise<CraEventEnvelope | null> {
+  if (!body || typeof body !== "object") return null;
+  const b = body as Record<string, any>;
+  const id = typeof b.id === "string" ? b.id : "";
+  const type = typeof b.type === "string" ? b.type : "";
+  const object = b.data && typeof b.data === "object" ? b.data.object : undefined;
+  if (!id || !object || typeof object !== "object") return null;
+
+  const status = checkrEventStatus(type);
+  if (!status) return null;
+
+  const candidateId = typeof object.candidate_id === "string" ? object.candidate_id : "";
+  if (!candidateId) return null;
+
+  const appRes = await query(
+    `SELECT id FROM applications WHERE background_report_id = $1 LIMIT 1`,
+    [candidateId]
+  );
+  const applicationId = appRes.rows[0]?.id;
+  if (!applicationId || typeof applicationId !== "string") return null;
+
+  // The report's own id once it exists (report.completed); else fall back to the
+  // candidate id so the envelope always carries a stable reference.
+  const reportId = typeof object.id === "string" ? object.id : candidateId;
+  return { id, domain: "background", applicationId, reportId, status, report: object };
 }
 
 // ── dispatch ──────────────────────────────────────────────────────────────────
@@ -359,27 +446,98 @@ async function holdCouldNotScreen(env: CraEventEnvelope, reason: string): Promis
 
 // ── router ──────────────────────────────────────────────────────────────────
 
+/**
+ * Shared tail for BOTH receive paths once an envelope is in hand: dedup the
+ * event id, dispatch (DLQ + 200 on throw — we NEVER 5xx a CRA), mark processed.
+ * `body` is the parsed payload, parked verbatim in the DLQ on failure.
+ */
+async function processAndRespond(
+  env: CraEventEnvelope,
+  body: unknown,
+  res: Response
+): Promise<void> {
+  if (await alreadyProcessed(env.id)) {
+    logger.info("CRA webhook duplicate event short-circuited", { eventId: env.id });
+    res.status(200).json({ received: true, duplicate: true });
+    return;
+  }
+
+  let dispatchError: Error | null = null;
+  try {
+    await dispatch(env);
+  } catch (err) {
+    dispatchError = err as Error;
+    logger.error("CRA webhook dispatch failed", {
+      eventId: env.id,
+      domain: env.domain,
+      error: dispatchError.message,
+    });
+    await recordDlq(env.id, env.domain, body, dispatchError);
+  }
+
+  if (!dispatchError) {
+    await markProcessed(env.id, env.domain, env.applicationId);
+  }
+
+  // Always 200 — DLQ is the recovery path, not retry.
+  res.status(200).json({ received: true });
+}
+
 const router = Router();
 
 router.post(
   "/",
   express.raw({ type: "application/json", limit: "1mb" }),
   async (req: Request, res: Response): Promise<void> => {
-    // CREDENTIALING-GATED: real signature verification. Until a CRA contract is
-    // signed and CHECKR_WEBHOOK_SECRET (+ the TransUnion equivalent) exist, we
-    // refuse to process — fail-closed, so an unsigned payload is never trusted.
-    // The synthetic-payload tests set CRA_WEBHOOK_SECRET to exercise the path.
+    const raw = req.body as Buffer;
+
+    // ── Real Checkr path — discriminated by the X-Checkr-Signature header ──
+    // HMAC-verify against CHECKR_WEBHOOK_SECRET (or the API key, per Checkr's
+    // scheme) over the RAW body, then translate Checkr's event envelope.
+    const checkrSig = req.headers["x-checkr-signature"];
+    if (checkrSig !== undefined) {
+      const checkrSecret =
+        process.env.CHECKR_WEBHOOK_SECRET || process.env.CHECKR_API_KEY || "";
+      if (!checkrSecret || checkrSecret === "changeme") {
+        // Fail-closed: never trust a payload we cannot verify.
+        res.status(503).json({ error: "Checkr webhook secret not configured" });
+        return;
+      }
+      if (Array.isArray(checkrSig) || !verifyCheckrSignature(raw, checkrSig, checkrSecret)) {
+        res.status(401).json({ error: "Invalid Checkr signature" });
+        return;
+      }
+
+      let body: unknown;
+      try {
+        body = JSON.parse(raw.toString("utf8"));
+      } catch {
+        res.status(400).json({ error: "Invalid JSON" });
+        return;
+      }
+
+      const env = await translateCheckrEvent(body);
+      if (!env) {
+        // An event type we don't act on, a malformed object, or an unknown
+        // candidate → ack 200 with no side effects (Checkr would otherwise retry).
+        res.status(200).json({ received: true, ignored: true });
+        return;
+      }
+
+      await processAndRespond(env, body, res);
+      return;
+    }
+
+    // ── Synthetic path — the internal envelope the unit tests post ──
+    // Gated on CRA_WEBHOOK_SECRET; the `x-cra-signature` header must be present
+    // (trusted internal caller). The real per-vendor HMAC lives on the Checkr
+    // path above; the TransUnion credit envelope + signing arrives with Chunk 4.
     const secret = process.env.CRA_WEBHOOK_SECRET ?? "";
     if (!secret || secret === "changeme") {
       res.status(503).json({ error: "CRA webhook secret not configured" });
       return;
     }
 
-    // TODO(credentialing): verify the HMAC signature header against `secret`
-    // using each vendor's documented scheme (Checkr `X-Checkr-Signature`,
-    // TransUnion equivalent). For now we require the header to be present so the
-    // contract is exercised, but the real constant-time HMAC compare is gated on
-    // having a documented signing scheme + a live secret.
     const sig = req.headers["x-cra-signature"];
     if (!sig || Array.isArray(sig)) {
       res.status(400).json({ error: "Missing CRA signature header" });
@@ -388,7 +546,7 @@ router.post(
 
     let body: unknown;
     try {
-      body = JSON.parse((req.body as Buffer).toString("utf8"));
+      body = JSON.parse(raw.toString("utf8"));
     } catch {
       res.status(400).json({ error: "Invalid JSON" });
       return;
@@ -401,31 +559,7 @@ router.post(
       return;
     }
 
-    if (await alreadyProcessed(env.id)) {
-      logger.info("CRA webhook duplicate event short-circuited", { eventId: env.id });
-      res.status(200).json({ received: true, duplicate: true });
-      return;
-    }
-
-    let dispatchError: Error | null = null;
-    try {
-      await dispatch(env);
-    } catch (err) {
-      dispatchError = err as Error;
-      logger.error("CRA webhook dispatch failed", {
-        eventId: env.id,
-        domain: env.domain,
-        error: dispatchError.message,
-      });
-      await recordDlq(env.id, env.domain, body, dispatchError);
-    }
-
-    if (!dispatchError) {
-      await markProcessed(env.id, env.domain, env.applicationId);
-    }
-
-    // Always 200 — DLQ is the recovery path, not retry.
-    res.status(200).json({ received: true });
+    await processAndRespond(env, body, res);
   }
 );
 

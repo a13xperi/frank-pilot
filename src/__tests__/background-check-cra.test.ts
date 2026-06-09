@@ -7,9 +7,11 @@
  *     for the HUD engine.
  *   - resolve(): reads the webhook-persisted verdict; could_not_screen HOLD when
  *     no report / pending / wrong shape / lookup throws; re-runs evaluateResults.
- *   - createReport(): fail-loud throw until credentialing exists.
+ *   - createReport(): keyless → fail-loud throw (no fabricated handle); keyed →
+ *     real Checkr candidate + invitation flow over a mocked fetch.
  *
- * No network / no real DB: ../config/database query is mocked.
+ * No network / no real DB: ../config/database query is mocked; the keyed
+ * createReport tests mock global fetch.
  */
 
 const mockQuery = jest.fn();
@@ -27,6 +29,10 @@ describe("BackgroundCheckService — Checkr CRA mapping", () => {
     jest.clearAllMocks();
     svc = new BackgroundCheckService();
     delete process.env.CRIMINAL_DECISION_ENGINE_ENABLED;
+    // Keep the keyless createReport contract test deterministic even if a sibling
+    // test file in the same worker left CHECKR_API_KEY set. The keyed describe
+    // re-sets it in its own beforeEach (runs after this one).
+    delete process.env.CHECKR_API_KEY;
   });
 
   describe("mapCheckrReportToResponse", () => {
@@ -186,17 +192,132 @@ describe("BackgroundCheckService — Checkr CRA mapping", () => {
   });
 
   describe("createReport", () => {
-    it("throws (fail-loud) until Checkr credentialing exists", async () => {
+    const ORIGINAL_FETCH = global.fetch;
+    afterEach(() => {
+      global.fetch = ORIGINAL_FETCH;
+      delete process.env.CHECKR_API_KEY;
+      delete process.env.CHECKR_API_URL;
+      delete process.env.CHECKR_PACKAGE;
+    });
+
+    const baseInput = {
+      applicationId: "app-1",
+      firstName: "Sam",
+      lastName: "Lee",
+      ssnLast4: "6789",
+      dateOfBirth: "1990-01-01",
+      state: "NV",
+      email: "sam@example.com",
+    };
+
+    // Queue HTTP responses in call order; returns the captured calls for asserts.
+    function mockFetchSequence(
+      responses: Array<{ ok: boolean; status?: number; body: unknown }>
+    ): Array<{ url: string; init: any }> {
+      const calls: Array<{ url: string; init: any }> = [];
+      let i = 0;
+      global.fetch = jest.fn(async (url: any, init: any) => {
+        calls.push({ url: String(url), init });
+        const r = responses[Math.min(i, responses.length - 1)];
+        i += 1;
+        return {
+          ok: r.ok,
+          status: r.status ?? (r.ok ? 200 : 400),
+          json: async () => r.body,
+          text: async () =>
+            typeof r.body === "string" ? r.body : JSON.stringify(r.body),
+        } as any;
+      }) as any;
+      return calls;
+    }
+
+    it("keyless → fail-loud throw, never a fabricated handle", async () => {
+      // No CHECKR_API_KEY set: must throw (no fake invitation url), and the
+      // historical message keeps the contract stable.
+      await expect(svc.createReport(baseInput)).rejects.toThrow(/not yet configured/i);
+    });
+
+    it("placeholder 'changeme' key is treated as keyless (throws)", async () => {
+      process.env.CHECKR_API_KEY = "changeme";
+      await expect(svc.createReport(baseInput)).rejects.toThrow(/not yet configured/i);
+    });
+
+    it("keyed but no applicant email → fail-loud, no network call", async () => {
+      process.env.CHECKR_API_KEY = "test_key";
+      const calls = mockFetchSequence([]);
       await expect(
-        svc.createReport({
-          applicationId: "app-1",
-          firstName: "Sam",
-          lastName: "Lee",
-          ssnLast4: "6789",
-          dateOfBirth: "1990-01-01",
-          state: "NV",
-        })
-      ).rejects.toThrow(/not yet configured/i);
+        svc.createReport({ ...baseInput, email: undefined })
+      ).rejects.toThrow(/requires an applicant email/i);
+      expect(calls.length).toBe(0);
+    });
+
+    it("keyed happy path → candidate then invitation; returns candidate.id + hosted url", async () => {
+      process.env.CHECKR_API_KEY = "test_key";
+      const calls = mockFetchSequence([
+        { ok: true, body: { id: "cand_123" } },
+        {
+          ok: true,
+          body: { invitation_url: "https://apply.checkr.com/abc", status: "pending" },
+        },
+      ]);
+
+      const handle = await svc.createReport(baseInput);
+
+      // candidate.id (NOT a report id — none exists at create time) is the join key.
+      expect(handle.reportId).toBe("cand_123");
+      expect(handle.url).toBe("https://apply.checkr.com/abc");
+      expect(handle.status).toBe("pending");
+
+      // Candidate first, then invitation — in order.
+      expect(calls.map((c) => c.url)).toEqual([
+        "https://api.checkr.com/v1/candidates",
+        "https://api.checkr.com/v1/invitations",
+      ]);
+      const invBody = JSON.parse(calls[1].init.body);
+      expect(invBody.candidate_id).toBe("cand_123");
+    });
+
+    it("NEVER transmits a full SSN — only name/email/dob leave us", async () => {
+      process.env.CHECKR_API_KEY = "test_key";
+      const calls = mockFetchSequence([
+        { ok: true, body: { id: "cand_123" } },
+        { ok: true, body: { invitation_url: "https://x", status: "pending" } },
+      ]);
+
+      await svc.createReport(baseInput);
+
+      const candBody = JSON.parse(calls[0].init.body);
+      // The hosted invitation collects the full SSN from the applicant; we hold
+      // only ssnLast4 and it must never be sent.
+      expect(JSON.stringify(candBody)).not.toContain("6789");
+      expect(candBody.ssn).toBeUndefined();
+      expect(candBody.email).toBe("sam@example.com");
+    });
+
+    it("candidate create returns no id → fail-loud throw", async () => {
+      process.env.CHECKR_API_KEY = "test_key";
+      mockFetchSequence([{ ok: true, body: {} }]);
+      await expect(svc.createReport(baseInput)).rejects.toThrow(/no id/i);
+    });
+
+    it("non-2xx from Checkr → fail-loud throw (caller HOLDs, never a fake handle)", async () => {
+      process.env.CHECKR_API_KEY = "test_key";
+      mockFetchSequence([{ ok: false, status: 422, body: { error: "bad package" } }]);
+      await expect(svc.createReport(baseInput)).rejects.toThrow(/Checkr .*failed/i);
+    });
+
+    it("authenticates with HTTP Basic (API key as username, empty password)", async () => {
+      process.env.CHECKR_API_KEY = "secret_key";
+      const calls = mockFetchSequence([
+        { ok: true, body: { id: "cand_1" } },
+        { ok: true, body: { invitation_url: "https://x", status: "pending" } },
+      ]);
+
+      await svc.createReport(baseInput);
+
+      const auth = calls[0].init.headers.Authorization as string;
+      expect(auth.startsWith("Basic ")).toBe(true);
+      expect(Buffer.from(auth.slice(6), "base64").toString()).toBe("secret_key:");
     });
   });
 });
