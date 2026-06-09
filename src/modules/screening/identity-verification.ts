@@ -274,7 +274,7 @@ export class IdentityVerificationService {
    * persisted — only the categorical `name_dob_mismatch` signal is.
    */
   private documentMismatch(
-    doc: Stripe.Identity.VerificationReport.Document,
+    doc: NonNullable<Stripe.Identity.VerificationReport["document"]>,
     expected: { firstName?: string; lastName?: string; dateOfBirth?: string }
   ): boolean {
     const norm = (s?: string | null) => (s ?? "").trim().toLowerCase();
