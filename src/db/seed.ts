@@ -174,16 +174,32 @@ async function seed() {
       },
     ];
 
+    // NOTE: `properties` has no UNIQUE natural-key constraint, so a bare
+    // `ON CONFLICT DO NOTHING` here never had an arbiter to match — every row
+    // inserted unconditionally and re-running this seed appended all 17 again.
+    // A DB-level unique key isn't viable: the statewide catalog loaded by
+    // seed-property-geo.ts contains duplicate property names (and is collapsed
+    // by slug-match, not a constraint), and the runtime PM-console create path
+    // would also be affected. So we guard idempotency in code instead — the
+    // same approach seed-property-geo.ts already uses — keying on `name`, the
+    // identity the rest of this seeder (and the units lookup below) resolves on.
     const INSERT_SQL = `INSERT INTO properties
       (name, address_line1, city, state, zip, unit_count, ami_area,
        phone, email, property_manager, property_type,
        lihtc_type, ami_set_aside, compliance_period_start, compliance_period_end,
        has_lura, has_mortgage, jurisdiction,
        unit_mix, rent_schedule, total_vacancy, waiting_list_enabled)
-      VALUES ($1,$2,$3,'NV',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
-      ON CONFLICT DO NOTHING`;
+      VALUES ($1,$2,$3,'NV',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`;
 
     for (const p of properties) {
+      const existing = await query(
+        "SELECT id FROM properties WHERE name = $1 LIMIT 1",
+        [p.name]
+      );
+      if (existing.rows.length > 0) {
+        console.log(`  Property exists, skipping: ${p.name}`);
+        continue;
+      }
       await query(INSERT_SQL, [
         p.name, p.addressLine1, p.city, p.zip, p.unitCount, AMI,
         p.phone, p.email, p.propertyManager, p.propertyType,
