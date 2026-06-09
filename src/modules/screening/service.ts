@@ -19,6 +19,18 @@ import type { NsopwDirectResult } from "./nsopw-direct";
 import { AdverseActionService } from "../adverse-action/service";
 import { transitionApplicationStatus } from "./state-machine";
 import type { AppStatusTransitionResult } from "./state-machine";
+import { addBusinessDays } from "../../utils/business-days";
+
+// Pre-adverse-action window (flag-gated, default OFF ⇒ byte-identical). When ON,
+// a screening-driven denial routes through pending_adverse_action with an
+// intent-to-deny notice + dispute window instead of going straight to
+// screening_failed. Best-practice/state-law-ready, not a federal rental mandate.
+function preAdverseConfig(): { enabled: boolean; windowDays: number } {
+  const enabled = process.env.FCRA_PRE_ADVERSE_ENABLED === "true";
+  const parsed = parseInt(process.env.FCRA_PRE_ADVERSE_WINDOW_DAYS || "5", 10);
+  const windowDays = Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
+  return { enabled, windowDays };
+}
 
 // IdentityVerificationResult.result uses verified/rejected/review_required/
 // could_not_screen; the `screening_result` enum + downstream overall-result
@@ -600,14 +612,23 @@ export class ScreeningService {
     const backgroundNeedsAssessment =
       backgroundResult.details.decision === "individualized_review";
 
-    // fail                          -> screening_failed  / any_check_failed
-    // could_not_screen              -> screening_review  / could_not_screen
-    // individualized assessment     -> screening_review  / individualized_assessment_required
-    // review_required (passthrough) -> screening_passed  / review_required_passthrough
-    // pass                          -> screening_passed  / all_checks_passed
+    // Pre-adverse window: when enabled, a fail routes through the hold instead
+    // of straight to screening_failed (flag off ⇒ identical to before).
+    const { enabled: preAdverseEnabled, windowDays: preAdverseWindowDays } =
+      preAdverseConfig();
+    const denyViaPreAdverse = preAdverseEnabled && overallResult === "fail";
+
+    // fail (flag off)               -> screening_failed        / any_check_failed
+    // fail (flag on)                -> pending_adverse_action  / pre_adverse_action_started
+    // could_not_screen              -> screening_review        / could_not_screen
+    // individualized assessment     -> screening_review        / individualized_assessment_required
+    // review_required (passthrough) -> screening_passed        / review_required_passthrough
+    // pass                          -> screening_passed        / all_checks_passed
     const finalStatus =
       overallResult === "fail"
-        ? "screening_failed"
+        ? denyViaPreAdverse
+          ? "pending_adverse_action"
+          : "screening_failed"
         : overallResult === "could_not_screen"
           ? "screening_review"
           : backgroundNeedsAssessment
@@ -615,7 +636,9 @@ export class ScreeningService {
             : "screening_passed";
     const finalTrigger =
       overallResult === "fail"
-        ? "any_check_failed"
+        ? denyViaPreAdverse
+          ? "pre_adverse_action_started"
+          : "any_check_failed"
         : overallResult === "could_not_screen"
           ? "could_not_screen"
           : backgroundNeedsAssessment
@@ -660,21 +683,49 @@ export class ScreeningService {
       ]
         .filter(Boolean)
         .join(", ");
+      const reasonDetail = `Automated screening denial: failed ${failedChecks}`;
 
-      this.adverseAction
-        .sendNotice(
-          applicationId,
-          initiatedBy,
-          initiatorRole,
-          "screening_failed",
-          `Automated screening denial: failed ${failedChecks}`
-        )
-        .catch((err: Error) =>
-          logger.error("Failed to send FCRA adverse action notice after screening failure", {
-            error: err.message,
-            applicationId,
-          })
+      if (denyViaPreAdverse) {
+        // Pre-adverse path: open the dispute window, then send the intent-to-deny
+        // notice. eligible_at is written AFTER the CAS wins; the finalizer skips
+        // rows where it is still NULL, so the brief gap is race-safe.
+        const eligibleAt = addBusinessDays(new Date(), preAdverseWindowDays);
+        await query(
+          "UPDATE applications SET adverse_action_eligible_at = $2 WHERE id = $1",
+          [applicationId, eligibleAt]
         );
+        this.adverseAction
+          .sendPreAdverseNotice(
+            applicationId,
+            initiatedBy,
+            initiatorRole,
+            "screening_failed",
+            preAdverseWindowDays,
+            eligibleAt,
+            reasonDetail
+          )
+          .catch((err: Error) =>
+            logger.error("Failed to send FCRA pre-adverse action notice after screening failure", {
+              error: err.message,
+              applicationId,
+            })
+          );
+      } else {
+        this.adverseAction
+          .sendNotice(
+            applicationId,
+            initiatedBy,
+            initiatorRole,
+            "screening_failed",
+            reasonDetail
+          )
+          .catch((err: Error) =>
+            logger.error("Failed to send FCRA adverse action notice after screening failure", {
+              error: err.message,
+              applicationId,
+            })
+          );
+      }
     }
 
     // Audit each check completion
@@ -806,8 +857,24 @@ export class ScreeningService {
     reviewerId: string,
     reviewerRole: string
   ): Promise<AppStatusTransitionResult> {
-    const to = decision === "pass" ? "screening_passed" : "screening_failed";
-    const trigger = decision === "pass" ? "manual_override_pass" : "manual_override_fail";
+    // Pre-adverse window: a manual fail routes through the hold when enabled
+    // (flag off ⇒ straight to screening_failed, exactly as before).
+    const { enabled: preAdverseEnabled, windowDays: preAdverseWindowDays } =
+      preAdverseConfig();
+    const denyViaPreAdverse = preAdverseEnabled && decision === "fail";
+
+    const to =
+      decision === "pass"
+        ? "screening_passed"
+        : denyViaPreAdverse
+          ? "pending_adverse_action"
+          : "screening_failed";
+    const trigger =
+      decision === "pass"
+        ? "manual_override_pass"
+        : denyViaPreAdverse
+          ? "pre_adverse_action_started"
+          : "manual_override_fail";
 
     const { changed, status } = await transitionApplicationStatus({
       applicationId,
@@ -829,20 +896,47 @@ export class ScreeningService {
     // in the manual_override_fail status-transition audit recorded above, not in
     // the applicant-facing letter.
     if (decision === "fail" && changed) {
-      this.adverseAction
-        .sendNotice(
-          applicationId,
-          reviewerId,
-          reviewerRole,
-          "screening_failed",
-          notes
-        )
-        .catch((err: Error) =>
-          logger.error("Failed to send FCRA adverse action notice after manual review denial", {
-            error: err.message,
-            applicationId,
-          })
+      if (denyViaPreAdverse) {
+        // Pre-adverse path: open the dispute window, then send the intent-to-deny
+        // notice with the RAW notes (preview === sent). The finalizer reuses this
+        // pre_adverse row's reason_detail for the final notice.
+        const eligibleAt = addBusinessDays(new Date(), preAdverseWindowDays);
+        await query(
+          "UPDATE applications SET adverse_action_eligible_at = $2 WHERE id = $1",
+          [applicationId, eligibleAt]
         );
+        this.adverseAction
+          .sendPreAdverseNotice(
+            applicationId,
+            reviewerId,
+            reviewerRole,
+            "screening_failed",
+            preAdverseWindowDays,
+            eligibleAt,
+            notes
+          )
+          .catch((err: Error) =>
+            logger.error("Failed to send FCRA pre-adverse action notice after manual review denial", {
+              error: err.message,
+              applicationId,
+            })
+          );
+      } else {
+        this.adverseAction
+          .sendNotice(
+            applicationId,
+            reviewerId,
+            reviewerRole,
+            "screening_failed",
+            notes
+          )
+          .catch((err: Error) =>
+            logger.error("Failed to send FCRA adverse action notice after manual review denial", {
+              error: err.message,
+              applicationId,
+            })
+          );
+      }
     }
 
     return { changed, status };
