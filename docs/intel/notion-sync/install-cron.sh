@@ -122,8 +122,11 @@ PLIST_EOF
 plutil -lint "$PLIST" >/dev/null
 echo "✓ wrote plist: $PLIST"
 
-# (re)load the agent
+# (re)load the agent. `enable` clears any persistent `launchctl disable` override
+# (e.g. the agent was parked off until vendors went live) — without it bootstrap
+# would silently refuse to load a disabled label.
 launchctl bootout "$DOMAIN/$SYNC_LABEL" 2>/dev/null || true
+launchctl enable "$DOMAIN/$SYNC_LABEL" 2>/dev/null || true
 launchctl bootstrap "$DOMAIN" "$PLIST"
 printf '✓ launchd agent loaded — fires daily %02d:%02d local\n' "$SYNC_HOUR" "$SYNC_MINUTE"
 
