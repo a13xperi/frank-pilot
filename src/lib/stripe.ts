@@ -2,8 +2,8 @@ import Stripe from "stripe";
 
 // Pinned in code so a Dashboard-side API-version flip doesn't silently change
 // webhook payload shapes under us. Match the value to the installed SDK's
-// LatestApiVersion when bumping `stripe` (currently stripe@^17.2.0).
-export const STRIPE_API_VERSION = "2025-02-24.acacia" as const;
+// LatestApiVersion when bumping `stripe` (currently stripe@^22.2.0).
+export const STRIPE_API_VERSION = "2026-05-27.dahlia" as const;
 
 const PLACEHOLDER_SECRET_KEYS = new Set([
   "",

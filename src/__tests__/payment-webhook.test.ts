@@ -65,7 +65,7 @@ const flush = () => new Promise((resolve) => setImmediate(resolve));
 // and inject the same one into both halves of the test.
 const FAKE_KEY = "sk_test_signing_only_does_not_call_api";
 const WEBHOOK_SECRET = "whsec_test_fixture_secret_abcdef";
-const stripe = new Stripe(FAKE_KEY, { apiVersion: "2025-02-24.acacia" as Stripe.LatestApiVersion });
+const stripe = new Stripe(FAKE_KEY, { apiVersion: "2026-05-27.dahlia" });
 
 jest.mock("../lib/stripe", () => {
   // The router imports getStripe() lazily; we return the real instance built

@@ -8,6 +8,13 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    // stripe@22's CJS type entry (export = StripeConstructor) drops the resource
+    // namespace, so `Stripe.PaymentIntent` etc. don't resolve under
+    // module:commonjs. Point type resolution at stripe's ESM declaration
+    // (export default Stripe = the namespace-merged class), which is the shape
+    // stripe documents. Compile-time only: runtime require("stripe") still uses
+    // node's normal CJS resolution, so JS emit is unchanged.
+    "paths": { "stripe": ["./node_modules/stripe/esm/stripe.esm.node.d.ts"] },
     // TS 6.0 no longer auto-includes global-declaring @types/* packages
     // (jest/node ambient globals). List them explicitly so describe/it/
     // expect/process resolve. Module-imported @types resolve via imports.

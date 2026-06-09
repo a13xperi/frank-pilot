@@ -19,7 +19,7 @@ import Stripe from "stripe";
 
 const FAKE_KEY = "sk_test_signing_only_does_not_call_api";
 const WEBHOOK_SECRET = "whsec_test_fixture_secret_abcdef";
-const stripe = new Stripe(FAKE_KEY, { apiVersion: "2025-02-24.acacia" as Stripe.LatestApiVersion });
+const stripe = new Stripe(FAKE_KEY, { apiVersion: "2026-05-27.dahlia" });
 
 const mockRetrieve = jest.fn();
 const mockMapStripeSessionToResult = jest.fn();
