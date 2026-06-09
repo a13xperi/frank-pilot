@@ -87,6 +87,8 @@ const mockGetAuthorization = jest.fn();
 const mockRecordAuthorization = jest.fn();
 const mockBgCreateReport = jest.fn();
 const mockCreditCreateReport = jest.fn();
+const mockBgIsConfigured = jest.fn();
+const mockCreditIsConfigured = jest.fn();
 jest.mock("../modules/screening/consumer-report-consent", () => ({
   getAuthorization: (...a: unknown[]) => mockGetAuthorization(...a),
   recordAuthorization: (...a: unknown[]) => mockRecordAuthorization(...a),
@@ -96,11 +98,13 @@ jest.mock("../modules/screening/consumer-report-consent", () => ({
 jest.mock("../modules/screening/background-check", () => ({
   BackgroundCheckService: jest.fn().mockImplementation(() => ({
     createReport: (...a: unknown[]) => mockBgCreateReport(...a),
+    isConfigured: (...a: unknown[]) => mockBgIsConfigured(...a),
   })),
 }));
 jest.mock("../modules/screening/credit-check", () => ({
   CreditCheckService: jest.fn().mockImplementation(() => ({
     createReport: (...a: unknown[]) => mockCreditCreateReport(...a),
+    isConfigured: (...a: unknown[]) => mockCreditIsConfigured(...a),
   })),
 }));
 
@@ -453,9 +457,16 @@ describe("ApplicationService.submit() — FCRA consumer-report consent", () => {
     mockRecordAuthorization.mockReset();
     mockBgCreateReport.mockReset();
     mockCreditCreateReport.mockReset();
+    mockBgIsConfigured.mockReset();
+    mockCreditIsConfigured.mockReset();
     mockTransition.mockResolvedValue({ changed: true, status: "awaiting_consumer_report" } as any);
     mockBgCreateReport.mockResolvedValue({ reportId: "bg_1", status: "pending", url: "https://bg" });
     mockCreditCreateReport.mockResolvedValue({ reportId: "cr_1", status: "pending", url: "https://cr" });
+    // Default: both CRA vendors armed so the readiness preflight passes and the
+    // existing happy-path order-creation tests behave as before. Partial-arm is
+    // exercised explicitly below.
+    mockBgIsConfigured.mockReturnValue(true);
+    mockCreditIsConfigured.mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -530,6 +541,32 @@ describe("ApplicationService.submit() — FCRA consumer-report consent", () => {
     const params = authStampParams();
     expect(params).toBeDefined();
     expect(params![5]).toBe(authorizedAt);
+  });
+
+  it("flag on + consent affirmed but a CRA vendor NOT configured ⇒ no orders, no transition, app stays submitted (no orphaned Checkr candidate)", async () => {
+    process.env.CONSUMER_REPORT_ENABLED = "true";
+    // The partial-arm reality: Checkr armed, TransUnion credit not yet credentialed.
+    mockBgIsConfigured.mockReturnValue(true);
+    mockCreditIsConfigured.mockReturnValue(false);
+    mockRecordAuthorization.mockResolvedValue({
+      authorizedAt: "2026-06-01T10:00:00.000Z",
+      alreadyRecorded: false,
+    });
+    mockQuery.mockResolvedValue(qr([submittedRow])); // status UPDATE; preflight returns before appRow SELECT
+
+    const service = makeService();
+    const result = await service.submit("app-001", "user-001", "applicant", undefined, {
+      authorized: true,
+      disclosureVersion: "2026-06-01",
+    });
+
+    // Refuse loudly BEFORE any outbound side effect: no Checkr/TU order is created,
+    // so no candidate is orphaned and the applicant is never emailed a half-armed
+    // pull. The app stays in `submitted` and is never advanced.
+    expect(result.status).toBe("submitted");
+    expect(mockBgCreateReport).not.toHaveBeenCalled();
+    expect(mockCreditCreateReport).not.toHaveBeenCalled();
+    expect(mockTransition).not.toHaveBeenCalled();
   });
 
   it("flag on + valid authorization already on file (no fresh consent) ⇒ uses stored authorizedAt, creates orders", async () => {

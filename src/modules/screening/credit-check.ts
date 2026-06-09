@@ -152,6 +152,18 @@ export class CreditCheckService {
   }
 
   /**
+   * Is the TransUnion ShareAble CRA armed? True only with a real
+   * TRANSUNION_SHAREABLE_API_KEY — the SAME predicate createReport() gates its
+   * keyless fail-loud throw on. submit() preflights this alongside the Checkr
+   * check so it never creates a Checkr order it cannot pair with a credit order.
+   * Keep this in lockstep with createReport()'s key check.
+   */
+  isConfigured(): boolean {
+    const apiKey = process.env.TRANSUNION_SHAREABLE_API_KEY || "";
+    return !!apiKey && apiKey !== "changeme";
+  }
+
+  /**
    * POST to the TransUnion ShareAble API with a Bearer API key. Any non-2xx
    * THROWS with a categorical detail — the submit() caller turns that into a
    * fail-loud HOLD, never a fabricated handle. Mirrors background-check.ts's
