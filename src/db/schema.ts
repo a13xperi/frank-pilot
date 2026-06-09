@@ -584,7 +584,12 @@ CREATE TABLE IF NOT EXISTS units (
   available_from DATE,
   -- QAP acquisitions Phase 3: per-unit AMI designation from a bound award's
   -- election/unit-mix. NULL = undesignated. See 2026-05-25-acq-awards-and-designations.sql.
-  ami_designation VARCHAR(10) CHECK (ami_designation IN ('30','50','60','market')),
+  -- TYPE is TEXT (not VARCHAR) to match that delta's ADD COLUMN ... TEXT: on a
+  -- fresh migrate-up SCHEMA_SQL creates this column first, so the delta's
+  -- ADD COLUMN IF NOT EXISTS no-ops — if the base type disagreed, fresh installs
+  -- would diverge from prod (which was built delta-first as TEXT). See
+  -- 2026-06-08-units-ami-designation-text.sql.
+  ami_designation TEXT CHECK (ami_designation IN ('30','50','60','market')),
   -- LIHTC §42 Phase A: link to the unit's building (nullable). See 2026-05-30-buildings-bin.sql.
   building_id UUID REFERENCES buildings(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
