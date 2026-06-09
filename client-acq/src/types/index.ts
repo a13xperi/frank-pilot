@@ -193,8 +193,6 @@ export interface ScoredProject {
 
 // ── Awards + compliance bridge (Phase 3, mirrors award-service.ts) ────────────
 
-export type AmiDesignation = '30' | '50' | 'market';
-// The persisted designation also allows '60'; kept as a union for the grid.
 export type UnitDesignation = '30' | '50' | '60' | 'market';
 export type AwardStatus = 'reserved' | 'placed_in_service' | 'in_service' | 'closed';
 
