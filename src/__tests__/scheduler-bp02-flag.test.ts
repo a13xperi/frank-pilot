@@ -7,14 +7,17 @@
  * on a schedule just floods logs with errors. The cron must therefore only
  * register when COMPLIANCE_TAPE_V2_ENABLED === "true".
  *
+ * The same flag also gates the every-15-min compliance_tape_dlq replay-cron, so
+ * "true" registers BOTH (verify + replay) on top of the baseline.
+ *
  * These tests assert all three flag-state branches:
  *   - undefined        → skip (default OFF)
  *   - "false" (string) → skip
- *   - "true"           → register
+ *   - "true"           → register both flag-gated crons
  *
  * The other five scheduled jobs (rent, late fees, renewals, recerts, TRACS)
  * are always registered and are unaffected by the flag — we assert the
- * verify-cron registration by counting cron.schedule calls against that
+ * flag-gated cron registration by counting cron.schedule calls against that
  * fixed baseline.
  */
 
@@ -110,10 +113,13 @@ describe("BP-02 verify-cron flag gate", () => {
     expect(expressions).not.toContain("*/5 * * * *");
   });
 
-  it("DOES register the verify-cron when the flag is the string \"true\"", () => {
+  it("DOES register the verify-cron AND the tape-DLQ replay-cron when the flag is the string \"true\"", () => {
     const cron = runSchedulerWithFlag("true");
-    expect(cron.schedule).toHaveBeenCalledTimes(BASELINE_CRON_JOBS + 1);
+    // The flag gates TWO crons: the every-5-min chain-verify sweep and the
+    // every-15-min compliance_tape_dlq replay/reconciler. Both register together.
+    expect(cron.schedule).toHaveBeenCalledTimes(BASELINE_CRON_JOBS + 2);
     const expressions = cron.schedule.mock.calls.map((c) => c[0]);
-    expect(expressions).toContain("*/5 * * * *");
+    expect(expressions).toContain("*/5 * * * *"); // verify-cron
+    expect(expressions).toContain("*/15 * * * *"); // tape-DLQ replay-cron
   });
 });

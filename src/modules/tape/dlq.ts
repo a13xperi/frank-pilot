@@ -33,7 +33,15 @@ import { createTapeService } from "./service";
 import { PgTapeRepository } from "./repository";
 import type { TapeEvent, TapeStampKind } from "./types";
 
-const tape = createTapeService(new PgTapeRepository());
+// Lazily constructed: parkFailedStamp (the always-on hot path) does a raw INSERT
+// and never needs the tape service, so importing this module — which the acq
+// stamp sites do eagerly — must not pull a TapeService into existence. Only
+// replayTapeDlq() (dark, flag-gated) re-stamps, so it builds the service on first
+// use and memoizes it.
+let tapeSingleton: ReturnType<typeof createTapeService> | undefined;
+function getTape(): ReturnType<typeof createTapeService> {
+  return (tapeSingleton ??= createTapeService(new PgTapeRepository()));
+}
 
 /** Stop accepting new parked rows past this many unreplayed/unexhausted entries.
  *  A standing tape outage would otherwise grow this table unbounded. Matches the
@@ -119,7 +127,7 @@ export async function replayTapeDlq(opts?: { limit?: number }): Promise<ReplayRe
   let failed = 0;
   for (const row of rows as DlqRow[]) {
     try {
-      await tape.stamp({
+      await getTape().stamp({
         kind: row.kind as TapeStampKind,
         payload: row.payload,
         sessionId: row.session_id ?? undefined,

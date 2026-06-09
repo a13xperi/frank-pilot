@@ -4,7 +4,6 @@ import { LedgerService } from "./modules/ledger/service";
 import { LeaseRenewalService } from "./modules/renewal/service";
 import { createTapeService } from "./modules/tape/service";
 import { PgTapeRepository } from "./modules/tape/repository";
-import { replayTapeDlq } from "./modules/tape/dlq";
 import { AdverseActionService } from "./modules/adverse-action/service";
 import { logger } from "./utils/logger";
 
@@ -160,6 +159,7 @@ export function startScheduler() {
     // replayTapeDlq() call — recoverable, never silently lost.
     cron.schedule("*/15 * * * *", async () => {
       try {
+        const { replayTapeDlq } = await import("./modules/tape/dlq");
         const stats = await replayTapeDlq();
         if (stats.scanned > 0) {
           logger.info("BP-02 tape-DLQ replay tick", stats);
