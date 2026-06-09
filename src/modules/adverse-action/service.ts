@@ -2,6 +2,11 @@ import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 import { TwilioService } from "../integrations/twilio";
+// No import cycle: state-machine imports audit/logger/database/tape, never
+// adverse-action. The finalizer below uses the same CAS chokepoint as the
+// screening pipeline so the pending_adverse_action -> screening_failed move is
+// exactly-once and gated on `changed`.
+import { transitionApplicationStatus } from "../screening/state-machine";
 
 /**
  * FCRA Adverse Action Notice Service
@@ -56,7 +61,7 @@ export class AdverseActionService {
    */
   async sendNotice(
     applicationId: string,
-    actorId: string,
+    actorId: string | null,
     actorRole: string,
     reason: string,
     reasonDetail?: string
@@ -97,7 +102,10 @@ export class AdverseActionService {
 
     await writeAuditLog({
       action: "adverse_action_notice_sent",
-      actorId,
+      // actorId may be null when the daily finalizer (system, no UUID) sends the
+      // § 1681m final notice — sent_by/actor_id are nullable FKs; coerce to
+      // undefined so writeAuditLog's `entry.actorId || null` types check.
+      actorId: actorId ?? undefined,
       actorRole,
       applicationId,
       resourceType: "adverse_action_notice",
@@ -262,6 +270,249 @@ export class AdverseActionService {
       ``,
       `The CRA listed above did not make this adverse action decision and is unable to`,
       `explain why the decision was made.`,
+      ``,
+      `For questions regarding your application, please contact us at:`,
+      `  ${PROPERTY_MGMT_CONTACT}`,
+      ``,
+      `Community Development Programs Center of Nevada`,
+    ]
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n"); // collapse any triple+ newlines from empty reasonDetail
+  }
+
+  // -------------------------------------------------------------------------
+  // Pre-adverse-action window (flag-gated FCRA_PRE_ADVERSE_ENABLED)
+  //
+  // Legal framing (do not overstate): FCRA § 1681b(b)(3) — the pre-adverse
+  // subsection — governs EMPLOYMENT screening, not rental. A landlord's federal
+  // duty is the § 1681m POST-action notice (sendNotice above). The pre-adverse
+  // notice + dispute window below is a configurable best-practice / HUD-aligned /
+  // state-law-ready courtesy, default OFF. The notice text says we *intend* to
+  // deny and gives the applicant time to obtain and dispute their report; it
+  // never claims a federal rental mandate.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Send a PRE-adverse notice: intent-to-deny + copy-of-report/dispute rights +
+   * an N-business-day window (until eligibleDate). Persists a stage='pre_adverse'
+   * row in adverse_action_notices; the daily finalizer later carries this row's
+   * reason_detail into the final § 1681m notice so preview === sent across the
+   * whole window. Same applicant/property lookup + non-blocking SMS as sendNotice.
+   */
+  async sendPreAdverseNotice(
+    applicationId: string,
+    actorId: string | null,
+    actorRole: string,
+    reason: string,
+    windowDays: number,
+    eligibleDate: Date,
+    reasonDetail?: string
+  ): Promise<AdverseActionResult> {
+    const appResult = await query(
+      `SELECT a.first_name, a.last_name, a.email, a.phone,
+              p.name AS property_name
+       FROM applications a
+       JOIN properties p ON a.property_id = p.id
+       WHERE a.id = $1`,
+      [applicationId]
+    );
+
+    if (appResult.rows.length === 0) {
+      throw new Error(`Application not found: ${applicationId}`);
+    }
+
+    const app = appResult.rows[0];
+    const applicantName = `${app.first_name} ${app.last_name}`;
+
+    const noticeText = this.buildPreAdverseNoticeText(
+      applicantName,
+      app.property_name,
+      windowDays,
+      eligibleDate,
+      reasonDetail
+    );
+
+    const insertResult = await query(
+      `INSERT INTO adverse_action_notices
+         (application_id, sent_by, reason, reason_detail, notice_text, sent_via, stage)
+       VALUES ($1, $2, $3, $4, $5, 'sms', 'pre_adverse')
+       RETURNING id, created_at`,
+      [applicationId, actorId, reason, reasonDetail || null, noticeText]
+    );
+
+    const { id: noticeId, created_at: sentAt } = insertResult.rows[0];
+
+    await writeAuditLog({
+      action: "pre_adverse_action_notice_sent",
+      actorId: actorId ?? undefined,
+      actorRole,
+      applicationId,
+      resourceType: "adverse_action_notice",
+      resourceId: noticeId,
+      details: {
+        reason,
+        reasonDetail: reasonDetail || null,
+        noticeId,
+        stage: "pre_adverse",
+        windowDays,
+        eligibleAt: eligibleDate.toISOString(),
+        sentVia: "sms",
+        applicantName,
+      },
+    });
+
+    if (app.phone) {
+      this.twilio
+        .notifyDenied(app.phone, applicantName)
+        .catch((err: Error) =>
+          logger.warn("Pre-adverse action SMS notification failed", {
+            error: err.message,
+            applicationId,
+            noticeId,
+          })
+        );
+    } else {
+      logger.warn("Pre-adverse action notice: applicant has no phone number on file", {
+        applicationId,
+        noticeId,
+      });
+    }
+
+    logger.info("Pre-adverse action notice sent", {
+      applicationId,
+      noticeId,
+      reason,
+      windowDays,
+      eligibleAt: eligibleDate.toISOString(),
+    });
+
+    return { noticeId, applicationId, sentAt, reason };
+  }
+
+  /**
+   * Finalize every pre-adverse hold whose dispute window has elapsed: each due
+   * application is CAS-moved pending_adverse_action -> screening_failed
+   * (adverse_action_finalized, system actor) and — gated on the CAS winning —
+   * sent the final § 1681m notice carrying the stored pre_adverse reason_detail
+   * (preview === sent). Side effects are gated on the CAS result, not the SELECT,
+   * so overlapping scheduler runs / multiple instances finalize exactly once.
+   * Errors are caught per row so one bad application never stalls the sweep.
+   */
+  async finalizeDuePreAdverseActions(): Promise<{
+    scanned: number;
+    finalized: number;
+    noticesSent: number;
+  }> {
+    const due = await query(
+      `SELECT a.id,
+              (SELECT n.reason_detail
+                 FROM adverse_action_notices n
+                WHERE n.application_id = a.id AND n.stage = 'pre_adverse'
+                ORDER BY n.created_at DESC
+                LIMIT 1) AS pre_adverse_reason_detail
+         FROM applications a
+        WHERE a.status = 'pending_adverse_action'
+          AND a.adverse_action_eligible_at IS NOT NULL
+          AND a.adverse_action_eligible_at <= NOW()
+        ORDER BY a.adverse_action_eligible_at ASC`
+    );
+
+    let finalized = 0;
+    let noticesSent = 0;
+
+    for (const row of due.rows) {
+      const applicationId = row.id as string;
+      const reasonDetail = (row.pre_adverse_reason_detail as string | null) || undefined;
+
+      try {
+        // System actor: actorId undefined -> NULL in status_history + audit
+        // (actor_id is a nullable UUID FK; "system" is a non-UUID string and
+        // would violate the FK). actorRole carries the "system" attribution.
+        const { changed } = await transitionApplicationStatus({
+          applicationId,
+          from: "pending_adverse_action",
+          to: "screening_failed",
+          trigger: "adverse_action_finalized",
+          actorId: undefined,
+          actorRole: "system",
+          evidence: { finalizedBy: "pre_adverse_window_scheduler" },
+        });
+
+        if (!changed) continue; // lost the CAS — another run already finalized
+        finalized++;
+
+        // Final § 1681m notice — reuses the stored pre_adverse reason_detail so
+        // the applicant gets the exact denial reason they were forewarned of.
+        await this.sendNotice(
+          applicationId,
+          null,
+          "system",
+          "screening_failed",
+          reasonDetail
+        );
+        noticesSent++;
+      } catch (err) {
+        logger.error("Pre-adverse finalization failed for application", {
+          error: (err as Error).message,
+          applicationId,
+        });
+      }
+    }
+
+    return { scanned: due.rows.length, finalized, noticesSent };
+  }
+
+  /**
+   * Build the PRE-adverse notice text — intent-to-deny + dispute window. Mirrors
+   * buildNoticeText's structure (CRA block, FCRA rights, collapse triple
+   * newlines) but frames the decision as not-yet-final and gives a deadline.
+   * Intentionally excludes SSN/DOB/PII.
+   */
+  private buildPreAdverseNoticeText(
+    applicantName: string,
+    propertyName: string,
+    windowDays: number,
+    eligibleDate: Date,
+    reasonDetail?: string
+  ): string {
+    const today = new Date().toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const deadline = eligibleDate.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    return [
+      `Date: ${today}`,
+      ``,
+      `Dear ${applicantName},`,
+      ``,
+      `We are writing to inform you that we INTEND to deny your rental application`,
+      `for ${propertyName}. This decision is not yet final.`,
+      reasonDetail ? `\nReason under consideration: ${reasonDetail}` : "",
+      ``,
+      `This intended decision is based in whole or in part on information obtained`,
+      `from a consumer reporting agency (CRA):`,
+      ``,
+      `  ${CRA_NAME}`,
+      `  ${CRA_ADDRESS}`,
+      `  Phone: ${CRA_PHONE}`,
+      ``,
+      `Before we finalize this decision, you have ${windowDays} business days`,
+      `(until ${deadline}) to:`,
+      ``,
+      `  1. Obtain a FREE copy of your consumer report from the CRA listed above.`,
+      ``,
+      `  2. Dispute any inaccurate or incomplete information directly with the CRA,`,
+      `     and let us know you are disputing it.`,
+      ``,
+      `The CRA listed above did not make this intended decision and is unable to`,
+      `explain why it was made. If we do not hear from you within the window above,`,
+      `the decision may become final and you will receive a final notice.`,
       ``,
       `For questions regarding your application, please contact us at:`,
       `  ${PROPERTY_MGMT_CONTACT}`,

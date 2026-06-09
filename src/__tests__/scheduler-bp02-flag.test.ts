@@ -45,6 +45,14 @@ jest.mock("../modules/tape/service", () => ({
 jest.mock("../modules/tape/repository", () => ({
   PgTapeRepository: jest.fn().mockImplementation(() => ({})),
 }));
+// scheduler.ts now instantiates AdverseActionService at module load for the
+// FCRA pre-adverse finalizer cron. Stub it so requiring the module never pulls
+// config/database (which opens a real pool) into the graph. This test never
+// sets FCRA_PRE_ADVERSE_ENABLED, so the finalizer cron stays unregistered and
+// BASELINE_CRON_JOBS is unchanged.
+jest.mock("../modules/adverse-action/service", () => ({
+  AdverseActionService: jest.fn().mockImplementation(() => ({})),
+}));
 
 // Number of cron.schedule calls made by the always-on jobs (everything except
 // the BP-02 verify-cron): recert reminders, TRACS, monthly rent, late fees,

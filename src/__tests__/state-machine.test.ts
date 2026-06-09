@@ -180,9 +180,20 @@ describe("transitionApplicationStatus (application_status chokepoint)", () => {
     // credit) is the analogous gate: the app waits for the applicant to authorize
     // the consumer-report pulls + pass KBA, then the CRA webhook advances it into
     // `screening` (or `screening_review` on could_not_screen).
+    // pending_adverse_action is a flag-gated hold (FCRA_PRE_ADVERSE_ENABLED): a
+    // denial parks there for the dispute window, is both a `to` (from screening/
+    // screening_review) and a `from` (finalizer -> screening_failed, or staff
+    // reopen -> screening_review).
     const froms = new Set(APP_STATUS_TRANSITIONS.map((t) => t.from));
     expect(froms).toEqual(
-      new Set(["submitted", "awaiting_identity", "awaiting_consumer_report", "screening", "screening_review"])
+      new Set([
+        "submitted",
+        "awaiting_identity",
+        "awaiting_consumer_report",
+        "screening",
+        "screening_review",
+        "pending_adverse_action",
+      ])
     );
     expect(
       APP_STATUS_TRANSITIONS.every((t) =>
@@ -193,9 +204,126 @@ describe("transitionApplicationStatus (application_status chokepoint)", () => {
           "screening_review",
           "screening_passed",
           "screening_failed",
+          "pending_adverse_action",
         ].includes(t.to)
       )
     ).toBe(true);
+  });
+
+  // ── pre-adverse-action window transitions (flag-gated FCRA_PRE_ADVERSE_ENABLED) ──
+
+  it("screening -> pending_adverse_action is valid ONLY with trigger 'pre_adverse_action_started'", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-paa" }] } as any);
+
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-paa",
+        from: "screening",
+        to: "pending_adverse_action",
+        trigger: "pre_adverse_action_started",
+        actorId: "user-1",
+        actorRole: "leasing_agent",
+      })
+    ).resolves.toEqual({ changed: true, status: "pending_adverse_action" });
+  });
+
+  it("rejects screening -> pending_adverse_action under a wrong trigger", async () => {
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-paa",
+        from: "screening",
+        to: "pending_adverse_action",
+        // any_check_failed is the immediate-path trigger; it must NOT open the
+        // pre-adverse hold.
+        trigger: "any_check_failed",
+      })
+    ).rejects.toThrow(/Invalid application_status transition/);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("screening_review -> pending_adverse_action is valid ONLY with trigger 'pre_adverse_action_started'", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-paa" }] } as any);
+
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-paa",
+        from: "screening_review",
+        to: "pending_adverse_action",
+        trigger: "pre_adverse_action_started",
+        actorId: "user-sm",
+        actorRole: "senior_manager",
+      })
+    ).resolves.toEqual({ changed: true, status: "pending_adverse_action" });
+  });
+
+  it("rejects screening_review -> pending_adverse_action under a wrong trigger", async () => {
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-paa",
+        from: "screening_review",
+        to: "pending_adverse_action",
+        trigger: "manual_override_fail",
+      })
+    ).rejects.toThrow(/Invalid application_status transition/);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("pending_adverse_action -> screening_failed is valid ONLY with trigger 'adverse_action_finalized' (system finalizer)", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-paa" }] } as any);
+
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-paa",
+        from: "pending_adverse_action",
+        to: "screening_failed",
+        trigger: "adverse_action_finalized",
+        // system actor — nullable UUID FK; never the string "system"
+        actorId: undefined,
+        actorRole: "system",
+        evidence: { finalizedBy: "pre_adverse_window_scheduler" },
+      })
+    ).resolves.toEqual({ changed: true, status: "screening_failed" });
+  });
+
+  it("rejects pending_adverse_action -> screening_failed under a wrong trigger", async () => {
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-paa",
+        from: "pending_adverse_action",
+        to: "screening_failed",
+        // any_check_failed / manual_override_fail are other paths into
+        // screening_failed; the finalizer must use its own trigger.
+        trigger: "any_check_failed",
+      })
+    ).rejects.toThrow(/Invalid application_status transition/);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("pending_adverse_action -> screening_review is valid ONLY with trigger 'dispute_filed' (staff reopen)", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: "app-paa" }] } as any);
+
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-paa",
+        from: "pending_adverse_action",
+        to: "screening_review",
+        trigger: "dispute_filed",
+        actorId: "staff-1",
+        actorRole: "leasing_agent",
+      })
+    ).resolves.toEqual({ changed: true, status: "screening_review" });
+  });
+
+  it("rejects pending_adverse_action -> screening_review under a wrong trigger", async () => {
+    await expect(
+      transitionApplicationStatus({
+        applicationId: "app-paa",
+        from: "pending_adverse_action",
+        to: "screening_review",
+        trigger: "could_not_screen",
+      })
+    ).rejects.toThrow(/Invalid application_status transition/);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   // ── could_not_screen hold + staff-resolution transitions (Phase: screening_review) ──

@@ -4,12 +4,14 @@ import { LedgerService } from "./modules/ledger/service";
 import { LeaseRenewalService } from "./modules/renewal/service";
 import { createTapeService } from "./modules/tape/service";
 import { PgTapeRepository } from "./modules/tape/repository";
+import { AdverseActionService } from "./modules/adverse-action/service";
 import { logger } from "./utils/logger";
 
 const recertService = new RecertificationService();
 const ledgerService = new LedgerService();
 const renewalService = new LeaseRenewalService();
 const tapeService = createTapeService(new PgTapeRepository());
+const adverseActionService = new AdverseActionService();
 
 /**
  * Start daily scheduled jobs.
@@ -152,6 +154,31 @@ export function startScheduler() {
   } else {
     logger.info(
       "BP-02 verify-cron skipped — COMPLIANCE_TAPE_V2_ENABLED is off"
+    );
+  }
+
+  // FCRA pre-adverse-action finalizer — gated on FCRA_PRE_ADVERSE_ENABLED.
+  // Until the flag is on there are no pending_adverse_action holds to finalize,
+  // so the cron stays unregistered (default off ⇒ byte-identical scheduler).
+  if (process.env.FCRA_PRE_ADVERSE_ENABLED === "true") {
+    // Daily at 6:00 AM — finalize every pre-adverse hold whose dispute window
+    // has elapsed: CAS pending_adverse_action -> screening_failed + § 1681m
+    // final notice (exactly-once, gated on the CAS result per application).
+    cron.schedule("0 6 * * *", async () => {
+      logger.info("Scheduler: Finalizing due pre-adverse-action holds");
+      try {
+        const stats = await adverseActionService.finalizeDuePreAdverseActions();
+        logger.info("Scheduler: Pre-adverse-action finalization complete", stats);
+      } catch (err) {
+        logger.error("Scheduler: Pre-adverse-action finalization failed", {
+          error: (err as Error).message,
+        });
+      }
+    });
+    logger.info("FCRA pre-adverse finalizer cron registered (FCRA_PRE_ADVERSE_ENABLED=true)");
+  } else {
+    logger.info(
+      "FCRA pre-adverse finalizer cron skipped — FCRA_PRE_ADVERSE_ENABLED is off"
     );
   }
 

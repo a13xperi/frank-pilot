@@ -42,6 +42,12 @@ CREATE TYPE application_status AS ENUM (
   'screening_passed',
   'screening_failed',
   'screening_review',
+  -- Pre-adverse-action hold (flag-gated FCRA_PRE_ADVERSE_ENABLED, 2026-06-09):
+  -- a consumer-report-derived denial parks here while the applicant gets an
+  -- intent-to-deny notice + dispute window; a daily scheduler finalizes it to
+  -- 'screening_failed'. Best-practice/state-law-ready, NOT a federal rental
+  -- mandate (§ 1681b(b)(3) is employment-only; rental's duty is § 1681m POST).
+  'pending_adverse_action',
   'tier1_review',
   'tier1_approved',
   'tier1_denied',
@@ -460,6 +466,11 @@ CREATE TABLE IF NOT EXISTS applications (
   -- { from, to, trigger, actorId, actorRole, at, evidence }.
   status_history JSONB NOT NULL DEFAULT '[]'::jsonb,
 
+  -- When a 'pending_adverse_action' hold becomes finalizable (now + N business
+  -- days). NULL until the flag-gated pre-adverse window opens; the daily
+  -- finalizer only acts on rows where this is non-NULL and <= NOW().
+  adverse_action_eligible_at TIMESTAMPTZ,
+
   -- Screening results
   identity_verification_result screening_result,
   identity_verification_details JSONB,
@@ -852,6 +863,10 @@ CREATE TABLE IF NOT EXISTS adverse_action_notices (
   notice_text TEXT NOT NULL,          -- full FCRA-compliant notice text (PII-safe for log)
   sent_via VARCHAR(50) DEFAULT 'sms',
   sms_delivered BOOLEAN,
+  -- 'pre_adverse' (intent-to-deny, fires when the pre-adverse window opens) vs
+  -- 'adverse' (the § 1681m final notice). Default 'adverse' keeps existing rows
+  -- and the unchanged sendNotice INSERT (which never names stage) byte-identical.
+  stage VARCHAR(20) NOT NULL DEFAULT 'adverse',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

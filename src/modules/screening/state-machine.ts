@@ -152,7 +152,13 @@ export type AppStatus =
   | "screening"
   | "screening_passed"
   | "screening_failed"
-  | "screening_review";
+  | "screening_review"
+  // Pre-adverse-action hold (flag-gated FCRA_PRE_ADVERSE_ENABLED). A
+  // consumer-report-derived denial parks here while the applicant gets an
+  // intent-to-deny notice + dispute window; the daily finalizer then advances
+  // it to screening_failed. Best-practice/state-law-ready, not a federal
+  // rental mandate (§ 1681b(b)(3) is employment-only; rental = § 1681m POST).
+  | "pending_adverse_action";
 
 interface AppStatusTransition {
   from: AppStatus;
@@ -197,6 +203,16 @@ export const APP_STATUS_TRANSITIONS: ReadonlyArray<AppStatusTransition> = [
   { from: "screening", to: "screening_review", trigger: "individualized_assessment_required" },
   { from: "screening_review", to: "screening_passed", trigger: "manual_override_pass" },
   { from: "screening_review", to: "screening_failed", trigger: "manual_override_fail" },
+  // Pre-adverse-action window (flag-gated FCRA_PRE_ADVERSE_ENABLED). When the
+  // flag is ON, a denial routes through pending_adverse_action instead of going
+  // straight to screening_failed: it opens an intent-to-deny hold, and the daily
+  // finalizer (after the dispute window) advances it the rest of the way.
+  { from: "screening", to: "pending_adverse_action", trigger: "pre_adverse_action_started" },
+  { from: "screening_review", to: "pending_adverse_action", trigger: "pre_adverse_action_started" },
+  { from: "pending_adverse_action", to: "screening_failed", trigger: "adverse_action_finalized" },
+  // Staff-reopen edge — a dispute lands during the window and a reviewer pulls
+  // the hold back for manual handling. Applicant-facing dispute UI is v2.
+  { from: "pending_adverse_action", to: "screening_review", trigger: "dispute_filed" },
 ];
 
 export interface AppStatusTransitionInput {
