@@ -6,9 +6,11 @@
  *     output; eviction + bankruptcy counts; score + payment-history derivation.
  *   - resolve(): reads the webhook-persisted verdict; could_not_screen HOLD when
  *     no report / pending / wrong shape / lookup throws; re-runs evaluateResults.
- *   - createReport(): fail-loud throw until credentialing exists.
+ *   - createReport(): keyless → fail-loud throw (no fabricated handle); keyed →
+ *     real ShareAble applicant + screening-request flow over a mocked fetch.
  *
- * No network / no real DB: ../config/database query is mocked.
+ * No network / no real DB: ../config/database query is mocked; the keyed
+ * createReport tests mock global fetch.
  */
 
 const mockQuery = jest.fn();
@@ -25,6 +27,10 @@ describe("CreditCheckService — TransUnion ShareAble CRA mapping", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     svc = new CreditCheckService();
+    // Keep the keyless createReport contract test deterministic even if a sibling
+    // test file in the same worker left the key set. The keyed describe re-sets it
+    // in its own beforeEach (runs after this one).
+    delete process.env.TRANSUNION_SHAREABLE_API_KEY;
   });
 
   describe("mapShareAbleReportToResponse", () => {
@@ -184,6 +190,97 @@ describe("CreditCheckService — TransUnion ShareAble CRA mapping", () => {
           dateOfBirth: "1990-01-01",
         })
       ).rejects.toThrow(/not yet configured/i);
+    });
+  });
+
+  describe("createReport — keyed (real ShareAble two-step over mocked fetch)", () => {
+    const realFetch = global.fetch;
+    let fetchMock: jest.Mock;
+
+    beforeEach(() => {
+      // Outer beforeEach deletes the key and runs FIRST; arm it here.
+      process.env.TRANSUNION_SHAREABLE_API_KEY = "tu_test_abc";
+      delete process.env.TRANSUNION_SHAREABLE_API_URL;
+      delete process.env.TRANSUNION_SHAREABLE_PRODUCT_BUNDLE;
+      fetchMock = jest.fn();
+      (global as any).fetch = fetchMock;
+    });
+    afterEach(() => {
+      (global as any).fetch = realFetch;
+      delete process.env.TRANSUNION_SHAREABLE_API_KEY;
+    });
+
+    const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+
+    const input = {
+      applicationId: "app-1",
+      firstName: "Sam",
+      lastName: "Lee",
+      ssnLast4: "6789",
+      dateOfBirth: "1990-01-01",
+      email: "sam@example.com",
+    };
+
+    it("applicant → screening-request; returns request.id as the webhook join key", async () => {
+      fetchMock
+        .mockResolvedValueOnce(ok({ id: "appl_123" }))
+        .mockResolvedValueOnce(
+          ok({ id: "req_456", exam_url: "https://exam.shareable.com/x", status: "pending" })
+        );
+
+      const handle = await svc.createReport(input);
+
+      // request.id is the durable join key (the report id does not exist yet).
+      expect(handle.reportId).toBe("req_456");
+      expect(handle.url).toBe("https://exam.shareable.com/x");
+      expect(handle.status).toBe("pending");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      const [applUrl, applOpts] = fetchMock.mock.calls[0];
+      expect(String(applUrl)).toMatch(/\/v1\/applicants$/);
+      expect((applOpts.headers as any).Authorization).toBe("Bearer tu_test_abc");
+      const applBody = JSON.parse(applOpts.body);
+      expect(applBody.email).toBe("sam@example.com");
+      expect(applBody.first_name).toBe("Sam");
+      expect(applBody.date_of_birth).toBe("1990-01-01");
+      // Full SSN / last-4 are NEVER sent — the hosted KBA exam collects it.
+      expect(applBody.ssn).toBeUndefined();
+      expect(applBody.ssn_last4).toBeUndefined();
+      expect(JSON.stringify(applBody)).not.toContain("6789");
+
+      const [reqUrl, reqOpts] = fetchMock.mock.calls[1];
+      expect(String(reqUrl)).toMatch(/\/v1\/screening-requests$/);
+      expect(JSON.parse(reqOpts.body).applicant_id).toBe("appl_123");
+    });
+
+    it("missing email → fail-loud throw, no applicant created", async () => {
+      await expect(
+        svc.createReport({ ...input, email: undefined })
+      ).rejects.toThrow(/requires an email/i);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("applicant create returns no id → throws (no phantom order)", async () => {
+      fetchMock.mockResolvedValueOnce(ok({}));
+      await expect(svc.createReport(input)).rejects.toThrow(/applicant create returned no id/i);
+      expect(fetchMock).toHaveBeenCalledTimes(1); // never reached the screening request
+    });
+
+    it("screening-request returns no id → throws (no phantom order)", async () => {
+      fetchMock
+        .mockResolvedValueOnce(ok({ id: "appl_123" }))
+        .mockResolvedValueOnce(ok({ exam_url: "https://exam" }));
+      await expect(svc.createReport(input)).rejects.toThrow(/screening request returned no id/i);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("non-2xx from ShareAble → fail-loud throw with categorical detail", async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({ error: "bad bundle" }),
+      });
+      await expect(svc.createReport(input)).rejects.toThrow(/ShareAble.*failed.*bad bundle/i);
     });
   });
 });

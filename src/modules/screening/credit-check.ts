@@ -55,25 +55,141 @@ export class CreditCheckService {
    * Called from submit() on the armed path; returns the report reference + the
    * hosted KBA exam url the applicant must complete to authorize the pull.
    *
-   * CREDENTIALING-GATED: the real ShareAble applicant + exam + report request is
-   * a signed-contract + sandbox-key task (see
-   * docs/screening/background-credit-cra-adapter.md §4 "Credentialing-gated").
-   * Until those credentials exist the create throws — fail-loud, never a
-   * fabricated handle. submit() catches the throw and leaves the app in
-   * `submitted` (no silent screening skip).
+   * Two-step ShareAble flow (applicant-mediated — we hold ssnLast4, NOT the full
+   * SSN; ShareAble's hosted KBA exam collects the full SSN/DOB from the applicant
+   * directly, so no full SSN ever leaves us):
+   *   1. POST /v1/applicants → applicant id (name + email; DOB lifts match rate).
+   *   2. POST /v1/screening-requests → the hosted `exam_url`. ShareAble assembles
+   *      the credit + eviction report only AFTER the applicant passes the KBA
+   *      exam; the completion webhook then carries the screening-request id — our
+   *      durable join key — so we persist request.id as the report handle
+   *      (`reportId`) and the webhook resolves the application by it.
+   *
+   * KEYLESS ⇒ FAIL-LOUD: with no TRANSUNION_SHAREABLE_API_KEY the create throws
+   * (never a fabricated exam handle — that would be a phantom consumer-report
+   * order). submit() catches the throw and leaves the app in `submitted` (no
+   * silent screening skip), so flag-off / keyless is byte-identical to today.
+   *
+   * Activation: TRANSUNION_SHAREABLE_API_KEY (+ optional
+   * TRANSUNION_SHAREABLE_API_URL, TRANSUNION_SHAREABLE_PRODUCT_BUNDLE). The
+   * webhook half verifies TRANSUNION_SHAREABLE_WEBHOOK_SECRET — see cra-webhook.ts.
+   *
+   * CREDENTIALING-GATED shape: ShareAble's exact endpoints, auth scheme, the
+   * request-id field, and the exam-url field are confirmed against a live sandbox
+   * at arm time (docs/screening/background-credit-cra-adapter.md §4). The
+   * structure below follows ShareAble's documented applicant + screening-request
+   * model; each assumed path carries a TODO(credentialing) marker.
    */
-  async createReport(_input: {
+  async createReport(input: {
     applicationId: string;
     firstName: string;
     lastName: string;
     ssnLast4: string;
     dateOfBirth: string;
+    email?: string;
     returnUrl?: string;
   }): Promise<CreditReportHandle> {
-    // TODO(credentialing): replace with the real TransUnion ShareAble applicant +
-    // exam + report request once a contract is signed and the ShareAble
-    // credentials exist. The hosted exam url + report id come back from that call.
-    throw new Error("TransUnion ShareAble credit report integration not yet configured");
+    const apiKey = process.env.TRANSUNION_SHAREABLE_API_KEY || "";
+    if (!apiKey || apiKey === "changeme") {
+      // Dormant. Fail-loud, NEVER a fabricated handle — a fake exam url is a
+      // phantom order. Keep the historical message so the keyless contract test
+      // (`/not yet configured/i`) stays green.
+      throw new Error("TransUnion ShareAble credit report integration not yet configured");
+    }
+    // ShareAble needs an email to create the applicant + deliver the hosted KBA
+    // exam link. Missing email is fail-loud — we never create a half-formed
+    // applicant.
+    if (!input.email) {
+      throw new Error("TransUnion ShareAble applicant requires an email");
+    }
+
+    const base = (
+      process.env.TRANSUNION_SHAREABLE_API_URL || "https://api.shareable.com"
+    ).replace(/\/$/, "");
+    // The product bundle slug is account-specific; MUST be set to a real bundle
+    // at arm time. The default is a placeholder, not a guarantee.
+    const bundle =
+      process.env.TRANSUNION_SHAREABLE_PRODUCT_BUNDLE || "credit_eviction";
+
+    // 1) Applicant — name + email (+ DOB to lift match rate). The full SSN is
+    //    NOT sent: the hosted KBA exam collects it from the applicant directly.
+    // TODO(credentialing): confirm the applicant endpoint + field names.
+    const applicant = (await this.shareAbleFetch(base, apiKey, "/v1/applicants", {
+      first_name: input.firstName,
+      last_name: input.lastName,
+      email: input.email,
+      ...(input.dateOfBirth ? { date_of_birth: input.dateOfBirth } : {}),
+    })) as { id?: string };
+    if (!applicant?.id) {
+      throw new Error("TransUnion ShareAble applicant create returned no id");
+    }
+
+    // 2) Screening request — credit + eviction bundle. Returns the hosted KBA
+    //    exam url + the request id (our durable webhook join key; no report id
+    //    exists until the applicant passes the exam and TU assembles the report).
+    // TODO(credentialing): confirm the screening-request endpoint, the request-id
+    // field, and the hosted exam-url field.
+    const request = (await this.shareAbleFetch(
+      base,
+      apiKey,
+      "/v1/screening-requests",
+      {
+        applicant_id: applicant.id,
+        products: [bundle],
+        ...(input.returnUrl ? { return_url: input.returnUrl } : {}),
+      }
+    )) as { id?: string; exam_url?: string; status?: string };
+    if (!request?.id) {
+      throw new Error("TransUnion ShareAble screening request returned no id");
+    }
+
+    return {
+      // request.id (NOT the not-yet-existent report id) is the webhook join key.
+      reportId: request.id,
+      status: request.status || "pending",
+      url: request.exam_url || null,
+    };
+  }
+
+  /**
+   * POST to the TransUnion ShareAble API with a Bearer API key. Any non-2xx
+   * THROWS with a categorical detail — the submit() caller turns that into a
+   * fail-loud HOLD, never a fabricated handle. Mirrors background-check.ts's
+   * checkrFetch idiom (ShareAble uses Bearer auth rather than Checkr's HTTP
+   * Basic).
+   * TODO(credentialing): confirm ShareAble's auth scheme (Bearer vs HTTP Basic /
+   * partner-id header) against the sandbox.
+   */
+  private async shareAbleFetch(
+    base: string,
+    apiKey: string,
+    path: string,
+    body: Record<string, unknown>
+  ): Promise<unknown> {
+    const res = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const err = (await res.json()) as any;
+        detail = err?.error
+          ? String(err.error)
+          : Array.isArray(err?.errors)
+            ? err.errors.join("; ")
+            : JSON.stringify(err);
+      } catch {
+        /* keep HTTP status */
+      }
+      throw new Error(`TransUnion ShareAble ${path} failed — ${detail}`);
+    }
+    return res.json();
   }
 
   /**

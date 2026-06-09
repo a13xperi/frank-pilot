@@ -391,6 +391,7 @@ export class ApplicationService {
             lastName: a.last_name,
             ssnLast4,
             dateOfBirth: dob,
+            email: a.email,
             returnUrl,
           }),
         ]);
