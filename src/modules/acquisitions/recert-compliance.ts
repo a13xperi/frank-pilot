@@ -16,6 +16,8 @@ import { query } from '../../config/database';
 import { logger } from '../../utils/logger';
 import { createTapeService } from '../tape/service';
 import { PgTapeRepository } from '../tape/repository';
+import { parkFailedStamp } from '../tape/dlq';
+import type { TapeEvent } from '../tape/types';
 import {
   evaluateRecertIncome,
   comparableUnit,
@@ -508,30 +510,34 @@ export class RecertComplianceService {
     actorId: string | null,
     evidence: Record<string, unknown>,
   ): Promise<void> {
-    try {
-      await tape.stamp({
-        kind,
-        payload: {
-          '@context': 'https://schema.org',
-          '@type': 'AcquisitionComplianceEvent',
-          actorId,
-          subjectId: null, // global-scope: applicant_id is FK'd to users(id); ids live in evidence
-          ruleCitation: 'IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)',
-          evidence: {
-            recertId: context.recertId,
-            propertyId: context.propertyId,
-            unitId: context.unitId,
-            unitNumber: context.unitNumber,
-            ...evidence,
-          },
+    const event: TapeEvent = {
+      kind,
+      payload: {
+        '@context': 'https://schema.org',
+        '@type': 'AcquisitionComplianceEvent',
+        actorId,
+        subjectId: null, // global-scope: applicant_id is FK'd to users(id); ids live in evidence
+        ruleCitation: 'IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)',
+        evidence: {
+          recertId: context.recertId,
+          propertyId: context.propertyId,
+          unitId: context.unitId,
+          unitNumber: context.unitNumber,
+          ...evidence,
         },
-      });
+      },
+    };
+    try {
+      await tape.stamp(event);
     } catch (err) {
+      // Swallow so a tape outage can't block a recert review, but park the failed
+      // stamp so the NAU compliance record is recoverable, not silently lost.
       logger.error('acquisitions: NAU tape stamp failed (non-fatal)', {
         recertId: context.recertId,
         kind,
         err,
       });
+      await parkFailedStamp(event, err as Error);
     }
   }
 
@@ -591,39 +597,43 @@ export class RecertComplianceService {
     check: RecertIncomeCheck,
     actorId: string | null,
   ): Promise<void> {
-    try {
-      await tape.stamp({
-        kind: 'acq.recert_income_checked',
-        payload: {
-          '@context': 'https://schema.org',
-          '@type': 'AcquisitionComplianceEvent',
-          actorId,
-          subjectId: null, // global-scope admin event — subjectId is FK'd to users(id); the recert id lives in evidence
-          ruleCitation: 'IRC §42(g)(2)(D)(ii) (Available Unit Rule) + 26 CFR 1.42-5',
-          evidence: {
-            recertId: context.recertId,
-            propertyId: context.propertyId,
-            unitId: context.unitId,
-            unitNumber: context.unitNumber,
-            designation: context.designation,
-            amiArea: context.amiArea,
-            householdSize: context.householdSize,
-            limitYear: context.limitYear,
-            verdict: check.verdict,
-            ceilingAmiPct: check.ceilingAmiPct,
-            applicableLimit: check.applicableLimit,
-            aurThreshold: check.aurThreshold,
-            householdIncome: check.householdIncome,
-            pctOfLimit: check.pctOfLimit,
-            note: check.note,
-          },
+    const event: TapeEvent = {
+      kind: 'acq.recert_income_checked',
+      payload: {
+        '@context': 'https://schema.org',
+        '@type': 'AcquisitionComplianceEvent',
+        actorId,
+        subjectId: null, // global-scope admin event — subjectId is FK'd to users(id); the recert id lives in evidence
+        ruleCitation: 'IRC §42(g)(2)(D)(ii) (Available Unit Rule) + 26 CFR 1.42-5',
+        evidence: {
+          recertId: context.recertId,
+          propertyId: context.propertyId,
+          unitId: context.unitId,
+          unitNumber: context.unitNumber,
+          designation: context.designation,
+          amiArea: context.amiArea,
+          householdSize: context.householdSize,
+          limitYear: context.limitYear,
+          verdict: check.verdict,
+          ceilingAmiPct: check.ceilingAmiPct,
+          applicableLimit: check.applicableLimit,
+          aurThreshold: check.aurThreshold,
+          householdIncome: check.householdIncome,
+          pctOfLimit: check.pctOfLimit,
+          note: check.note,
         },
-      });
+      },
+    };
+    try {
+      await tape.stamp(event);
     } catch (err) {
+      // Swallow so a tape outage can't block a recert review, but park the failed
+      // stamp so the income-check compliance record is recoverable, not lost.
       logger.error('acquisitions: recert income-check tape stamp failed (non-fatal)', {
         recertId: context.recertId,
         err,
       });
+      await parkFailedStamp(event, err as Error);
     }
   }
 }

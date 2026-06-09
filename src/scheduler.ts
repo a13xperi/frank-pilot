@@ -151,6 +151,26 @@ export function startScheduler() {
       }
     });
     logger.info("BP-02 verify-cron registered (COMPLIANCE_TAPE_V2_ENABLED=true)");
+
+    // Every 15 minutes — re-stamp compliance-tape failures the acq stamp sites
+    // swallowed into compliance_tape_dlq. Dark by default (same flag as the
+    // verify-cron): parking is always-on so failures are durable, but auto-drain
+    // is opt-in. Until the flag is on, parked rows wait for this cron or a manual
+    // replayTapeDlq() call — recoverable, never silently lost.
+    cron.schedule("*/15 * * * *", async () => {
+      try {
+        const { replayTapeDlq } = await import("./modules/tape/dlq");
+        const stats = await replayTapeDlq();
+        if (stats.scanned > 0) {
+          logger.info("BP-02 tape-DLQ replay tick", stats);
+        }
+      } catch (err) {
+        logger.error("BP-02 tape-DLQ replay failed", {
+          error: (err as Error).message,
+        });
+      }
+    });
+    logger.info("BP-02 tape-DLQ replay-cron registered (COMPLIANCE_TAPE_V2_ENABLED=true)");
   } else {
     logger.info(
       "BP-02 verify-cron skipped — COMPLIANCE_TAPE_V2_ENABLED is off"

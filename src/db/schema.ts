@@ -784,6 +784,30 @@ CREATE TRIGGER compliance_tape_no_truncate
   FOR EACH STATEMENT
   EXECUTE FUNCTION compliance_tape_reject_mutation();
 
+-- Dead-letter queue for compliance-tape stamps that the acquisitions stamp sites
+-- (award/recert) swallow so a tape outage can't block a durable management write.
+-- parkFailedStamp() lands the failed TapeEvent here; replayTapeDlq() re-stamps
+-- unresolved rows (dark cron, gated on COMPLIANCE_TAPE_V2_ENABLED). Same pattern
+-- as cra_webhook_dlq, minus the event_id idempotency key (acq stamps have no
+-- natural delivery id). Stores only the tape payload (compliance metadata) — no
+-- raw PII. See src/modules/tape/dlq.ts and
+-- src/db/migrations/2026-06-09-compliance-tape-dlq.sql.
+CREATE TABLE IF NOT EXISTS compliance_tape_dlq (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind            TEXT NOT NULL,
+  session_id      TEXT,
+  payload         JSONB NOT NULL,
+  error_message   TEXT,
+  attempt_count   INT NOT NULL DEFAULT 1,
+  first_failed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_failed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at     TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_compliance_tape_dlq_unresolved
+  ON compliance_tape_dlq (first_failed_at)
+  WHERE resolved_at IS NULL;
+
 -- Tenant/applicant join to applications (multiple users per application: primary, co-applicant, household member)
 CREATE TABLE IF NOT EXISTS user_applications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
