@@ -352,6 +352,27 @@ export class ApplicationService {
         );
         const { CreditCheckService } = await import("../screening/credit-check");
 
+        // Atomic readiness preflight. BOTH CRA vendors must be armed before we
+        // fire ANY outbound order. Checkr's createReport creates a candidate AND
+        // emails the applicant a hosted invitation — a real, billable, applicant-
+        // facing side effect — so creating it while the credit order throws (e.g.
+        // TransUnion not yet credentialed) would orphan a Checkr order, and every
+        // resubmit would orphan another. Refuse loudly here, leaving the app in
+        // `submitted`; we never half-arm a partial consumer-report pull.
+        const backgroundCheck = new BackgroundCheckService();
+        const creditCheck = new CreditCheckService();
+        if (!backgroundCheck.isConfigured() || !creditCheck.isConfigured()) {
+          logger.error(
+            "Consumer-report capture armed but a CRA vendor is not configured — refusing to create partial orders",
+            {
+              applicationId,
+              backgroundConfigured: backgroundCheck.isConfigured(),
+              creditConfigured: creditCheck.isConfigured(),
+            }
+          );
+          return result.rows[0];
+        }
+
         // Email comes from the applicant's user record (submitted_by → users) —
         // the same join the CRA webhook uses to resolve the actor. Checkr needs
         // it to create + invite the candidate; the hosted invitation then
@@ -375,7 +396,7 @@ export class ApplicationService {
         // configured) is fail-loud: we do NOT fall through to a normal submit,
         // which would skip the consumer-report gate. The app stays in `submitted`.
         const [background, credit] = await Promise.all([
-          new BackgroundCheckService().createReport({
+          backgroundCheck.createReport({
             applicationId,
             firstName: a.first_name,
             lastName: a.last_name,
@@ -385,7 +406,7 @@ export class ApplicationService {
             email: a.email,
             returnUrl,
           }),
-          new CreditCheckService().createReport({
+          creditCheck.createReport({
             applicationId,
             firstName: a.first_name,
             lastName: a.last_name,

@@ -193,6 +193,24 @@ describe("CreditCheckService — TransUnion ShareAble CRA mapping", () => {
     });
   });
 
+  describe("isConfigured — readiness preflight predicate", () => {
+    afterEach(() => {
+      delete process.env.TRANSUNION_SHAREABLE_API_KEY;
+    });
+    it("false with no key (keyless ⇒ submit() refuses to fire a partial pull)", () => {
+      delete process.env.TRANSUNION_SHAREABLE_API_KEY;
+      expect(svc.isConfigured()).toBe(false);
+    });
+    it('false when the key is the "changeme" placeholder', () => {
+      process.env.TRANSUNION_SHAREABLE_API_KEY = "changeme";
+      expect(svc.isConfigured()).toBe(false);
+    });
+    it("true with a real key — lockstep with createReport()'s gate", () => {
+      process.env.TRANSUNION_SHAREABLE_API_KEY = "tu_test_abc";
+      expect(svc.isConfigured()).toBe(true);
+    });
+  });
+
   describe("createReport — keyed (real ShareAble two-step over mocked fetch)", () => {
     const realFetch = global.fetch;
     let fetchMock: jest.Mock;

@@ -151,6 +151,19 @@ export class BackgroundCheckService {
   }
 
   /**
+   * Is the Checkr CRA armed? True only when a real CHECKR_API_KEY is present —
+   * the SAME predicate createReport() gates its keyless fail-loud throw on.
+   * submit() uses this as an atomic preflight: creating a Checkr candidate also
+   * emails the applicant a hosted invitation (a real, billable, applicant-facing
+   * side effect), so it must never fire unless every required CRA vendor can also
+   * produce its report. Keep this in lockstep with createReport()'s key check.
+   */
+  isConfigured(): boolean {
+    const apiKey = process.env.CHECKR_API_KEY || "";
+    return !!apiKey && apiKey !== "changeme";
+  }
+
+  /**
    * POST to the Checkr API with HTTP Basic auth (API key as username, empty
    * password: `Basic base64(key + ":")`). Any non-2xx THROWS with a categorical
    * detail — the submit() caller turns that into a fail-loud HOLD, never a

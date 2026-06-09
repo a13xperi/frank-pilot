@@ -206,6 +206,24 @@ describe("BackgroundCheckService — Checkr CRA mapping", () => {
     });
   });
 
+  describe("isConfigured — readiness preflight predicate", () => {
+    afterEach(() => {
+      delete process.env.CHECKR_API_KEY;
+    });
+    it("false with no key (keyless ⇒ submit() refuses to fire a Checkr order)", () => {
+      delete process.env.CHECKR_API_KEY;
+      expect(svc.isConfigured()).toBe(false);
+    });
+    it('false when the key is the "changeme" placeholder', () => {
+      process.env.CHECKR_API_KEY = "changeme";
+      expect(svc.isConfigured()).toBe(false);
+    });
+    it("true with a real key — lockstep with createReport()'s gate", () => {
+      process.env.CHECKR_API_KEY = "ck_test_abc";
+      expect(svc.isConfigured()).toBe(true);
+    });
+  });
+
   describe("createReport — keyed (real Checkr two-step over mocked fetch)", () => {
     const realFetch = global.fetch;
     let fetchMock: jest.Mock;
