@@ -2,7 +2,7 @@
 
 **What this is.** Field validation of the *existing* electrical service across GPMG's **17-building** NV affordable/senior-housing portfolio. Per building it nails down three things: the **parcel + owner of record** (done), the **permitting authority** (done), and the **existing service size + transformer kVA** (in progress). This is the grounding layer for the on-site solar + battery design under *The Stack* — we can't size a new load until we know what electrical service is already in the ground.
 
-**Last updated:** 2026-06-03 · **Tracking:** [PR #258](https://github.com/a13xperi/frank-pilot/pull/258) · **Detail docs:** this folder (`docs/intel/`)
+**Last updated:** 2026-06-08 · **Tracking:** [PR #258](https://github.com/a13xperi/frank-pilot/pull/258) · **Detail docs:** this folder (`docs/intel/`)
 
 **Reusable method:** the process behind this run is abstracted, project-agnostic, in [`METHODOLOGY.md`](./METHODOLOGY.md) — *The Site Reality Layer* — so it can be re-run on any site (Windsor Park, future projects). This GPMG run is its worked example.
 
@@ -13,9 +13,9 @@
 | Stage | What it proves | Status |
 |---|---|---|
 | **1 — Parcel + owner** | APN, owner of record, units, AHJ | ✅ **Done** — all 17 owner-verified (2026-06-03) |
-| **2 — Permit scrape** | service amps / voltage / switchgear (sometimes kVA) | 🔄 **In progress** ◀ *we are here* — **NLV ×4 DONE** (permit inventory + era captured); 🔑 **the public EnerGov portal gates the actual service size** → re-routed to NV Energy / GPMG contact-login. City of LV ×10, Clark Co. ×2, Henderson ×1 still to run |
+| **2 — Permit scrape** | service amps / voltage / switchgear (sometimes kVA) | ✅ **Done 2026-06-08** — **all 17 scraped** (NLV ×4 + CLV ×10 + Accela ×2 + Henderson ×1). **0 records state kVA / amps / voltage → 0 Confirmed flips**; portals gate service size (finding 8) → re-routed to NV Energy. Record-level detail in `electrical-service-validation.md` **Stage 4b/4c** |
 | **3 — NV Energy** | the actual transformer **kVA** — the only true authority | ⬜ Gated on owner sign-off + requestor |
-| **4 — Evidence table** | per-building confidence rollup | ⬜ Fills in as Stages 2–3 return |
+| **4 — Evidence table** | per-building confidence rollup | 🔄 **Populated (Stage 4b/4c)** — 16/17 Likely 3φ, **0 Confirmed**; graduates to Confirmed only when NV Energy (Stage 3) returns kVA |
 
 **Headline:** 17 buildings = **17 owner-verified parcels**, ~**1,157 units**, across **4 permitting authorities**. Parcel, owner, and jurisdiction are confirmed for every building. **Every transformer kVA is still Unknown** — closing that is the entire point of Phases 2–3.
 
@@ -56,7 +56,7 @@
 
 # ✅ THE PUNCH LIST
 
-## Phase 2 — Permit scrape ◀ in progress (this is the active work)
+## Phase 2 — Permit scrape ✅ DONE 2026-06-08 *(all 17 portals scraped — 0 kVA, 0 Confirmed flips; service size portal-gated → NV Energy)*
 
 **Per parcel:** open the portal → **Search → Permits** → run **two passes** (by **address**, then by **APN**) → filter to **Electrical** *and* scan **Building** permits (service detail often hides there) → **screenshot every hit + save the record URL**.
 
@@ -73,36 +73,38 @@ Portal: `https://eg.cityofnorthlasvegas.com/EnerGov_Prod/SelfService#/search` �
 
 > 🔑 **The public EnerGov portal GATES service size.** Each permit's **Summary** tab is public (number / type / status / dates / valuation) but **More Info, Fees, Inspections, Sub-Records, and Attachments all return *"You must be a contact on this record to see this information."*** So the public scrape proves a **permitted commercial electrical service exists + its era** — but **amps / voltage / switchgear / kVA are not publicly visible**. Two ways to get them: **(a)** GPMG opens these exact permits while **logged into EnerGov as the record contact/applicant** → unlocks More Info (custom fields) + the approved electrical plan PDFs in Attachments; **(b)** NV Energy (Phase 3 — the only path to kVA anyway). **Henderson runs the same Tyler system → expect the same wall.**
 
-### ☐ City of Las Vegas — CLV permit status / Dashboard *(manual)*
+### ✅ City of Las Vegas — CLV permit-status portal — **DONE 2026-06-08** *(driven headless via `ProjectsByParcel`; record-level Scope-of-Work captured — Stage 4c)*
 Portal: `https://www.lasvegasnevada.gov/Business/Permits-Licenses/Building-Permits/Permit-Application-Status`
-- [ ] Aldene Kline Barlow (UT 1) — `1327 H St` / APN `13928503028`
-- [ ] Ethel Mae Robinson (UT 2) — `1327 H St` / APN `13928503027`
-- [ ] Sarann Knight (UT 3) — `1327 H St` / APN `13928503026`
-- [ ] David J. Hoggard Family — `1100 W Monroe` / APN `13928503022`
-- [ ] Ethel Mae Fletcher ⚠ — `1503 Laurelhurst` / APN `13825504001`
-- [ ] Mike O'Callaghan Legacy ⚠ — `1502 Laurelhurst` / APN `13825518004`
-- [ ] Juan Garcia Garden — `2851 Sunrise` / APN `13936402015`
-- [ ] Louise Shell Senior — `2101 N MLK` / APN `13921202007`
-- [ ] Senator Harry Reid Senior — `334 N 11th` (mail 328) / APN `13935201001`
-- [ ] Senator Richard Bryan Senior — `2651 Searles` / APN `13925101022`
+🔑 The parcel pass returns **OffSite + Planning + Agreement** records — **not** the vertical Electrical-Only permits (those file under the **address**, `ProjectsByAddressKey` — the one un-run public probe). **0 service ratings found.**
+- [x] Aldene Kline Barlow (UT 1) — `1327 H St` / APN `13928503028` → 7 records (civil / water / fiber / revisions); no electrical scope
+- [x] Ethel Mae Robinson (UT 2) — `1327 H St` / APN `13928503027` → **0 records (literal `null`)** on parcel pass; GIS shows 2× Electrical-Only under the address
+- [x] Sarann Knight (UT 3) — `1327 H St` / APN `13928503026` → 6 records incl **L-39899 "SWG plan"** (switchgear named — **no rating**) → Likely · `Inferred? = YES`
+- [x] David J. Hoggard Family — `1100 W Monroe` / APN `13928503022` → 3 records (SDR / drainage / ZVL); no electrical scope
+- [x] Ethel Mae Fletcher ⚠ — `1503 Laurelhurst` / APN `13825504001` → 53808-ZVL (covers `…504001` + `…504002`); no electrical scope
+- [x] Mike O'Callaghan Legacy ⚠ — `1502 Laurelhurst` / APN `13825518004` → **0 records (literal `null`)** — reinforces vacant-lot / wrong-APN flag
+- [x] Juan Garcia Garden — `2851 Sunrise` / APN `13936402015` → 3 records (landscape / water / ZVL); no electrical scope
+- [x] Louise Shell Senior — `2101 N MLK` / APN `13921202007` → 4 records; L-45143 is a dig-safe **locate**, *not* electrical service
+- [x] Senator Harry Reid Senior — `334 N 11th` (mail 328) / APN `13935201001` → 3 records (landscape / alley-paving); reconciles GIS "0 permits" (GIS omits Agreements)
+- [x] Senator Richard Bryan Senior — `2651 Searles` / APN `13925101022` → 37346-ZVL; GIS shows 2× Electrical-Only under the address
 
-### ☐ Unincorporated Clark County — Accela Citizen Access *(manual)*
+### ✅ Unincorporated Clark County — Accela Citizen Access — **DONE 2026-06-08** *(browser-driven by parcel; no OAuth needed — Stage 4c)*
 Portal: `https://aca-prod.accela.com/CLARKCO/Cap/CapHome.aspx?module=Building`
 *(Both carry a "Las Vegas" mailing address but sit in Enterprise township → the **County**, not the City, is the AHJ.)*
-- [ ] Luther Mack, Jr. Senior — `8158 Giles` / APN `17716101027`
-- [ ] Dr. Paul Meacham Senior — `65 E Windmill` / APN `17716101026`
+🔑 The ACA **CapDetail** page exposes permit type / status / location / owner / job-value only — **no amps / volts / kVA field exists in the schema.** **0 service ratings found.**
+- [x] Luther Mack, Jr. Senior — `8158 Giles` / APN `17716101027` → **38 records**; Commercial Electric BD13-14515-EL3 + 4-permit **Commercial Solar** (on-site PV ⇒ 3φ); **0 kVA**
+- [x] Dr. Paul Meacham Senior — `65 E Windmill` / APN `17716101026` → **31 records**; Commercial Electric BD13-40321-EL3 + **85 kW carport solar** BD14-24297-ELRV; **0 kVA**
 
-### ☐ Henderson — Tyler EnerGov (DSC Online) *(manual; **same Tyler system as NLV → expect service size gated**, see 🔑 above; public scrape will confirm permits + era only)*
+### ☑ Henderson — Tyler EnerGov (DSC Online) — **ATTEMPTED 2026-06-08; portal unreachable** *(SelfService `GetTenants` config API hangs → SPA never hydrates in automation; same gated Tyler wall as NLV → deferred to NV Energy)*
 Portal: `https://dsconline.cityofhenderson.com/energov_prod/selfservice#/home`
-- [ ] Smith Williams Senior ⚠ — `575 E Lake Mead` / APN `17908301011`
+- [x] Smith Williams Senior ⚠ — `575 E Lake Mead` / APN `17908301011` → Tyler portal never hydrated (config-API hang); GIS = carport shade-cover only (`480` = GUID false-positive); **deferred to NV Energy Stage-4** → stays **Unknown**
 
 ### ☐ Two meter-topology checks (do while scraping)
-- [ ] **1327 H St campus** (parcels 5/6/7) — one shared service or three separate? A permit showing the meter/service split settles it. *Do not assume shared — the earlier "one parcel" reading was wrong.*
+- [ ] **1327 H St campus** (parcels 5/6/7) — one shared service or three separate? A permit showing the meter/service split settles it. *Do not assume shared — the earlier "one parcel" reading was wrong.* **CLV parcel pass (2026-06-08) returned only OffSite/Planning records — no meter/service split visible → unresolved, carry to NV Energy.**
 - [x] **Donna Louise 1 & 2** (parcels 1/2) — **separate parcels with separate electrical permits** (BD150889 vs BD150892, distinct SPEs built ~9 yrs apart) → almost certainly **separate services**. Whether they share a transformer is an NV Energy question (meter detail is portal-gated).
 
-### ☐ Log it
-- [ ] Drop every captured field into the **Stage 4 — Evidence table** in `electrical-service-validation.md`.
-- [ ] Tag each row: **kVA stated → "Confirmed"** (+ record URL as source); **amps/voltage only → "Likely"** with `Inferred? = YES`; **nothing found → "Unknown."**
+### ✅ Log it — DONE 2026-06-08
+- [x] Dropped every captured field into the **Stage 4 evidence table + Stage 4b matrix + Stage 4c record-level scrape** in `electrical-service-validation.md`, and the **capture grid** in `permit-stage2-worksheet.md`.
+- [x] Tagged each row per the rule: **0 rows state kVA → 0 Confirmed**; one switchgear-plan hit (Sarann Knight) → **Likely** with `Inferred? = YES`; the rest stay **Likely** (inference) or **Unknown** (no electrical record). Confirmed graduation waits on NV Energy (Stage 3).
 
 > 📋 Full capture grid (amps / voltage / switchgear / kVA / CO-TCO / URL columns) is pre-built in **`permit-stage2-worksheet.md`** — use that as the scrape worksheet.
 
