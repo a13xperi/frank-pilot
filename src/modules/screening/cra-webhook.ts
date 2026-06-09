@@ -446,27 +446,98 @@ async function holdCouldNotScreen(env: CraEventEnvelope, reason: string): Promis
 
 // ── router ──────────────────────────────────────────────────────────────────
 
+/**
+ * Shared tail for BOTH receive paths once an envelope is in hand: dedup the
+ * event id, dispatch (DLQ + 200 on throw — we NEVER 5xx a CRA), mark processed.
+ * `body` is the parsed payload, parked verbatim in the DLQ on failure.
+ */
+async function processAndRespond(
+  env: CraEventEnvelope,
+  body: unknown,
+  res: Response
+): Promise<void> {
+  if (await alreadyProcessed(env.id)) {
+    logger.info("CRA webhook duplicate event short-circuited", { eventId: env.id });
+    res.status(200).json({ received: true, duplicate: true });
+    return;
+  }
+
+  let dispatchError: Error | null = null;
+  try {
+    await dispatch(env);
+  } catch (err) {
+    dispatchError = err as Error;
+    logger.error("CRA webhook dispatch failed", {
+      eventId: env.id,
+      domain: env.domain,
+      error: dispatchError.message,
+    });
+    await recordDlq(env.id, env.domain, body, dispatchError);
+  }
+
+  if (!dispatchError) {
+    await markProcessed(env.id, env.domain, env.applicationId);
+  }
+
+  // Always 200 — DLQ is the recovery path, not retry.
+  res.status(200).json({ received: true });
+}
+
 const router = Router();
 
 router.post(
   "/",
   express.raw({ type: "application/json", limit: "1mb" }),
   async (req: Request, res: Response): Promise<void> => {
-    // CREDENTIALING-GATED: real signature verification. Until a CRA contract is
-    // signed and CHECKR_WEBHOOK_SECRET (+ the TransUnion equivalent) exist, we
-    // refuse to process — fail-closed, so an unsigned payload is never trusted.
-    // The synthetic-payload tests set CRA_WEBHOOK_SECRET to exercise the path.
+    const raw = req.body as Buffer;
+
+    // ── Real Checkr path — discriminated by the X-Checkr-Signature header ──
+    // HMAC-verify against CHECKR_WEBHOOK_SECRET (or the API key, per Checkr's
+    // scheme) over the RAW body, then translate Checkr's event envelope.
+    const checkrSig = req.headers["x-checkr-signature"];
+    if (checkrSig !== undefined) {
+      const checkrSecret =
+        process.env.CHECKR_WEBHOOK_SECRET || process.env.CHECKR_API_KEY || "";
+      if (!checkrSecret || checkrSecret === "changeme") {
+        // Fail-closed: never trust a payload we cannot verify.
+        res.status(503).json({ error: "Checkr webhook secret not configured" });
+        return;
+      }
+      if (Array.isArray(checkrSig) || !verifyCheckrSignature(raw, checkrSig, checkrSecret)) {
+        res.status(401).json({ error: "Invalid Checkr signature" });
+        return;
+      }
+
+      let body: unknown;
+      try {
+        body = JSON.parse(raw.toString("utf8"));
+      } catch {
+        res.status(400).json({ error: "Invalid JSON" });
+        return;
+      }
+
+      const env = await translateCheckrEvent(body);
+      if (!env) {
+        // An event type we don't act on, a malformed object, or an unknown
+        // candidate → ack 200 with no side effects (Checkr would otherwise retry).
+        res.status(200).json({ received: true, ignored: true });
+        return;
+      }
+
+      await processAndRespond(env, body, res);
+      return;
+    }
+
+    // ── Synthetic path — the internal envelope the unit tests post ──
+    // Gated on CRA_WEBHOOK_SECRET; the `x-cra-signature` header must be present
+    // (trusted internal caller). The real per-vendor HMAC lives on the Checkr
+    // path above; the TransUnion credit envelope + signing arrives with Chunk 4.
     const secret = process.env.CRA_WEBHOOK_SECRET ?? "";
     if (!secret || secret === "changeme") {
       res.status(503).json({ error: "CRA webhook secret not configured" });
       return;
     }
 
-    // TODO(credentialing): verify the HMAC signature header against `secret`
-    // using each vendor's documented scheme (Checkr `X-Checkr-Signature`,
-    // TransUnion equivalent). For now we require the header to be present so the
-    // contract is exercised, but the real constant-time HMAC compare is gated on
-    // having a documented signing scheme + a live secret.
     const sig = req.headers["x-cra-signature"];
     if (!sig || Array.isArray(sig)) {
       res.status(400).json({ error: "Missing CRA signature header" });
@@ -475,7 +546,7 @@ router.post(
 
     let body: unknown;
     try {
-      body = JSON.parse((req.body as Buffer).toString("utf8"));
+      body = JSON.parse(raw.toString("utf8"));
     } catch {
       res.status(400).json({ error: "Invalid JSON" });
       return;
@@ -488,31 +559,7 @@ router.post(
       return;
     }
 
-    if (await alreadyProcessed(env.id)) {
-      logger.info("CRA webhook duplicate event short-circuited", { eventId: env.id });
-      res.status(200).json({ received: true, duplicate: true });
-      return;
-    }
-
-    let dispatchError: Error | null = null;
-    try {
-      await dispatch(env);
-    } catch (err) {
-      dispatchError = err as Error;
-      logger.error("CRA webhook dispatch failed", {
-        eventId: env.id,
-        domain: env.domain,
-        error: dispatchError.message,
-      });
-      await recordDlq(env.id, env.domain, body, dispatchError);
-    }
-
-    if (!dispatchError) {
-      await markProcessed(env.id, env.domain, env.applicationId);
-    }
-
-    // Always 200 — DLQ is the recovery path, not retry.
-    res.status(200).json({ received: true });
+    await processAndRespond(env, body, res);
   }
 );
 
