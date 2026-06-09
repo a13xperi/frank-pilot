@@ -24,22 +24,27 @@ import { CreditCheckService } from "./credit-check";
  * are CAS-guarded on `status = 'awaiting_consumer_report'` so a late/duplicate
  * delivery after the app already advanced is a no-op.
  *
- * TWO RECEIVE PATHS, selected by header:
+ * THREE RECEIVE PATHS, selected by header:
  *   - REAL CHECKR (`X-Checkr-Signature` present): HMAC-SHA256 verify against
  *     CHECKR_WEBHOOK_SECRET (or CHECKR_API_KEY), then translate Checkr's
  *     `{ id, type, data: { object } }` event — resolving our application by the
  *     report/invitation `candidate_id` (createReport persisted candidate.id as
  *     background_report_id, since the invitation flow yields no report id at
  *     create time). Built + tested here; arms when the secret is set.
+ *   - REAL TRANSUNION SHAREABLE (`X-ShareAble-Signature` present): HMAC-SHA256
+ *     verify against TRANSUNION_SHAREABLE_WEBHOOK_SECRET (or the API key), then
+ *     translate ShareAble's `{ id, type, data: { object } }` event — resolving
+ *     our application by the screening-request id (createReport persisted
+ *     request.id as credit_report_id, since no report id exists until the
+ *     applicant passes the hosted KBA exam). Built + tested here; arms when the
+ *     secret is set. CREDENTIALING-GATED shape: the exact header, digest, event
+ *     vocabulary, and object fields are confirmed against a live sandbox at arm
+ *     time (TODO(credentialing) markers below).
  *   - SYNTHETIC (`x-cra-signature` present): a TEST-ONLY fixture envelope the
  *     unit tests post. It carries NO per-vendor HMAC, so it is gated to
  *     NODE_ENV=test and is unreachable (404) in any deployed environment — see
  *     the router below. Real vendors sign their payloads (Checkr above;
- *     TransUnion credit with the Chunk-4 adapter).
- *
- * STILL CREDENTIALING-GATED: the TransUnion ShareAble credit event envelope +
- * its signing scheme (the credit half of `parseEnvelope`/dispatch is wired, but
- * the real TU webhook translation lands with the Chunk-4 credit adapter).
+ *     TransUnion credit, this adapter).
  *
  * Error handling: any throw during dispatch parks the payload in `cra_webhook_dlq`
  * and returns 200 — we NEVER 5xx a CRA (it would just retry the broken event).
@@ -166,7 +171,7 @@ function parseEnvelope(body: unknown): CraEventEnvelope | null {
 /** A CRA status the applicant can never recover from on their own → HOLD. */
 function isTerminalFailure(status: string): boolean {
   const s = status.toLowerCase();
-  return s === "canceled" || s === "cancelled" || s === "suspended" || s === "disputed";
+  return s === "canceled" || s === "cancelled" || s === "suspended";
 }
 
 // ── real Checkr ingestion (X-Checkr-Signature + { id, type, data: { object } }) ─
@@ -205,8 +210,9 @@ function checkrEventStatus(type: string): string | null {
       return "canceled";
     case "report.suspended":
       return "suspended";
-    case "report.disputed":
-      return "disputed";
+    // report.disputed is intentionally NOT handled: it is a post-completion FCRA
+    // Section 1681i reinvestigation of an existing report, not a failure to produce
+    // a verdict -- it falls through to default (200 ack, no HOLD). Do not re-add it.
     // The applicant never completed the hosted invitation → terminal, HOLD.
     case "invitation.expired":
     case "invitation.deleted":
@@ -249,6 +255,105 @@ async function translateCheckrEvent(body: unknown): Promise<CraEventEnvelope | n
   // candidate id so the envelope always carries a stable reference.
   const reportId = typeof object.id === "string" ? object.id : candidateId;
   return { id, domain: "background", applicationId, reportId, status, report: object };
+}
+
+/**
+ * Verify TransUnion ShareAble's `X-ShareAble-Signature` — HMAC-SHA256 of the RAW
+ * request body, keyed by the ShareAble webhook secret (or the API key), hex
+ * encoded. Constant-time compare; an optional `sha256=` prefix is tolerated. A
+ * SEPARATE fn from verifyCheckrSignature so the per-vendor scheme can diverge —
+ * malformed input → false (reject), never throws.
+ * TODO(credentialing): confirm ShareAble's signature header + digest/encoding.
+ */
+function verifyShareAbleSignature(rawBody: Buffer, header: string, secret: string): boolean {
+  const provided = header.startsWith("sha256=") ? header.slice(7) : header;
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  let a: Buffer;
+  try {
+    a = Buffer.from(provided, "hex");
+  } catch {
+    return false;
+  }
+  const b = Buffer.from(expected, "hex");
+  if (a.length === 0 || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+/**
+ * Map a TransUnion ShareAble event `type` to our categorical status. Returns null
+ * for types we don't act on (e.g. `applicant.created`, `report.created`) so they
+ * ack 200 with no side effects. Mirrors checkrEventStatus for the credit domain.
+ * TODO(credentialing): confirm ShareAble's event-type vocabulary.
+ */
+function shareAbleEventStatus(type: string): string | null {
+  switch (type) {
+    case "report.completed":
+    case "screening.completed":
+      return "complete";
+    case "report.canceled":
+    case "report.cancelled":
+    case "screening.canceled":
+      return "canceled";
+    case "report.suspended":
+      return "suspended";
+    // report.disputed is intentionally NOT handled: a ShareAble dispute is a
+    // post-completion FCRA Section 1681i reinvestigation of an existing credit
+    // report, not a failure to produce a verdict -- it falls through to default
+    // (200 ack, no HOLD). Mirrors checkrEventStatus. Do not re-add it.
+    // The applicant never passed the hosted KBA exam → terminal, HOLD.
+    case "exam.expired":
+    case "exam.failed":
+      return "canceled";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Translate a real TransUnion ShareAble event (`{ id, type, data: { object } }`)
+ * into our internal CraEventEnvelope, resolving our applicationId from the
+ * object's screening-request id — createReport persisted request.id as
+ * credit_report_id (the durable join key; no report id exists until the applicant
+ * passes the KBA exam and TU assembles the report). Returns null for an event
+ * type we don't act on, a malformed object, or an unknown request (→ 200 ack,
+ * no-op).
+ * TODO(credentialing): confirm the event envelope, the request-id field on the
+ * object, and where the report data is carried.
+ */
+async function translateShareAbleEvent(body: unknown): Promise<CraEventEnvelope | null> {
+  if (!body || typeof body !== "object") return null;
+  const b = body as Record<string, any>;
+  const id = typeof b.id === "string" ? b.id : "";
+  const type = typeof b.type === "string" ? b.type : "";
+  const object = b.data && typeof b.data === "object" ? b.data.object : undefined;
+  if (!id || !object || typeof object !== "object") return null;
+
+  const status = shareAbleEventStatus(type);
+  if (!status) return null;
+
+  const requestId =
+    typeof object.request_id === "string"
+      ? object.request_id
+      : typeof object.screening_request_id === "string"
+        ? object.screening_request_id
+        : "";
+  if (!requestId) return null;
+
+  const appRes = await query(
+    `SELECT id FROM applications WHERE credit_report_id = $1 LIMIT 1`,
+    [requestId]
+  );
+  const applicationId = appRes.rows[0]?.id;
+  if (!applicationId || typeof applicationId !== "string") return null;
+
+  // The completed event carries the credit + eviction report; the mapper extracts
+  // categorical-only fields. Fall back to the object itself if the report isn't
+  // nested under `report`.
+  const report = object.report && typeof object.report === "object" ? object.report : object;
+  // The report's own id once it exists; else fall back to the request id so the
+  // envelope always carries a stable reference.
+  const reportId = typeof object.report_id === "string" ? object.report_id : requestId;
+  return { id, domain: "credit", applicationId, reportId, status, report };
 }
 
 // ── dispatch ──────────────────────────────────────────────────────────────────
@@ -544,13 +649,56 @@ router.post(
       return;
     }
 
+    // ── Real TransUnion ShareAble path — discriminated by X-ShareAble-Signature ──
+    // HMAC-verify against TRANSUNION_SHAREABLE_WEBHOOK_SECRET (or the API key)
+    // over the RAW body, then translate ShareAble's event envelope (credit domain;
+    // resolves the application by the screening-request id == credit_report_id).
+    const shareAbleSig = req.headers["x-shareable-signature"];
+    if (shareAbleSig !== undefined) {
+      const shareAbleSecret =
+        process.env.TRANSUNION_SHAREABLE_WEBHOOK_SECRET ||
+        process.env.TRANSUNION_SHAREABLE_API_KEY ||
+        "";
+      if (!shareAbleSecret || shareAbleSecret === "changeme") {
+        // Fail-closed: never trust a payload we cannot verify.
+        res.status(503).json({ error: "TransUnion ShareAble webhook secret not configured" });
+        return;
+      }
+      if (
+        Array.isArray(shareAbleSig) ||
+        !verifyShareAbleSignature(raw, shareAbleSig, shareAbleSecret)
+      ) {
+        res.status(401).json({ error: "Invalid ShareAble signature" });
+        return;
+      }
+
+      let body: unknown;
+      try {
+        body = JSON.parse(raw.toString("utf8"));
+      } catch {
+        res.status(400).json({ error: "Invalid JSON" });
+        return;
+      }
+
+      const env = await translateShareAbleEvent(body);
+      if (!env) {
+        // An event type we don't act on, a malformed object, or an unknown
+        // request → ack 200 with no side effects (ShareAble would otherwise retry).
+        res.status(200).json({ received: true, ignored: true });
+        return;
+      }
+
+      await processAndRespond(env, res);
+      return;
+    }
+
     // ── Synthetic path — a TEST-ONLY fixture seam ──
     // This envelope carries NO per-vendor HMAC (it predates the real Checkr path
     // above), so it is verified only by header *presence*. That is safe ONLY
     // under test: in a deployed env, once CRA_WEBHOOK_SECRET is set to arm the
     // receiver, an unauthenticated caller could forge a verdict with a crafted
     // body + any `x-cra-signature` header. Gate it to NODE_ENV=test; real
-    // vendors (Checkr above; TransUnion credit, Chunk 4) sign their payloads.
+    // vendors (Checkr + TransUnion credit above) sign their payloads.
     if (process.env.NODE_ENV !== "test") {
       res.status(404).json({ error: "Not found" });
       return;

@@ -181,6 +181,18 @@ describe("POST /webhook — Checkr event translation + persist", () => {
     expect(persisted).toBe(false);
   });
 
+  // F1 regression lock: report.disputed is a post-completion FCRA §1681i
+  // reinvestigation of an EXISTING report, not a failure to produce a verdict.
+  // It must NOT bounce an already-completed applicant to a could_not_screen HOLD
+  // — it falls through to a 200 ack with no transition. (A prior duplicate branch
+  // silently dropped this fix; this test prevents it from regressing again.)
+  it("report.disputed → 200 ignored, NO could_not_screen HOLD (§1681i reinvestigation)", async () => {
+    const res = await postCheckr(checkrEvent("report.disputed"));
+    expect(res.status).toBe(200);
+    expect(res.body.ignored).toBe(true);
+    expect(mockTransition).not.toHaveBeenCalled();
+  });
+
   it("acks 200 + ignored for an unknown candidate (no app, no persist)", async () => {
     mockQuery.mockImplementation((sql: any) => {
       const s = String(sql);

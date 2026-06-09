@@ -10,6 +10,7 @@
  * webhook's map→persist integration is exercised.
  */
 
+import crypto from "crypto";
 import express from "express";
 import request from "supertest";
 
@@ -277,5 +278,164 @@ describe("POST /webhook — idempotency", () => {
       (c) => /UPDATE applications SET/i.test(String(c[0])) && /RETURNING id/i.test(String(c[0]))
     );
     expect(persisted).toBe(false);
+  });
+});
+
+describe("POST /webhook — real TransUnion ShareAble path (X-ShareAble-Signature)", () => {
+  const SHAREABLE_SECRET = "shareable_whsec_test";
+  const REQUEST_ID = "req_abc123";
+  const originalSecret = process.env.TRANSUNION_SHAREABLE_WEBHOOK_SECRET;
+  const originalKey = process.env.TRANSUNION_SHAREABLE_API_KEY;
+
+  afterAll(() => {
+    process.env.TRANSUNION_SHAREABLE_WEBHOOK_SECRET = originalSecret;
+    process.env.TRANSUNION_SHAREABLE_API_KEY = originalKey;
+  });
+
+  beforeEach(() => {
+    // Override the SQL mock so the ShareAble screening-request id resolves to our
+    // application (via credit_report_id), dedup misses, persist hits, and only the
+    // credit report has landed (no advance) by default.
+    process.env.TRANSUNION_SHAREABLE_WEBHOOK_SECRET = SHAREABLE_SECRET;
+    delete process.env.TRANSUNION_SHAREABLE_API_KEY;
+    mockQuery.mockImplementation((sql: any, params?: any) => {
+      const s = String(sql);
+      if (/credit_report_id = \$1/i.test(s)) {
+        // translateShareAbleEvent: request_id → application id.
+        return Promise.resolve({
+          rows: params?.[0] === REQUEST_ID ? [{ id: APP_ID }] : [],
+        }) as any;
+      }
+      if (/cra_processed_events/i.test(s) && /SELECT/i.test(s)) return Promise.resolve({ rows: [] }) as any;
+      if (/UPDATE applications SET/i.test(s) && /RETURNING id/i.test(s)) return Promise.resolve({ rows: [{ id: APP_ID }] }) as any;
+      if (/FROM applications a/i.test(s) && /LEFT JOIN users/i.test(s)) {
+        return Promise.resolve({
+          rows: [
+            {
+              status: "awaiting_consumer_report",
+              background_check_completed_at: null, // only the CREDIT report in
+              credit_check_completed_at: new Date(),
+              submitted_by: "99999999-8888-7777-6666-555555555555",
+              submitter_role: "applicant",
+            },
+          ],
+        }) as any;
+      }
+      return Promise.resolve({ rows: [] }) as any;
+    });
+  });
+
+  // A real ShareAble event envelope: { id, type, data: { object } }. The object
+  // carries request_id (our join key) + the categorical credit report fields.
+  function shareAbleEvent(type: string, objectOverrides: Record<string, unknown> = {}) {
+    return {
+      id: `tu_evt_${type}`,
+      type,
+      data: {
+        object: {
+          report_id: "rep_tu_1",
+          request_id: REQUEST_ID,
+          creditScore: 700,
+          evictions: [],
+          bankruptcies: [],
+          collections: [],
+          ...objectOverrides,
+        },
+      },
+    };
+  }
+
+  // Post on the ShareAble path. Default = a valid HMAC-SHA256 hex signature over
+  // the raw body; `sign:false` sends a present-but-invalid signature.
+  function shareAblePost(event: object, opts: { sign?: boolean } = {}) {
+    const raw = JSON.stringify(event);
+    const sig =
+      opts.sign === false
+        ? "deadbeef"
+        : crypto.createHmac("sha256", SHAREABLE_SECRET).update(raw).digest("hex");
+    return request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("x-shareable-signature", sig)
+      .send(raw);
+  }
+
+  it("503 when neither webhook secret nor API key is set (fail-closed)", async () => {
+    delete process.env.TRANSUNION_SHAREABLE_WEBHOOK_SECRET;
+    delete process.env.TRANSUNION_SHAREABLE_API_KEY;
+    const res = await shareAblePost(shareAbleEvent("report.completed"));
+    expect(res.status).toBe(503);
+  });
+
+  it("401 on an invalid X-ShareAble-Signature (never trust an unverified payload)", async () => {
+    const res = await shareAblePost(shareAbleEvent("report.completed"), { sign: false });
+    expect(res.status).toBe(401);
+  });
+
+  it("accepts a sha256= prefixed signature", async () => {
+    const raw = JSON.stringify(shareAbleEvent("report.completed"));
+    const hex = crypto.createHmac("sha256", SHAREABLE_SECRET).update(raw).digest("hex");
+    const res = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("x-shareable-signature", `sha256=${hex}`)
+      .send(raw);
+    expect(res.status).toBe(200);
+  });
+
+  it("report.completed + known request → resolves application, persists credit verdict, 200", async () => {
+    const res = await shareAblePost(shareAbleEvent("report.completed"));
+    expect(res.status).toBe(200);
+    // request_id was looked up via credit_report_id...
+    const resolved = mockQuery.mock.calls.find((c) => /credit_report_id = \$1/i.test(String(c[0])));
+    expect(resolved).toBeTruthy();
+    expect((resolved![1] as any[])[0]).toBe(REQUEST_ID);
+    // ...and the mapped verdict persisted, guarded to awaiting_consumer_report.
+    const persist = mockQuery.mock.calls.find(
+      (c) => /UPDATE applications SET/i.test(String(c[0])) && /credit_check_details/i.test(String(c[0]))
+    );
+    expect(persist).toBeTruthy();
+    expect(String(persist![0])).toMatch(/status = 'awaiting_consumer_report'/);
+  });
+
+  it("unknown request id → 200 ignored, no persist (ShareAble would otherwise retry)", async () => {
+    const res = await shareAblePost(shareAbleEvent("report.completed", { request_id: "req_unknown" }));
+    expect(res.status).toBe(200);
+    expect(res.body.ignored).toBe(true);
+    const persisted = mockQuery.mock.calls.some(
+      (c) => /UPDATE applications SET/i.test(String(c[0])) && /RETURNING id/i.test(String(c[0]))
+    );
+    expect(persisted).toBe(false);
+  });
+
+  it("an unhandled event type (applicant.created) → 200 ignored, no side effects", async () => {
+    const res = await shareAblePost(shareAbleEvent("applicant.created"));
+    expect(res.status).toBe(200);
+    expect(res.body.ignored).toBe(true);
+    expect(mockTransition).not.toHaveBeenCalled();
+  });
+
+  // F1 regression lock (credit domain): a ShareAble dispute is a post-completion
+  // FCRA §1681i reinvestigation of an EXISTING credit report, not a failure to
+  // produce a verdict. It must NOT bounce the applicant to a could_not_screen
+  // HOLD — it falls through to a 200 ack with no transition. Mirrors the Checkr
+  // lock in cra-webhook-checkr.test.ts.
+  it("report.disputed → 200 ignored, NO could_not_screen HOLD (§1681i reinvestigation)", async () => {
+    const res = await shareAblePost(shareAbleEvent("report.disputed"));
+    expect(res.status).toBe(200);
+    expect(res.body.ignored).toBe(true);
+    expect(mockTransition).not.toHaveBeenCalled();
+  });
+
+  it("report.canceled → terminal HOLD in screening_review (never auto-pass)", async () => {
+    const res = await shareAblePost(shareAbleEvent("report.canceled"));
+    expect(res.status).toBe(200);
+    await flush();
+    expect(mockTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening_review", trigger: "could_not_screen" })
+    );
+    expect(mockTransition).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: "screening" })
+    );
   });
 });
