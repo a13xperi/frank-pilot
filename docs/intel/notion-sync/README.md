@@ -59,9 +59,41 @@ python3 validation.py         # parses the .md, prints the 17 site records, fail
 The parser refuses to emit a partial/empty result: if either source table changes
 shape it raises `ValidationParseError` rather than silently syncing 0 rows.
 
+## Daily cron (macOS / launchd)
+
+One command installs an unattended daily sync:
+
+```bash
+NOTION_TOKEN=ntn_… ./install-cron.sh        # idempotent; --run to also kick one now
+```
+
+It reproduces the whole "worktree dance":
+
+1. a **dedicated detached worktree** pinned to `origin/main` at `~/.frank-notion-sync/worktree`
+   — the unattended `--apply` always runs against **committed** main, never an
+   interactive working tree, so it can't push half-finished edits to the live DB;
+2. your `NOTION_TOKEN` written to that worktree's gitignored `.env` (chmod 600, never
+   echoed) — and the script refuses to continue unless the `.env` is gitignored;
+3. the version-controlled `cron-run.sh` wrapper copied to `~/.frank-notion-sync/run.sh`
+   (kept **outside** the worktree so a `git reset --hard` mid-run can't rewrite it);
+4. a launchd LaunchAgent (`com.a13x.frank-notion-sync`) firing daily at 07:00 local.
+
+Each run does `git fetch && reset --hard origin/main` then `python3 sync.py --apply`,
+logging to `~/.frank-notion-sync/sync.log` (capped at 1000 lines).
+
+```bash
+./install-cron.sh --uninstall                # remove agent + worktree + ~/.frank-notion-sync
+launchctl kickstart -k gui/$(id -u)/com.a13x.frank-notion-sync   # run now
+launchctl bootout   gui/$(id -u)/com.a13x.frank-notion-sync      # disable
+```
+
+Overrides: `SYNC_HOME`, `SYNC_LABEL`, `SYNC_HOUR`, `SYNC_MINUTE`.
+
 ## Files
 
 - `validation.py` — fail-loud parser for the two source tables (Stage 4b matrix +
   Stage 4 evidence), joined by building name.
 - `notion.py` — stdlib Notion REST client (2025-09-03 data_source API).
 - `sync.py` — orchestrator: parse → match by APN → diff → patch owned fields.
+- `cron-run.sh` — the daily wrapper launchd runs (refresh worktree → `sync.py --apply`).
+- `install-cron.sh` — idempotent installer/uninstaller for the launchd agent.
