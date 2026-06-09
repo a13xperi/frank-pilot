@@ -2,6 +2,26 @@ import { getDemoToken, getRunId } from '../lib/demoSession';
 
 const TOKEN_KEY = 'frank_tenant_token';
 
+/**
+ * Error thrown by the shared request() wrapper on a non-ok response. Extends
+ * Error (so existing `catch (e) { e.message }` callers are unaffected) but also
+ * carries the HTTP `status`, the parsed `body`, and its `code` field. Callers
+ * that need to branch on a specific backend signal — e.g. the apply wizard's
+ * FCRA consent gate (400 `consumer_report_consent_required`) — read these.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly body: unknown;
+  constructor(message: string, status: number, body: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+    this.code = (body as { code?: string } | null)?.code;
+  }
+}
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -141,7 +161,7 @@ async function request<T>(
         .join('; ');
       if (fields) msg = `${msg} — ${fields}`;
     }
-    throw new Error(msg);
+    throw new ApiError(msg, res.status, body);
   }
 
   return res.json();
