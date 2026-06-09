@@ -280,10 +280,11 @@ capacity** lives on NV Energy's **DRP map** (Okta-login-gated → not headless-r
 
 **Verdict rubric (honest):** transformer headroom is **Unknown** (kVA in no record) and feeder HCA is
 **login-gated**, so **no site can be GREEN or RED on confirmed data** — every verdict is **provisional
-AMBER**, leaned by inferred service size:
-- **AMBER▲ (leans feasible)** — large service; ~180 kW compute + 250 kW BESS likely absorbable with peak-shave; confirm by load-letter.
-- **AMBER (capacity study)** — mid service; genuine NV Energy study needed.
-- **AMBER▼ (upgrade likely)** — small service; compute+BESS likely exceeds headroom → service upgrade or aggressive peak-shave.
+AMBER**, leaned by inferred service size: **AMBER▲** leans-feasible (large service; ~180 kW compute + 250 kW
+BESS likely absorbable with peak-shave) · **AMBER** capacity-study (mid service) · **AMBER▼** upgrade-likely
+(small service). The deterministic rule that flips these to **GREEN/RED** once NV Energy returns kVA + feeder
+hosting capacity is codified in **`nv-energy-stage4-response.md` §3** (the two-gate load/DER test) — apply it
+verbatim on reply; that file is the receiver kit for the Stage-4 response.
 
 ### The 17-row matrix
 
