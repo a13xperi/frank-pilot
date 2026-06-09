@@ -7,9 +7,11 @@
  *     for the HUD engine.
  *   - resolve(): reads the webhook-persisted verdict; could_not_screen HOLD when
  *     no report / pending / wrong shape / lookup throws; re-runs evaluateResults.
- *   - createReport(): fail-loud throw until credentialing exists.
+ *   - createReport(): keyless → fail-loud throw (no fabricated handle); keyed →
+ *     real Checkr candidate + invitation flow over a mocked fetch.
  *
- * No network / no real DB: ../config/database query is mocked.
+ * No network / no real DB: ../config/database query is mocked; the keyed
+ * createReport tests mock global fetch.
  */
 
 const mockQuery = jest.fn();
@@ -27,6 +29,10 @@ describe("BackgroundCheckService — Checkr CRA mapping", () => {
     jest.clearAllMocks();
     svc = new BackgroundCheckService();
     delete process.env.CRIMINAL_DECISION_ENGINE_ENABLED;
+    // Keep the keyless createReport contract test deterministic even if a sibling
+    // test file in the same worker left CHECKR_API_KEY set. The keyed describe
+    // re-sets it in its own beforeEach (runs after this one).
+    delete process.env.CHECKR_API_KEY;
   });
 
   describe("mapCheckrReportToResponse", () => {
@@ -197,6 +203,94 @@ describe("BackgroundCheckService — Checkr CRA mapping", () => {
           state: "NV",
         })
       ).rejects.toThrow(/not yet configured/i);
+    });
+  });
+
+  describe("createReport — keyed (real Checkr two-step over mocked fetch)", () => {
+    const realFetch = global.fetch;
+    let fetchMock: jest.Mock;
+
+    beforeEach(() => {
+      // Outer beforeEach deletes CHECKR_API_KEY and runs FIRST; arm it here.
+      process.env.CHECKR_API_KEY = "ck_test_abc";
+      delete process.env.CHECKR_API_URL;
+      delete process.env.CHECKR_PACKAGE;
+      fetchMock = jest.fn();
+      (global as any).fetch = fetchMock;
+    });
+    afterEach(() => {
+      (global as any).fetch = realFetch;
+      delete process.env.CHECKR_API_KEY;
+    });
+
+    const ok = (body: unknown) =>
+      ({ ok: true, status: 200, json: async () => body });
+
+    const input = {
+      applicationId: "app-1",
+      firstName: "Sam",
+      lastName: "Lee",
+      ssnLast4: "6789",
+      dateOfBirth: "1990-01-01",
+      state: "NV",
+      email: "sam@example.com",
+    };
+
+    it("candidate → invitation; returns candidate.id as the webhook join key", async () => {
+      fetchMock
+        .mockResolvedValueOnce(ok({ id: "cand_123" }))
+        .mockResolvedValueOnce(
+          ok({ invitation_url: "https://apply.checkr.com/x", status: "pending" })
+        );
+
+      const handle = await svc.createReport(input);
+
+      // candidate.id is the durable join key (the report id does not exist yet).
+      expect(handle.reportId).toBe("cand_123");
+      expect(handle.url).toBe("https://apply.checkr.com/x");
+      expect(handle.status).toBe("pending");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      const [candUrl, candOpts] = fetchMock.mock.calls[0];
+      expect(String(candUrl)).toMatch(/\/v1\/candidates$/);
+      // HTTP Basic: base64(apiKey + ":") — empty password.
+      expect((candOpts.headers as any).Authorization).toBe(
+        "Basic " + Buffer.from("ck_test_abc:").toString("base64")
+      );
+      const candBody = JSON.parse(candOpts.body);
+      expect(candBody.email).toBe("sam@example.com");
+      expect(candBody.first_name).toBe("Sam");
+      expect(candBody.dob).toBe("1990-01-01");
+      // Full SSN / last-4 are NEVER sent — the hosted invitation collects it.
+      expect(candBody.ssn).toBeUndefined();
+      expect(candBody.ssn_last4).toBeUndefined();
+      expect(JSON.stringify(candBody)).not.toContain("6789");
+
+      const [invUrl, invOpts] = fetchMock.mock.calls[1];
+      expect(String(invUrl)).toMatch(/\/v1\/invitations$/);
+      expect(JSON.parse(invOpts.body).candidate_id).toBe("cand_123");
+    });
+
+    it("missing email → fail-loud throw, no candidate created", async () => {
+      await expect(
+        svc.createReport({ ...input, email: undefined })
+      ).rejects.toThrow(/requires an applicant email/i);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("candidate create returns no id → throws (no phantom order)", async () => {
+      fetchMock.mockResolvedValueOnce(ok({}));
+      await expect(svc.createReport(input)).rejects.toThrow(/returned no id/i);
+      expect(fetchMock).toHaveBeenCalledTimes(1); // never reached the invitation
+    });
+
+    it("non-2xx from Checkr → fail-loud throw with categorical detail", async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({ error: "bad package" }),
+      });
+      await expect(svc.createReport(input)).rejects.toThrow(/Checkr.*failed.*bad package/i);
     });
   });
 });
