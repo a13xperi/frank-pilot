@@ -243,3 +243,60 @@ describe("POST /webhook — Checkr idempotency", () => {
     expect(persisted).toBe(false);
   });
 });
+
+describe("POST /webhook — Checkr DLQ PII discipline", () => {
+  // The raw Checkr report carries PII (charge narratives, full DOB/SSN). On a
+  // dispatch failure the DLQ must park ONLY the categorical envelope — never
+  // env.report — per the cra_webhook_dlq.raw_payload contract.
+  const PII_CHARGE = "POSSESSION_NARRATIVE_DO_NOT_PARK";
+  const PII_SSN = "123-45-6789";
+  const PII_DOB = "1990-01-01";
+
+  it("parks the categorical envelope, NOT the raw report PII, when dispatch throws", async () => {
+    mockQuery.mockImplementation((sql: any) => {
+      const s = String(sql);
+      if (/cra_processed_events/i.test(s) && /SELECT/i.test(s)) return Promise.resolve({ rows: [] }) as any;
+      if (/SELECT id FROM applications WHERE background_report_id/i.test(s)) {
+        return Promise.resolve({ rows: [{ id: APP_ID }] }) as any;
+      }
+      // Force the verdict persist to fail → dispatch throws → DLQ path.
+      if (/UPDATE applications SET/i.test(s) && /background_check_details/i.test(s)) {
+        return Promise.reject(new Error("db write boom")) as any;
+      }
+      if (/INSERT INTO\s+cra_webhook_dlq/i.test(s)) return Promise.resolve({ rows: [] }) as any;
+      if (/cra_webhook_dlq/i.test(s) && /COUNT/i.test(s)) return Promise.resolve({ rows: [{ count: 0 }] }) as any;
+      if (/cra_webhook_dlq/i.test(s)) return Promise.resolve({ rows: [] }) as any; // alreadyParked SELECT
+      return Promise.resolve({ rows: [] }) as any;
+    });
+
+    const event = checkrEvent("report.completed", {
+      dob: PII_DOB,
+      national_criminal_search: {
+        records: [{ classification: "Felony", charge: PII_CHARGE, ssn: PII_SSN }],
+      },
+    });
+
+    const res = await postCheckr(event);
+    expect(res.status).toBe(200); // never 5xx a CRA
+
+    const dlqInsert = mockQuery.mock.calls.find((c) =>
+      /INSERT INTO\s+cra_webhook_dlq/i.test(String(c[0]))
+    );
+    expect(dlqInsert).toBeTruthy();
+
+    const parked = (dlqInsert![1] as any[])[2] as string; // $3 = JSON.stringify(rawPayload)
+    // Raw report PII must NOT leave the CRA via the DLQ.
+    expect(parked).not.toContain(PII_CHARGE);
+    expect(parked).not.toContain(PII_SSN);
+    expect(parked).not.toContain(PII_DOB);
+    // Categorical envelope IS parked (enough to replay by re-fetching the report).
+    expect(parked).toContain(APP_ID);
+    expect(parked).toContain("complete");
+
+    // Failure path → event NOT marked processed (a retry can re-run it).
+    const marked = mockQuery.mock.calls.some((c) =>
+      /INSERT INTO cra_processed_events/i.test(String(c[0]))
+    );
+    expect(marked).toBe(false);
+  });
+});

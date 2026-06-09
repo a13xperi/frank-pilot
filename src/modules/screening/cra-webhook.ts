@@ -452,11 +452,16 @@ async function holdCouldNotScreen(env: CraEventEnvelope, reason: string): Promis
 /**
  * Shared tail for BOTH receive paths once an envelope is in hand: dedup the
  * event id, dispatch (DLQ + 200 on throw — we NEVER 5xx a CRA), mark processed.
- * `body` is the parsed payload, parked verbatim in the DLQ on failure.
+ *
+ * PII discipline: on dispatch failure we park ONLY the categorical envelope in
+ * the DLQ — NEVER `env.report`, the raw CRA report (charge narratives, court /
+ * county detail, addresses, full DOB/SSN). The `cra_webhook_dlq.raw_payload`
+ * contract forbids that data leaving the CRA (see
+ * migrations/2026-06-01-applications-consumer-report.sql); id + reportId +
+ * applicationId are enough to replay by re-fetching from the CRA.
  */
 async function processAndRespond(
   env: CraEventEnvelope,
-  body: unknown,
   res: Response
 ): Promise<void> {
   if (await alreadyProcessed(env.id)) {
@@ -475,7 +480,15 @@ async function processAndRespond(
       domain: env.domain,
       error: dispatchError.message,
     });
-    await recordDlq(env.id, env.domain, body, dispatchError);
+    // Strip env.report — categorical fields only into the DLQ.
+    const scrubbedPayload = {
+      id: env.id,
+      domain: env.domain,
+      applicationId: env.applicationId,
+      reportId: env.reportId,
+      status: env.status,
+    };
+    await recordDlq(env.id, env.domain, scrubbedPayload, dispatchError);
   }
 
   if (!dispatchError) {
@@ -527,7 +540,7 @@ router.post(
         return;
       }
 
-      await processAndRespond(env, body, res);
+      await processAndRespond(env, res);
       return;
     }
 
@@ -570,7 +583,7 @@ router.post(
       return;
     }
 
-    await processAndRespond(env, body, res);
+    await processAndRespond(env, res);
   }
 );
 
