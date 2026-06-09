@@ -425,4 +425,13 @@ describe("POST /webhook — real Checkr path (X-Checkr-Signature)", () => {
       expect.objectContaining({ to: "screening" })
     );
   });
+
+  it("report.disputed -> 200 ignored, no HOLD (post-completion FCRA 1681i dispute, not a verdict failure)", async () => {
+    const res = await checkrPost(checkrEvent("report.disputed"));
+    expect(res.status).toBe(200);
+    expect(res.body.ignored).toBe(true);
+    await flush();
+    // A dispute reinvestigates an existing report; it is never a could_not_screen HOLD.
+    expect(mockTransition).not.toHaveBeenCalled();
+  });
 });

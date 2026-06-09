@@ -166,7 +166,7 @@ function parseEnvelope(body: unknown): CraEventEnvelope | null {
 /** A CRA status the applicant can never recover from on their own → HOLD. */
 function isTerminalFailure(status: string): boolean {
   const s = status.toLowerCase();
-  return s === "canceled" || s === "cancelled" || s === "suspended" || s === "disputed";
+  return s === "canceled" || s === "cancelled" || s === "suspended";
 }
 
 // ── real Checkr ingestion (X-Checkr-Signature + { id, type, data: { object } }) ─
@@ -205,8 +205,9 @@ function checkrEventStatus(type: string): string | null {
       return "canceled";
     case "report.suspended":
       return "suspended";
-    case "report.disputed":
-      return "disputed";
+    // report.disputed is intentionally NOT handled: it is a post-completion FCRA
+    // Section 1681i reinvestigation of an existing report, not a failure to produce
+    // a verdict -- it falls through to default (200 ack, no HOLD). Do not re-add it.
     // The applicant never completed the hosted invitation → terminal, HOLD.
     case "invitation.expired":
     case "invitation.deleted":
