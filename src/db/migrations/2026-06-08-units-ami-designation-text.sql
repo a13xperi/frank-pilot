@@ -1,0 +1,27 @@
+-- 2026-06-08 units.ami_designation → TEXT (provisioning convergence)
+--
+-- Root-cause fix for a SCHEMA_SQL↔delta type disagreement that made fresh
+-- `migrate up` provisions diverge from prod:
+--
+--   * src/db/schema.ts (SCHEMA_SQL, the base) originally created
+--       units.ami_designation VARCHAR(10)
+--   * 2026-05-25-acq-awards-and-designations.sql does
+--       ALTER TABLE units ADD COLUMN IF NOT EXISTS ami_designation TEXT
+--
+-- On a FRESH install the base runs first, so the column already exists as
+-- VARCHAR(10) and the delta's ADD COLUMN IF NOT EXISTS no-ops → fresh ends up
+-- VARCHAR(10). Prod was built delta-first (column added as TEXT) → prod is TEXT.
+-- A three-way information_schema diff (fresh local PG16 vs prod kodama PG18,
+-- 2026-06-08) confirmed this was the ONLY real column-level divergence across
+-- 42 tables / 622 columns / 145 indexes / 154 constraints.
+--
+-- schema.ts is now TEXT too (so future fresh installs converge), and this delta
+-- ALTERs any already-provisioned DB (e.g. staging) onto TEXT. Both directions
+-- are no-ops where the column is already TEXT (prod, post-fix fresh): widening
+-- VARCHAR(10)→TEXT is binary-compatible and needs no table rewrite. The CHECK
+-- constraint ('30','50','60','market') is preserved by the type change.
+--
+-- Idempotent: re-running ALTER ... TYPE TEXT on a TEXT column is a harmless
+-- catalog no-op.
+
+ALTER TABLE units ALTER COLUMN ami_designation TYPE TEXT;
