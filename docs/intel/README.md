@@ -4,6 +4,8 @@
 
 **Last updated:** 2026-06-03 · **Tracking:** [PR #258](https://github.com/a13xperi/frank-pilot/pull/258) · **Detail docs:** this folder (`docs/intel/`)
 
+**Reusable method:** the process behind this run is abstracted, project-agnostic, in [`METHODOLOGY.md`](./METHODOLOGY.md) — *The Site Reality Layer* — so it can be re-run on any site (Windsor Park, future projects). This GPMG run is its worked example.
+
 ---
 
 ## ⏱️ Bottom line — where we are right now
@@ -11,11 +13,13 @@
 | Stage | What it proves | Status |
 |---|---|---|
 | **1 — Parcel + owner** | APN, owner of record, units, AHJ | ✅ **Done** — all 17 owner-verified (2026-06-03) |
-| **2 — Permit scrape** | service amps / voltage / switchgear (sometimes kVA) | 🔄 **In progress** ◀ *we are here* |
+| **2 — Permit scrape** | service amps / voltage / switchgear (sometimes kVA) | 🔄 **In progress** ◀ *we are here* — **NLV ×4 DONE** (permit inventory + era captured); 🔑 **the public EnerGov portal gates the actual service size** → re-routed to NV Energy / GPMG contact-login. City of LV ×10, Clark Co. ×2, Henderson ×1 still to run |
 | **3 — NV Energy** | the actual transformer **kVA** — the only true authority | ⬜ Gated on owner sign-off + requestor |
 | **4 — Evidence table** | per-building confidence rollup | ⬜ Fills in as Stages 2–3 return |
 
 **Headline:** 17 buildings = **17 owner-verified parcels**, ~**1,157 units**, across **4 permitting authorities**. Parcel, owner, and jurisdiction are confirmed for every building. **Every transformer kVA is still Unknown** — closing that is the entire point of Phases 2–3.
+
+**🔑 Phase 2 finding (2026-06-03):** the **North Las Vegas Tyler EnerGov portal makes the service size non-public** — a permit's Summary (number/type/dates) is public, but every service-bearing tab (More Info, Fees, Attachments, etc.) requires being a *record contact*. So the public scrape confirms **that** a permitted commercial service exists and **when** it was built, but not its **amps/voltage/kVA**. That data now comes from **NV Energy** (Phase 3) or from **GPMG logging into EnerGov as the permit contact**. Henderson uses the same system → same limit. City of LV and Clark County run different portals and may expose more.
 
 > ⚠️ **The hard rule — sets expectations for everyone reading this.** No transformer rating is marked **"Confirmed"** unless a record states the kVA outright **or** NV Energy confirms it. Anything inferred from amperage/voltage is **"Likely" at best**. We do not over-claim: if a number isn't sourced, it stays **Unknown**.
 
@@ -60,12 +64,14 @@
 
 Work one portal at a time (open it once, clear all its parcels):
 
-### ☐ North Las Vegas — Tyler EnerGov *(manual; Cloudflare/CSRF blocks scripts — use a real browser)*
-Portal: `https://eg.cityofnorthlasvegas.com/EnerGov_Prod/SelfService#/search`
-- [ ] Donna Louise 1 — `6225 Donna` / APN `12426103004`
-- [ ] Donna Louise 2 — `6275 Donna` / APN `12426103002`
-- [ ] Owens Senior — `1626 Davis` / APN `13922810039`
-- [ ] Yale Keyes — `1705 Yale` / APN `13922810051`
+### ✅ North Las Vegas — Tyler EnerGov — **DONE 2026-06-03** *(public inventory captured; service size GATED — see 🔑)*
+Portal: `https://eg.cityofnorthlasvegas.com/EnerGov_Prod/SelfService#/search` — *loads fine in a real browser; the "Cloudflare/CSRF" note only blocks scripted HTTP probes. Search the **APN** (clean parcel-scoped results), not the address. Sort Issued-Date ↓ to surface the construction-era permits.*
+- [x] Donna Louise 1 — APN `12426103004` → **BD145340** Multi-Family-New (09/28/2016) + elec **BD150889** & **BD153590** Commercial
+- [x] Donna Louise 2 — APN `12426103002` → **BD145341** Multi-Family-New + elec **BD150892** Commercial *(2016 filing shows "Submitted"; Assessor says built 2025 — likely lapsed then rebuilt)*
+- [x] Owens Senior — APN `13922810039` → **BD96712** Building-Commercial-New (09/17/2008) + 2001 Commercial-Addition; long history → **confirm meter count** (two build eras)
+- [x] Yale Keyes — APN `13922810051` → **BD22311** Multi-Family-New (12/04/2002); ⚠ **DRY-010255-2020 "Dry Utility — NV Energy"** (plan-approval **EXPIRED**) — ask NV Energy what that 2020 project was
+
+> 🔑 **The public EnerGov portal GATES service size.** Each permit's **Summary** tab is public (number / type / status / dates / valuation) but **More Info, Fees, Inspections, Sub-Records, and Attachments all return *"You must be a contact on this record to see this information."*** So the public scrape proves a **permitted commercial electrical service exists + its era** — but **amps / voltage / switchgear / kVA are not publicly visible**. Two ways to get them: **(a)** GPMG opens these exact permits while **logged into EnerGov as the record contact/applicant** → unlocks More Info (custom fields) + the approved electrical plan PDFs in Attachments; **(b)** NV Energy (Phase 3 — the only path to kVA anyway). **Henderson runs the same Tyler system → expect the same wall.**
 
 ### ☐ City of Las Vegas — CLV permit status / Dashboard *(manual)*
 Portal: `https://www.lasvegasnevada.gov/Business/Permits-Licenses/Building-Permits/Permit-Application-Status`
@@ -86,13 +92,13 @@ Portal: `https://aca-prod.accela.com/CLARKCO/Cap/CapHome.aspx?module=Building`
 - [ ] Luther Mack, Jr. Senior — `8158 Giles` / APN `17716101027`
 - [ ] Dr. Paul Meacham Senior — `65 E Windmill` / APN `17716101026`
 
-### ☐ Henderson — Tyler EnerGov (DSC Online) *(manual; likely Cloudflare/CSRF like NLV)*
+### ☐ Henderson — Tyler EnerGov (DSC Online) *(manual; **same Tyler system as NLV → expect service size gated**, see 🔑 above; public scrape will confirm permits + era only)*
 Portal: `https://dsconline.cityofhenderson.com/energov_prod/selfservice#/home`
 - [ ] Smith Williams Senior ⚠ — `575 E Lake Mead` / APN `17908301011`
 
 ### ☐ Two meter-topology checks (do while scraping)
 - [ ] **1327 H St campus** (parcels 5/6/7) — one shared service or three separate? A permit showing the meter/service split settles it. *Do not assume shared — the earlier "one parcel" reading was wrong.*
-- [ ] **Donna Louise 1 & 2** (parcels 1/2) — separate services or shared? Same check.
+- [x] **Donna Louise 1 & 2** (parcels 1/2) — **separate parcels with separate electrical permits** (BD150889 vs BD150892, distinct SPEs built ~9 yrs apart) → almost certainly **separate services**. Whether they share a transformer is an NV Energy question (meter detail is portal-gated).
 
 ### ☐ Log it
 - [ ] Drop every captured field into the **Stage 4 — Evidence table** in `electrical-service-validation.md`.
