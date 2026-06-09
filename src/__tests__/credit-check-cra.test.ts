@@ -185,5 +185,11 @@ describe("CreditCheckService — TransUnion ShareAble CRA mapping", () => {
         })
       ).rejects.toThrow(/not yet configured/i);
     });
+
+    it("isConfigured() is false until the ShareAble adapter is implemented (#273)", () => {
+      // Credit is never configured on this branch — submit()'s readiness preflight
+      // depends on this so it never half-arms (Checkr order with no credit order).
+      expect(svc.isConfigured()).toBe(false);
+    });
   });
 });

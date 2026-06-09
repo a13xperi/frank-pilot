@@ -242,6 +242,17 @@ describe("BackgroundCheckService — Checkr CRA mapping", () => {
       await expect(svc.createReport(baseInput)).rejects.toThrow(/not yet configured/i);
     });
 
+    it("isConfigured() mirrors the SAME keyless predicate createReport gates on", async () => {
+      // submit()'s readiness preflight relies on this staying in lockstep with
+      // the createReport key check above.
+      delete process.env.CHECKR_API_KEY;
+      expect(svc.isConfigured()).toBe(false);
+      process.env.CHECKR_API_KEY = "changeme";
+      expect(svc.isConfigured()).toBe(false);
+      process.env.CHECKR_API_KEY = "test_key";
+      expect(svc.isConfigured()).toBe(true);
+    });
+
     it("keyed but no applicant email → fail-loud, no network call", async () => {
       process.env.CHECKR_API_KEY = "test_key";
       const calls = mockFetchSequence([]);

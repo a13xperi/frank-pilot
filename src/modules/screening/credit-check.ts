@@ -77,6 +77,18 @@ export class CreditCheckService {
   }
 
   /**
+   * Is the TransUnion ShareAble CRA armed? Always false on this branch — the real
+   * ShareAble applicant + exam + report request is credentialing-gated and not yet
+   * implemented (createReport() above throws unconditionally). submit() preflights
+   * this so it never creates a Checkr order it cannot pair with a credit order.
+   * TODO(credentialing): return a real key check when the ShareAble adapter lands
+   * (PR #273 / Chunk 4) so a fully-armed deployment passes the preflight.
+   */
+  isConfigured(): boolean {
+    return false;
+  }
+
+  /**
    * Screening-time credit entry point under CONSUMER_REPORT_ENABLED — reads the
    * webhook-persisted ShareAble verdict off the application row and re-evaluates
    * it through the SAME evaluateResults() the synchronous path uses. Returns
