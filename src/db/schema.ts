@@ -33,6 +33,11 @@ CREATE TYPE application_status AS ENUM (
   -- 'screening' once a verdict lands. Distinguishes "pending capture" from
   -- "screening running" so the screening_review HOLD queue stays clean.
   'awaiting_identity',
+  -- Consumer reports (Checkr background + TransUnion credit, 2026-06-01): the
+  -- applicant authorizes + completes the CRA's hosted flow; the verdict arrives
+  -- by webhook, which advances this to 'screening'. Like 'awaiting_identity',
+  -- separates "pending capture" from "screening running" for a clean HOLD queue.
+  'awaiting_consumer_report',
   'screening',
   'screening_passed',
   'screening_failed',
@@ -376,9 +381,20 @@ CREATE TABLE IF NOT EXISTS properties (
   is_qct BOOLEAN NOT NULL DEFAULT false,
   is_dda BOOLEAN NOT NULL DEFAULT false,
 
+  -- Geocoordinates (2026-05-22-property-geo.sql): one shared dataset for the
+  -- statewide map + /discover funnel. Nullable; backfilled by seed-property-geo.ts.
+  latitude  DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Markers API (GET /api/applicants/properties/map) only returns rows with both
+-- coords set; this partial index keeps that scan cheap as the catalog grows.
+CREATE INDEX IF NOT EXISTS idx_properties_geo
+  ON properties (latitude, longitude)
+  WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
 
 -- Tenant Applications
 CREATE TABLE IF NOT EXISTS applications (
@@ -456,6 +472,17 @@ CREATE TABLE IF NOT EXISTS applications (
   identity_session_id TEXT,
   identity_session_status TEXT,
   identity_session_created_at TIMESTAMPTZ,
+
+  -- Consumer-report (Checkr background + TransUnion credit) async references
+  -- (2026-06-01-applications-consumer-report.sql). Persist ONLY report-reference
+  -- ids + categorical statuses + the applicant authorization timestamp — never
+  -- charge narratives, tradelines, addresses, or full DOB/SSN (those live on the
+  -- CRA). Mapped verdicts land in the background_check_*/credit_check_* columns.
+  background_report_id              TEXT,
+  credit_report_id                 TEXT,
+  consumer_report_background_status TEXT,
+  consumer_report_credit_status     TEXT,
+  screening_authorization_at        TIMESTAMPTZ,
 
   background_check_result screening_result,
   background_check_details JSONB,
