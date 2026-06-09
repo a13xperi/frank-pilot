@@ -11,6 +11,8 @@ import { query, transaction } from '../../config/database';
 import { logger } from '../../utils/logger';
 import { createTapeService } from '../tape/service';
 import { PgTapeRepository } from '../tape/repository';
+import { parkFailedStamp } from '../tape/dlq';
+import type { TapeEvent } from '../tape/types';
 import {
   buildDesignationPlan,
   validateAssignments,
@@ -123,20 +125,24 @@ async function stampSafe(
   actorId: string | null,
   evidence: Record<string, unknown>,
 ): Promise<void> {
+  const event: TapeEvent = {
+    kind,
+    payload: {
+      '@context': 'https://schema.org',
+      '@type': 'AcquisitionComplianceEvent',
+      actorId,
+      subjectId: null, // global-scope admin event
+      ruleCitation: kind === 'acq.award_recorded' ? 'IRC §42 + NV 2026 QAP §3' : 'IRC §42(g) + 26 CFR 1.42-5',
+      evidence,
+    },
+  };
   try {
-    await tape.stamp({
-      kind,
-      payload: {
-        '@context': 'https://schema.org',
-        '@type': 'AcquisitionComplianceEvent',
-        actorId,
-        subjectId: null, // global-scope admin event
-        ruleCitation: kind === 'acq.award_recorded' ? 'IRC §42 + NV 2026 QAP §3' : 'IRC §42(g) + 26 CFR 1.42-5',
-        evidence,
-      },
-    });
+    await tape.stamp(event);
   } catch (err) {
+    // Swallow so a tape outage can't lose a durable units.ami_designation write,
+    // but park the failed stamp so the compliance record is recoverable, not lost.
     logger.error('acquisitions: compliance-tape stamp failed (non-fatal)', { kind, err });
+    await parkFailedStamp(event, err as Error);
   }
 }
 
