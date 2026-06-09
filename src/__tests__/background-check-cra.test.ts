@@ -7,9 +7,11 @@
  *     for the HUD engine.
  *   - resolve(): reads the webhook-persisted verdict; could_not_screen HOLD when
  *     no report / pending / wrong shape / lookup throws; re-runs evaluateResults.
- *   - createReport(): fail-loud throw until credentialing exists.
+ *   - createReport(): keyless → fail-loud throw (no fabricated handle); keyed →
+ *     real Checkr candidate + invitation flow over a mocked fetch.
  *
- * No network / no real DB: ../config/database query is mocked.
+ * No network / no real DB: ../config/database query is mocked; the keyed
+ * createReport tests mock global fetch.
  */
 
 const mockQuery = jest.fn();
@@ -27,6 +29,10 @@ describe("BackgroundCheckService — Checkr CRA mapping", () => {
     jest.clearAllMocks();
     svc = new BackgroundCheckService();
     delete process.env.CRIMINAL_DECISION_ENGINE_ENABLED;
+    // Keep the keyless createReport contract test deterministic even if a sibling
+    // test file in the same worker left CHECKR_API_KEY set. The keyed describe
+    // re-sets it in its own beforeEach (runs after this one).
+    delete process.env.CHECKR_API_KEY;
   });
 
   describe("mapCheckrReportToResponse", () => {

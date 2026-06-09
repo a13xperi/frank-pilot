@@ -75,25 +75,118 @@ export class BackgroundCheckService {
    * submit() on the armed path; returns the report reference + hosted invitation
    * `url` the applicant uses to authorize the pull and complete KBA.
    *
-   * CREDENTIALING-GATED: the real Checkr candidate→invitation→report create is a
-   * signed-contract + sandbox-key task (see docs/screening/background-credit-cra-adapter.md
-   * §4 "Credentialing-gated"). Until those credentials exist the create throws —
-   * this is fail-loud, never a fabricated handle. submit() catches the throw and
-   * leaves the app in `submitted` (no silent screening skip).
+   * Two-step Checkr flow (the only one usable here — we hold ssnLast4, NOT the
+   * full SSN the direct report API needs):
+   *   1. POST /v1/candidates  → candidate id (name + email; the hosted flow
+   *      collects the full SSN from the applicant — no full SSN leaves us).
+   *   2. POST /v1/invitations → the hosted `invitation_url`. Checkr auto-creates
+   *      the report only AFTER the applicant completes the invitation; the
+   *      `report.completed` webhook then carries `candidate_id` — our durable
+   *      join key — so we persist candidate.id as the report handle (`reportId`)
+   *      and the webhook resolves the application by it.
+   *
+   * KEYLESS ⇒ FAIL-LOUD: with no CHECKR_API_KEY the create throws (never a
+   * fabricated invitation handle — that would be a phantom consumer-report
+   * order). submit() catches the throw and leaves the app in `submitted` (no
+   * silent screening skip), so flag-off / keyless is byte-identical to today.
+   *
+   * Activation: CHECKR_API_KEY (+ optional CHECKR_API_URL, CHECKR_PACKAGE). The
+   * webhook half verifies CHECKR_WEBHOOK_SECRET — see cra-webhook.ts.
    */
-  async createReport(_input: {
+  async createReport(input: {
     applicationId: string;
     firstName: string;
     lastName: string;
     ssnLast4: string;
     dateOfBirth: string;
     state: string;
+    email?: string;
     returnUrl?: string;
   }): Promise<BackgroundReportHandle> {
-    // TODO(credentialing): replace with the real Checkr candidate + invitation +
-    // report create once a contract is signed and CHECKR_API_KEY exists. The
-    // hosted invitation url + report id come back from that call.
-    throw new Error("Checkr background report integration not yet configured");
+    const apiKey = process.env.CHECKR_API_KEY || "";
+    if (!apiKey || apiKey === "changeme") {
+      // Dormant. Fail-loud, NEVER a fabricated handle. Unlike the synchronous
+      // vendor seam there is no meaningful "stub handle" to return — a fake
+      // invitation url is a phantom order. Keep the historical message so the
+      // keyless contract test (`/not yet configured/i`) stays green.
+      throw new Error("Checkr background report integration not yet configured");
+    }
+    // Checkr needs an email to create + invite the candidate. Missing email is
+    // fail-loud — we never create a half-formed candidate.
+    if (!input.email) {
+      throw new Error("Checkr candidate requires an applicant email");
+    }
+
+    const base = (process.env.CHECKR_API_URL || "https://api.checkr.com").replace(/\/$/, "");
+    // Package slug is account-specific; MUST be set to a real package at arm
+    // time. The default is a common Checkr test package, not a guarantee.
+    const pkg = process.env.CHECKR_PACKAGE || "tasker_standard";
+
+    // 1) Candidate — name + email (+ DOB to lift match rate; Checkr is the
+    //    authorized CRA recipient). The full SSN is NOT sent: the hosted
+    //    invitation collects it from the applicant directly.
+    const candidate = (await this.checkrFetch(base, apiKey, "/v1/candidates", {
+      first_name: input.firstName,
+      last_name: input.lastName,
+      email: input.email,
+      ...(input.dateOfBirth ? { dob: input.dateOfBirth } : {}),
+    })) as { id?: string };
+    if (!candidate?.id) {
+      throw new Error("Checkr candidate create returned no id");
+    }
+
+    // 2) Invitation — hand the applicant the hosted apply flow for `package`.
+    const invitation = (await this.checkrFetch(base, apiKey, "/v1/invitations", {
+      candidate_id: candidate.id,
+      package: pkg,
+      work_locations: [{ country: "US", state: input.state || "NV" }],
+    })) as { invitation_url?: string; status?: string };
+
+    return {
+      // candidate.id (NOT the not-yet-existent report id) is the webhook join key.
+      reportId: candidate.id,
+      status: invitation.status || "pending",
+      url: invitation.invitation_url || null,
+    };
+  }
+
+  /**
+   * POST to the Checkr API with HTTP Basic auth (API key as username, empty
+   * password: `Basic base64(key + ":")`). Any non-2xx THROWS with a categorical
+   * detail — the submit() caller turns that into a fail-loud HOLD, never a
+   * fabricated handle. Mirrors the plaid/work-number fetch idiom.
+   */
+  private async checkrFetch(
+    base: string,
+    apiKey: string,
+    path: string,
+    body: Record<string, unknown>
+  ): Promise<unknown> {
+    const auth = Buffer.from(`${apiKey}:`).toString("base64");
+    const res = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const err = (await res.json()) as any;
+        detail = err?.error
+          ? String(err.error)
+          : Array.isArray(err?.errors)
+            ? err.errors.join("; ")
+            : JSON.stringify(err);
+      } catch {
+        /* keep HTTP status */
+      }
+      throw new Error(`Checkr ${path} failed — ${detail}`);
+    }
+    return res.json();
   }
 
   /**

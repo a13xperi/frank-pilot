@@ -352,9 +352,16 @@ export class ApplicationService {
         );
         const { CreditCheckService } = await import("../screening/credit-check");
 
+        // Email comes from the applicant's user record (submitted_by → users) —
+        // the same join the CRA webhook uses to resolve the actor. Checkr needs
+        // it to create + invite the candidate; the hosted invitation then
+        // collects the full SSN/DOB from the applicant directly.
         const appRow = await query(
-          `SELECT first_name, last_name, ssn_encrypted, date_of_birth_encrypted, current_state
-             FROM applications WHERE id = $1`,
+          `SELECT a.first_name, a.last_name, a.ssn_encrypted, a.date_of_birth_encrypted,
+                  a.current_state, u.email
+             FROM applications a
+             LEFT JOIN users u ON u.id = a.submitted_by
+            WHERE a.id = $1`,
           [applicationId]
         );
         const a = appRow.rows[0] || {};
@@ -375,6 +382,7 @@ export class ApplicationService {
             ssnLast4,
             dateOfBirth: dob,
             state: a.current_state || "NV",
+            email: a.email,
             returnUrl,
           }),
           new CreditCheckService().createReport({
