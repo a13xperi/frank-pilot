@@ -31,8 +31,11 @@ import { CreditCheckService } from "./credit-check";
  *     report/invitation `candidate_id` (createReport persisted candidate.id as
  *     background_report_id, since the invitation flow yields no report id at
  *     create time). Built + tested here; arms when the secret is set.
- *   - SYNTHETIC (`x-cra-signature` present): the internal envelope the unit
- *     tests post, gated on CRA_WEBHOOK_SECRET. Preserved byte-identical.
+ *   - SYNTHETIC (`x-cra-signature` present): a TEST-ONLY fixture envelope the
+ *     unit tests post. It carries NO per-vendor HMAC, so it is gated to
+ *     NODE_ENV=test and is unreachable (404) in any deployed environment — see
+ *     the router below. Real vendors sign their payloads (Checkr above;
+ *     TransUnion credit with the Chunk-4 adapter).
  *
  * STILL CREDENTIALING-GATED: the TransUnion ShareAble credit event envelope +
  * its signing scheme (the credit half of `parseEnvelope`/dispatch is wired, but
@@ -528,10 +531,18 @@ router.post(
       return;
     }
 
-    // ── Synthetic path — the internal envelope the unit tests post ──
-    // Gated on CRA_WEBHOOK_SECRET; the `x-cra-signature` header must be present
-    // (trusted internal caller). The real per-vendor HMAC lives on the Checkr
-    // path above; the TransUnion credit envelope + signing arrives with Chunk 4.
+    // ── Synthetic path — a TEST-ONLY fixture seam ──
+    // This envelope carries NO per-vendor HMAC (it predates the real Checkr path
+    // above), so it is verified only by header *presence*. That is safe ONLY
+    // under test: in a deployed env, once CRA_WEBHOOK_SECRET is set to arm the
+    // receiver, an unauthenticated caller could forge a verdict with a crafted
+    // body + any `x-cra-signature` header. Gate it to NODE_ENV=test; real
+    // vendors (Checkr above; TransUnion credit, Chunk 4) sign their payloads.
+    if (process.env.NODE_ENV !== "test") {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
     const secret = process.env.CRA_WEBHOOK_SECRET ?? "";
     if (!secret || secret === "changeme") {
       res.status(503).json({ error: "CRA webhook secret not configured" });
