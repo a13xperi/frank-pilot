@@ -210,6 +210,7 @@ If any of the first three return 404: check Vercel deployment status. If the API
 - **Real Stripe wiring:** payment-step scaffold has BP-03b tape beacons but no live Stripe. Spec is at `docs/bp-08-stripe-spec.md` (PR #82, merged); server slice is in flight (PR #123, open). Operator-side cutover procedure is in [`operator-runbook.md`](operator-runbook.md#bp-08-stripe-payments-operator-facing).
 - **Waitlist position counter:** zero-units → waitlist-join branch is wired (wedge #5) with a "Check your position" CTA on confirm; the visible position counter UI ("#142 of 287 for Meacham 1BR") is the next amplify wedge.
 - **Real per-property photography + amenities:** content task, unblocks JSON-LD `image` field + richer `amenityFeature` arrays.
+- **GPMG NV Parcels Notion sync (energy program):** the repo→Notion source-of-truth sync (`docs/intel/notion-sync/`) is internal back-office tooling — the GPMG NV Parcels DB is **private ("do not share externally")** and never part of the tenant demo. Its daily launchd cron (`com.a13x.frank-notion-sync`) is **disabled until the energy vendors are live** (`launchctl bootout` + `launchctl disable`; plist, worktree, and token `.env` all left intact, so manual `sync.py --apply` / `launchctl kickstart` still work). Re-arm with `./install-cron.sh` (self-healing — it clears the disable override) or `launchctl enable … && launchctl bootstrap …`. See [`notion-sync/README.md`](intel/notion-sync/README.md).
 
 ---
 
@@ -220,3 +221,4 @@ If any of the first three return 404: check Vercel deployment status. If the API
 - [`gpmglv-bp-03b-positioning.md`](intel/gpmglv-bp-03b-positioning.md) — narrative positioning brief.
 - [`operator-runbook.md`](operator-runbook.md) — operator-facing operational reference (compliance tape, payment wizard scaffold).
 - [`bp-03b-w0-ami-pre-qualifier.md`](bp-03b-w0-ami-pre-qualifier.md) — AMI W0 design doc.
+- [`notion-sync/README.md`](intel/notion-sync/README.md) — repo→Notion sync for the private GPMG NV Parcels DB (cron install / disable / re-arm).
