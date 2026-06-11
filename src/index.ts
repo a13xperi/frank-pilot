@@ -173,11 +173,13 @@ app.use("/api/auth", authRoutes);
 // Applicant self-service (public register + auth'd apply)
 app.use("/api/applicants", applicantRoutes);
 
-// Grounded housing Q&A chat (PUBLIC, per-IP rate-limited — pre-registration
-// applicants ask about NV affordable-housing properties + the application
-// process; answers are grounded strictly in injected data). Degrades to 503
-// when ANTHROPIC_API_KEY is absent.
-app.use("/api/housing-qa", housingQaRouter());
+// Grounded housing Q&A chat (PUBLIC, per-IP rate-limited). This mount serves
+// the UNAUTHENTICATED tenant-portal widget, so it is pinned to the
+// tenant_public surface: tenantFaq-corpus-only retrieval (NO statewide/GPMG
+// property data), a tenant-scoped prompt, and the internal-language output
+// guard — enforced in code, see RETRIEVAL_POLICIES in housing-qa/retriever.ts.
+// Degrades to 503 when ANTHROPIC_API_KEY is absent.
+app.use("/api/housing-qa", housingQaRouter({ surface: "tenant_public" }));
 
 // Break-glass kill-switch for the public housing-QA endpoint (system_admin
 // only). HOUSING_QA_ENABLED=false is the restart-durable default; this flips

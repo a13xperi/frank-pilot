@@ -1,15 +1,19 @@
 /**
- * routes.ts — Public, rate-limited housing Q&A endpoint.
+ * routes.ts — Surface-scoped, rate-limited housing Q&A endpoint.
  *
  * Mounted at /api/housing-qa (PUBLIC — no auth, per-IP rate-limited, mirrors
  * the applicant register/legal public routes). POST / takes { question },
- * runs the grounded retriever to assemble context, injects it into the ported
- * system prompt, and calls the Anthropic SDK NON-STREAMING. Returns
- * { answer: string }.
+ * runs the grounded retriever to assemble context, injects it into the
+ * surface's system prompt, and calls the Anthropic SDK NON-STREAMING.
+ * Returns { answer: string }.
  *
- * Guardrails are enforced upstream (in the system prompt + grounded context);
- * this layer only validates input, rate-limits, and degrades cleanly when the
- * API key is absent (503, never a crash).
+ * Every mount MUST declare the surface it serves (housingQaRouter({surface})).
+ * The surface picks the RetrievalPolicy (what the retriever may consult — the
+ * public tenant surface is tenantFaq-only, no property data), the system
+ * prompt, and whether answers pass through the internal-language output guard.
+ * Data scoping is enforced in code at those three seams — never by prompt
+ * instruction alone. This layer additionally validates input, rate-limits,
+ * and degrades cleanly when the API key is absent (503, never a crash).
  */
 
 import { Router, Request, Response } from "express";
@@ -19,8 +23,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { spawn } from "child_process";
 import os from "os";
 import path from "path";
-import { buildContext } from "./retriever";
-import { buildSystemPrompt } from "./prompt";
+import { buildContext, RETRIEVAL_POLICIES, QaSurface } from "./retriever";
+import { buildSystemPromptFor } from "./prompt";
+import { guardTenantAnswer } from "./output-guard";
 import { logger } from "../../utils/logger";
 
 // Short, grounded answers → Haiku for cost. Locked by the brief.
@@ -42,21 +47,25 @@ const questionSchema = z.object({
 });
 
 // Per-IP limiter — public endpoint, so we key on source IP (IPv6-safe via
-// express-rate-limit's ipKeyGenerator). ~20 requests / 10 min.
-const qaLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 20,
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many questions, please slow down and try again soon." },
-  // Surface per-IP abuse without Sentry. The PII-filtered logger scrubs the IP;
-  // we log the event + path only, never the question.
-  handler: (req, res, _next, options) => {
-    logger.warn("housing-qa rate-limited", { path: req.path });
-    res.status(options.statusCode).json(options.message);
-  },
-});
+// express-rate-limit's ipKeyGenerator). ~20 requests / 10 min. Built per
+// router (in housingQaRouter) so each mount owns its bucket — a module-scope
+// limiter would silently share one window across distinct surfaces.
+function makeQaLimiter() {
+  return rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 20,
+    keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many questions, please slow down and try again soon." },
+    // Surface per-IP abuse without Sentry. The PII-filtered logger scrubs the IP;
+    // we log the event + path only, never the question.
+    handler: (req, res, _next, options) => {
+      logger.warn("housing-qa rate-limited", { path: req.path });
+      res.status(options.statusCode).json(options.message);
+    },
+  });
+}
 
 // --------------------------------------------------------------------------- //
 // Operational guardrails — kill-switch + daily volume ceiling
@@ -277,8 +286,19 @@ function callViaCli(system: string, question: string): Promise<string> {
   });
 }
 
-export function housingQaRouter(): Router {
+export interface HousingQaRouterOptions {
+  /**
+   * REQUIRED — which surface this mount serves. Selects the retrieval policy
+   * (source allowlist), the system prompt, and the output-guard behavior.
+   * There is deliberately no default: a new mount must make a scoping choice.
+   */
+  surface: QaSurface;
+}
+
+export function housingQaRouter(opts: HousingQaRouterOptions): Router {
+  const policy = RETRIEVAL_POLICIES[opts.surface];
   const router: Router = Router();
+  const qaLimiter = makeQaLimiter();
 
   router.post("/", qaLimiter, async (req: Request, res: Response) => {
     const startedAt = Date.now();
@@ -331,8 +351,8 @@ export function housingQaRouter(): Router {
     }
 
     try {
-      const context = buildContext(question);
-      const system = buildSystemPrompt(context);
+      const context = buildContext(question, policy);
+      const system = buildSystemPromptFor(opts.surface, context);
 
       let answer: string;
       // Captured from the SDK response for the budget gate + spend log; stays
@@ -387,13 +407,32 @@ export function housingQaRouter(): Router {
         return;
       }
 
+      // Response-side internal-language guard (policy-gated; ON for the
+      // public tenant surface). A tripped guard replaces the WHOLE answer
+      // with the safe fallback — fail-closed, see output-guard.ts. Log rule
+      // ids only: the answer text can embed the user's question (PII).
+      let guarded = false;
+      if (policy.guardOutput) {
+        const verdict = guardTenantAnswer(answer);
+        if (!verdict.ok) {
+          guarded = true;
+          logger.warn("housing-qa output guard tripped — answer replaced", {
+            surface: opts.surface,
+            violations: verdict.violations,
+          });
+          answer = verdict.answer;
+        }
+      }
+
       // PII-safe usage line for cost-spike + abuse visibility. Question LENGTH
       // only, never content (the logger PII-filters regardless). `route` is the
       // retrieval branch; `path` is which backend answered. Token counts + the
       // estimated cost are present only on the metered SDK path (null on CLI);
       // tokens are not PII.
       logger.info("housing-qa answered", {
+        surface: opts.surface,
         route: context.routing,
+        guarded,
         path: client ? "sdk" : "cli",
         qLen: question.length,
         propertyCount: context.properties.length,

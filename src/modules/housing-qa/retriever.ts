@@ -14,6 +14,12 @@
  *   - city/area           -> COMPACT summaries, cap K=8
  *   - attribute filter    -> COMPACT summaries, cap K=8 (city+attribute = AND)
  *   - process/eligibility -> NO property objects; FAQ sections only
+ *
+ * ALL routing is gated by a per-surface RetrievalPolicy (see
+ * RETRIEVAL_POLICIES): buildContext requires the caller to name its surface,
+ * and a source outside that surface's allowlist is never consulted. The
+ * public tenant surface is tenantFaq-only — the property index is not even
+ * classified against, so statewide records cannot reach the model.
  */
 
 import Fuse from "fuse.js";
@@ -56,6 +62,104 @@ export const ALWAYS_ON_FACTS = {
   documentsNote: "Upload your documents (5 files, < 120 days old).",
   documentsSource: "apply.json checklist.items / confirm.nextSteps",
 } as const;
+
+// --------------------------------------------------------------------------- //
+// Per-surface retrieval policy — the data-scoping enforcement seam.
+//
+// Every caller of buildContext MUST name the surface it serves; there is no
+// default. A source absent from a policy's allowlist is never consulted — not
+// filtered after the fact, not hidden by prompt instruction: the retrieval
+// call simply never happens, so scoped-out data cannot reach the model.
+//
+// Caller audit (2026-06-11): the ONLY consumer of this module is the PUBLIC
+// tenant-portal chat widget (client-tenant → POST /api/housing-qa). The staff
+// client (client/), acquisition client (client-acq/), and voice-intake module
+// do not call housing-qa. Any new caller must pick — or add — a policy here.
+// --------------------------------------------------------------------------- //
+export type QaSurface = "tenant_public" | "applicant_portal";
+
+/**
+ * Retrieval sources the allowlist governs. The always-on `facts` block is NOT
+ * a source — it is the platform's own locked public constants ($35.95 fee,
+ * 120-day rule, document checklist), emitted on every surface; only its
+ * internal provenance fields are policy-controlled (redactInternalProvenance).
+ */
+export type QaSource = "properties" | "faqSections" | "tenantFaq";
+
+export interface RetrievalPolicy {
+  surface: QaSurface;
+  /** Source allowlist — a source not listed here is NEVER consulted. */
+  sources: readonly QaSource[];
+  /** Inject `_meta` (dataset names/counts — internal) into the payload. */
+  includeMeta: boolean;
+  /**
+   * Echo the raw user question inside the context payload. The model already
+   * receives the question as the user message; repeating it inside the SYSTEM
+   * prompt widens the injection surface, so public surfaces omit it.
+   */
+  echoQuestion: boolean;
+  /** Strip internal provenance (`source` fields naming repo files) from facts. */
+  redactInternalProvenance: boolean;
+  /** Run the response through the internal-language output guard (routes.ts). */
+  guardOutput: boolean;
+}
+
+export const RETRIEVAL_POLICIES: Record<QaSurface, RetrievalPolicy> = {
+  // Unauthenticated tenant-portal widget: general LIHTC guidance ONLY. No
+  // property retrieval of any kind — the statewide HUD-LIHTC index is never
+  // even classified against, so no property record, dataset name, or
+  // statewide note can enter the payload.
+  tenant_public: {
+    surface: "tenant_public",
+    sources: ["tenantFaq"],
+    includeMeta: false,
+    echoQuestion: false,
+    redactInternalProvenance: true,
+    guardOutput: true,
+  },
+  // The original full grounding contract (named-property / city / attribute /
+  // process routing over the merged statewide+GPMG index). No route serves
+  // this today — it is the seam for a future AUTHENTICATED applicant surface,
+  // and it keeps the locked retrieval contract pinned by the existing tests.
+  applicant_portal: {
+    surface: "applicant_portal",
+    sources: ["properties", "faqSections", "tenantFaq"],
+    includeMeta: true,
+    echoQuestion: true,
+    redactInternalProvenance: false,
+    guardOutput: false,
+  },
+};
+
+/** Facts as emitted to public surfaces — same values, no internal provenance. */
+export interface PublicFacts {
+  applicationFee: {
+    amount: string;
+    per: string;
+    refundable: boolean;
+    note: string;
+  };
+  rule120: { days: number; note: string };
+  documentsNeeded: readonly string[];
+  documentsNote: string;
+}
+
+// Provenance-free mirror of ALWAYS_ON_FACTS for redactInternalProvenance
+// surfaces. Built from the same object so the values can never drift.
+const PUBLIC_FACTS: PublicFacts = {
+  applicationFee: {
+    amount: ALWAYS_ON_FACTS.applicationFee.amount,
+    per: ALWAYS_ON_FACTS.applicationFee.per,
+    refundable: ALWAYS_ON_FACTS.applicationFee.refundable,
+    note: ALWAYS_ON_FACTS.applicationFee.note,
+  },
+  rule120: {
+    days: ALWAYS_ON_FACTS.rule120.days,
+    note: ALWAYS_ON_FACTS.rule120.note,
+  },
+  documentsNeeded: ALWAYS_ON_FACTS.documentsNeeded,
+  documentsNote: ALWAYS_ON_FACTS.documentsNote,
+};
 
 // --------------------------------------------------------------------------- //
 // Fuzzy property matching (Fuse.js — replaces difflib)
@@ -425,8 +529,10 @@ function compact(rec: NormalizedProperty): CompactProperty {
 // Context assembly — mirrors retriever.build_context
 // --------------------------------------------------------------------------- //
 export interface HousingContext {
-  question: string;
-  routing: Branch;
+  /** Present only when the policy echoes the question (see echoQuestion). */
+  question?: string;
+  /** `faq_only` = property retrieval scoped out by policy (tenant surface). */
+  routing: Branch | "faq_only";
   propertyMode: "full" | "compact" | "none";
   properties: Array<EmittedProperty | CompactProperty>;
   /**
@@ -446,9 +552,10 @@ export interface HousingContext {
    * injected so property data stays dominant.
    */
   tenantFaq: TenantFaqMatch[];
-  facts: typeof ALWAYS_ON_FACTS;
+  facts: PublicFacts;
   notes: string[];
-  _meta: {
+  /** Present only when the policy includes meta (see includeMeta). */
+  _meta?: {
     statewideRecords: number;
     gpmgRecords: number;
     availableNowRecords: number;
@@ -459,14 +566,24 @@ export interface HousingContext {
 
 export function buildContext(
   question: string,
+  policy: RetrievalPolicy,
   index: HousingIndex = getHousingIndex()
 ): HousingContext {
-  const [branch, detail] = classify(question, index);
+  const allow = new Set<QaSource>(policy.sources);
   const notes: string[] = [];
   let properties: Array<EmittedProperty | CompactProperty> = [];
   let mode: "full" | "compact" | "none" = "none";
   let totalMatching: number | undefined;
   let shown: number | undefined;
+
+  // Source allowlist gate: when `properties` is scoped out, the index is not
+  // consulted AT ALL — classification itself runs over the property index, so
+  // skipping it is what guarantees no record, name, or dataset note leaks.
+  let branch: Branch | "faq_only" = "faq_only";
+  let detail: ClassifyDetail = {};
+  if (allow.has("properties")) {
+    [branch, detail] = classify(question, index);
+  }
 
   if (branch === "named_property") {
     const rec = detail.record!;
@@ -526,7 +643,7 @@ export function buildContext(
       );
     }
   } else {
-    // process
+    // process / faq_only
     properties = [];
     mode = "none";
     const unknown = detail.unknownProperty;
@@ -537,21 +654,31 @@ export function buildContext(
     }
   }
 
-  let faq = matchFaqSections(question);
-  if (faq.length === 0) {
-    faq = [
-      {
-        id: "application-steps",
-        title: "The application steps",
-        anchor: "faq.md#application-steps",
-      },
-    ];
+  let faq: FaqMatch[] = [];
+  if (allow.has("faqSections")) {
+    faq = matchFaqSections(question);
+    if (faq.length === 0) {
+      faq = [
+        {
+          id: "application-steps",
+          title: "The application steps",
+          anchor: "faq.md#application-steps",
+        },
+      ];
+    }
   }
 
-  const tenantFaq = matchTenantFaq(question, branch === "process" ? 4 : 2);
+  // Cap 2 only when property objects share the payload (property data stays
+  // dominant); 4 on property-free routes — including the tenant surface,
+  // where tenantFaq is the primary grounding source.
+  const tenantFaq = allow.has("tenantFaq")
+    ? matchTenantFaq(
+        question,
+        branch === "process" || branch === "faq_only" ? 4 : 2
+      )
+    : [];
 
-  return {
-    question,
+  const ctx: HousingContext = {
     routing: branch,
     propertyMode: mode,
     properties,
@@ -559,14 +686,18 @@ export function buildContext(
     shown,
     faqSections: faq,
     tenantFaq,
-    facts: ALWAYS_ON_FACTS,
+    facts: policy.redactInternalProvenance ? PUBLIC_FACTS : ALWAYS_ON_FACTS,
     notes,
-    _meta: {
+  };
+  if (policy.echoQuestion) ctx.question = question;
+  if (policy.includeMeta) {
+    ctx._meta = {
       statewideRecords: index.statewideCount,
       gpmgRecords: index.gpmgCount,
       availableNowRecords: index.availableNowCount,
       totalIndexRecords: index.records.length,
       dataAsOf: index.gpmgSnapshot,
-    },
-  };
+    };
+  }
+  return ctx;
 }

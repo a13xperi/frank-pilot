@@ -12,8 +12,17 @@
  */
 import fs from "fs";
 import path from "path";
-import { buildContext } from "../modules/housing-qa/retriever";
+import {
+  buildContext,
+  RETRIEVAL_POLICIES,
+} from "../modules/housing-qa/retriever";
 import { getHousingIndex } from "../modules/housing-qa/data";
+
+// The applicant policy carries the ORIGINAL full grounding contract — the
+// long-standing pins below now exercise it explicitly. The tenant policy is
+// the public tenant-portal scope (tenantFaq-only) pinned further down.
+const APPLICANT = RETRIEVAL_POLICIES.applicant_portal;
+const TENANT = RETRIEVAL_POLICIES.tenant_public;
 
 describe("housing-qa retriever — grounded context assembly", () => {
   it("builds the merged index (335 statewide + 17 GPMG)", () => {
@@ -26,7 +35,7 @@ describe("housing-qa retriever — grounded context assembly", () => {
   });
 
   it("(1) process question (fee) → FAQ-only, no property objects", () => {
-    const ctx = buildContext("How much is the application fee and is it refundable?");
+    const ctx = buildContext("How much is the application fee and is it refundable?", APPLICANT);
     expect(ctx.routing).toBe("process");
     expect(ctx.propertyMode).toBe("none");
     expect(ctx.properties).toHaveLength(0);
@@ -40,7 +49,7 @@ describe("housing-qa retriever — grounded context assembly", () => {
   });
 
   it("(2) 'senior housing in Henderson' → city+attribute filter, compact, capped at K=8", () => {
-    const ctx = buildContext("What senior housing is available in Henderson?");
+    const ctx = buildContext("What senior housing is available in Henderson?", APPLICANT);
     expect(ctx.routing).toBe("attribute");
     expect(ctx.propertyMode).toBe("compact");
     // capped
@@ -65,7 +74,7 @@ describe("housing-qa retriever — grounded context assembly", () => {
   });
 
   it("(3) named property rent → property matched, rent refused (rent.disclosed=false → no value)", () => {
-    const ctx = buildContext("What's the monthly rent at Silver Pines Apts?");
+    const ctx = buildContext("What's the monthly rent at Silver Pines Apts?", APPLICANT);
     expect(ctx.routing).toBe("named_property");
     expect(ctx.propertyMode).toBe("full");
     expect(ctx.properties).toHaveLength(1);
@@ -84,7 +93,7 @@ describe("housing-qa retriever — grounded context assembly", () => {
   });
 
   it("(4) unknown property 'Moonbeam Towers' → no match, no invented data, refusal note", () => {
-    const ctx = buildContext("Tell me about Moonbeam Towers");
+    const ctx = buildContext("Tell me about Moonbeam Towers", APPLICANT);
     expect(ctx.routing).toBe("process");
     expect(ctx.propertyMode).toBe("none");
     expect(ctx.properties).toHaveLength(0);
@@ -93,7 +102,7 @@ describe("housing-qa retriever — grounded context assembly", () => {
   });
 
   it("(5) AMI/eligibility question → FAQ section, no personal ruling, no property objects", () => {
-    const ctx = buildContext("I make $40,000 a year — do I qualify?");
+    const ctx = buildContext("I make $40,000 a year — do I qualify?", APPLICANT);
     expect(ctx.routing).toBe("process");
     expect(ctx.propertyMode).toBe("none");
     expect(ctx.properties).toHaveLength(0);
@@ -101,7 +110,7 @@ describe("housing-qa retriever — grounded context assembly", () => {
   });
 
   it("emitted full-property objects never expose internal-only fields", () => {
-    const ctx = buildContext("Tell me about Silver Pines Apts");
+    const ctx = buildContext("Tell me about Silver Pines Apts", APPLICANT);
     const prop = ctx.properties[0] as Record<string, unknown>;
     expect(prop).not.toHaveProperty("_lat");
     expect(prop).not.toHaveProperty("_lng");
@@ -163,7 +172,7 @@ describe("housing-qa retriever — AMI-tier provenance (#225)", () => {
   it("a named record with no AMI source emits amiTiers: null (never invented)", () => {
     // City Center Las Vegas is in the statewide set but has no matchable
     // NHD-LIHD tier — it must surface as null, not a fabricated percentage.
-    const ctx = buildContext("Tell me about City Center Las Vegas");
+    const ctx = buildContext("Tell me about City Center Las Vegas", APPLICANT);
     expect(ctx.routing).toBe("named_property");
     const prop = ctx.properties[0] as { name: string | null; amiTiers: unknown };
     expect(prop.name).toBe("City Center Las Vegas");
@@ -171,7 +180,7 @@ describe("housing-qa retriever — AMI-tier provenance (#225)", () => {
   });
 
   it("a named record WITH an AMI source emits its real tiers (control)", () => {
-    const ctx = buildContext("Tell me about Silver Pines Apts");
+    const ctx = buildContext("Tell me about Silver Pines Apts", APPLICANT);
     expect(ctx.routing).toBe("named_property");
     const prop = ctx.properties[0] as { amiTiers: string[] | null };
     expect(Array.isArray(prop.amiTiers)).toBe(true);
@@ -181,7 +190,7 @@ describe("housing-qa retriever — AMI-tier provenance (#225)", () => {
   it("an amiTier filter never surfaces a null-tier record", () => {
     // Filtering by a tier must only return records that actually carry it;
     // a null-tier record can never match (guards retriever.ts `r.amiTiers || []`).
-    const ctx = buildContext("Show me 50% AMI housing in Las Vegas");
+    const ctx = buildContext("Show me 50% AMI housing in Las Vegas", APPLICANT);
     for (const p of ctx.properties) {
       const tiers = (p as { amiTiers: string[] | null }).amiTiers;
       expect(tiers).not.toBeNull();
@@ -232,7 +241,7 @@ describe("housing-qa retriever — AMI-tier provenance (#225)", () => {
  */
 describe("housing-qa retriever — tenantFaq context injection", () => {
   it("process question carries up to 4 tenant-FAQ entries with full text", () => {
-    const ctx = buildContext("Do food stamps count as income?");
+    const ctx = buildContext("Do food stamps count as income?", APPLICANT);
     expect(ctx.routing).toBe("process");
     expect(ctx.tenantFaq.length).toBeGreaterThan(0);
     expect(ctx.tenantFaq.length).toBeLessThanOrEqual(4);
@@ -242,16 +251,113 @@ describe("housing-qa retriever — tenantFaq context injection", () => {
   });
 
   it("named-property question caps tenant-FAQ entries at 2", () => {
-    const ctx = buildContext("Are pets allowed at Silver Pines Apts?");
+    const ctx = buildContext("Are pets allowed at Silver Pines Apts?", APPLICANT);
     expect(ctx.routing).toBe("named_property");
     expect(ctx.tenantFaq.length).toBeLessThanOrEqual(2);
   });
 
   it("fee question: no tenant-FAQ entry undercuts the $35.95 always-on fact", () => {
-    const ctx = buildContext("How much is the application fee and is it refundable?");
+    const ctx = buildContext("How much is the application fee and is it refundable?", APPLICANT);
     expect(ctx.facts.applicationFee.amount).toBe("$35.95");
     for (const m of ctx.tenantFaq) {
       expect(m.answer).not.toMatch(/\$\s?\d/); // no competing dollar figure
     }
+  });
+});
+
+/**
+ * Per-surface retrieval policy — the tenant-scope enforcement seam.
+ *
+ * The 2026-06 demo leak: the UNAUTHENTICATED tenant-portal widget asked
+ * "test" got back a property card for "Test Property, Carson City" straight
+ * from the statewide HUD-LIHTC dataset, plus internal pipeline language. The
+ * tenant_public policy closes this in CODE: the property index is never
+ * consulted (not even for classification), `_meta` and the echoed question
+ * are omitted, and facts lose their internal provenance fields. These pins
+ * assert on the SERIALIZED payload — what the model would actually see.
+ */
+describe("housing-qa retriever — tenant_public policy (data scoping)", () => {
+  // Markers that must never appear in a tenant-surface payload. Bare "HUD" /
+  // "LIHTC" are NOT markers — they are program names that legitimately occur
+  // in approved tenantFaq answers; the DATASET name is the hyphenated form.
+  const LEAK_MARKERS =
+    /Test Property|Carson City|Silver Pines|HUD[\s-]LIHTC|GPMG|statewide|named_property|faq\.md|apply\.json/i;
+
+  it("'test' (the demo-leak repro) → faq_only, zero property objects, no statewide markers", () => {
+    const ctx = buildContext("test", TENANT);
+    expect(ctx.routing).toBe("faq_only");
+    expect(ctx.propertyMode).toBe("none");
+    expect(ctx.properties).toHaveLength(0);
+    expect(JSON.stringify(ctx)).not.toMatch(LEAK_MARKERS);
+  });
+
+  it("a named-property question injects NO property data and never echoes the name", () => {
+    // On the applicant surface this exact question injects the full Silver
+    // Pines record — the tenant surface must inject nothing and must not even
+    // echo the property name (the question is not repeated in the payload).
+    const ctx = buildContext("What's the monthly rent at Silver Pines Apts?", TENANT);
+    expect(ctx.routing).toBe("faq_only");
+    expect(ctx.properties).toHaveLength(0);
+    expect(ctx.notes).toHaveLength(0); // no statewide-only refusal note either
+    expect(JSON.stringify(ctx)).not.toMatch(LEAK_MARKERS);
+  });
+
+  it("city/attribute questions return zero statewide hits on the tenant surface", () => {
+    for (const q of [
+      "What senior housing is available in Henderson?",
+      "Show me 50% AMI housing in Las Vegas",
+      "What's available right now?",
+    ]) {
+      const ctx = buildContext(q, TENANT);
+      expect(ctx.routing).toBe("faq_only");
+      expect(ctx.properties).toHaveLength(0);
+      expect(ctx.totalMatching).toBeUndefined();
+      expect(ctx.shown).toBeUndefined();
+    }
+  });
+
+  it("tenant payloads omit _meta (dataset names/counts) and the echoed question", () => {
+    const ctx = buildContext("Do food stamps count as income?", TENANT);
+    expect(ctx._meta).toBeUndefined();
+    expect(ctx.question).toBeUndefined();
+    // applicant control: both present there (the original contract).
+    const appl = buildContext("Do food stamps count as income?", APPLICANT);
+    expect(appl._meta).toBeDefined();
+    expect(appl.question).toBe("Do food stamps count as income?");
+  });
+
+  it("tenant facts are provenance-free but keep the locked $35.95 fee", () => {
+    const ctx = buildContext("How much is the application fee?", TENANT);
+    expect(ctx.facts.applicationFee.amount).toBe("$35.95");
+    expect(ctx.facts.applicationFee.refundable).toBe(false);
+    expect(ctx.facts.rule120.days).toBe(120);
+    // no internal `source` fields naming repo files (apply.json …)
+    expect(JSON.stringify(ctx.facts)).not.toMatch(/apply\.json|"source"|"documentsSource"/);
+  });
+
+  it("faqSections (applicant pipeline references) are scoped out of the tenant surface", () => {
+    const ctx = buildContext("How do I apply?", TENANT);
+    expect(ctx.faqSections).toHaveLength(0);
+  });
+
+  it("the pinned grounded answers still retrieve on the tenant surface", () => {
+    // SNAP / food stamps → Tenant FAQ #63
+    const snap = buildContext("Do food stamps count as income?", TENANT);
+    expect(snap.tenantFaq.map((m) => m.id)).toContain("tfaq-063");
+    // live-in aide → Tenant FAQ #118–120
+    const aide = buildContext("Can I ask for a live-in aide?", TENANT);
+    expect(aide.tenantFaq.map((m) => m.id)).toContain("tfaq-118-120");
+    // tenantFaq is the primary source here — cap is 4, full text included
+    expect(snap.tenantFaq.length).toBeLessThanOrEqual(4);
+    expect(snap.tenantFaq[0].answer.length).toBeGreaterThan(0);
+  });
+
+  it("the applicant surface still serves full statewide retrieval (control)", () => {
+    // The same repro question on the applicant policy DOES consult the index —
+    // proving the scoping is the policy, not a retriever-wide lobotomy.
+    const ctx = buildContext("test", APPLICANT);
+    expect(ctx.routing).not.toBe("faq_only");
+    const henderson = buildContext("What senior housing is available in Henderson?", APPLICANT);
+    expect(henderson.properties.length).toBeGreaterThan(0);
   });
 });

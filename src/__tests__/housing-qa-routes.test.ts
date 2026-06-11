@@ -1,10 +1,14 @@
 /**
  * housing-qa-routes.test.ts — route tests for POST /api/housing-qa.
  *
- * Mocks @anthropic-ai/sdk (no real network). Asserts:
+ * Mocks @anthropic-ai/sdk (no real network). The app mounts the router
+ * exactly as prod does — surface: tenant_public — so these tests also pin the
+ * tenant data-scoping contract at the HTTP boundary. Asserts:
  *   - empty / oversized question → 400
  *   - valid question → 200 { answer }, AND the system prompt passed to the SDK
- *     contains the injected grounded context
+ *     contains the injected grounded context — and NO property data, dataset
+ *     names, or echoed question (tenant scope)
+ *   - internal language in a model answer → replaced by the safe fallback
  *   - missing ANTHROPIC_API_KEY → 503 (clean, no crash)
  */
 import express from "express";
@@ -57,12 +61,14 @@ import {
   setHousingQaDisabled,
   housingQaStatus,
 } from "../modules/housing-qa/routes";
+import { SAFE_FALLBACK_ANSWER } from "../modules/housing-qa/output-guard";
 import { logger } from "../utils/logger";
 
 function makeApp() {
   const app = express();
   app.use(express.json());
-  app.use("/api/housing-qa", housingQaRouter());
+  // Mounted exactly as prod (src/index.ts): the public tenant surface.
+  app.use("/api/housing-qa", housingQaRouter({ surface: "tenant_public" }));
   return app;
 }
 
@@ -154,14 +160,34 @@ describe("POST /api/housing-qa — grounded answer", () => {
     // The system prompt must carry the guardrails AND the injected context.
     expect(callArg.system).toMatch(/GROUNDING RULES \(non-negotiable\)/);
     expect(callArg.system).toMatch(/BEGIN CONTEXT/);
-    expect(callArg.system).toMatch(/"routing": "process"/);
+    // tenant surface: property retrieval is scoped out by policy
+    expect(callArg.system).toMatch(/"routing": "faq_only"/);
     // always-on facts injected so the answer can be grounded
     expect(callArg.system).toMatch(/\$35\.95/);
   });
 
-  it("injects a refusal note for an unknown property", async () => {
+  it("'test' (the demo-leak repro) injects NO statewide property data", async () => {
     createMock.mockResolvedValueOnce({
-      content: [{ type: "text", text: "I don't have that property." }],
+      content: [{ type: "text", text: "Could you tell me more about what you need?" }],
+    });
+
+    const res = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question: "test" });
+
+    expect(res.status).toBe(200);
+    const callArg = createMock.mock.calls[0][0];
+    // The leak: "test" fuzzy-matched "Test Property, Carson City" out of the
+    // statewide dataset. None of that may reach the system prompt now.
+    expect(callArg.system).not.toMatch(/Test Property/i);
+    expect(callArg.system).not.toMatch(/Carson City/i);
+    expect(callArg.system).not.toMatch(/HUD[\s-]LIHTC|GPMG|statewide/i);
+    expect(callArg.system).toMatch(/"properties": \[\]/);
+  });
+
+  it("a named-property question injects no property record and no echo of the name", async () => {
+    createMock.mockResolvedValueOnce({
+      content: [{ type: "text", text: "I can't look up specific properties here." }],
     });
 
     const res = await request(makeApp())
@@ -170,8 +196,12 @@ describe("POST /api/housing-qa — grounded answer", () => {
 
     expect(res.status).toBe(200);
     const callArg = createMock.mock.calls[0][0];
-    expect(callArg.system).toMatch(/Moonbeam Towers/);
-    expect(callArg.system).toMatch(/NOT in the statewide HUD-LIHTC or available-now data/);
+    // tenant scope: the question reaches the model ONLY as the user message —
+    // never echoed into the system prompt (injection surface), and no
+    // dataset-naming refusal note is generated.
+    expect(callArg.system).not.toMatch(/Moonbeam Towers/);
+    expect(callArg.system).not.toMatch(/statewide|HUD[\s-]LIHTC|\/discover/i);
+    expect(callArg.messages[0].content).toBe("Tell me about Moonbeam Towers");
   });
 
   it("returns 502 when the model call throws", async () => {
@@ -183,6 +213,73 @@ describe("POST /api/housing-qa — grounded answer", () => {
     expect(res.body.error).toBeDefined();
     // the raw upstream error is never echoed to the client
     expect(JSON.stringify(res.body)).not.toMatch(/upstream boom/);
+  });
+});
+
+describe("POST /api/housing-qa — internal-language output guard", () => {
+  it("replaces an answer carrying internal pipeline language with the safe fallback", async () => {
+    // Prompt drift simulation: the model answers with the exact language that
+    // leaked in the 2026-06 demo. The response boundary must catch it.
+    createMock.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: "Open the Frank-Pilot application and go to the Pick step — that property is in the statewide HUD-LIHTC dataset.",
+        },
+      ],
+    });
+
+    const res = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question: "How do I find a property?" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.answer).toBe(SAFE_FALLBACK_ANSWER);
+    expect(JSON.stringify(res.body)).not.toMatch(/Frank-Pilot|Pick step|HUD-LIHTC/i);
+
+    // The trip is logged with rule ids only — never the answer text.
+    const warnCall = (logger.warn as jest.Mock).mock.calls.find(
+      (c) => c[0] === "housing-qa output guard tripped — answer replaced"
+    );
+    expect(warnCall).toBeDefined();
+    const meta = warnCall![1] as { surface: string; violations: string[] };
+    expect(meta.surface).toBe("tenant_public");
+    expect(meta.violations).toEqual(
+      expect.arrayContaining(["brand-frank-pilot", "pipeline-step"])
+    );
+    expect(JSON.stringify(meta)).not.toMatch(/Frank-Pilot application/);
+
+    // The success log records that the answer was guarded.
+    const infoCall = (logger.info as jest.Mock).mock.calls.find(
+      (c) => c[0] === "housing-qa answered"
+    );
+    expect((infoCall![1] as { guarded: boolean }).guarded).toBe(true);
+  });
+
+  it("clean answers pass through untouched, logged as unguarded on the tenant surface", async () => {
+    createMock.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: "SNAP benefits generally don't count as income (Tenant FAQ #63).",
+        },
+      ],
+    });
+
+    const res = await request(makeApp())
+      .post("/api/housing-qa")
+      .send({ question: "Do food stamps count as income?" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.answer).toBe(
+      "SNAP benefits generally don't count as income (Tenant FAQ #63)."
+    );
+    const infoCall = (logger.info as jest.Mock).mock.calls.find(
+      (c) => c[0] === "housing-qa answered"
+    );
+    const meta = infoCall![1] as { surface: string; guarded: boolean };
+    expect(meta.surface).toBe("tenant_public");
+    expect(meta.guarded).toBe(false);
   });
 });
 
