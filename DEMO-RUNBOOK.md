@@ -35,7 +35,7 @@ close every other tab.
 | 1 · A tenant acts | **Maintenance** | "+ New Work Order" → property: any, title: "Bathroom sink leaking", priority: urgent → Create. (3 seeded work orders incl. 1 emergency already visible.) |
 | 2 · The ledger writes | **Audit Log** | Open page — the work order you just created is the **top entry**, timestamped, actor-attributed. "That record can't be edited after the fact." |
 | 3 · Unit-level file | **Applications → Tomasz Kowalski** | Full history in one view: $1,950 delinquent ledger, late fees, eviction trigger, 7-day notice, move-out + deposit calc. Or **Keisha Williams** for the clean tenant (renewal $1,300→$1,339). |
-| 4 · Verification | **Screening (as senior@)** | "Screen" on **Priya Patel** → green/red chips live (background, credit, AMI, fraud). Or show **Elena Vasquez** income pre-verified → Generate Lease → Onboard. |
+| 4 · Verification | **Screening (as senior@)** | "Screen" on **Priya Patel** → green/red chips live (background, credit, AMI, fraud). Fallback: **Elena Vasquez** income pre-verified → **Generate Lease and STOP THERE** — ⚠️ do NOT click "Complete Onboarding": it renders right after generate but the API 400s (tenant e-sign now sits between generate and onboard; staff UI not yet re-gated). Narrate instead: "she signs on her phone, one click onboards her into the ledger." |
 | 5 · The block, re-priced | **The Ledger** (new showcase, top of sidebar) | The one-screen close: **299 evidence records · 26 units · 17 properties · 85% current**, the live tape (your beat-1 work order at the top), and Proof-by-Property. "Stack thousands of verified unit-events and the discount collapses — same book, provable." Leave this screen up through the asks. Backup: Rent Ledger (4-row ladder) + Properties as rehearsed. |
 
 ### "The Ledger" showcase (added Jun 10, ~11pm — commit f28f38d)
@@ -131,6 +131,19 @@ crashes it — found in rehearsal) and exits only after `/health` is green again
 
 Mid-meeting lighter option: **"Load Demo" button on the login page** re-seeds
 applications without a full reset (`POST /api/demo/seed`).
+
+> ⚠️ **"Load Demo" ALSO rebuilds users** (verified Jun 11 ~00:55 — the seed
+> re-inserts user rows with new IDs). Same stale-session trap as the full reset:
+> after clicking it, **log out and log back in** before doing anything else, or
+> writes 401 with "User account is inactive or not found."
+
+> ⚠️ **Beat-4 fallback landmine (found Jun 11 ~01:10, API-level):** Generate Lease
+> on Elena works (200, OneSite lease ID), but the **"Complete Onboarding" button
+> that appears next is a trap** — the API requires `lease_signed` (tenant e-sign
+> step added later; staff UI still shows the button at `lease_generated`) and the
+> click 400s in-room. No seeded app is in `lease_signed`, so Onboard is not
+> demoable at all tonight. Fallback script ends at Generate Lease + narration.
+> Proper UI re-gate goes to main post-demo, not this pinned worktree.
 
 ## Rehearsal findings (Jun 11, ~00:45am — automated Playwright run, all 5 beats)
 
