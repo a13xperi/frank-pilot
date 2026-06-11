@@ -13,7 +13,8 @@
     "seed:demo": "ts-node src/db/seed-demo.ts",
     "test": "jest --passWithNoTests",
     "e2e:up": "node scripts/e2e-up.mjs",
-    "e2e:up:once": "node scripts/e2e-up.mjs --once"
+    "e2e:up:once": "node scripts/e2e-up.mjs --once",
+    "seed:demo:ledger": "ts-node src/db/seed-demo-ledger.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "2.1.165",
