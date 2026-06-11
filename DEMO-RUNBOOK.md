@@ -116,6 +116,25 @@ crashes it — found in rehearsal) and exits only after `/health` is green again
 Mid-meeting lighter option: **"Load Demo" button on the login page** re-seeds
 applications without a full reset (`POST /api/demo/seed`).
 
+## Rehearsal findings (Jun 11, ~00:45am — automated Playwright run, all 5 beats)
+
+- **Beat 1 — the modal requires Description.** The exact-clicks above say title +
+  priority + property, but Create stays disabled until **Description** is filled.
+  Type anything ("Tenant reports a steady leak under the bathroom sink.").
+- **Beat 1 login:** works as agent@ ONLY after the seed fix (81efa08) — scoped
+  roles previously had no property assignments (deny-all: empty Maintenance,
+  create 403'd). `demo-reset.sh` now seeds agent@/senior@ with all 17 properties.
+- **Beat 4 needs `MOCK_MODE=1` in `.env`** (set Jun 11, survives resets — it's
+  the documented screening stub gate). Without it every Screen comes back
+  orange "Could Not Screen" HOLDs; with it Priya goes green "Screening Passed"
+  and lands in Completed (~5s). The screening events land on The Ledger's live
+  tape immediately — nice segue into beat 5.
+- **Beat 5 numbers drift per seed run** (evidence 289–298 observed). Say
+  "~300 evidence records · 26 units · 17 properties · 85% current" — don't
+  quote 299 exactly.
+- `demo-reset.sh` wipes the beat-1 work order (by design — DB drop). Don't
+  reset between beats 1 and 5; the tape/audit beats build on it.
+
 ## Rehearsal findings (Jun 10, ~9:45pm — full run: 9/9 PASS)
 
 - All five beats verified live, plus role-scoping (agent → 403 on audit log) and
