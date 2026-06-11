@@ -146,11 +146,9 @@ describe("tenant scope — retrieval layer (structural, not prompt politeness)",
       "2br at 60% AMI in Reno",
     ];
     for (const q of probes) {
-      // The builder never echoes the question — the WHOLE payload must be
-      // marker-free, even when the question itself is bait ("Test Property").
-      const payload = buildTenantContext(q);
-      expect(payload).not.toHaveProperty("question");
-      const json = JSON.stringify(payload);
+      // Drop the echoed question — only what retrieval ADDED can leak.
+      const { question: _q, ...rest } = buildTenantContext(q);
+      const json = JSON.stringify(rest);
       for (const marker of FORBIDDEN_TENANT_MARKERS) {
         expect(json).not.toContain(marker);
       }

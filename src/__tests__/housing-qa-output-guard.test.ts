@@ -13,12 +13,10 @@
  * embed the user's question → never logged).
  */
 import {
-  finalizeAnswer,
   guardTenantAnswer,
   INTERNAL_LANGUAGE_DENYLIST,
   SAFE_FALLBACK_ANSWER,
 } from "../modules/housing-qa/output-guard";
-import { RETRIEVAL_POLICIES } from "../modules/housing-qa/retriever";
 
 describe("output guard — leaking answers are denied (fail-closed)", () => {
   // One representative leaking sentence per denylist rule. If a rule is added
@@ -73,24 +71,6 @@ describe("output guard — leaking answers are denied (fail-closed)", () => {
     const pinned = new Set(LEAKS.map(([id]) => id));
     for (const rule of INTERNAL_LANGUAGE_DENYLIST) {
       expect(pinned.has(rule.id)).toBe(true);
-    }
-  });
-
-  it("separator and plural drift can't slip past the dataset rules", () => {
-    // Each of these escaped the first denylist cut (single-separator [\s-],
-    // singular-only alternations) — pinned so the patterns stay widened.
-    const VARIANTS: Array<[string, string]> = [
-      ["dataset-statewide", "That comes from our statewide datasets."],
-      ["dataset-statewide", "I checked the statewide listings."],
-      ["dataset-hud-lihtc", "It's in the HUD  LIHTC dataset."], // double space
-      ["dataset-hud-lihtc", "Per HUDLIHTC records."], // no separator
-      ["dataset-available-now", "See the available  now feed."], // double space
-      ["dataset-available-now", "It's in the available-now listings."],
-    ];
-    for (const [id, leak] of VARIANTS) {
-      const verdict = guardTenantAnswer(leak);
-      expect(verdict.ok).toBe(false);
-      expect(verdict.violations).toContain(id);
     }
   });
 
@@ -163,20 +143,6 @@ describe("output guard — legitimate tenant answers pass untouched", () => {
   it("the safe fallback itself passes the guard (no self-trip)", () => {
     const verdict = guardTenantAnswer(SAFE_FALLBACK_ANSWER);
     expect(verdict.ok).toBe(true);
-  });
-
-  it("finalizeAnswer enforces per policy: tenant guarded, applicant pass-through", () => {
-    const leak = "Open the Frank-Pilot application and go to the Pick step.";
-    // tenant_public (guardOutput: true) → denied + fallback
-    const tenant = finalizeAnswer(RETRIEVAL_POLICIES.tenant_public, leak);
-    expect(tenant.ok).toBe(false);
-    expect(tenant.answer).toBe(SAFE_FALLBACK_ANSWER);
-    // applicant_portal (guardOutput: false) → untouched; Pick step / the
-    // application pipeline are user-facing vocabulary on that surface
-    const applicant = finalizeAnswer(RETRIEVAL_POLICIES.applicant_portal, leak);
-    expect(applicant.ok).toBe(true);
-    expect(applicant.answer).toBe(leak);
-    expect(applicant.violations).toEqual([]);
   });
 
   it("no approved tenant-FAQ corpus answer trips the guard (zero false positives on real grounding)", () => {

@@ -249,6 +249,7 @@ receives general guidance entries and platform facts — nothing else exists):
 
 \`\`\`jsonc
 {
+  "question": "...",
   "scope": "tenant",
   "tenantFaq": [ {id,label,sectionTitle,question,answer} ],  // your grounding
   "facts": { applicationFee, rule120, documentsNeeded, ... } // always-on
@@ -263,33 +264,28 @@ Answer the user's question grounded strictly in the context above, with
 citations, following all rules.
 `;
 
-// Per-surface template map. A Record over QaSurface (not a conditional) so
-// that adding a surface to the union FAILS COMPILATION here until a prompt is
-// chosen — a fallthrough default would silently hand a new scoped surface the
-// full applicant prompt, which names internal systems.
-const SYSTEM_PROMPTS: Record<QaSurface, string> = {
-  tenant_public: TENANT_SYSTEM_PROMPT,
-  applicant_portal: SYSTEM_PROMPT,
-};
+/**
+ * Assemble the final system prompt by injecting the JSON-serialized context
+ * payload at the placeholder. Mirrors runner.assemble_prompt.
+ */
+export function buildSystemPrompt(contextPayload: unknown): string {
+  const ctxJson = JSON.stringify(contextPayload, null, 2);
+  return SYSTEM_PROMPT.replace(CONTEXT_PLACEHOLDER, ctxJson);
+}
 
 /**
  * Per-surface prompt selection — the prompt-side half of the retrieval-policy
- * seam. Surfaces map 1:1 to RETRIEVAL_POLICIES (retriever.ts).
+ * seam. Surfaces map 1:1 to RETRIEVAL_POLICIES (retriever.ts); a new surface
+ * must choose its prompt here explicitly.
  */
 export function buildSystemPromptFor(
   surface: QaSurface,
   contextPayload: unknown
 ): string {
-  return SYSTEM_PROMPTS[surface].replace(
+  const template =
+    surface === "tenant_public" ? TENANT_SYSTEM_PROMPT : SYSTEM_PROMPT;
+  return template.replace(
     CONTEXT_PLACEHOLDER,
     JSON.stringify(contextPayload, null, 2)
   );
-}
-
-/**
- * Applicant-template assembly. Mirrors runner.assemble_prompt; kept as the
- * named entrypoint for the ported runner contract.
- */
-export function buildSystemPrompt(contextPayload: unknown): string {
-  return buildSystemPromptFor("applicant_portal", contextPayload);
 }
