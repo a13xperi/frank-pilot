@@ -25,7 +25,9 @@ Bring your own HDMI dongle (Craig-backup).
 
 ## T-5 at the venue
 
-Audit Log still says "No entries" → touch nothing more. Benefits-only demo (final).
+Audit Log still says "No entries" → touch nothing more.
+DECIDED (DM-SAGE-OC-016, recorded a014511): **admin screens — run the five beats live.**
+Benefits LANGUAGE stays (talk outcomes, not features), but the screens are shown.
 
 ## In-room recovery ladder
 
