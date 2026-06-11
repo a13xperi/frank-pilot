@@ -58,6 +58,16 @@ cd ~/code/frank-pilot-demo && ./demo-reset.sh
 The reset **stops and restarts the API itself** (dropping the DB under a live API
 crashes it — found in rehearsal) and exits only after `/health` is green again.
 
+> ⚠️ **After every reset: log out and log back in** (or open a fresh incognito
+> window). The reset rebuilds users with new IDs — a pre-reset browser session
+> still *reads* fine but its writes can fail, which looks like "the system is
+> broken." It isn't; the session is stale.
+>
+> 📋 **The Audit Log is EMPTY in pristine state — by design.** Audit entries are
+> created by live actions only (the seeded ledger history is historical data and
+> intentionally generates none). Beat 1 (create a work order) is what makes the
+> first entry appear — emptiness-then-instant-entry is the demo moment itself.
+
 Mid-meeting lighter option: **"Load Demo" button on the login page** re-seeds
 applications without a full reset (`POST /api/demo/seed`).
 
