@@ -268,9 +268,11 @@ presenter would: regional@ for beats 1–3 and 5, senior@ for beat 4.
 
 ## Tonight's checklist (before sleep)
 
-- [ ] `./demo-up.sh` → green READY
-- [ ] One full rehearsal of the 5 beats (≤10 min)
-- [ ] `./demo-reset.sh` → pristine
+- [x] `./demo-up.sh` → green READY (verified Jun 11 ~01:55: db ok, API healthy, :5180 + :5174 up)
+- [x] One full rehearsal of the 5 beats (≤10 min) — UI rehearsal on Civic Trust, all pass (see section above)
+- [ ] ~~`./demo-reset.sh` → pristine~~ **SUPERSEDED — do NOT reset.** The register
+      is deliberately pre-seeded and James Thornton is staged as the live
+      screening target (see "Audit register pre-seeded"). Resetting undoes both.
 - [ ] Laptop: disable sleep-on-lid-close + notifications/DND for the morning
 - [ ] Craig: HDMI + TV confirmed; Frank attendance confirmed
 - [ ] Decide DM-SAGE-OC-016 (benefits-only vs admin screens) — this runbook works for both: benefits-only = beats 1–5 narrated; admin-screens = same beats, shown
