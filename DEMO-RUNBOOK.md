@@ -65,6 +65,21 @@ system of record; their `daysOverdue` all read ~71d because the app dates overdu
 the first rent charge — uniform and plausible, but don't invite a forensic read of a
 specific enrichment tenant.
 
+### Optional voice moment — 60s after Beat 5 (gates met Jun 11 ~1am)
+
+Phone on speaker → call **+1 (725) 267-2488** → Frank's cloned voice greets
+Donna Louise callers → ask ONE scripted question: "How much is the application
+fee?" → "$35.95 per adult" → hang up. Close: "Same source of truth — on the
+screen for your auditor, on the phone for your tenant."
+
+- Gates: ElevenLabs credits OK (78k headroom). **Twilio preamble: upgrade
+  (~$20) or use the ElevenLabs dashboard Test-agent mic as the no-preamble
+  fallback.** One scripted question only (do-not-demo rule applies). Rehearse
+  once at the venue; cut the moment if anything sounds off — the 5 beats
+  carry the meeting.
+- Do NOT claim calls land on the compliance tape (webhook dark). If asked:
+  "same system, wiring in progress."
+
 ### Bonus beat — ✅ RESTORED for Jun 11, **CHAT ONLY** (~1:10am — voice pill stays dark)
 
 **Current state:** the chat widget is back at http://localhost:5174 (bottom-right
