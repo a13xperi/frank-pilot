@@ -36,7 +36,16 @@ close every other tab.
 | 2 · The ledger writes | **Audit Log** | Open page — the work order you just created is the **top entry**, timestamped, actor-attributed. "That record can't be edited after the fact." |
 | 3 · Unit-level file | **Applications → Tomasz Kowalski** | Full history in one view: $1,950 delinquent ledger, late fees, eviction trigger, 7-day notice, move-out + deposit calc. Or **Keisha Williams** for the clean tenant (renewal $1,300→$1,339). |
 | 4 · Verification | **Screening (as senior@)** | "Screen" on **Priya Patel** → green/red chips live (background, credit, AMI, fraud). Or show **Elena Vasquez** income pre-verified → Generate Lease → Onboard. |
-| 5 · The block, re-priced | **Properties + Ledger** | 17 properties w/ vacancy counts → Ledger delinquency dashboard: **a 4-row delinquency ladder (Marcus Bell $2,470 → Felicia Grant $990) over a ~290-entry, 26-tenant book**. "Stack thousands of verified unit-events and the discount collapses — same book, provable." |
+| 5 · The block, re-priced | **The Ledger** (new showcase, top of sidebar) | The one-screen close: **299 evidence records · 26 units · 17 properties · 85% current**, the live tape (your beat-1 work order at the top), and Proof-by-Property. "Stack thousands of verified unit-events and the discount collapses — same book, provable." Leave this screen up through the asks. Backup: Rent Ledger (4-row ladder) + Properties as rehearsed. |
+
+### "The Ledger" showcase (added Jun 10, ~11pm — commit f28f38d)
+
+New top sidebar item (senior_manager+; the renamed **"Rent Ledger"** is the ops page).
+Read-only aggregate at `/api/ledger/showcase`: stat band, live tape (newest first —
+tenant names open the unit file), Proof by Property. Evidence metrics only, no pricing.
+Verified: endpoint + typecheck + live-tape catch + original beats re-pass. If anything
+looks off in the room: it's additive — skip it and run beat 5 on Rent Ledger + Properties
+exactly as twice-rehearsed.
 
 ### The populated book (enrichment seed — added after the ledger looked empty in rehearsal)
 
