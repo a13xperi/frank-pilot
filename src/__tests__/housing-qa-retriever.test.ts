@@ -222,3 +222,36 @@ describe("housing-qa retriever — AMI-tier provenance (#225)", () => {
     }
   });
 });
+
+/**
+ * Tenant FAQ injection contract — the 500-question corpus reaches the context
+ * payload as FULL Q&A text on every branch, capped at 4 on process routes and
+ * 2 when property objects are injected (property data stays dominant). The
+ * sanitization itself is locked in housing-qa-tenant-faq.test.ts; here we lock
+ * the wiring.
+ */
+describe("housing-qa retriever — tenantFaq context injection", () => {
+  it("process question carries up to 4 tenant-FAQ entries with full text", () => {
+    const ctx = buildContext("Do food stamps count as income?");
+    expect(ctx.routing).toBe("process");
+    expect(ctx.tenantFaq.length).toBeGreaterThan(0);
+    expect(ctx.tenantFaq.length).toBeLessThanOrEqual(4);
+    expect(ctx.tenantFaq.map((m) => m.id)).toContain("tfaq-063");
+    // full text — not a reference like faqSections
+    expect(ctx.tenantFaq[0].answer.length).toBeGreaterThan(0);
+  });
+
+  it("named-property question caps tenant-FAQ entries at 2", () => {
+    const ctx = buildContext("Are pets allowed at Silver Pines Apts?");
+    expect(ctx.routing).toBe("named_property");
+    expect(ctx.tenantFaq.length).toBeLessThanOrEqual(2);
+  });
+
+  it("fee question: no tenant-FAQ entry undercuts the $35.95 always-on fact", () => {
+    const ctx = buildContext("How much is the application fee and is it refundable?");
+    expect(ctx.facts.applicationFee.amount).toBe("$35.95");
+    for (const m of ctx.tenantFaq) {
+      expect(m.answer).not.toMatch(/\$\s?\d/); // no competing dollar figure
+    }
+  });
+});

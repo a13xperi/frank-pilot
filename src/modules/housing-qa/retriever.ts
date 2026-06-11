@@ -26,6 +26,7 @@ import {
   K_COMPACT,
 } from "./data";
 import { matchFaqSections, FaqMatch } from "./faq";
+import { matchTenantFaq, TenantFaqMatch } from "./tenant-faq";
 
 // --------------------------------------------------------------------------- //
 // Always-on facts block (grounded in apply.json copy) — mirrors retriever.py
@@ -437,6 +438,14 @@ export interface HousingContext {
   totalMatching?: number;
   shown?: number;
   faqSections: FaqMatch[];
+  /**
+   * Tenant FAQ corpus matches — FULL question+answer text (unlike faqSections,
+   * which are references only). General LIHTC guidance, citable as
+   * `(Tenant FAQ #N)`; always-on facts and property data take precedence on
+   * any conflict. Capped at 4 on process routes, 2 when properties are
+   * injected so property data stays dominant.
+   */
+  tenantFaq: TenantFaqMatch[];
   facts: typeof ALWAYS_ON_FACTS;
   notes: string[];
   _meta: {
@@ -539,6 +548,8 @@ export function buildContext(
     ];
   }
 
+  const tenantFaq = matchTenantFaq(question, branch === "process" ? 4 : 2);
+
   return {
     question,
     routing: branch,
@@ -547,6 +558,7 @@ export function buildContext(
     totalMatching,
     shown,
     faqSections: faq,
+    tenantFaq,
     facts: ALWAYS_ON_FACTS,
     notes,
     _meta: {

@@ -1,0 +1,2288 @@
+{
+  "source": "docs/intel/tenant-faq-source.txt",
+  "generatedBy": "scripts/build-tenant-faq.mjs",
+  "generatedAt": "2026-06-11",
+  "entryCount": 190,
+  "entries": [
+    {
+      "id": "tfaq-001",
+      "label": "#1",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 1,
+        "to": 1
+      },
+      "question": "What does “LIHTC” mean?",
+      "answer": "LIHTC stands for Low-Income Housing Tax Credit. It is a federal program (Section 42 of the Internal Revenue Code) that gives tax credits to developers/investors to build or rehabilitate affordable rental housing. In return, a certain percentage of units must be rented to income-qualified households at restricted (below-market) rents for at least 15–30+ years. Nevada Housing Division administers it in Nevada."
+    },
+    {
+      "id": "tfaq-002",
+      "label": "#2",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 2,
+        "to": 2
+      },
+      "question": "Is this the same as Section 8?",
+      "answer": "No.\n• LIHTC (Section 42): Property-based. Rents are set at affordable levels based on AMI (no tenant voucher needed). Focuses on creating affordable supply.\n• Section 8 (Housing Choice Voucher): Tenant-based subsidy from HUD/PHA. The tenant pays ~30% of income; the voucher covers the rest. Can be used in LIHTC units if the property accepts it, but not required.\nSome LIHTC properties accept Section 8 vouchers, but many do not or have limited units. They are complementary but distinct programs."
+    },
+    {
+      "id": "tfaq-003",
+      "label": "#3",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 3,
+        "to": 3
+      },
+      "question": "Do I need a housing voucher to apply?",
+      "answer": "No. Most LIHTC units do not require a Section 8 or other voucher. You qualify based on your income and other criteria. A voucher can help with rent if the property accepts it, but it is not needed to apply or qualify."
+    },
+    {
+      "id": "tfaq-004",
+      "label": "#4",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 4,
+        "to": 4
+      },
+      "question": "Can I apply if I do not have a voucher?",
+      "answer": "Yes. You can (and most applicants do) apply without one. Apply directly to the property."
+    },
+    {
+      "id": "tfaq-005",
+      "label": "#5",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 5,
+        "to": 5
+      },
+      "question": "What income limit applies to my household?",
+      "answer": "This depends on the specific unit/set-aside at the property (commonly 50% or 60% of AMI). Limits are adjusted by household size and updated annually by HUD (MTSP (Multifamily Tax Subsidy Projects) limits for LIHTC). Contact the property for the exact limit for your household size and unit type — the application verifies this. Income includes most household members’ gross income (wages, SS, etc.). Properties use the most restrictive applicable limit if multiple programs layer."
+    },
+    {
+      "id": "tfaq-006",
+      "label": "#6",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 6,
+        "to": 6
+      },
+      "question": "Is the income limit based on my gross income or take-home pay?",
+      "answer": "Gross income (before taxes/deductions). LIHTC follows HUD rules for annualizing verifiable income sources. Take-home pay is not used."
+    },
+    {
+      "id": "tfaq-007",
+      "label": "#7",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 7,
+        "to": 7
+      },
+      "question": "How many people can live in the unit?",
+      "answer": "This follows the property’s occupancy standards (in the Tenant Selection Plan), typically based on:\n• Minimum: Often 1–2 people per bedroom to avoid under-occupancy.\n• Maximum: Generally 2 persons per bedroom + 1 (e.g., 2BR unit: up to 5 people). This complies with fair housing and prevents overcrowding.\nHousehold size includes all who will live there (related or not), with some exceptions (e.g., live-in aides, foster children per HOTMA). The manager will assess based on unit size, bedrooms, and local rules."
+    },
+    {
+      "id": "tfaq-008",
+      "label": "#8",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 8,
+        "to": 8
+      },
+      "question": "Can I apply before I have all my documents?",
+      "answer": "Usually yes, but you’ll need to provide them before final approval. Common required docs include:\n• ID/SSN for all household members.\n• Income verification (pay stubs, tax returns, award letters, bank statements).\n• Asset info.\n• Rental history, background check consent.\n• Student status certification (strict LIHTC rules apply).\nIncomplete applications may be processed but held until verified. Start early."
+    },
+    {
+      "id": "tfaq-009",
+      "label": "#9",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 9,
+        "to": 9
+      },
+      "question": "How long does the application process take?",
+      "answer": "It typically takes 2–6 weeks (or longer), depending on:\n• Completeness of your docs.\n• Verification time (employer/ bank responses).\n• Waiting list length.\n• Background/credit checks.\nProperties aim for efficiency but must fully verify for compliance. Follow up with the leasing office for this property’s timeline."
+    },
+    {
+      "id": "tfaq-010",
+      "label": "#10",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 10,
+        "to": 10
+      },
+      "question": "Am I eligible for this apartment?",
+      "answer": "Eligibility depends on:\n• Your household income being at or below the property’s designated income limit (typically 50% or 60% of Area Median Income / AMI for Clark County, adjusted for household size).\n• Household size fitting the unit (occupancy standards).\n• Passing background/credit screening, student rules, and other property criteria.\n• Providing verifiable documentation.\nYou are not automatically eligible just by applying—full verification is required. Properties maintain a waiting list if units are full."
+    },
+    {
+      "id": "tfaq-011",
+      "label": "#11",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 11,
+        "to": 11
+      },
+      "question": "Is there an application fee?",
+      "answer": "LIHTC properties charge a reasonable, non-refundable application fee to cover processing and screening costs (background/credit checks). On this platform the fee is a fixed amount per adult — see the platform fee fact for the exact figure. Some properties waive or reduce fees for certain applicants. It is not the same as a security deposit. Fees must comply with state and local rules; they cannot be excessive."
+    },
+    {
+      "id": "tfaq-012",
+      "label": "#12",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 12,
+        "to": 12
+      },
+      "question": "Is there a waiting list? How do I get on it?",
+      "answer": "Yes, most LIHTC properties in high-demand areas like Las Vegas maintain a waiting list when units are full. To get on it: Submit a complete application (online or in-person, per property policy). Once preliminarily screened and added, you’ll be placed in chronological or preference-based order. Properties must maintain a written waiting list per their Tenant Selection Plan and Clark County/NHD guidelines."
+    },
+    {
+      "id": "tfaq-013",
+      "label": "#13",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 13,
+        "to": 13
+      },
+      "question": "How do I know where I am on the waiting list?",
+      "answer": "Contact the property manager regularly (by phone/email as allowed). Many properties provide your position upon request or when updates occur. Exact ranking may depend on unit size, preferences (e.g., veterans, elderly, local), and availability. Lists are managed fairly and updated as applicants are approved or withdraw."
+    },
+    {
+      "id": "tfaq-014",
+      "label": "#14",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 14,
+        "to": 14
+      },
+      "question": "Can I apply for more than one unit size?",
+      "answer": "Yes, in most cases. You can apply for multiple unit sizes/types (e.g., 1BR and 2BR) if your household qualifies for each under occupancy standards. Specify preferences on the application. This may place you on separate waiting lists. Confirm with the property, as some limit simultaneous applications."
+    },
+    {
+      "id": "tfaq-015",
+      "label": "#15",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 15,
+        "to": 15
+      },
+      "question": "Can I apply if I already live in another affordable housing property?",
+      "answer": "Yes, but you must disclose it. Properties verify current housing status. Moving may require notice to your current landlord and could affect eligibility if it violates other program rules (e.g., duplicative subsidies). LIHTC does not prohibit it outright if you meet income and other criteria for the new unit."
+    },
+    {
+      "id": "tfaq-016",
+      "label": "#16",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 16,
+        "to": 16
+      },
+      "question": "Can I apply if I was previously denied at another property?",
+      "answer": "Yes. A denial at one LIHTC property does not automatically disqualify you elsewhere. Reasons (e.g., income, background, credit) are property-specific. Provide full information and address any issues. Each property conducts its own independent review."
+    },
+    {
+      "id": "tfaq-017",
+      "label": "#17",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 17,
+        "to": 17
+      },
+      "question": "Can I reapply if I am denied?",
+      "answer": "Yes, usually after addressing the denial reason (e.g., providing missing documents, resolving credit issues, or waiting a specified period per the Tenant Selection Plan). Reapplications are reviewed as new submissions and placed on the waiting list accordingly. Some properties limit frequent reapplications—check the specific policy."
+    },
+    {
+      "id": "tfaq-018",
+      "label": "#18",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 18,
+        "to": 18
+      },
+      "question": "What happens after I submit the application?",
+      "answer": "• Preliminary review for completeness and obvious eligibility.\n• You may be added to the waiting list (if no immediate unit).\n• Full verification process begins when your turn approaches (income, assets, background, credit, rental history, student status).\n• Notification of approval, denial, or need for more info. The process ensures compliance with LIHTC rules."
+    },
+    {
+      "id": "tfaq-019",
+      "label": "#19",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 19,
+        "to": 19
+      },
+      "question": "Who reviews my application? How long does it take?",
+      "answer": "The property manager/leasing staff (or third-party screener) reviews it, following the owner’s approved Tenant Selection Plan. Reviews include income verification and compliance checks. Timeline: 2–8 weeks or longer, depending on completeness, verification responses, waiting list position, and volume. Complex cases (e.g., self-employment) take more time."
+    },
+    {
+      "id": "tfaq-020",
+      "label": "#20",
+      "section": "program-basics",
+      "sectionTitle": "Program Basics",
+      "sourceNumbers": {
+        "from": 20,
+        "to": 20
+      },
+      "question": "What documents do I need before move-in?",
+      "answer": "You’ll need to provide and verify:\n• Valid photo ID and SSN/ITIN for all household members.\n• Income verifications (pay stubs, tax returns, award letters, bank statements, third-party forms).\n• Asset information (bank accounts, etc.).\n• Rental history and references.\n• Background/credit check authorization.\n• Student status certification (critical for LIHTC).\n• Proof of any preferences (e.g., veteran status).\nBring originals or certified copies. Additional items (lease, TIC form) are completed at move-in. Full verification is required before occupancy."
+    },
+    {
+      "id": "tfaq-021",
+      "label": "#21",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 21,
+        "to": 21
+      },
+      "question": "Who must be listed on the application?",
+      "answer": "All people who will live in the unit, including the head of household, spouse/co-head, dependents, other adults, and any anticipated additions (e.g., unborn children or custody changes). This determines household size for income limits, unit eligibility, and occupancy standards. Temporarily absent members (e.g., military) are usually included."
+    },
+    {
+      "id": "tfaq-022",
+      "label": "#22",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 22,
+        "to": 22
+      },
+      "question": "Do I list children who live with me part-time?",
+      "answer": "Yes, if they live with you more than 50% of the time or you have primary custody/shared custody and claim them for tax purposes (or per court order). Provide custody documentation. Properties verify based on time spent and support provided."
+    },
+    {
+      "id": "tfaq-023",
+      "label": "#23",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 23,
+        "to": 23
+      },
+      "question": "Do I list unborn children?",
+      "answer": "Yes, typically. Expectant mothers should note the pregnancy; the child counts toward household size for unit occupancy and (once born) income limits at move-in or recertification. Provide medical verification if requested."
+    },
+    {
+      "id": "tfaq-024",
+      "label": "#24",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 24,
+        "to": 24
+      },
+      "question": "Do I list a child I am expecting to receive custody of?",
+      "answer": "Yes, if the custody change is anticipated and verifiable (e.g., court documents). List them and provide supporting evidence during the process."
+    },
+    {
+      "id": "tfaq-025",
+      "label": "#25",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 25,
+        "to": 25
+      },
+      "question": "Do I list a spouse who does not live with me?",
+      "answer": "Generally yes, if legally married and not permanently separated/divorced. Provide documentation; they may count for income and size unless specific exceptions apply (e.g., incarceration). Consult the property for details."
+    },
+    {
+      "id": "tfaq-026",
+      "label": "#26",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 26,
+        "to": 26
+      },
+      "question": "Do I list someone who is temporarily away?",
+      "answer": "Yes (e.g., military deployment, hospitalization, school). They remain part of the household for size and income purposes if they intend to return. Provide verification."
+    },
+    {
+      "id": "tfaq-027",
+      "label": "#27",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 27,
+        "to": 27
+      },
+      "question": "Can my adult child live with me?",
+      "answer": "Yes, if the unit meets occupancy standards and they meet all eligibility (income, background, student rules). Their income counts toward household totals."
+    },
+    {
+      "id": "tfaq-028",
+      "label": "#28",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 28,
+        "to": 28
+      },
+      "question": "Can my caregiver live with me?",
+      "answer": "Possibly, as a live-in aide if approved as a reasonable accommodation for a disabled household member. They must be essential to care, not obligated for support, and would not live there otherwise."
+    },
+    {
+      "id": "tfaq-029",
+      "label": "#29",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 29,
+        "to": 29
+      },
+      "question": "What is a live-in aide?",
+      "answer": "A person (not a spouse) who resides with an elderly, near-elderly, or disabled person and is essential to their care/well-being. They are verified via medical/professional documentation and approved by the property."
+    },
+    {
+      "id": "tfaq-030",
+      "label": "#30",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 30,
+        "to": 30
+      },
+      "question": "Does a live-in aide’s income count?",
+      "answer": "No. Live-in aide income is excluded from household income calculation (but they count toward occupancy/unit size)."
+    },
+    {
+      "id": "tfaq-031",
+      "label": "#31",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 31,
+        "to": 31
+      },
+      "question": "Can I add someone after I move in?",
+      "answer": "Yes, but it requires property approval, full screening/verification (income, background, student status), and often an interim recertification. They must qualify under program rules; approval is not guaranteed."
+    },
+    {
+      "id": "tfaq-032",
+      "label": "#32",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 32,
+        "to": 32
+      },
+      "question": "Can I remove someone from the application?",
+      "answer": "Yes, before move-in with updated documentation. Post-move-in changes require notification and possible recertification."
+    },
+    {
+      "id": "tfaq-033",
+      "label": "#33",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 33,
+        "to": 33
+      },
+      "question": "What happens if my household size changes before move-in?",
+      "answer": "Notify the property immediately. It may affect unit eligibility, income limits, or waiting list position. A new or updated certification is usually required."
+    },
+    {
+      "id": "tfaq-034",
+      "label": "#34",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 34,
+        "to": 34
+      },
+      "question": "What unit size does my household qualify for?",
+      "answer": "Based on the property’s occupancy standards (typically 1–2 people per bedroom, with min/max guidelines). Household size (including live-in aides for occupancy) determines suitability to avoid under- or over-crowding."
+    },
+    {
+      "id": "tfaq-035",
+      "label": "#35",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 35,
+        "to": 35
+      },
+      "question": "Can two unrelated adults apply together?",
+      "answer": "Yes, as a household. Both incomes count; they must meet all eligibility criteria and occupancy rules."
+    },
+    {
+      "id": "tfaq-036",
+      "label": "#36",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 36,
+        "to": 36
+      },
+      "question": "Can I have a roommate?",
+      "answer": "Similar to unrelated adults—yes, if listed on the application and qualifying. Roommates are treated as household members."
+    },
+    {
+      "id": "tfaq-037",
+      "label": "#37",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 37,
+        "to": 37
+      },
+      "question": "Can I share custody and still list my child?",
+      "answer": "Yes, if documentation shows significant residency/time (often >50%) or court-ordered support. Properties review case-by-case."
+    },
+    {
+      "id": "tfaq-038",
+      "label": "#38",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 38,
+        "to": 38
+      },
+      "question": "Do foster children count as household members?",
+      "answer": "Yes, for occupancy/unit size. Under HOTMA, they are generally non-family members for income purposes."
+    },
+    {
+      "id": "tfaq-039",
+      "label": "#39",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 39,
+        "to": 39
+      },
+      "question": "Do foster adult payments count?",
+      "answer": "Payments for the care of foster children/adults are excluded from income. Foster adults/children count for occupancy but their personal income/assets are often handled specifically (consult property)."
+    },
+    {
+      "id": "tfaq-040",
+      "label": "#40",
+      "section": "household-members-and-occupancy",
+      "sectionTitle": "Household Members and Occupancy",
+      "sourceNumbers": {
+        "from": 40,
+        "to": 40
+      },
+      "question": "What if someone in my household does not have ID?",
+      "answer": "Contact the property manager. Alternatives (e.g., birth certificates, affidavits, or extra time) may be allowed per Tenant Selection Plan and fair housing rules, but SSN/ITIN verification is usually required for most members."
+    },
+    {
+      "id": "tfaq-041",
+      "label": "#41",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 41,
+        "to": 41
+      },
+      "question": "What income do I have to report?",
+      "answer": "All anticipated income for the next 12 months from household members (age 18+, head/spouse, and unearned for dependents), unless specifically excluded. This includes wages, benefits, etc. Full third-party verification is required."
+    },
+    {
+      "id": "tfaq-042",
+      "label": "#42",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 42,
+        "to": 42
+      },
+      "question": "Do I report gross wages before taxes?",
+      "answer": "Yes—gross income (full amount before deductions)."
+    },
+    {
+      "id": "tfaq-043-046",
+      "label": "#43–46",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 43,
+        "to": 46
+      },
+      "question": "Do I report overtime / tips / bonuses / commissions?",
+      "answer": "Yes, as part of wages/compensation for personal services. Average or annualize based on history."
+    },
+    {
+      "id": "tfaq-047",
+      "label": "#47",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 47,
+        "to": 47
+      },
+      "question": "Do I report seasonal income?",
+      "answer": "Yes—annualize based on expected yearly total."
+    },
+    {
+      "id": "tfaq-048",
+      "label": "#48",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 48,
+        "to": 48
+      },
+      "question": "Do I report cash jobs?",
+      "answer": "Yes—self-report and verify as best as possible (e.g., bank deposits, statements). Non-disclosure can lead to denial."
+    },
+    {
+      "id": "tfaq-049",
+      "label": "#49",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 49,
+        "to": 49
+      },
+      "question": "Do I report self-employment income?",
+      "answer": "Yes—net income from business (after allowable expenses, per tax returns/schedules). Provide business records or tax returns."
+    },
+    {
+      "id": "tfaq-050-053",
+      "label": "#50–53",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 50,
+        "to": 53
+      },
+      "question": "What if I just started a new job / lost my job / hours change / paid daily?",
+      "answer": "Report current anticipated income; provide verification. Properties annualize or use history where possible. Recent changes require documentation."
+    },
+    {
+      "id": "tfaq-054",
+      "label": "#54",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 54,
+        "to": 54
+      },
+      "question": "What if I am paid through an app like Uber, Lyft, etc.?",
+      "answer": "Yes—report as self-employment or wages. Provide app statements, 1099s, or bank records."
+    },
+    {
+      "id": "tfaq-055-058",
+      "label": "#55–58",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 55,
+        "to": 58
+      },
+      "question": "Do unemployment / Social Security / SSI / disability income count?",
+      "answer": "Yes (generally). Provide award letters or verification. Some disability-related exclusions may apply."
+    },
+    {
+      "id": "tfaq-059",
+      "label": "#59",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 59,
+        "to": 59
+      },
+      "question": "Does child support count?",
+      "answer": "Yes, if received or anticipated. Provide court orders and payment history."
+    },
+    {
+      "id": "tfaq-060",
+      "label": "#60",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 60,
+        "to": 60
+      },
+      "question": "What if I am supposed to receive child support but do not?",
+      "answer": "Report actual amounts received. If court-ordered but not paid, provide evidence; it may not be counted if not reliable."
+    },
+    {
+      "id": "tfaq-061",
+      "label": "#61",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 61,
+        "to": 61
+      },
+      "question": "Does alimony count?",
+      "answer": "Yes, if received."
+    },
+    {
+      "id": "tfaq-062",
+      "label": "#62",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 62,
+        "to": 62
+      },
+      "question": "Does TANF or welfare count?",
+      "answer": "Yes."
+    },
+    {
+      "id": "tfaq-063",
+      "label": "#63",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 63,
+        "to": 63
+      },
+      "question": "Do food stamps count as income?",
+      "answer": "No—SNAP/food stamps are excluded."
+    },
+    {
+      "id": "tfaq-064",
+      "label": "#64",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 64,
+        "to": 64
+      },
+      "question": "Does financial help from family or friends count?",
+      "answer": "Yes, if regular/recurring. One-time gifts usually do not."
+    },
+    {
+      "id": "tfaq-065",
+      "label": "#65",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 65,
+        "to": 65
+      },
+      "question": "Do recurring Zelle, Cash App, or Venmo payments count?",
+      "answer": "Yes, if they represent income (e.g., support, payment for services)."
+    },
+    {
+      "id": "tfaq-066",
+      "label": "#66",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 66,
+        "to": 66
+      },
+      "question": "Do one-time gifts count?",
+      "answer": "Generally no, if non-recurring."
+    },
+    {
+      "id": "tfaq-067-068",
+      "label": "#67–68",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 67,
+        "to": 68
+      },
+      "question": "Does student financial aid / scholarships count?",
+      "answer": "Portions may be excluded (e.g., for tuition/books); room/board or living expenses often count. Provide award letters."
+    },
+    {
+      "id": "tfaq-069",
+      "label": "#69",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 69,
+        "to": 69
+      },
+      "question": "Does workers’ compensation count?",
+      "answer": "Yes."
+    },
+    {
+      "id": "tfaq-070",
+      "label": "#70",
+      "section": "income-questions",
+      "sectionTitle": "Income Questions",
+      "sourceNumbers": {
+        "from": 70,
+        "to": 70
+      },
+      "question": "Does pension or retirement income count?",
+      "answer": "Yes—periodic payments. Lump sums may be treated as assets."
+    },
+    {
+      "id": "tfaq-071",
+      "label": "#71",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 71,
+        "to": 71
+      },
+      "question": "Why do I have to list my bank accounts?",
+      "answer": "To calculate total household assets and any income they generate (e.g., interest). This ensures compliance with income eligibility rules. Assets help determine if imputed income applies (over the HOTMA asset threshold, which is adjusted annually)."
+    },
+    {
+      "id": "tfaq-072-073",
+      "label": "#72–73",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 72,
+        "to": 73
+      },
+      "question": "Do checking / savings accounts count as assets?",
+      "answer": "Yes. The current balance (or average for checking) is included in net family assets."
+    },
+    {
+      "id": "tfaq-074-075",
+      "label": "#74–75",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 74,
+        "to": 75
+      },
+      "question": "Do prepaid debit cards / Cash App, PayPal, Venmo, or Chime accounts count?",
+      "answer": "Yes, if they hold funds that are accessible (treated like bank accounts). Provide statements or balances."
+    },
+    {
+      "id": "tfaq-076-077",
+      "label": "#76–77",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 76,
+        "to": 77
+      },
+      "question": "Do retirement accounts / 401(k), IRA, or pension count?",
+      "answer": "Generally no—IRS-recognized retirement accounts are excluded from asset calculations under HOTMA (periodic distributions may count as income)."
+    },
+    {
+      "id": "tfaq-078",
+      "label": "#78",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 78,
+        "to": 78
+      },
+      "question": "Does a car count as an asset?",
+      "answer": "Usually no, if it is necessary personal property for transportation. Recreational vehicles (e.g., RVs) may count."
+    },
+    {
+      "id": "tfaq-079",
+      "label": "#79",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 79,
+        "to": 79
+      },
+      "question": "Does life insurance count?",
+      "answer": "Cash surrender value (if accessible) may count as an asset; face value generally does not."
+    },
+    {
+      "id": "tfaq-080",
+      "label": "#80",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 80,
+        "to": 80
+      },
+      "question": "Do I have to report property I own?",
+      "answer": "Yes—real property (land/homes) is included in net family assets if you have ownership interest and authority to sell. Provide details and value."
+    },
+    {
+      "id": "tfaq-081",
+      "label": "#81",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 81,
+        "to": 81
+      },
+      "question": "What if I sold or gave away an asset?",
+      "answer": "Report assets disposed of for less than fair market value in the past 2 years. This may impute income. Provide documentation."
+    },
+    {
+      "id": "tfaq-082",
+      "label": "#82",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 82,
+        "to": 82
+      },
+      "question": "What if I have no bank account?",
+      "answer": "Self-certify on the asset form. You may still need to disclose other assets or explain cash management."
+    },
+    {
+      "id": "tfaq-083",
+      "label": "#83",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 83,
+        "to": 83
+      },
+      "question": "Why are you asking for bank statements?",
+      "answer": "To verify balances, detect unreported income/deposits, and ensure accurate asset/income reporting."
+    },
+    {
+      "id": "tfaq-084",
+      "label": "#84",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 84,
+        "to": 84
+      },
+      "question": "How many months of bank statements are required?",
+      "answer": "Typically 1–3 months (or current statement) under HOTMA updates; previously more. Follow the property’s Tenant Selection Plan."
+    },
+    {
+      "id": "tfaq-085",
+      "label": "#85",
+      "section": "assets-and-bank-accounts",
+      "sectionTitle": "Assets and Bank Accounts",
+      "sourceNumbers": {
+        "from": 85,
+        "to": 85
+      },
+      "question": "What happens if my bank statement shows deposits I did not list?",
+      "answer": "They will ask for explanation and verification. Unexplained deposits may be treated as income, affecting eligibility."
+    },
+    {
+      "id": "tfaq-086",
+      "label": "#86",
+      "section": "student-status",
+      "sectionTitle": "Student Status",
+      "sourceNumbers": {
+        "from": 86,
+        "to": 86
+      },
+      "question": "Why are you asking if I am a student?",
+      "answer": "LIHTC has strict rules: Households of only full-time students are generally ineligible unless an exception applies."
+    },
+    {
+      "id": "tfaq-087",
+      "label": "#87",
+      "section": "student-status",
+      "sectionTitle": "Student Status",
+      "sourceNumbers": {
+        "from": 87,
+        "to": 87
+      },
+      "question": "Does being a student make me ineligible?",
+      "answer": "Not automatically. Part-time students are usually fine. Full-time student households need an exception."
+    },
+    {
+      "id": "tfaq-088",
+      "label": "#88",
+      "section": "student-status",
+      "sectionTitle": "Student Status",
+      "sourceNumbers": {
+        "from": 88,
+        "to": 88
+      },
+      "question": "What is considered a full-time student?",
+      "answer": "Enrolled full-time (as defined by the school) for at least 5 months (not necessarily consecutive) in a calendar year at an educational institution (K-12, college, trade school, etc.)."
+    },
+    {
+      "id": "tfaq-089",
+      "label": "#89",
+      "section": "student-status",
+      "sectionTitle": "Student Status",
+      "sourceNumbers": {
+        "from": 89,
+        "to": 89
+      },
+      "question": "Do part-time students qualify?",
+      "answer": "Yes—part-time status typically avoids the full-time student restriction."
+    },
+    {
+      "id": "tfaq-090",
+      "label": "#90",
+      "section": "student-status",
+      "sectionTitle": "Student Status",
+      "sourceNumbers": {
+        "from": 90,
+        "to": 90
+      },
+      "question": "What if everyone in my household is a full-time student?",
+      "answer": "The household is ineligible unless it meets one of the IRS exceptions (see below)."
+    },
+    {
+      "id": "tfaq-091",
+      "label": "#91",
+      "section": "student-status",
+      "sectionTitle": "Student Status",
+      "sourceNumbers": {
+        "from": 91,
+        "to": 91
+      },
+      "question": "Are there exceptions for single parents?",
+      "answer": "Yes—one major exception: Single parents (not dependents of others) with their children (children not dependents of third parties other than a parent)."
+    },
+    {
+      "id": "tfaq-092",
+      "label": "#92",
+      "section": "student-status",
+      "sectionTitle": "Student Status",
+      "sourceNumbers": {
+        "from": 92,
+        "to": 92
+      },
+      "question": "Are there exceptions for married students filing jointly?",
+      "answer": "Yes—married students filing a joint tax return qualify for the exception."
+    },
+    {
+      "id": "tfaq-093",
+      "label": "#93",
+      "section": "student-status",
+      "sectionTitle": "Student Status",
+      "sourceNumbers": {
+        "from": 93,
+        "to": 93
+      },
+      "question": "Are there exceptions for TANF or job-training programs?",
+      "answer": "Yes—receiving TANF (or Title IV SSA assistance), or enrolled in approved job-training programs."
+    },
+    {
+      "id": "tfaq-094",
+      "label": "#94",
+      "section": "student-status",
+      "sectionTitle": "Student Status",
+      "sourceNumbers": {
+        "from": 94,
+        "to": 94
+      },
+      "question": "Do children in school count as students?",
+      "answer": "School-age children are considered students, but the rule focuses on full-time status for the entire household."
+    },
+    {
+      "id": "tfaq-095",
+      "label": "#95",
+      "section": "student-status",
+      "sectionTitle": "Student Status",
+      "sourceNumbers": {
+        "from": 95,
+        "to": 95
+      },
+      "question": "Do I have to verify school enrollment every year?",
+      "answer": "Yes—student status must be certified annually (or as required by the property)."
+    },
+    {
+      "id": "tfaq-096",
+      "label": "#96",
+      "section": "screening-rent-lease-and-move-in",
+      "sectionTitle": "Screening, Rent, Lease, and Move-In",
+      "sourceNumbers": {
+        "from": 96,
+        "to": 96
+      },
+      "question": "Will you check my credit?",
+      "answer": "Yes, typically as part of screening per the Tenant Selection Plan (sometimes called Resident Selection Plan). Poor credit may lead to denial or additional requirements (e.g., cosigner), but policies vary."
+    },
+    {
+      "id": "tfaq-097",
+      "label": "#97",
+      "section": "screening-rent-lease-and-move-in",
+      "sectionTitle": "Screening, Rent, Lease, and Move-In",
+      "sourceNumbers": {
+        "from": 97,
+        "to": 97
+      },
+      "question": "Will you check my criminal background?",
+      "answer": "Yes, usually. Convictions are reviewed individually (nature, time elapsed, rehabilitation) per fair housing/HUD guidance. Arrests alone are not typically disqualifying."
+    },
+    {
+      "id": "tfaq-098",
+      "label": "#98",
+      "section": "screening-rent-lease-and-move-in",
+      "sectionTitle": "Screening, Rent, Lease, and Move-In",
+      "sourceNumbers": {
+        "from": 98,
+        "to": 98
+      },
+      "question": "Can I be denied because of an eviction?",
+      "answer": "Possibly, depending on the property’s policy and circumstances (e.g., recent/non-payment evictions). Not automatic—individual review required."
+    },
+    {
+      "id": "tfaq-099",
+      "label": "#99",
+      "section": "screening-rent-lease-and-move-in",
+      "sectionTitle": "Screening, Rent, Lease, and Move-In",
+      "sourceNumbers": {
+        "from": 99,
+        "to": 99
+      },
+      "question": "How much will my rent be, and does it include utilities?",
+      "answer": "Rent is restricted based on the unit’s set-aside (e.g., 30% of 50%/60% AMI for qualifying income). Check current limits with the property. Utilities are often separate (with allowance) or included—confirm via utility allowance schedule."
+    },
+    {
+      "id": "tfaq-100",
+      "label": "#100",
+      "section": "screening-rent-lease-and-move-in",
+      "sectionTitle": "Screening, Rent, Lease, and Move-In",
+      "sourceNumbers": {
+        "from": 100,
+        "to": 100
+      },
+      "question": "What do I need to pay before I can receive keys?",
+      "answer": "Typically: First month’s rent, security deposit (often 1 month’s rent or less), and any application/ admin fees. Prorated rent may apply. All must be paid before move-in."
+    },
+    {
+      "id": "tfaq-101",
+      "label": "#101",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 101,
+        "to": 101
+      },
+      "question": "Can someone help me complete the application if I have a disability?",
+      "answer": "Yes. Staff can provide assistance (e.g., reading forms aloud, helping fill them out) as a reasonable accommodation. You may also bring a family member, advocate, or representative."
+    },
+    {
+      "id": "tfaq-102",
+      "label": "#102",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 102,
+        "to": 102
+      },
+      "question": "Can I request extra time to return documents because of a disability?",
+      "answer": "Yes, if the extra time is necessary due to your disability. Submit the request promptly with explanation."
+    },
+    {
+      "id": "tfaq-103",
+      "label": "#103",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 103,
+        "to": 103
+      },
+      "question": "Can I submit my application by email, phone, mail, or in person if I cannot use the online portal?",
+      "answer": "Yes. Alternative formats/methods must be provided as a reasonable accommodation upon request."
+    },
+    {
+      "id": "tfaq-104-106",
+      "label": "#104–106",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 104,
+        "to": 106
+      },
+      "question": "Can I request large-print forms / accessible electronic format / help reading or understanding the forms?",
+      "answer": "Yes. These are standard reasonable accommodations. Properties should provide materials in accessible formats (large print, audio, Braille, etc.) and assistance as needed."
+    },
+    {
+      "id": "tfaq-107",
+      "label": "#107",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 107,
+        "to": 107
+      },
+      "question": "What is a reasonable accommodation?",
+      "answer": "A change in rules, policies, practices, or services that allows a person with a disability equal opportunity to use and enjoy the housing (e.g., exceptions to pet policies, unit transfers, modified procedures). It must be disability-related and not cause undue financial/administrative burden or fundamental alteration."
+    },
+    {
+      "id": "tfaq-108",
+      "label": "#108",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 108,
+        "to": 108
+      },
+      "question": "How do I request a reasonable accommodation?",
+      "answer": "Make the request verbally, in writing, or via the property’s form (if available). No specific format is required—explain the need and connection to your disability. Staff will engage in an interactive process."
+    },
+    {
+      "id": "tfaq-109",
+      "label": "#109",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 109,
+        "to": 109
+      },
+      "question": "Do I need to use special words to request an accommodation?",
+      "answer": "No. Any communication indicating a need due to disability is sufficient (e.g., “I need help because of my mobility issues”)."
+    },
+    {
+      "id": "tfaq-110",
+      "label": "#110",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 110,
+        "to": 110
+      },
+      "question": "Do I need a doctor’s note for every accommodation request?",
+      "answer": "Not always. Documentation may be requested if the disability or need is not obvious. It should confirm the disability-related need but need not disclose full medical details."
+    },
+    {
+      "id": "tfaq-111-112",
+      "label": "#111–112",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 111,
+        "to": 112
+      },
+      "question": "What information can management ask / not allowed to ask about my disability?",
+      "answer": "They can ask for information necessary to evaluate the request (disability-related need). They cannot ask about the nature/extent of the disability, medical records, or unrelated details."
+    },
+    {
+      "id": "tfaq-113-116",
+      "label": "#113–116",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 113,
+        "to": 116
+      },
+      "question": "Can I ask for a lower unit / close to parking / accessible parking / grab bars, ramps, etc.?",
+      "answer": "Yes, if necessary due to disability. These are common reasonable accommodations or modifications."
+    },
+    {
+      "id": "tfaq-117",
+      "label": "#117",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 117,
+        "to": 117
+      },
+      "question": "Who pays for disability-related modifications?",
+      "answer": "The tenant generally pays for modifications (e.g., grab bars), but the property may cover some or allow them to remain. Structural changes in common areas are typically the owner’s responsibility under accessibility laws."
+    },
+    {
+      "id": "tfaq-118-120",
+      "label": "#118–120",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 118,
+        "to": 120
+      },
+      "question": "Can I ask for a live-in aide? / Does their income count? / Do they have to pass screening?",
+      "answer": "Yes, as a reasonable accommodation if verified as necessary. Live-in aide income is excluded; they must meet basic screening (background, etc.) but not full income eligibility."
+    },
+    {
+      "id": "tfaq-121",
+      "label": "#121",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 121,
+        "to": 121
+      },
+      "question": "Can I change my live-in aide after move-in?",
+      "answer": "Yes, with approval and verification of the new aide’s necessity."
+    },
+    {
+      "id": "tfaq-122-123",
+      "label": "#122–123",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 122,
+        "to": 123
+      },
+      "question": "Can I ask for a larger unit because of medical equipment / live-in aide?",
+      "answer": "Yes, if justified as a reasonable accommodation and a suitable unit is available."
+    },
+    {
+      "id": "tfaq-124",
+      "label": "#124",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 124,
+        "to": 124
+      },
+      "question": "Can I request a transfer later if my disability needs change?",
+      "answer": "Yes—submit a new reasonable accommodation request. Priority may be given based on need."
+    },
+    {
+      "id": "tfaq-125",
+      "label": "#125",
+      "section": "reasonable-accommodations-and-disability-related-help",
+      "sectionTitle": "Reasonable Accommodations and Disability-Related Help",
+      "sourceNumbers": {
+        "from": 125,
+        "to": 125
+      },
+      "question": "What happens if my accommodation request is denied?",
+      "answer": "You will receive a written explanation. You can appeal internally or file a complaint with HUD (FHEO), Nevada Equal Rights Commission, or pursue other legal remedies."
+    },
+    {
+      "id": "tfaq-126-128",
+      "label": "#126–128",
+      "section": "assistance-animals-and-pets",
+      "sectionTitle": "Assistance Animals and Pets",
+      "sourceNumbers": {
+        "from": 126,
+        "to": 128
+      },
+      "question": "Is an assistance animal the same as a pet? / Do they count under pet policy? / Can I have one with no-pet policy?",
+      "answer": "Assistance animals (trained service animals) are not pets. They are allowed as a reasonable accommodation even in no-pet properties (per Fair Housing Act). Note: under current HUD guidance, the focus is on trained service animals performing specific tasks; emotional support animals (ESAs) have narrower federal enforcement protection."
+    },
+    {
+      "id": "tfaq-129-130",
+      "label": "#129–130",
+      "section": "assistance-animals-and-pets",
+      "sectionTitle": "Assistance Animals and Pets",
+      "sourceNumbers": {
+        "from": 129,
+        "to": 130
+      },
+      "question": "Can management charge a pet deposit / rent for an assistance animal?",
+      "answer": "No for qualified service animals."
+    },
+    {
+      "id": "tfaq-131-134",
+      "label": "#131–134",
+      "section": "assistance-animals-and-pets",
+      "sectionTitle": "Assistance Animals and Pets",
+      "sourceNumbers": {
+        "from": 131,
+        "to": 134
+      },
+      "question": "Can management require proof? / What documentation? / Who can provide? / Online letters?",
+      "answer": "Yes, if disability or need is not obvious. Acceptable: Letter from a reliable professional (doctor, therapist, etc.) confirming the disability-related need. Online letters are evaluated case-by-case for reliability."
+    },
+    {
+      "id": "tfaq-135-137",
+      "label": "#135–137",
+      "section": "assistance-animals-and-pets",
+      "sectionTitle": "Assistance Animals and Pets",
+      "sourceNumbers": {
+        "from": 135,
+        "to": 137
+      },
+      "question": "Breed/size limits? / More than one?",
+      "answer": "Generally no arbitrary restrictions if the animal is necessary; however, the animal must not pose a direct threat. Multiple may be approved if justified."
+    },
+    {
+      "id": "tfaq-138-139",
+      "label": "#138–139",
+      "section": "assistance-animals-and-pets",
+      "sectionTitle": "Assistance Animals and Pets",
+      "sourceNumbers": {
+        "from": 138,
+        "to": 139
+      },
+      "question": "Vaccination / licensing?",
+      "answer": "Yes, must comply with local laws (Clark County/Nevada requirements) and proof of vaccinations."
+    },
+    {
+      "id": "tfaq-140-141",
+      "label": "#140–141",
+      "section": "assistance-animals-and-pets",
+      "sectionTitle": "Assistance Animals and Pets",
+      "sourceNumbers": {
+        "from": 140,
+        "to": 141
+      },
+      "question": "Can it be denied due to allergies / fear?",
+      "answer": "No, if it qualifies—individual circumstances are weighed, but denial solely on that basis is generally not allowed."
+    },
+    {
+      "id": "tfaq-142-144",
+      "label": "#142–144",
+      "section": "assistance-animals-and-pets",
+      "sectionTitle": "Assistance Animals and Pets",
+      "sourceNumbers": {
+        "from": 142,
+        "to": 144
+      },
+      "question": "Damage / cleanup / aggressive behavior?",
+      "answer": "You are responsible for damage, cleanup, and controlling the animal. It can be removed if it poses a direct threat or causes significant damage."
+    },
+    {
+      "id": "tfaq-145",
+      "label": "#145",
+      "section": "assistance-animals-and-pets",
+      "sectionTitle": "Assistance Animals and Pets",
+      "sourceNumbers": {
+        "from": 145,
+        "to": 145
+      },
+      "question": "Can I bring my assistance animal to the leasing office?",
+      "answer": "Yes, for meetings related to your application (as a reasonable accommodation)."
+    },
+    {
+      "id": "tfaq-146-148",
+      "label": "#146–148",
+      "section": "language-access-and-help-understanding-forms",
+      "sectionTitle": "Language Access and Help Understanding Forms",
+      "sourceNumbers": {
+        "from": 146,
+        "to": 148
+      },
+      "question": "Application in Spanish / other languages? / Interpreter?",
+      "answer": "Properties should provide meaningful access for Limited English Proficiency (LEP) individuals, including translated vital documents and interpreters where feasible (especially if layered with other HUD funds). Ask for availability."
+    },
+    {
+      "id": "tfaq-149-150",
+      "label": "#149–150",
+      "section": "language-access-and-help-understanding-forms",
+      "sectionTitle": "Language Access and Help Understanding Forms",
+      "sourceNumbers": {
+        "from": 149,
+        "to": 150
+      },
+      "question": "Can a family member help translate / someone to explain?",
+      "answer": "Yes, generally allowed, though professional interpreters are preferred for important documents."
+    },
+    {
+      "id": "tfaq-151-155",
+      "label": "#151–155",
+      "section": "language-access-and-help-understanding-forms",
+      "sectionTitle": "Language Access and Help Understanding Forms",
+      "sourceNumbers": {
+        "from": 151,
+        "to": 155
+      },
+      "question": "Notices in preferred language / phone instead of email / more time / foreign documents?",
+      "answer": "Reasonable efforts should be made for vital communications. Extra time and translated/submitted documents are often accommodated."
+    },
+    {
+      "id": "tfaq-156-160",
+      "label": "#156–160",
+      "section": "language-access-and-help-understanding-forms",
+      "sectionTitle": "Language Access and Help Understanding Forms",
+      "sourceNumbers": {
+        "from": 156,
+        "to": 160
+      },
+      "question": "Do foreign documents need translation? / Who translates? / Consulate etc.? / Name spelling differences?",
+      "answer": "Yes, certified translations may be required for key verifications. Community resources, consulates, or approved translators can help. Minor spelling variations are often accepted with explanation."
+    },
+    {
+      "id": "tfaq-161",
+      "label": "#161",
+      "section": "vawa-safety-confidentiality-and-emergency-situations",
+      "sectionTitle": "VAWA, Safety, Confidentiality, and Emergency Situations",
+      "sourceNumbers": {
+        "from": 161,
+        "to": 161
+      },
+      "question": "What is VAWA?",
+      "answer": "The Violence Against Women Act provides housing protections for survivors of domestic violence, dating violence, sexual assault, or stalking in covered programs (including LIHTC)."
+    },
+    {
+      "id": "tfaq-162-166",
+      "label": "#162–166",
+      "section": "vawa-safety-confidentiality-and-emergency-situations",
+      "sectionTitle": "VAWA, Safety, Confidentiality, and Emergency Situations",
+      "sourceNumbers": {
+        "from": 162,
+        "to": 166
+      },
+      "question": "Does VAWA apply to applicants? / Can I apply if experiencing [violence]?",
+      "answer": "Yes—it applies to applicants and residents. You cannot be denied solely because of the violence experienced."
+    },
+    {
+      "id": "tfaq-167-171",
+      "label": "#167–171",
+      "section": "vawa-safety-confidentiality-and-emergency-situations",
+      "sectionTitle": "VAWA, Safety, Confidentiality, and Emergency Situations",
+      "sourceNumbers": {
+        "from": 167,
+        "to": 171
+      },
+      "question": "Confidentiality? / Police report / restraining order / self-certify / advocate documentation?",
+      "answer": "Information is kept confidential. Self-certification (HUD form) is usually sufficient; third-party documentation (advocate, doctor, etc.) is also accepted. Police reports or orders are not always required."
+    },
+    {
+      "id": "tfaq-172-175",
+      "label": "#172–175",
+      "section": "vawa-safety-confidentiality-and-emergency-situations",
+      "sectionTitle": "VAWA, Safety, Confidentiality, and Emergency Situations",
+      "sourceNumbers": {
+        "from": 172,
+        "to": 175
+      },
+      "question": "Can I be denied because of police calls / damage / eviction / criminal activity related to abuse?",
+      "answer": "No—VAWA prohibits denial or eviction based on the survivor’s victimization."
+    },
+    {
+      "id": "tfaq-176-180",
+      "label": "#176–180",
+      "section": "vawa-safety-confidentiality-and-emergency-situations",
+      "sectionTitle": "VAWA, Safety, Confidentiality, and Emergency Situations",
+      "sourceNumbers": {
+        "from": 176,
+        "to": 180
+      },
+      "question": "Remove abuser? / Emergency transfer? / Confidentiality from household? / Abuser on lease?",
+      "answer": "Yes—bifurcation of lease is possible. Emergency transfers are available. Information remains confidential; the abuser can be removed."
+    },
+    {
+      "id": "tfaq-181-185",
+      "label": "#181–185",
+      "section": "documents-identity-and-verification-problems",
+      "sectionTitle": "Documents, Identity, and Verification Problems",
+      "sourceNumbers": {
+        "from": 181,
+        "to": 185
+      },
+      "question": "No birth certificate / SSN card / expired ID / name change / waiting for replacements?",
+      "answer": "Contact the property—alternatives (e.g., other IDs, affidavits, extra verification time) are often accepted. Name changes require supporting documents (marriage certificate, court order, etc.)."
+    },
+    {
+      "id": "tfaq-186-189",
+      "label": "#186–189",
+      "section": "documents-identity-and-verification-problems",
+      "sectionTitle": "Documents, Identity, and Verification Problems",
+      "sourceNumbers": {
+        "from": 186,
+        "to": 189
+      },
+      "question": "Employer won’t verify / cash jobs / self-employed no taxes?",
+      "answer": "Provide alternative verifications (e.g., bank statements, tax returns, affidavits). Properties work with applicants on good-faith efforts."
+    },
+    {
+      "id": "tfaq-190-193",
+      "label": "#190–193",
+      "section": "documents-identity-and-verification-problems",
+      "sectionTitle": "Documents, Identity, and Verification Problems",
+      "sourceNumbers": {
+        "from": 190,
+        "to": 193
+      },
+      "question": "Recent income change / job offer / between jobs / non-income deposits?",
+      "answer": "Report current anticipated income with documentation. Explain deposits."
+    },
+    {
+      "id": "tfaq-194-199",
+      "label": "#194–199",
+      "section": "documents-identity-and-verification-problems",
+      "sectionTitle": "Documents, Identity, and Verification Problems",
+      "sourceNumbers": {
+        "from": 194,
+        "to": 199
+      },
+      "question": "Family money / bills paid directly / shared accounts / no bank account / apps like Cash App?",
+      "answer": "Report recurring contributions as income if applicable; one-time gifts usually excluded. Provide explanations and available records."
+    },
+    {
+      "id": "tfaq-200",
+      "label": "#200",
+      "section": "documents-identity-and-verification-problems",
+      "sectionTitle": "Documents, Identity, and Verification Problems",
+      "sourceNumbers": {
+        "from": 200,
+        "to": 200
+      },
+      "question": "What if I cannot get all documents before the deadline?",
+      "answer": "Notify the property immediately and request an extension (especially if disability- or VAWA-related). Good-faith efforts are considered."
+    },
+    {
+      "id": "tfaq-201-204",
+      "label": "#201–204",
+      "section": "more-application-and-eligibility-questions",
+      "sectionTitle": "More Application and Eligibility Questions",
+      "sourceNumbers": {
+        "from": 201,
+        "to": 204
+      },
+      "question": "Can I apply if I am currently homeless / staying with family/friends / in a shelter / in a motel?",
+      "answer": "Yes. Current housing situation does not disqualify you if you meet income and other eligibility rules. Provide available verification (e.g., shelter letter, explanation)."
+    },
+    {
+      "id": "tfaq-205",
+      "label": "#205",
+      "section": "more-application-and-eligibility-questions",
+      "sectionTitle": "More Application and Eligibility Questions",
+      "sourceNumbers": {
+        "from": 205,
+        "to": 205
+      },
+      "question": "Can I apply if I am fleeing domestic violence?",
+      "answer": "Yes—VAWA protections apply to applicants. Provide self-certification or other documentation if needed."
+    },
+    {
+      "id": "tfaq-206-210",
+      "label": "#206–210",
+      "section": "more-application-and-eligibility-questions",
+      "sectionTitle": "More Application and Eligibility Questions",
+      "sourceNumbers": {
+        "from": 206,
+        "to": 210
+      },
+      "question": "Can I apply if I do not have a current lease / am temporarily out of state / moving from another city/state / not a Nevada resident yet?",
+      "answer": "Yes. LIHTC does not require current tenancy, local residency, or Nevada residency to apply, though some properties may have preferences."
+    },
+    {
+      "id": "tfaq-211",
+      "label": "#211",
+      "section": "more-application-and-eligibility-questions",
+      "sectionTitle": "More Application and Eligibility Questions",
+      "sourceNumbers": {
+        "from": 211,
+        "to": 211
+      },
+      "question": "Do I have to live or work in this city to qualify?",
+      "answer": "No—there is no general requirement, but local preferences (if any) may prioritize those who do."
+    },
+    {
+      "id": "tfaq-212-216",
+      "label": "#212–216",
+      "section": "more-application-and-eligibility-questions",
+      "sectionTitle": "More Application and Eligibility Questions",
+      "sourceNumbers": {
+        "from": 212,
+        "to": 216
+      },
+      "question": "Is there a local residency / veteran / disability / homelessness / live-work preference?",
+      "answer": "It depends on the property’s approved Tenant Selection Plan. Many LIHTC properties have preferences for veterans, disabled households, homeless, or local residents/workers. Ask the leasing office for the current list."
+    },
+    {
+      "id": "tfaq-217-218",
+      "label": "#217–218",
+      "section": "more-application-and-eligibility-questions",
+      "sectionTitle": "More Application and Eligibility Questions",
+      "sourceNumbers": {
+        "from": 217,
+        "to": 218
+      },
+      "question": "Is the application selected by first-come, first-served or lottery?",
+      "answer": "Usually first-come, first-served on the waiting list, but some properties use lotteries for initial selection. Follow the property’s Tenant Selection Plan."
+    },
+    {
+      "id": "tfaq-219-220",
+      "label": "#219–220",
+      "section": "more-application-and-eligibility-questions",
+      "sectionTitle": "More Application and Eligibility Questions",
+      "sourceNumbers": {
+        "from": 219,
+        "to": 220
+      },
+      "question": "How will I know if my application was received? / Confirmation number?",
+      "answer": "You should receive a receipt, email, or confirmation number upon submission. Keep a copy for your records."
+    },
+    {
+      "id": "tfaq-221-223",
+      "label": "#221–223",
+      "section": "application-completion-questions",
+      "sectionTitle": "Application Completion Questions",
+      "sourceNumbers": {
+        "from": 221,
+        "to": 223
+      },
+      "question": "Do I need to complete every line? / Leave something blank? / Write “N/A”?",
+      "answer": "Complete all applicable fields. Use “N/A” or “None” for non-applicable items. Leaving blanks may delay processing."
+    },
+    {
+      "id": "tfaq-224-225",
+      "label": "#224–225",
+      "section": "application-completion-questions",
+      "sectionTitle": "Application Completion Questions",
+      "sourceNumbers": {
+        "from": 224,
+        "to": 225
+      },
+      "question": "Can staff / someone else help fill out the application?",
+      "answer": "Yes—staff can assist as a reasonable accommodation if needed, and you may have help from a representative or family member."
+    },
+    {
+      "id": "tfaq-226-232",
+      "label": "#226–232",
+      "section": "application-completion-questions",
+      "sectionTitle": "Application Completion Questions",
+      "sourceNumbers": {
+        "from": 226,
+        "to": 232
+      },
+      "question": "Can I sign electronically / submit paper / online / email / fax / mail / drop off?",
+      "answer": "All applications must be submitted via the GPMGLV app on your phone or computer. This ensures accuracy and speed. You may ask someone for assistance if you need help."
+    },
+    {
+      "id": "tfaq-233-234",
+      "label": "#233–234",
+      "section": "application-completion-questions",
+      "sectionTitle": "Application Completion Questions",
+      "sourceNumbers": {
+        "from": 233,
+        "to": 234
+      },
+      "question": "What time is the application deadline? / Miss the deadline?",
+      "answer": "Deadlines (if any) are per the Tenant Selection Plan. Missing one may require re-submission; contact the office."
+    },
+    {
+      "id": "tfaq-235-239",
+      "label": "#235–239",
+      "section": "application-completion-questions",
+      "sectionTitle": "Application Completion Questions",
+      "sourceNumbers": {
+        "from": 235,
+        "to": 239
+      },
+      "question": "Can I correct a mistake / update contact info / bedroom size after submitting?",
+      "answer": "Yes—notify the property promptly with updates. Changes are allowed before final approval."
+    },
+    {
+      "id": "tfaq-240",
+      "label": "#240",
+      "section": "application-completion-questions",
+      "sectionTitle": "Application Completion Questions",
+      "sourceNumbers": {
+        "from": 240,
+        "to": 240
+      },
+      "question": "Can I withdraw my application and reapply later?",
+      "answer": "Yes. You can withdraw and reapply (may go to the bottom of the waiting list)."
+    },
+    {
+      "id": "tfaq-241-242",
+      "label": "#241–242",
+      "section": "waiting-list-questions",
+      "sectionTitle": "Waiting List Questions",
+      "sourceNumbers": {
+        "from": 241,
+        "to": 242
+      },
+      "question": "How long is the waiting list? / How often updated?",
+      "answer": "Varies widely (months to years in high-demand areas). Check the app daily for your current status and updates."
+    },
+    {
+      "id": "tfaq-243-247",
+      "label": "#243–247",
+      "section": "waiting-list-questions",
+      "sectionTitle": "Waiting List Questions",
+      "sourceNumbers": {
+        "from": 243,
+        "to": 247
+      },
+      "question": "Will you call/email/mail me? / Miss call / voicemail / spam / how many attempts?",
+      "answer": "The property will attempt contact per its Tenant Selection Plan. It is your responsibility to check the app frequently and respond promptly to avoid removal."
+    },
+    {
+      "id": "tfaq-248-250",
+      "label": "#248–250",
+      "section": "waiting-list-questions",
+      "sectionTitle": "Waiting List Questions",
+      "sourceNumbers": {
+        "from": 248,
+        "to": 250
+      },
+      "question": "Can I lose my place / be removed? / How to keep active?",
+      "answer": "Yes, if you fail to respond, provide docs, or meet updates. Check in periodically as required and keep contact info current."
+    },
+    {
+      "id": "tfaq-251-254",
+      "label": "#251–254",
+      "section": "waiting-list-questions",
+      "sectionTitle": "Waiting List Questions",
+      "sourceNumbers": {
+        "from": 251,
+        "to": 254
+      },
+      "question": "Do I need to check in? / Add or remove household member / change income?",
+      "answer": "Yes—notify the property of any changes (household, income) via the app. Updates may require re-verification."
+    },
+    {
+      "id": "tfaq-255-260",
+      "label": "#255–260",
+      "section": "waiting-list-questions",
+      "sectionTitle": "Waiting List Questions",
+      "sourceNumbers": {
+        "from": 255,
+        "to": 260
+      },
+      "question": "Can position change? / Transfer spot? / Multiple lists? / Separate for accessible / bedroom size?",
+      "answer": "Positions can shift with preferences or updates. Multiple applications are usually allowed. Separate lists often exist for unit types and accessible units."
+    },
+    {
+      "id": "tfaq-261-262",
+      "label": "#261–262",
+      "section": "unit-availability-and-selection-questions",
+      "sectionTitle": "Unit Availability and Selection Questions",
+      "sourceNumbers": {
+        "from": 261,
+        "to": 262
+      },
+      "question": "What unit sizes are available? / How many bedrooms do I qualify for?",
+      "answer": "Depends on current availability and your household size per occupancy standards (typically 1–2 per bedroom). Check the app for properties and wait list times."
+    },
+    {
+      "id": "tfaq-263-272",
+      "label": "#263–272",
+      "section": "unit-availability-and-selection-questions",
+      "sectionTitle": "Unit Availability and Selection Questions",
+      "sourceNumbers": {
+        "from": 263,
+        "to": 272
+      },
+      "question": "Can I choose my unit / floor / downstairs / upstairs / near office/parking / away from stairs/noise / near transport/school?",
+      "answer": "Requests are considered but not guaranteed, except as reasonable accommodations for disability. Availability drives assignments."
+    },
+    {
+      "id": "tfaq-273-276",
+      "label": "#273–276",
+      "section": "unit-availability-and-selection-questions",
+      "sectionTitle": "Unit Availability and Selection Questions",
+      "sourceNumbers": {
+        "from": 273,
+        "to": 276
+      },
+      "question": "Can I request an accessible unit / roll-in shower / grab bars / no carpet?",
+      "answer": "Yes, as a reasonable accommodation if disability-related and verified."
+    },
+    {
+      "id": "tfaq-277",
+      "label": "#277",
+      "section": "unit-availability-and-selection-questions",
+      "sectionTitle": "Unit Availability and Selection Questions",
+      "sourceNumbers": {
+        "from": 277,
+        "to": 277
+      },
+      "question": "Can I request a unit because of a medical condition?",
+      "answer": "Yes, via reasonable accommodation request."
+    },
+    {
+      "id": "tfaq-278-280",
+      "label": "#278–280",
+      "section": "unit-availability-and-selection-questions",
+      "sectionTitle": "Unit Availability and Selection Questions",
+      "sourceNumbers": {
+        "from": 278,
+        "to": 280
+      },
+      "question": "What if I reject the unit offered? / How many offers? / Wait for different unit?",
+      "answer": "You may reject, but multiple rejections can result in removal from the list per Tenant Selection Plan. Some properties limit offers."
+    },
+    {
+      "id": "tfaq-281",
+      "label": "#281",
+      "section": "income-eligibility-questions",
+      "sectionTitle": "Income Eligibility Questions",
+      "sourceNumbers": {
+        "from": 281,
+        "to": 281
+      },
+      "question": "What income limit applies to my unit?",
+      "answer": "The property’s set-aside (e.g., 50% or 60% AMI for Clark County, adjusted for household size). Confirm current HUD MTSP (Multifamily Tax Subsidy Projects) limits with the office."
+    },
+    {
+      "id": "tfaq-282-283",
+      "label": "#282–283",
+      "section": "income-eligibility-questions",
+      "sectionTitle": "Income Eligibility Questions",
+      "sourceNumbers": {
+        "from": 282,
+        "to": 283
+      },
+      "question": "What if my income is too low / too high?",
+      "answer": "Too high = ineligible. Too low may still qualify (no federal minimum for most LIHTC), but some properties have minimums for rent affordability."
+    },
+    {
+      "id": "tfaq-284-287",
+      "label": "#284–287",
+      "section": "income-eligibility-questions",
+      "sectionTitle": "Income Eligibility Questions",
+      "sourceNumbers": {
+        "from": 284,
+        "to": 287
+      },
+      "question": "Is there a minimum income requirement? / Zero income? / Zero-income certification? / Explain bills?",
+      "answer": "Some properties have minimums; zero income is possible with certification of how expenses are met (e.g., savings, assistance)."
+    },
+    {
+      "id": "tfaq-288-292",
+      "label": "#288–292",
+      "section": "income-eligibility-questions",
+      "sectionTitle": "Income Eligibility Questions",
+      "sourceNumbers": {
+        "from": 288,
+        "to": 292
+      },
+      "question": "Does income have to be stable? / Look back? / No longer receive? / Expect to receive?",
+      "answer": "Anticipated income for next 12 months is used. History is reviewed for verification. Past income that ended is generally not counted if not expected."
+    },
+    {
+      "id": "tfaq-293-300",
+      "label": "#293–300",
+      "section": "income-eligibility-questions",
+      "sectionTitle": "Income Eligibility Questions",
+      "sourceNumbers": {
+        "from": 293,
+        "to": 300
+      },
+      "question": "Job offer / temporary / day labor / babysitting / caregiving / cleaning / selling food/items?",
+      "answer": "Yes—report and verify all anticipated income sources."
+    },
+    {
+      "id": "tfaq-301-317",
+      "label": "#301–317",
+      "section": "employment-and-wage-questions",
+      "sectionTitle": "Employment and Wage Questions",
+      "sourceNumbers": {
+        "from": 301,
+        "to": 317
+      },
+      "question": "Multiple jobs / part-time / overtime / seasonal / school district / leave / short-term disability / family leave?",
+      "answer": "All are reported and annualized based on history and expectations. Provide verification."
+    },
+    {
+      "id": "tfaq-318-320",
+      "label": "#318–320",
+      "section": "employment-and-wage-questions",
+      "sectionTitle": "Employment and Wage Questions",
+      "sourceNumbers": {
+        "from": 318,
+        "to": 320
+      },
+      "question": "Employer refuses verification? / Use pay stubs? / How many?",
+      "answer": "Provide alternatives (pay stubs, bank statements, tax returns). Typically 2–4 recent pay stubs."
+    },
+    {
+      "id": "tfaq-321-330",
+      "label": "#321–330",
+      "section": "self-employment-questions",
+      "sectionTitle": "Self-Employment Questions",
+      "sourceNumbers": {
+        "from": 321,
+        "to": 330
+      },
+      "question": "What counts as self-employment? / Side jobs / cash / apps / small business / social media / sales / tutoring / beauty / landscaping?",
+      "answer": "Any work for profit, including gigs and side hustles. All must be reported."
+    },
+    {
+      "id": "tfaq-331-340",
+      "label": "#331–340",
+      "section": "self-employment-questions",
+      "sectionTitle": "Self-Employment Questions",
+      "sourceNumbers": {
+        "from": 331,
+        "to": 340
+      },
+      "question": "Documents? / Tax returns? / No taxes yet? / No profit? / Deduct expenses? / Cash / apps / changing income / new / closed business?",
+      "answer": "Tax returns/Schedule C, profit/loss statements, bank records, receipts. Net income after expenses. Good-faith estimates and alternatives are accepted."
+    },
+    {
+      "id": "tfaq-341-349",
+      "label": "#341–349",
+      "section": "benefits-and-support-questions",
+      "sectionTitle": "Benefits and Support Questions",
+      "sourceNumbers": {
+        "from": 341,
+        "to": 349
+      },
+      "question": "Social Security / SSI / survivor / VA disability / pension / annuity / unemployment / workers’ comp?",
+      "answer": "Most count as income (provide award letters). Some exclusions may apply."
+    },
+    {
+      "id": "tfaq-350-360",
+      "label": "#350–360",
+      "section": "benefits-and-support-questions",
+      "sectionTitle": "Benefits and Support Questions",
+      "sourceNumbers": {
+        "from": 350,
+        "to": 360
+      },
+      "question": "Child support (irregular/cash/court-ordered not paid) / informal family support / bills paid directly / groceries / utilities / one-time / church/nonprofit?",
+      "answer": "Report actual/anticipated amounts. Recurring = income; one-time gifts/assistance usually excluded."
+    },
+    {
+      "id": "tfaq-361",
+      "label": "#361",
+      "section": "asset-questions",
+      "sectionTitle": "Asset Questions",
+      "sourceNumbers": {
+        "from": 361,
+        "to": 361
+      },
+      "question": "Why do you need to know about my assets?",
+      "answer": "To calculate asset income (imputed if over threshold) and ensure overall eligibility."
+    },
+    {
+      "id": "tfaq-362-380",
+      "label": "#362–380",
+      "section": "asset-questions",
+      "sectionTitle": "Asset Questions",
+      "sourceNumbers": {
+        "from": 362,
+        "to": 380
+      },
+      "question": "Checking/savings/joint/child’s/trust/retirement/investments/stocks/bonds/crypto/refund/settlement/inheritance/insurance/gift cards/prepaid/vehicle/mobile home/land?",
+      "answer": "Most liquid assets count toward net family assets. Retirement accounts generally excluded. Personal vehicles usually excluded. Report all."
+    },
+    {
+      "id": "tfaq-381-395",
+      "label": "#381–395",
+      "section": "documents-and-verification-questions",
+      "sectionTitle": "Documents and Verification Questions",
+      "sourceNumbers": {
+        "from": 381,
+        "to": 395
+      },
+      "question": "Different addresses / name spelling / lost/expired ID / out-of-state / no SSN / passport / consular / birth certificate / immigration / online systems?",
+      "answer": "Provide explanations, alternatives, or extra time. Many options are accepted."
+    },
+    {
+      "id": "tfaq-396-400",
+      "label": "#396–400",
+      "section": "documents-and-verification-questions",
+      "sectionTitle": "Documents and Verification Questions",
+      "sourceNumbers": {
+        "from": 396,
+        "to": 400
+      },
+      "question": "Online statements / screenshots / handwritten / notarized / expiring docs?",
+      "answer": "Acceptable with verification. Screenshots may need confirmation. Extensions are often granted."
+    },
+    {
+      "id": "tfaq-401-402",
+      "label": "#401–402",
+      "section": "rent-utilities-deposits-and-payments",
+      "sectionTitle": "Rent, Utilities, Deposits, and Payments",
+      "sourceNumbers": {
+        "from": 401,
+        "to": 402
+      },
+      "question": "How is my rent calculated? / Income-based or fixed?",
+      "answer": "LIHTC rents are generally fixed at an affordable level based on the unit’s set-aside (e.g., 30% of 50% or 60% AMI for the household size). They are not income-based like traditional Section 8 (unless the unit has project-based vouchers)."
+    },
+    {
+      "id": "tfaq-403-405",
+      "label": "#403–405",
+      "section": "rent-utilities-deposits-and-payments",
+      "sectionTitle": "Rent, Utilities, Deposits, and Payments",
+      "sourceNumbers": {
+        "from": 403,
+        "to": 405
+      },
+      "question": "Can rent change before / after move-in? / How often?",
+      "answer": "Rent typically remains fixed at move-in but can increase at annual recertification (usually once per year) in accordance with program rules and the lease. Increases are limited and require notice."
+    },
+    {
+      "id": "tfaq-406-410",
+      "label": "#406–410",
+      "section": "rent-utilities-deposits-and-payments",
+      "sectionTitle": "Rent, Utilities, Deposits, and Payments",
+      "sourceNumbers": {
+        "from": 406,
+        "to": 410
+      },
+      "question": "Are utilities included? / What do I pay separately? / Utility allowance? / Higher bills?",
+      "answer": "Some utilities may be included; others are tenant-paid. A utility allowance (based on unit size and local averages) is subtracted from the rent portion you pay. If actual bills are higher, you pay the difference."
+    },
+    {
+      "id": "tfaq-411-413",
+      "label": "#411–413",
+      "section": "rent-utilities-deposits-and-payments",
+      "sectionTitle": "Rent, Utilities, Deposits, and Payments",
+      "sourceNumbers": {
+        "from": 411,
+        "to": 413
+      },
+      "question": "Put utilities in my name? / Owe utility company? / Cannot get turned on?",
+      "answer": "Yes, you generally must establish service in your name. Prior debts may need resolution. Move-in is usually not possible without active utilities—work with the property on solutions."
+    },
+    {
+      "id": "tfaq-414",
+      "label": "#414",
+      "section": "rent-utilities-deposits-and-payments",
+      "sectionTitle": "Rent, Utilities, Deposits, and Payments",
+      "sourceNumbers": {
+        "from": 414,
+        "to": 414
+      },
+      "question": "Is renters insurance required?",
+      "answer": "Often recommended or required by the lease. It protects your belongings (property does not cover tenant property)."
+    },
+    {
+      "id": "tfaq-415-417",
+      "label": "#415–417",
+      "section": "rent-utilities-deposits-and-payments",
+      "sectionTitle": "Rent, Utilities, Deposits, and Payments",
+      "sourceNumbers": {
+        "from": 415,
+        "to": 417
+      },
+      "question": "Security deposit amount? / Refundable? / Installments?",
+      "answer": "Typically equivalent to one month’s rent or less (per state limits). It is refundable minus damages and cleaning, with itemized accounting. Installments may be allowed case-by-case."
+    },
+    {
+      "id": "tfaq-418-420",
+      "label": "#418–420",
+      "section": "rent-utilities-deposits-and-payments",
+      "sectionTitle": "Rent, Utilities, Deposits, and Payments",
+      "sourceNumbers": {
+        "from": 418,
+        "to": 420
+      },
+      "question": "Move-in specials? / Third-party payments? / Payment methods?",
+      "answer": "Specials vary by property and availability. Third-party assistance (nonprofit, family, etc.) is usually accepted. Common methods: money order, cashier’s check, electronic payments (confirm accepted options)."
+    },
+    {
+      "id": "tfaq-421-426",
+      "label": "#421–426",
+      "section": "vouchers-and-rental-assistance",
+      "sectionTitle": "Vouchers and Rental Assistance",
+      "sourceNumbers": {
+        "from": 421,
+        "to": 426
+      },
+      "question": "Do you accept Section 8 / project-based / VASH / rapid rehousing / emergency assistance / third-party?",
+      "answer": "Many LIHTC properties accept vouchers and assistance, but it depends on the specific property’s policies. Confirm current acceptance with the leasing office."
+    },
+    {
+      "id": "tfaq-427-433",
+      "label": "#427–433",
+      "section": "vouchers-and-rental-assistance",
+      "sectionTitle": "Vouchers and Rental Assistance",
+      "sourceNumbers": {
+        "from": 427,
+        "to": 433
+      },
+      "question": "Apply before voucher issued? / Bedroom size mismatch? / Inspection? / Fails inspection? / Voucher expires?",
+      "answer": "You can often apply pre-voucher. The unit must meet the voucher bedroom size and pass HQS inspection (scheduled by the housing authority). Failures must be corrected. Vouchers have expiration dates—coordinate timelines."
+    },
+    {
+      "id": "tfaq-434-435",
+      "label": "#434–435",
+      "section": "vouchers-and-rental-assistance",
+      "sectionTitle": "Vouchers and Rental Assistance",
+      "sourceNumbers": {
+        "from": 434,
+        "to": 435
+      },
+      "question": "Voucher pay deposit? / Portion changes?",
+      "answer": "Policies vary (some allow, some do not for deposits). Changes in voucher amounts are adjusted at recertification."
+    },
+    {
+      "id": "tfaq-436-441",
+      "label": "#436–441",
+      "section": "credit-background-and-rental-history",
+      "sectionTitle": "Credit, Background, and Rental History",
+      "sourceNumbers": {
+        "from": 436,
+        "to": 441
+      },
+      "question": "Credit score needed? / No credit? / Collections / medical debt / utility debt / owe prior landlord?",
+      "answer": "No strict minimum score is federally required, but properties screen per Tenant Selection Plan. Mitigating factors (e.g., medical debt, age of issues) are often considered. Outstanding debts to prior landlords may cause denial."
+    },
+    {
+      "id": "tfaq-442-445",
+      "label": "#442–445",
+      "section": "credit-background-and-rental-history",
+      "sectionTitle": "Credit, Background, and Rental History",
+      "sourceNumbers": {
+        "from": 442,
+        "to": 445
+      },
+      "question": "Eviction filing (no judgment) / old eviction / explain history / recommendation letters?",
+      "answer": "Considered case-by-case. Recent evictions are more problematic. You can provide explanations and positive references."
+    },
+    {
+      "id": "tfaq-446-447",
+      "label": "#446–447",
+      "section": "credit-background-and-rental-history",
+      "sectionTitle": "Credit, Background, and Rental History",
+      "sourceNumbers": {
+        "from": 446,
+        "to": 447
+      },
+      "question": "Co-signer / guarantor allowed?",
+      "answer": "Generally no for standard LIHTC units (income eligibility applies to household only), though exceptions may exist for reasonable accommodations."
+    },
+    {
+      "id": "tfaq-448-449",
+      "label": "#448–449",
+      "section": "credit-background-and-rental-history",
+      "sectionTitle": "Credit, Background, and Rental History",
+      "sourceNumbers": {
+        "from": 448,
+        "to": 449
+      },
+      "question": "Criminal history check? / What causes denial?",
+      "answer": "Yes, background checks are standard. Denials are based on individualized assessment (nature, recency, relevance to tenancy). Certain serious/recent convictions may disqualify."
+    },
+    {
+      "id": "tfaq-450-455",
+      "label": "#450–455",
+      "section": "credit-background-and-rental-history",
+      "sectionTitle": "Credit, Background, and Rental History",
+      "sourceNumbers": {
+        "from": 450,
+        "to": 455
+      },
+      "question": "Appeal denial? / Timeline? / Rehabilitation / dismissed charges / wrong report?",
+      "answer": "Yes—you have appeal rights per the Tenant Selection Plan (usually 10–30 days). Provide documentation of rehabilitation, dismissals, or disputes. You can dispute inaccurate reports with the screening company."
+    },
+    {
+      "id": "tfaq-456-465",
+      "label": "#456–465",
+      "section": "household-changes-before-move-in",
+      "sectionTitle": "Household Changes Before Move-In",
+      "sourceNumbers": {
+        "from": 456,
+        "to": 465
+      },
+      "question": "Member no longer moving / marriage / separation / baby / death / child turns 18 / refuses to sign / incarcerated / deployed / custody change?",
+      "answer": "Notify the property immediately. Changes may affect eligibility, unit size, income, or waiting list status and require updated verification/certification."
+    },
+    {
+      "id": "tfaq-466-471",
+      "label": "#466–471",
+      "section": "lease-signing-and-move-in-timing",
+      "sectionTitle": "Lease Signing and Move-In Timing",
+      "sourceNumbers": {
+        "from": 466,
+        "to": 471
+      },
+      "question": "How soon after approval? / Choose date? / Cannot move on date / delay / hold fee?",
+      "answer": "Typically within a short window after approval (e.g., 7–30 days). Holds may require a fee. Communicate promptly to avoid losing the unit."
+    },
+    {
+      "id": "tfaq-472-477",
+      "label": "#472–477",
+      "section": "lease-signing-and-move-in-timing",
+      "sectionTitle": "Lease Signing and Move-In Timing",
+      "sourceNumbers": {
+        "from": 472,
+        "to": 477
+      },
+      "question": "All adults sign? / Electronic? / Review lease? / Explanation? / Documents / keys?",
+      "answer": "All adult household members must sign. Electronic signatures are often allowed. You should receive a copy to review, explanations if requested, lease packet, and keys upon full execution and payments."
+    },
+    {
+      "id": "tfaq-478-480",
+      "label": "#478–480",
+      "section": "lease-signing-and-move-in-timing",
+      "sectionTitle": "Lease Signing and Move-In Timing",
+      "sourceNumbers": {
+        "from": 478,
+        "to": 480
+      },
+      "question": "What to bring? / Weekend move-in? / Movers access?",
+      "answer": "Bring ID, funds, and required documents. Weekend move-ins and mover access depend on property rules—confirm in advance."
+    },
+    {
+      "id": "tfaq-481-484",
+      "label": "#481–484",
+      "section": "unit-condition-and-maintenance",
+      "sectionTitle": "Unit Condition and Maintenance",
+      "sourceNumbers": {
+        "from": 481,
+        "to": 484
+      },
+      "question": "Inspect before signing? / Move-in form? / Report pre-existing damage? / Charged for prior damage?",
+      "answer": "Yes—inspect and document on the move-in form. You will not be charged for pre-existing damage if properly noted."
+    },
+    {
+      "id": "tfaq-485-487",
+      "label": "#485–487",
+      "section": "unit-condition-and-maintenance",
+      "sectionTitle": "Unit Condition and Maintenance",
+      "sourceNumbers": {
+        "from": 485,
+        "to": 487
+      },
+      "question": "Appliances / washer-dryer / window coverings?",
+      "answer": "Standard appliances are usually included. In-unit washer/dryer and window coverings vary—ask about the specific unit."
+    },
+    {
+      "id": "tfaq-488-489",
+      "label": "#488–489",
+      "section": "unit-condition-and-maintenance",
+      "sectionTitle": "Unit Condition and Maintenance",
+      "sourceNumbers": {
+        "from": 488,
+        "to": 489
+      },
+      "question": "Paint? / Install shelves, cameras, alarms, satellite?",
+      "answer": "Minor changes may be allowed with approval; alterations often require written permission and may need restoration at move-out. Reasonable accommodations for disability-related modifications are permitted."
+    },
+    {
+      "id": "tfaq-490",
+      "label": "#490",
+      "section": "unit-condition-and-maintenance",
+      "sectionTitle": "Unit Condition and Maintenance",
+      "sourceNumbers": {
+        "from": 490,
+        "to": 490
+      },
+      "question": "Submit maintenance requests?",
+      "answer": "Use the property’s portal, app, phone, or office—emergency vs. non-emergency procedures apply."
+    },
+    {
+      "id": "tfaq-491-493",
+      "label": "#491–493",
+      "section": "community-rules-and-resident-responsibilities",
+      "sectionTitle": "Community Rules and Resident Responsibilities",
+      "sourceNumbers": {
+        "from": 491,
+        "to": 493
+      },
+      "question": "Parking / guest parking / towing?",
+      "answer": "Assigned or open parking per rules. Guest parking is limited; unauthorized vehicles may be towed. Follow posted regulations."
+    },
+    {
+      "id": "tfaq-494",
+      "label": "#494",
+      "section": "community-rules-and-resident-responsibilities",
+      "sectionTitle": "Community Rules and Resident Responsibilities",
+      "sourceNumbers": {
+        "from": 494,
+        "to": 494
+      },
+      "question": "Pets allowed?",
+      "answer": "Per the pet policy in the lease/Tenant Selection Plan (restrictions on size, breed, number). Service/assistance animals are allowed as reasonable accommodations."
+    },
+    {
+      "id": "tfaq-495-498",
+      "label": "#495–498",
+      "section": "community-rules-and-resident-responsibilities",
+      "sectionTitle": "Community Rules and Resident Responsibilities",
+      "sourceNumbers": {
+        "from": 495,
+        "to": 498
+      },
+      "question": "Quiet hours? / Guests / visitors / extended absence?",
+      "answer": "Quiet hours are enforced (typically 10 PM–8 AM). Guest policies limit duration. Notify management for extended absences to avoid abandonment concerns."
+    },
+    {
+      "id": "tfaq-499-500",
+      "label": "#499–500",
+      "section": "community-rules-and-resident-responsibilities",
+      "sectionTitle": "Community Rules and Resident Responsibilities",
+      "sourceNumbers": {
+        "from": 499,
+        "to": 500
+      },
+      "question": "Income/household changes after move-in? / Annual recertification?",
+      "answer": "Report changes promptly. Annual recertification is required (income, household, student status, assets) to maintain eligibility and adjust rent if applicable."
+    }
+  ]
+}
