@@ -29,23 +29,50 @@ interface NavItem {
   minRole: UserRole;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', path: '/', icon: LayoutDashboard, minRole: 'leasing_agent' },
-  { label: 'Applications', path: '/applications', icon: FileText, minRole: 'leasing_agent' },
-  { label: 'Screening', path: '/screening', icon: Search, minRole: 'senior_manager' },
-  { label: 'Approvals', path: '/approvals', icon: CheckCircle, minRole: 'senior_manager' },
-  { label: 'Ledger', path: '/ledger', icon: DollarSign, minRole: 'leasing_agent' },
-  { label: 'Properties', path: '/properties', icon: Building2, minRole: 'leasing_agent' },
-  { label: 'Users', path: '/users', icon: Users, minRole: 'senior_manager' },
-  { label: 'Inspections', path: '/inspections', icon: ClipboardCheck, minRole: 'leasing_agent' },
-  { label: 'Maintenance', path: '/maintenance', icon: Wrench, minRole: 'leasing_agent' },
-  { label: 'Renewals', path: '/renewals', icon: RefreshCw, minRole: 'senior_manager' },
-  { label: 'Move-Outs', path: '/moveouts', icon: LogOut, minRole: 'senior_manager' },
-  { label: 'Evictions', path: '/evictions', icon: Gavel, minRole: 'senior_manager' },
-  { label: 'Recertifications', path: '/recertifications', icon: CalendarClock, minRole: 'senior_manager' },
-  { label: 'Compliance', path: '/compliance', icon: Shield, minRole: 'regional_manager' },
-  { label: 'Audit Log', path: '/audit-log', icon: ScrollText, minRole: 'regional_manager' },
-  { label: 'QA Bundles', path: '/qa-bundles', icon: Camera, minRole: 'regional_manager' },
+interface NavGroup {
+  /** Small uppercase section label; null = ungrouped items at the top. */
+  heading: string | null;
+  items: NavItem[];
+}
+
+// Same routes, roles, and icons as before — grouping is purely presentational.
+const NAV_GROUPS: NavGroup[] = [
+  {
+    heading: null,
+    items: [
+      { label: 'Dashboard', path: '/', icon: LayoutDashboard, minRole: 'leasing_agent' },
+    ],
+  },
+  {
+    heading: 'Pipeline',
+    items: [
+      { label: 'Applications', path: '/applications', icon: FileText, minRole: 'leasing_agent' },
+      { label: 'Screening', path: '/screening', icon: Search, minRole: 'senior_manager' },
+      { label: 'Approvals', path: '/approvals', icon: CheckCircle, minRole: 'senior_manager' },
+      { label: 'Ledger', path: '/ledger', icon: DollarSign, minRole: 'leasing_agent' },
+    ],
+  },
+  {
+    heading: 'Operations',
+    items: [
+      { label: 'Properties', path: '/properties', icon: Building2, minRole: 'leasing_agent' },
+      { label: 'Users', path: '/users', icon: Users, minRole: 'senior_manager' },
+      { label: 'Inspections', path: '/inspections', icon: ClipboardCheck, minRole: 'leasing_agent' },
+      { label: 'Maintenance', path: '/maintenance', icon: Wrench, minRole: 'leasing_agent' },
+      { label: 'Renewals', path: '/renewals', icon: RefreshCw, minRole: 'senior_manager' },
+      { label: 'Move-Outs', path: '/moveouts', icon: LogOut, minRole: 'senior_manager' },
+      { label: 'Evictions', path: '/evictions', icon: Gavel, minRole: 'senior_manager' },
+      { label: 'Recertifications', path: '/recertifications', icon: CalendarClock, minRole: 'senior_manager' },
+    ],
+  },
+  {
+    heading: 'Governance',
+    items: [
+      { label: 'Compliance', path: '/compliance', icon: Shield, minRole: 'regional_manager' },
+      { label: 'Audit Log', path: '/audit-log', icon: ScrollText, minRole: 'regional_manager' },
+      { label: 'QA Bundles', path: '/qa-bundles', icon: Camera, minRole: 'regional_manager' },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -117,15 +144,18 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
 
   if (!user) return null;
 
-  const visible = NAV_ITEMS.filter((item) => hasMinRole(user.role, item.minRole));
+  const visibleGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => hasMinRole(user.role, item.minRole)),
+  })).filter((group) => group.items.length > 0);
 
   // `collapsed` is a desktop affordance only (md+). On mobile the drawer is
   // always full-width when open, so collapse-driven label hiding / icon
   // centering is gated behind `md:`.
   const collapseRail = collapsed ? 'md:w-16' : 'md:w-64';
   const collapseLabel = collapsed ? 'md:hidden' : '';
-  const collapseItemPad = collapsed ? 'md:justify-center md:px-0' : 'md:px-3';
-  const collapseHeaderPad = collapsed ? 'md:justify-center md:px-0' : 'md:px-6';
+  const collapseItemPad = collapsed ? 'md:justify-center md:px-0' : 'md:px-2.5';
+  const collapseHeaderPad = collapsed ? 'md:justify-center md:px-0' : 'md:px-5';
 
   return (
     <aside
@@ -135,33 +165,67 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className={`flex h-16 items-center gap-2 border-b border-gray-200 px-6 ${collapseHeaderPad}`}>
-        <Building2 className="h-6 w-6 shrink-0 text-brand-600" />
-        <span className={`text-lg font-semibold text-gray-900 ${collapseLabel}`}>CDPC Hub</span>
+      <div className={`flex h-16 shrink-0 items-center gap-2.5 border-b border-gray-200 px-5 ${collapseHeaderPad}`}>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 shadow-btn-primary">
+          <Building2 className="h-[18px] w-[18px] text-white" />
+        </span>
+        <span className={`leading-tight ${collapseLabel}`}>
+          <span className="block text-sm font-semibold tracking-tight text-gray-900">CDPC Hub</span>
+          <span className="block text-2xs font-medium uppercase text-gray-400">Compliance</span>
+        </span>
       </div>
-      <nav aria-label="Primary" className="flex-1 space-y-1 overflow-y-auto p-3">
-        {visible.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.path === '/'}
-            title={collapsed ? item.label : undefined}
-            onClick={onClose}
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${collapseItemPad} ${
-                isActive
-                  ? 'bg-brand-50 text-brand-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`
-            }
-          >
-            <item.icon className="h-5 w-5 shrink-0" />
-            <span className={collapseLabel}>{item.label}</span>
-          </NavLink>
+      <nav aria-label="Primary" className="flex-1 overflow-y-auto px-3 pb-4 pt-3">
+        {visibleGroups.map((group, gi) => (
+          <div key={group.heading ?? '__top'}>
+            {group.heading ? (
+              <>
+                <p
+                  className={`px-2.5 pb-1.5 pt-5 text-2xs font-semibold uppercase text-gray-400 ${collapseLabel}`}
+                >
+                  {group.heading}
+                </p>
+                {/* Collapsed rail: a hairline stands in for the hidden label. */}
+                {collapsed && <div className="mx-3 my-2 hidden border-t border-gray-200 md:block" />}
+              </>
+            ) : (
+              gi > 0 && <div className="my-2" />
+            )}
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.path === '/'}
+                  title={collapsed ? item.label : undefined}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `relative flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-13 font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${collapseItemPad} ${
+                      isActive
+                        ? 'bg-brand-50 text-brand-700 before:absolute before:bottom-[7px] before:left-0 before:top-[7px] before:w-[3px] before:rounded-full before:bg-brand-600'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <item.icon
+                        className={`h-[18px] w-[18px] shrink-0 ${
+                          isActive ? 'text-brand-600' : 'text-gray-400'
+                        }`}
+                      />
+                      <span className={collapseLabel}>{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
-      <div className="border-t border-gray-200 p-4">
-        <p className={`text-xs text-gray-400 ${collapseLabel}`}>CDPC Nevada</p>
+      <div className="border-t border-gray-200 px-5 py-3.5">
+        <p className={`text-2xs font-medium uppercase text-gray-400 ${collapseLabel}`}>
+          CDPC Nevada
+        </p>
       </div>
     </aside>
   );

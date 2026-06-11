@@ -51,14 +51,16 @@ const columns: Column<AuditEntry>[] = [
   {
     key: 'created_at',
     header: 'Time',
-    render: (r) => new Date(r.created_at).toLocaleString(),
+    render: (r) => (
+      <span className="text-gray-500 tabular-nums">{new Date(r.created_at).toLocaleString()}</span>
+    ),
     className: 'whitespace-nowrap',
   },
   {
     key: 'action',
     header: 'Action',
     render: (r) => (
-      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono">
+      <span className="rounded-md bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-600 ring-1 ring-inset ring-gray-300/40">
         {r.action}
       </span>
     ),
@@ -191,14 +193,16 @@ function ComplianceTapePanel() {
     tapeError?.toLowerCase().includes('501');
 
   return (
-    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6">
+    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-card">
       {/* Section heading */}
       <div>
-        <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-          <LinkIcon className="h-4 w-4 text-emerald-600" />
+        <h2 className="text-sm font-semibold tracking-tight text-gray-900 flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 ring-1 ring-inset ring-brand-200/50">
+            <LinkIcon className="h-3.5 w-3.5 text-brand-600" />
+          </span>
           Compliance Tape
         </h2>
-        <p className="mt-0.5 text-xs text-gray-500">
+        <p className="mt-1.5 text-xs text-gray-500">
           Tape entries are append-only, hash-chained per applicant scope.
           See <span className="font-mono">docs/bp-02-contracts.md</span>.
         </p>
@@ -211,7 +215,7 @@ function ComplianceTapePanel() {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm w-80 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="input w-80"
         />
         <Button
           variant="primary"
@@ -243,12 +247,14 @@ function ComplianceTapePanel() {
                 {verifyLoading ? 'Verifying…' : 'Verify Chain'}
               </Button>
               {verifyResult && verifyResult.ok && (
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200/60 tabular-nums">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
                   Verified ✓ (sequence {verifyResult.lastSequence})
                 </span>
               )}
               {verifyResult && !verifyResult.ok && (
-                <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-200/60 tabular-nums">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden="true" />
                   Break at sequence {verifyResult.brokeAt ?? '?'}{verifyResult.reason ? ` — ${verifyResult.reason}` : ''}
                 </span>
               )}
@@ -260,7 +266,7 @@ function ComplianceTapePanel() {
               <button
                 onClick={handleExportPdf}
                 disabled={exportLoading || tapeLoading || entries.length === 0}
-                className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 dark:text-[#111827]"
+                className="rounded-lg bg-gray-800 px-3 py-1.5 text-13 font-medium text-white shadow-card transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:text-[#111827]"
               >
                 {exportLoading ? 'Exporting…' : 'Export PDF'}
               </button>
@@ -299,22 +305,22 @@ function ComplianceTapePanel() {
           {/* Tape entries table */}
           {!tapeLoading && !tapeError && entries.length > 0 && (
             <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <table className="min-w-full divide-y divide-gray-200 text-13 tabular-nums">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                    <th className="px-4 py-2.5 text-left text-2xs font-semibold uppercase text-gray-500 w-16">
                       Seq
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2.5 text-left text-2xs font-semibold uppercase text-gray-500">
                       Kind
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2.5 text-left text-2xs font-semibold uppercase text-gray-500">
                       Citation
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-4 py-2.5 text-left text-2xs font-semibold uppercase text-gray-500 whitespace-nowrap">
                       Created At
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2.5 text-left text-2xs font-semibold uppercase text-gray-500">
                       Evidence
                     </th>
                   </tr>
@@ -326,22 +332,22 @@ function ComplianceTapePanel() {
                       className="hover:bg-gray-50 transition-colors"
                       title={`entry_hash: ${entry.entryHash}`}
                     >
-                      <td className="px-4 py-3 text-gray-900 font-mono text-xs">
+                      <td className="px-4 py-2.5 text-gray-900 font-mono text-xs">
                         {entry.sequence}
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono">
+                      <td className="px-4 py-2.5">
+                        <span className="rounded-md bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-600 ring-1 ring-inset ring-gray-300/40">
                           {entry.kind}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">
                         {entry.citation}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
                         {new Date(entry.createdAt).toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 max-w-xs">
-                        <code className="block rounded bg-gray-50 px-2 py-1 text-xs text-gray-700 break-all">
+                      <td className="px-4 py-2.5 max-w-xs">
+                        <code className="block rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-700 break-all">
                           {truncateJson(entry.payload.evidence ?? entry.payload)}
                         </code>
                       </td>
@@ -398,12 +404,12 @@ export function AuditLog() {
           placeholder="Filter by Application ID..."
           value={applicationId}
           onChange={(e) => { setApplicationId(e.target.value); setPage(0); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm w-72 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="input w-72"
         />
         <select
           value={action}
           onChange={(e) => { setAction(e.target.value); setPage(0); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          className="input w-auto"
         >
           <option value="">All Actions</option>
           <option value="application_created">Application Created</option>
@@ -430,7 +436,7 @@ export function AuditLog() {
       />
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">
+        <p className="text-13 text-gray-500 tabular-nums">
           Showing {page * limit + 1}–{page * limit + (data?.logs?.length || 0)}
         </p>
         <div className="flex gap-2">

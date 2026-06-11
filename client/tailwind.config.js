@@ -19,6 +19,44 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        // Refined system stack — SF Pro on macOS, Segoe UI Variable on
+        // Windows. No webfont request, no FOUT, native rendering everywhere.
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"SF Pro Text"',
+          '"Segoe UI Variable"',
+          '"Segoe UI"',
+          'Helvetica',
+          'Arial',
+          'sans-serif',
+        ],
+        mono: [
+          'ui-monospace',
+          '"SF Mono"',
+          'SFMono-Regular',
+          'Menlo',
+          'Consolas',
+          'monospace',
+        ],
+      },
+      fontSize: {
+        // Data-UI scale: 11px micro-labels (table headers, eyebrows) and a
+        // 13px body for dense tables/forms. Both ship a comfortable leading.
+        '2xs': ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.05em' }],
+        '13': ['0.8125rem', { lineHeight: '1.25rem' }],
+      },
+      boxShadow: {
+        // Layered, low-alpha shadows — pair with hairline borders so cards
+        // read as surfaces in light mode without flat gray outlines.
+        card: '0 1px 2px 0 rgb(16 24 40 / 0.04), 0 1px 3px 0 rgb(16 24 40 / 0.05)',
+        'card-hover':
+          '0 1px 2px 0 rgb(16 24 40 / 0.05), 0 4px 12px -2px rgb(16 24 40 / 0.08)',
+        pop: '0 1px 2px 0 rgb(16 24 40 / 0.06), 0 12px 32px -8px rgb(16 24 40 / 0.18)',
+        'btn-primary':
+          'inset 0 1px 0 0 rgb(255 255 255 / 0.12), 0 1px 2px 0 rgb(4 120 87 / 0.25)',
+      },
       colors: {
         white: 'rgb(var(--c-white) / <alpha-value>)',
         gray: varScale('gray'),

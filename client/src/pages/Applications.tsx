@@ -26,7 +26,11 @@ const columns: Column<Application>[] = [
   {
     key: 'name',
     header: 'Applicant',
-    render: (r) => `${r.first_name} ${r.last_name}`,
+    render: (r) => (
+      <span className="font-medium text-gray-900">
+        {r.first_name} {r.last_name}
+      </span>
+    ),
   },
   {
     key: 'status',
@@ -93,18 +97,24 @@ export function Applications() {
         }
       />
 
-      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+      <div className="inline-flex gap-0.5 rounded-lg border border-gray-200 bg-gray-100 p-0.5">
         {STATUS_TABS.map((t) => (
           <button
             key={t.value}
             onClick={() => setTab(t.value)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              tab === t.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            className={`rounded-md px-3 py-1.5 text-13 font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+              tab === t.value
+                ? 'bg-white text-gray-900 shadow-card'
+                : 'text-gray-500 hover:text-gray-800'
             }`}
           >
             {t.label}
             {!loading && (
-              <span className="ml-1.5 text-xs text-gray-400">
+              <span
+                className={`ml-1.5 text-xs tabular-nums ${
+                  tab === t.value ? 'text-brand-600' : 'text-gray-400'
+                }`}
+              >
                 {t.value === ''
                   ? allApps.length
                   : t.value === 'approval'

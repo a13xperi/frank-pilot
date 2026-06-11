@@ -87,7 +87,7 @@ export function ResponsiveCards<T>({
                   },
                 }
               : {})}
-            className={`rounded-xl border border-gray-200 bg-white p-4 ${
+            className={`rounded-xl border border-gray-200 bg-white p-4 shadow-card ${
               interactive
                 ? 'cursor-pointer hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500'
                 : ''

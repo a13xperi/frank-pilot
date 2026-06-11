@@ -28,12 +28,12 @@ export function DataTable<T>({
   if (loading) {
     return (
       <div
-        className="rounded-xl border border-gray-200 bg-white p-8 text-center"
+        className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-card"
         role="status"
         aria-live="polite"
         aria-label="Loading"
       >
-        <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+        <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
       </div>
     );
   }
@@ -41,7 +41,7 @@ export function DataTable<T>({
   if (error) {
     return (
       <div
-        className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-sm text-red-700"
+        className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-13 text-red-700"
         role="alert"
       >
         {error}
@@ -51,26 +51,29 @@ export function DataTable<T>({
 
   if (data.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-13 text-gray-500 shadow-card">
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-card">
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-left text-13 tabular-nums">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
               {columns.map((col) => (
-                <th key={col.key} className={`px-4 py-3 font-medium text-gray-600 ${col.className || ''}`}>
+                <th
+                  key={col.key}
+                  className={`whitespace-nowrap px-4 py-2.5 text-2xs font-semibold uppercase text-gray-500 ${col.className || ''}`}
+                >
                   {col.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-100">
             {data.map((row, i) => (
               <tr
                 key={(row as Record<string, unknown>).id as string || String(i)}
@@ -88,10 +91,10 @@ export function DataTable<T>({
                       },
                     }
                   : {})}
-                className={`border-b border-gray-100 last:border-0 ${onRowClick ? 'cursor-pointer hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500' : ''}`}
+                className={`transition-colors ${onRowClick ? 'cursor-pointer hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500' : ''}`}
               >
                 {columns.map((col) => (
-                  <td key={col.key} className={`px-4 py-3 text-gray-700 ${col.className || ''}`}>
+                  <td key={col.key} className={`px-4 py-2.5 leading-5 text-gray-700 ${col.className || ''}`}>
                     {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '—')}
                   </td>
                 ))}

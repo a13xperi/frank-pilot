@@ -2,12 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  /* Focus-ring offsets should halo with the page color, not literal white,
+   * so rings stay crisp in both themes. */
+  *,
+  ::before,
+  ::after {
+    --tw-ring-offset-color: rgb(var(--c-gray-50));
+  }
+  /* IDs, hashes, timestamps: keep digits on a grid wherever code shows up. */
+  code,
+  kbd,
+  samp,
+  pre {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 @layer components {
   .label {
-    @apply mb-1 block text-sm font-medium text-gray-700;
+    @apply mb-1.5 block text-13 font-medium text-gray-700;
   }
   .input {
-    @apply w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500;
+    @apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-13 text-gray-900 shadow-card transition-shadow placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25;
   }
 }
 
@@ -144,18 +166,21 @@
 
 .dark {
   color-scheme: dark;
-  --c-white: 31 41 55; /* cards: gray-800 */
-  --c-gray-50: 17 24 39; /* gray-900 */
-  --c-gray-100: 55 65 81; /* gray-700 */
-  --c-gray-200: 55 65 81; /* gray-700 */
-  --c-gray-300: 75 85 99; /* gray-600 */
-  --c-gray-400: 156 163 175; /* gray-400 */
-  --c-gray-500: 156 163 175; /* gray-400 */
-  --c-gray-600: 209 213 219; /* gray-300 */
-  --c-gray-700: 209 213 219; /* gray-300 */
-  --c-gray-800: 229 231 235; /* gray-200 */
-  --c-gray-900: 243 244 246; /* gray-100 */
-  --c-gray-950: 249 250 251; /* gray-50 */
+  /* Hand-tuned dark neutrals (deeper than stock gray flips): near-black page,
+   * clearly elevated cards, and hairline borders that read as edges rather
+   * than fills. Keeps card > page > hover layering intentional. */
+  --c-white: 23 28 36; /* cards */
+  --c-gray-50: 13 17 23; /* page bg + row hover */
+  --c-gray-100: 33 40 51; /* subtle fills, skeletons, ghost-hover */
+  --c-gray-200: 47 56 70; /* hairline borders */
+  --c-gray-300: 62 73 89; /* input borders */
+  --c-gray-400: 124 135 152; /* placeholder / faint text */
+  --c-gray-500: 148 158 174; /* secondary text */
+  --c-gray-600: 178 188 202; /* body text */
+  --c-gray-700: 203 211 222; /* emphasized body */
+  --c-gray-800: 224 230 238;
+  --c-gray-900: 240 244 249; /* headings */
+  --c-gray-950: 249 250 252;
   --c-emerald-50: 2 44 34;
   --c-emerald-100: 6 78 59;
   --c-emerald-200: 6 95 70;

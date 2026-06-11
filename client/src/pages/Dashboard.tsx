@@ -9,27 +9,27 @@ import type { LucideIcon } from 'lucide-react';
 
 function StatCard({ icon: Icon, label, value, loading, to }: { icon: LucideIcon; label: string; value: string | number; loading?: boolean; to?: string }) {
   const inner = (
-    <div className="flex items-center gap-3">
-      <div className="rounded-lg bg-emerald-50 p-2">
-        <Icon className="h-5 w-5 text-emerald-600" />
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-2xs font-semibold uppercase text-gray-500">{label}</p>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 ring-1 ring-inset ring-brand-200/50">
+          <Icon className="h-4 w-4 text-brand-600" />
+        </span>
       </div>
-      <div>
-        <p className="text-sm text-gray-500">{label}</p>
-        <p className="text-2xl font-semibold text-gray-900">
-          {loading ? <span className="inline-block h-6 w-10 animate-pulse rounded bg-gray-200" /> : value}
-        </p>
-      </div>
-    </div>
+      <p className="mt-2 text-[26px] font-semibold leading-8 tracking-tight text-gray-900 tabular-nums">
+        {loading ? <span className="inline-block h-7 w-12 animate-pulse rounded-md bg-gray-100" /> : value}
+      </p>
+    </>
   );
 
   if (!to) {
-    return <div className="rounded-xl border border-gray-200 bg-white p-5">{inner}</div>;
+    return <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-card">{inner}</div>;
   }
 
   return (
     <Link
       to={to}
-      className="block rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-emerald-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+      className="block rounded-xl border border-gray-200 bg-white p-5 shadow-card transition-all hover:-translate-y-px hover:border-brand-300/60 hover:shadow-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
     >
       {inner}
     </Link>
@@ -59,10 +59,10 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">
+        <h1 className="text-xl font-semibold tracking-tight text-gray-900">
           Welcome back, {user.firstName}
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-13 text-gray-500">
           {formatRole(user.role)} &middot; CDPC Nevada
         </p>
       </div>
@@ -82,30 +82,30 @@ export function Dashboard() {
       </div>
 
       <RoleGate minRole="regional_manager">
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-gray-400" />
-            <h2 className="text-lg font-medium text-gray-900">Recent Activity</h2>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-card">
+          <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3.5">
+            <Clock className="h-4 w-4 text-gray-400" />
+            <h2 className="text-sm font-semibold tracking-tight text-gray-900">Recent Activity</h2>
           </div>
           {audit.loading ? (
-            <div className="space-y-2">
+            <div className="space-y-2 p-5">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-10 animate-pulse rounded bg-gray-100" />
+                <div key={i} className="h-9 animate-pulse rounded-md bg-gray-100" />
               ))}
             </div>
           ) : (audit.data?.logs || []).length === 0 ? (
-            <p className="text-sm text-gray-500">No recent activity</p>
+            <p className="p-5 text-13 text-gray-500">No recent activity</p>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-gray-100">
               {(audit.data?.logs || []).map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-2.5">
+                <div key={entry.id} className="flex items-center justify-between px-5 py-2.5 transition-colors hover:bg-gray-50">
                   <div className="flex items-center gap-3">
                     <StatusBadge status={entry.action} />
-                    <span className="text-sm text-gray-600">
+                    <span className="text-13 text-gray-600">
                       {formatRole(entry.actor_role as 'leasing_agent')}
                     </span>
                   </div>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-gray-400 tabular-nums">
                     {new Date(entry.created_at).toLocaleString()}
                   </span>
                 </div>

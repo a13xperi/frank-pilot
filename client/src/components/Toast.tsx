@@ -87,10 +87,10 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
   return (
     <div
-      className={`pointer-events-auto flex items-start gap-3 rounded-xl border bg-white px-4 py-3 shadow-lg ${ring}`}
+      className={`pointer-events-auto flex items-start gap-3 rounded-xl border bg-white px-4 py-3 shadow-pop ${ring}`}
     >
       {icon}
-      <p className="flex-1 text-sm text-gray-700">{toast.message}</p>
+      <p className="flex-1 text-13 text-gray-700">{toast.message}</p>
       <button
         type="button"
         onClick={onDismiss}
