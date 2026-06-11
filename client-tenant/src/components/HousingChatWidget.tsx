@@ -28,6 +28,11 @@ let _seq = 0;
 const nextId = () => `m${Date.now()}-${_seq++}`;
 
 export function HousingChatWidget() {
+  // KILL SWITCH (Jun 11 demo): the assistant answers tenant questions from the
+  // statewide HUD-LIHTC dataset and leaks internal route/system names — scope
+  // fix is in flight on main (fix/housing-qa-tenant-scope PR). Re-enable by
+  // setting VITE_ENABLE_FAQ_CHAT=true once that lands.
+  if (import.meta.env.VITE_ENABLE_FAQ_CHAT !== 'true' && import.meta.env.MODE !== 'test') return null;
   const { t } = useTranslation('chat');
   // While the cookie-consent banner is showing (needsChoice === true), the
   // bottom-fixed banner stacks its Customize / Reject buttons full-width on

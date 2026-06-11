@@ -58,7 +58,21 @@ system of record; their `daysOverdue` all read ~71d because the app dates overdu
 the first rent charge — uniform and plausible, but don't invite a forensic read of a
 specific enrichment tenant.
 
-### Bonus beat (OPTIONAL) — "Frank answers your own FAQ" (added Jun 10, ~11pm — commit fdd2c43)
+### Bonus beat — ❌ CUT for Jun 11 (kill switch flipped ~12:45am)
+
+**Do not demo the tenant chat/voice assistant.** Verified leak on a direct
+question: it answers from the **statewide HUD-LIHTC dataset** ("all 14 Carson
+City properties") and names internal routes/systems ("/discover map",
+"Frank-Pilot") — unacceptable in front of a CPA/banker, and a real product gap
+for tenants. Both entry points (HousingChatWidget + TalkToFrankPill) are now
+hidden behind `VITE_ENABLE_FAQ_CHAT` (default off; unit tests unaffected via
+the MODE==='test' carve-out). Re-enable only after the proper scope fix
+(`fix/housing-qa-tenant-scope` PR on main) lands and is re-verified. If AI
+comes up in the room: *"we stress-tested our own assistant last night, caught
+it over-answering, and pulled it until the scope guard ships — that's the
+discipline the ledger sells."* The five-beat spine is unaffected.
+
+<details><summary>Original beat — for when it returns post-fix</summary>
 
 Only if the room is warm and time allows — the 5 rehearsed beats stay the spine.
 
@@ -77,6 +91,8 @@ Only if the room is warm and time allows — the 5 rehearsed beats stay the spin
   waiting. If the room is cold or time is tight, skip this beat entirely — the
   five-beat spine carries the meeting without it.
 - **Rate limit:** 20 questions / 10 min per IP — plenty, but don't crowd-source rapid-fire.
+
+</details>
 
 ## Reset to pristine (after every rehearsal, ~90s)
 
@@ -110,6 +126,20 @@ applications without a full reset (`POST /api/demo/seed`).
   decrypt and the scripted "Screen Priya Patel" moment dies with
   "Unsupported state or unable to authenticate data." If screening ever throws
   that error: `./demo-reset.sh` re-encrypts everything consistently.
+
+## Re-rehearsal findings (Jun 11, ~00:45 — full API-level run: all beats PASS)
+
+- **Stub gate must stay open in `.env`** (`ALLOW_STUB_SCREENING=1` and `MOCK_MODE=1`
+  — both set, do not delete). Without it, keyless screening throws STUB_GATE_ERROR
+  and every "Screen" click lands in could_not_screen → screening_review: Beat 4 dies
+  with no chips. The 9:45pm pass masked this — that API process still carried the
+  pre-rewrite env; the ~23:00 restart exposed it. If Screen ever HOLDs everyone:
+  check these two lines, then `./demo-reset.sh`.
+- Beat 5 stat band reads live counts (**297** evidence records at reset, not the
+  scripted 299) — read the number off the screen or say "~300".
+- Pristine seeds **4** work orders (1 emergency), not the 3 in the beat table.
+- Frank FAQ answer latency measured ~17s on Q1 (not 5–10s) — narrate over the wait.
+- State left pristine (audit 0, Priya `submitted`, Tomasz delinquent, QA tabs live).
 
 ## Do-not-touch list (tonight is not the night)
 

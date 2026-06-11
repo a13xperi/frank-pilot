@@ -81,6 +81,11 @@ export function __setVoiceDriverForTests(d: VoiceDriver | null): void {
 }
 
 export function TalkToFrankPill() {
+  // KILL SWITCH (Jun 11 demo): same scope leak as HousingChatWidget — the
+  // assistant surface can answer from the statewide HUD-LIHTC dataset and leak
+  // internal names. Re-enable via VITE_ENABLE_FAQ_CHAT=true after the
+  // fix/housing-qa-tenant-scope PR lands on main.
+  if (import.meta.env.VITE_ENABLE_FAQ_CHAT !== 'true' && import.meta.env.MODE !== 'test') return null;
   const { t } = useTranslation('voice');
   const { needsChoice } = useConsent();
   const [state, setState] = useState<PillState>({ kind: 'idle' });
