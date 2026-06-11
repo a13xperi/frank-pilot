@@ -40,11 +40,23 @@ this structurally: "Frank-Pilot" is a forbidden marker in
 `housing-qa-tenant-scope.test.ts`; tenant-facing portal copy was de-branded in
 the i18n strings on Jun 11.)
 
-## Disclosure note
+## Disclosure note + target wording
 
-The greeting uses the AI-disclosure form ("Frank, the digital assistant for
-Frank Hawkins and the GPMG team") — adopted Jun 11. The earlier draft closed
-with "This is Frank Hawkins" spoken by the AI voice; an agent introducing
-itself as a real, named person without disclosure carries
-impersonation/consumer-protection risk in a fair-housing context. Still get
-Frank Hawkins' sign-off on the use of his name before go-live.
+LIVE NOW (AI-disclosure form, adopted Jun 11): "…This is Frank, the digital
+assistant for Frank Hawkins and the GPMG team — thank you."
+
+TARGET (Alex's preferred wording, Jun 11) — switch to this once **Frank
+Hawkins gives written sign-off** on his name/voice being used this way:
+
+> "Welcome to Donna Louise Phase 2 Apartments. We are grateful to have you
+> start your application process to become a resident. We have one- and
+> two-bedroom units. Please follow the instructions. This is Frank Hawkins —
+> thank you."
+
+Why the gate: an AI voice introducing itself as a real, named person without
+disclosure carries impersonation/consumer-protection risk in a fair-housing
+context — Frank's explicit sign-off (ideally with the cloned voice he
+recorded for this purpose) is what makes the target version defensible. Keep
+the mid-conversation identity honest either way: if a caller asks whether
+they're talking to a real person, the agent says it's a digital assistant
+(see voice-agent-system-prompt.md).
