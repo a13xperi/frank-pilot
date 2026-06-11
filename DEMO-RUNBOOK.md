@@ -34,7 +34,7 @@ close every other tab.
 |---|---|---|
 | 1 · A tenant acts | **Maintenance** | "+ New Work Order" → property: any, title: "Bathroom sink leaking", priority: urgent → Create. (3 seeded work orders incl. 1 emergency already visible.) |
 | 2 · The ledger writes | **Audit Log** | Open page — the work order you just created is the **top entry**, timestamped, actor-attributed. "That record can't be edited after the fact." |
-| 3 · Unit-level file | **Applications → Tomasz Kowalski** | Full history in one view: $1,950 delinquent ledger, late fees, eviction trigger, 7-day notice, move-out + deposit calc. Or **Keisha Williams** for the clean tenant (renewal $1,300→$1,339). |
+| 3 · Unit-level file | **Rent Ledger → Tomasz Kowalski** (his row in Delinquencies; or click his name on The Ledger tape) | Full history in one view: $1,950 balance banner, late fees, charge/payment history. ⚠️ Do NOT go via Applications → Tomasz — the application detail page has no ledger section (verified in Jun 11 UI rehearsal); it dead-ends the beat. Or **Keisha Williams** for the clean tenant (renewal $1,300→$1,339). |
 | 4 · Verification | **Screening (as senior@)** | "Screen" on **James Thornton** → green/red chips live (background, credit, AMI, fraud). (Priya Patel is already `screening_passed` — her run seeded the audit register; James is the remaining `submitted` applicant.) Fallback: **Elena Vasquez** income pre-verified → **Generate Lease and STOP THERE** — ⚠️ do NOT click "Complete Onboarding": it renders right after generate but the API 400s (tenant e-sign now sits between generate and onboard; staff UI not yet re-gated). Narrate instead: "she signs on her phone, one click onboards her into the ledger." |
 | 5 · The block, re-priced | **The Ledger** (new showcase, top of sidebar) | The one-screen close: **299 evidence records · 26 units · 17 properties · 85% current**, the live tape (your beat-1 work order at the top), and Proof-by-Property. "Stack thousands of verified unit-events and the discount collapses — same book, provable." Leave this screen up through the asks. Backup: Rent Ledger (4-row ladder) + Properties as rehearsed. |
 
@@ -224,6 +224,26 @@ applications without a full reset (`POST /api/demo/seed`).
 - If anything forces a `./demo-reset.sh` before the meeting: Priya is back and
   screenable, but the audit register is empty again — re-run the work-order
   beat (and optionally one screening) to repopulate it, then re-log-in.
+
+## UI rehearsal on the Civic Trust design (Jun 11, ~01:35 — all 5 beats PASS)
+
+Full click-through on the merged Civic Trust UI (:5180), driven as the
+presenter would: regional@ for beats 1–3 and 5, senior@ for beat 4.
+
+- **Beat 1** ✓ work order "Water heater pilot light out" (urgent) created via
+  the Maintenance modal; success banner + row appears.
+- **Beat 2** ✓ that work order is the top audit entry, actor-attributed.
+- **Beat 3** ✓ via **Rent Ledger → Tomasz** ($1,950 banner, late-fee row) —
+  beat table corrected above; the Applications detail page has no ledger.
+- **Beat 4** ✓ screened a sacrificial applicant (Marcus Rivera, promoted from
+  draft) — chips ran, row moved to Completed. **James Thornton remains the
+  only `submitted` applicant**: he is the live target; don't screen him early.
+- **Beat 5** ✓ showcase stat band reads live (308 evidence records at
+  rehearsal); the live tape works. Note: by beat 5 the beat-4 screening chain
+  sits ABOVE the beat-1 work order on the tape — narrate "the screening you
+  just ran, and below it the work order from beat 1."
+- Cosmetic only: browser logs one 404 for `/favicon.ico`; no favicon is wired.
+  Invisible to the audience.
 
 ## Do-not-touch list (tonight is not the night)
 
