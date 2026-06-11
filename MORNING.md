@@ -26,8 +26,12 @@ Bring your own HDMI dongle (Craig-backup).
 ## T-5 at the venue
 
 Audit Log still says "No entries" → touch nothing more.
-DECIDED (DM-SAGE-OC-016, recorded a014511): **admin screens — run the five beats live.**
-Benefits LANGUAGE stays (talk outcomes, not features), but the screens are shown.
+OC-016 demo scope is STILL YOUR CALL (Matrix row: Awaiting Inputs — nobody has
+decided for you). Fleet RECOMMENDATION from overnight rehearsals (a014511):
+admin screens — run the five beats live; rationale: two human rehearsals +
+68-green e2e, the pitch is screen-shaped (Beat 2's live entry + Beat 5's tape
+are what a CPA prices). Benefits-only narration remains the HDMI-death fallback.
+Decide at T-5; either way the language stays benefits, not features.
 
 ## In-room recovery ladder
 
