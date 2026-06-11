@@ -11,6 +11,8 @@ dependency (Craig owns cable + TV).
 
 ```bash
 cd ~/code/frank-pilot-demo && ./demo-up.sh
+./demo-reset.sh               # pristine data — other terminals wrote to the demo DB overnight
+./scripts/demo-preflight.sh   # 30s read-only GO/NO-GO — quote ITS beat-5 numbers in the room
 ```
 
 → **Demo URL: http://localhost:5180** — open in an incognito window, 100% zoom,
@@ -36,7 +38,7 @@ close every other tab.
 | 2 · The ledger writes | **Audit Log** | Open page — the work order you just created is the **top entry**, timestamped, actor-attributed. "That record can't be edited after the fact." |
 | 3 · Unit-level file | **Rent Ledger → Tomasz Kowalski** (his row in Delinquencies; or click his name on The Ledger tape) | Full history in one view: $1,950 balance banner, late fees, charge/payment history. ⚠️ Do NOT go via Applications → Tomasz — the application detail page has no ledger section (verified in Jun 11 UI rehearsal); it dead-ends the beat. Or **Keisha Williams** for the clean tenant (renewal $1,300→$1,339). |
 | 4 · Verification | **Screening (as senior@)** | "Screen" on **James Thornton** → green/red chips live (background, credit, AMI, fraud). (Priya Patel is already `screening_passed` — her run seeded the audit register; James is the remaining `submitted` applicant.) Fallback: **Elena Vasquez** income pre-verified → **Generate Lease and STOP THERE** — ⚠️ do NOT click "Complete Onboarding": it renders right after generate but the API 400s (tenant e-sign now sits between generate and onboard; staff UI not yet re-gated). Narrate instead: "she signs on her phone, one click onboards her into the ledger." |
-| 5 · The block, re-priced | **The Ledger** (new showcase, top of sidebar) | The one-screen close: **299 evidence records · 26 units · 17 properties · 85% current**, the live tape (your beat-1 work order at the top), and Proof-by-Property. "Stack thousands of verified unit-events and the discount collapses — same book, provable." Leave this screen up through the asks. Backup: Rent Ledger (4-row ladder) + Properties as rehearsed. |
+| 5 · The block, re-priced | **The Ledger** (new showcase, top of sidebar) | The one-screen close: **~289 evidence records · 26 units · 17 properties · 85% current** (quote the exact stat band the morning preflight prints — it's the live truth), the live tape (your beat-1 work order at the top), and Proof-by-Property. "Stack thousands of verified unit-events and the discount collapses — same book, provable." Leave this screen up through the asks. Backup: Rent Ledger (4-row ladder) + Properties as rehearsed. |
 
 ### "The Ledger" showcase (added Jun 10, ~11pm — commit f28f38d)
 
