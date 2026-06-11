@@ -260,7 +260,7 @@ function ComplianceTapePanel() {
               <button
                 onClick={handleExportPdf}
                 disabled={exportLoading || tapeLoading || entries.length === 0}
-                className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+                className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 dark:text-[#111827]"
               >
                 {exportLoading ? 'Exporting…' : 'Export PDF'}
               </button>
