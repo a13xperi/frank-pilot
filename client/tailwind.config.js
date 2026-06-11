@@ -1,5 +1,3 @@
-import colors from 'tailwindcss/colors';
-
 /** @type {import('tailwindcss').Config} */
 
 // Every color family the app uses resolves through CSS variables defined in
@@ -11,8 +9,10 @@ const varScale = (name) =>
   Object.fromEntries(
     LEVELS.map((l) => [l, `rgb(var(--c-${name}-${l}) / <alpha-value>)`])
   );
-const pick = (scale, levels) =>
-  Object.fromEntries(levels.map((l) => [l, scale[l]]));
+
+// Warm-community pinned action fills: a warmer leaf green for primary actions,
+// terracotta-leaning red/amber kept at stock depths for semantic clarity.
+const WARM_GREEN = { 500: '#6d983f', 600: '#557c2d', 700: '#436225' };
 
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
@@ -41,14 +41,45 @@ export default {
       // shade in BOTH themes — only the background pins; text/border/ring at
       // these same levels still flip via the vars so badge text stays legible.
       backgroundColor: {
-        emerald: pick(colors.emerald, [500, 600, 700]),
-        brand: pick(colors.emerald, [500, 600, 700]),
-        red: pick(colors.red, [600, 700]),
-        blue: pick(colors.blue, [600, 700]),
-        amber: pick(colors.amber, [600, 700]),
+        emerald: WARM_GREEN,
+        brand: WARM_GREEN,
+        red: { 600: '#dc2626', 700: '#b91c1c' },
+        blue: { 600: '#2563eb', 700: '#1d4ed8' },
+        amber: { 600: '#d97706', 700: '#b45309' },
       },
       // `text-white` only ever sits on those solid fills, so it never flips.
       textColor: { white: '#ffffff' },
+      fontFamily: {
+        sans: [
+          '"Nunito Sans"',
+          'ui-sans-serif',
+          'system-ui',
+          '-apple-system',
+          '"Segoe UI"',
+          'sans-serif',
+        ],
+        display: ['Fraunces', 'Georgia', 'ui-serif', 'serif'],
+      },
+      // Slightly larger, friendlier body text (most copy sits at sm/xs).
+      fontSize: {
+        xs: ['0.8125rem', { lineHeight: '1.125rem' }],
+        sm: ['0.9375rem', { lineHeight: '1.4rem' }],
+      },
+      // Softer geometry: existing rounded-md/lg/xl call sites get gentler
+      // radii without touching each component.
+      borderRadius: {
+        DEFAULT: '0.5rem',
+        md: '0.625rem',
+        lg: '0.75rem',
+        xl: '1rem',
+      },
+      // Warm, diffuse shadows (brown-tinted, never harsh).
+      boxShadow: {
+        sm: '0 1px 2px 0 rgb(68 50 35 / 0.05), 0 2px 6px -2px rgb(68 50 35 / 0.07)',
+        md: '0 4px 12px -2px rgb(68 50 35 / 0.08), 0 2px 4px -2px rgb(68 50 35 / 0.05)',
+        lg: '0 14px 36px -10px rgb(68 50 35 / 0.16), 0 4px 10px -4px rgb(68 50 35 / 0.07)',
+        xl: '0 24px 56px -16px rgb(68 50 35 / 0.22), 0 6px 16px -6px rgb(68 50 35 / 0.08)',
+      },
     },
   },
   plugins: [],

@@ -7,15 +7,25 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { formatRole, hasMinRole, type ApplicationListResponse, type PropertyListResponse, type AuditLogResponse, type SignupStatsResponse } from '@/types';
 import type { LucideIcon } from 'lucide-react';
 
-function StatCard({ icon: Icon, label, value, loading, to }: { icon: LucideIcon; label: string; value: string | number; loading?: boolean; to?: string }) {
+type StatTint = 'brand' | 'terracotta' | 'amber' | 'sky';
+
+const TINTS: Record<StatTint, { chip: string; icon: string }> = {
+  brand: { chip: 'bg-brand-100', icon: 'text-brand-700' },
+  terracotta: { chip: 'bg-orange-100', icon: 'text-orange-700' },
+  amber: { chip: 'bg-amber-100', icon: 'text-amber-700' },
+  sky: { chip: 'bg-sky-100', icon: 'text-sky-700' },
+};
+
+function StatCard({ icon: Icon, label, value, loading, to, tint = 'brand' }: { icon: LucideIcon; label: string; value: string | number; loading?: boolean; to?: string; tint?: StatTint }) {
+  const t = TINTS[tint];
   const inner = (
-    <div className="flex items-center gap-3">
-      <div className="rounded-lg bg-emerald-50 p-2">
-        <Icon className="h-5 w-5 text-emerald-600" />
+    <div className="flex items-center gap-3.5">
+      <div className={`rounded-xl p-2.5 ${t.chip}`}>
+        <Icon className={`h-5 w-5 ${t.icon}`} />
       </div>
       <div>
         <p className="text-sm text-gray-500">{label}</p>
-        <p className="text-2xl font-semibold text-gray-900">
+        <p className="font-display text-2xl font-semibold tracking-tight text-gray-900">
           {loading ? <span className="inline-block h-6 w-10 animate-pulse rounded bg-gray-200" /> : value}
         </p>
       </div>
@@ -23,13 +33,13 @@ function StatCard({ icon: Icon, label, value, loading, to }: { icon: LucideIcon;
   );
 
   if (!to) {
-    return <div className="rounded-xl border border-gray-200 bg-white p-5">{inner}</div>;
+    return <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">{inner}</div>;
   }
 
   return (
     <Link
       to={to}
-      className="block rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-emerald-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+      className="block rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
     >
       {inner}
     </Link>
@@ -59,7 +69,7 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-gray-900">
           Welcome back, {user.firstName}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
@@ -68,24 +78,26 @@ export function Dashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={FileText} label="Active Applications" value={activeCount} loading={apps.loading} to="/applications" />
+        <StatCard icon={FileText} label="Active Applications" value={activeCount} loading={apps.loading} to="/applications" tint="brand" />
         <RoleGate minRole="senior_manager">
-          <StatCard icon={UserPlus} label="Signups" value={signups.data?.registered ?? '--'} loading={signups.loading} to="/applications" />
+          <StatCard icon={UserPlus} label="Signups" value={signups.data?.registered ?? '--'} loading={signups.loading} to="/applications" tint="terracotta" />
         </RoleGate>
         <RoleGate minRole="senior_manager">
-          <StatCard icon={Search} label="Pending Screening" value={screeningCount} loading={apps.loading} to="/screening" />
+          <StatCard icon={Search} label="Pending Screening" value={screeningCount} loading={apps.loading} to="/screening" tint="amber" />
         </RoleGate>
         <RoleGate minRole="senior_manager">
-          <StatCard icon={CheckCircle} label="Pending Approvals" value={approvalCount} loading={apps.loading} to="/approvals" />
+          <StatCard icon={CheckCircle} label="Pending Approvals" value={approvalCount} loading={apps.loading} to="/approvals" tint="sky" />
         </RoleGate>
-        <StatCard icon={Building2} label="Properties" value={props.data?.total ?? '--'} loading={props.loading} to="/properties" />
+        <StatCard icon={Building2} label="Properties" value={props.data?.total ?? '--'} loading={props.loading} to="/properties" tint="terracotta" />
       </div>
 
       <RoleGate minRole="regional_manager">
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-gray-400" />
-            <h2 className="text-lg font-medium text-gray-900">Recent Activity</h2>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2.5">
+            <div className="rounded-lg bg-amber-100 p-1.5">
+              <Clock className="h-4 w-4 text-amber-700" />
+            </div>
+            <h2 className="font-display text-lg font-semibold tracking-tight text-gray-900">Recent Activity</h2>
           </div>
           {audit.loading ? (
             <div className="space-y-2">
@@ -94,7 +106,7 @@ export function Dashboard() {
               ))}
             </div>
           ) : (audit.data?.logs || []).length === 0 ? (
-            <p className="text-sm text-gray-500">No recent activity</p>
+            <p className="text-sm text-gray-500">All quiet for now — your team&rsquo;s recent actions will show up here.</p>
           ) : (
             <div className="space-y-2">
               {(audit.data?.logs || []).map((entry) => (

@@ -135,9 +135,11 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className={`flex h-16 items-center gap-2 border-b border-gray-200 px-6 ${collapseHeaderPad}`}>
-        <Building2 className="h-6 w-6 shrink-0 text-brand-600" />
-        <span className={`text-lg font-semibold text-gray-900 ${collapseLabel}`}>CDPC Hub</span>
+      <div className={`flex h-16 items-center gap-2.5 border-b border-gray-200 px-6 ${collapseHeaderPad}`}>
+        <div className="shrink-0 rounded-lg bg-brand-100 p-1.5">
+          <Building2 className="h-5 w-5 text-brand-700" />
+        </div>
+        <span className={`font-display text-lg font-semibold tracking-tight text-gray-900 ${collapseLabel}`}>CDPC Hub</span>
       </div>
       <nav aria-label="Primary" className="flex-1 space-y-1 overflow-y-auto p-3">
         {visible.map((item) => (
@@ -150,7 +152,7 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
             className={({ isActive }) =>
               `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${collapseItemPad} ${
                 isActive
-                  ? 'bg-brand-50 text-brand-700'
+                  ? 'bg-brand-100 text-brand-800'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`
             }

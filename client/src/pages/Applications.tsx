@@ -93,12 +93,12 @@ export function Applications() {
         }
       />
 
-      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+      <div className="inline-flex flex-wrap gap-1 rounded-full bg-gray-100 p-1">
         {STATUS_TABS.map((t) => (
           <button
             key={t.value}
             onClick={() => setTab(t.value)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
               tab === t.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -125,7 +125,7 @@ export function Applications() {
           data={filtered}
           loading={loading}
           onRowClick={(a) => navigate(`/applications/${a.id}`)}
-          emptyMessage="No applications found"
+          emptyMessage="No applications in this view yet — when a neighbor applies, they'll show up right here."
         />
       </div>
       <ResponsiveCards
@@ -134,7 +134,7 @@ export function Applications() {
         data={filtered}
         loading={loading}
         onRowClick={(a) => navigate(`/applications/${a.id}`)}
-        emptyMessage="No applications found"
+        emptyMessage="No applications in this view yet — when a neighbor applies, they'll show up right here."
       />
     </div>
   );

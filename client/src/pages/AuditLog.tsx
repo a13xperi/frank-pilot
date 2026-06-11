@@ -191,11 +191,11 @@ function ComplianceTapePanel() {
     tapeError?.toLowerCase().includes('501');
 
   return (
-    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6">
+    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       {/* Section heading */}
       <div>
-        <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-          <LinkIcon className="h-4 w-4 text-emerald-600" />
+        <h2 className="font-display text-base font-semibold tracking-tight text-gray-900 flex items-center gap-2">
+          <LinkIcon className="h-4 w-4 text-brand-600" />
           Compliance Tape
         </h2>
         <p className="mt-0.5 text-xs text-gray-500">
@@ -292,7 +292,7 @@ function ComplianceTapePanel() {
           {/* Empty state */}
           {!tapeLoading && !tapeError && entries.length === 0 && (
             <p className="text-sm text-gray-500 py-4">
-              No tape entries for this applicant yet.
+              No tape entries for this applicant yet — they&rsquo;ll appear here the moment a compliance event is recorded.
             </p>
           )}
 
@@ -426,7 +426,7 @@ export function AuditLog() {
         columns={columns}
         data={data?.logs || []}
         loading={loading}
-        emptyMessage="No audit entries found"
+        emptyMessage="No audit entries yet — every action your team takes is recorded here, automatically."
       />
 
       <div className="flex items-center justify-between">

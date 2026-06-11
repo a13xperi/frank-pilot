@@ -51,13 +51,17 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 via-gray-50 to-orange-100 px-4 py-10">
       <div className="w-full max-w-sm space-y-4">
-        <div className="rounded-xl bg-white p-8 shadow-lg">
-          <div className="mb-6 flex flex-col items-center gap-2">
-            <Building2 className="h-10 w-10 text-emerald-600" />
-            <h1 className="text-xl font-semibold text-gray-900">CDPC Compliance Hub</h1>
-            <p className="text-sm text-gray-500">Affordable Housing — Tenant Onboarding</p>
+        <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-lg">
+          <div className="mb-6 flex flex-col items-center gap-3 text-center">
+            <div className="rounded-2xl bg-brand-100 p-3">
+              <Building2 className="h-8 w-8 text-brand-700" />
+            </div>
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-gray-900">CDPC Compliance Hub</h1>
+            <p className="-mt-1.5 text-sm text-gray-500">
+              Welcome back — helping our neighbors find home, with every box checked.
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -101,11 +105,11 @@ export function Login() {
         </div>
 
         {/* Demo toggle */}
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-4">
+        <div className="rounded-xl border border-dashed border-orange-300 bg-orange-50 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-700">Demo Mode</p>
-              <p className="text-xs text-gray-400">Load sample applications at every pipeline stage</p>
+              <p className="text-xs text-gray-500">Load sample applications at every pipeline stage</p>
             </div>
             <Button onClick={loadDemo} variant="secondary" size="sm" loading={demoLoading}>
               <Database className="h-4 w-4" />
@@ -113,7 +117,7 @@ export function Login() {
             </Button>
           </div>
           <div className="mt-3 space-y-1">
-            <p className="text-xs text-gray-400">Demo accounts (password: password123):</p>
+            <p className="text-xs text-gray-500">Demo accounts (password: password123):</p>
             <div className="grid grid-cols-2 gap-x-4 text-xs text-gray-500">
               <span>agent@cdpc.test</span><span>Leasing Agent</span>
               <span>senior@cdpc.test</span><span>Senior Manager</span>

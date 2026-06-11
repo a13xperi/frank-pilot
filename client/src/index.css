@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  body {
+    @apply font-sans antialiased;
+  }
+}
+
 @layer components {
   .label {
     @apply mb-1 block text-sm font-medium text-gray-700;
@@ -12,35 +18,39 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Theme palette — generated from tailwindcss/colors (see tailwind.config.js).
- * Light = stock Tailwind values. Dark flips each accent scale around 500
- * (50<->950, 100<->900, ...) so pale badge/banner tints become deep shades;
- * neutrals use a hand-tuned mapping so card > page > hover contrast holds.
+ * Theme palette — "Warm Community" edition.
+ * Neutrals are a warm stone/sand ramp (no blue-grays); the brand/emerald
+ * family is a warmer leaf green; orange is re-tuned to terracotta clay for
+ * the secondary accent. Light = hand-tuned warm values. Dark flips each
+ * accent scale around 500 (50<->950, 100<->900, ...) so pale badge/banner
+ * tints become deep shades; neutrals use a hand-tuned warm-charcoal mapping
+ * so card > page > hover contrast holds.
  * ------------------------------------------------------------------------- */
 :root {
-  --c-white: 255 255 255;
-  --c-gray-50: 249 250 251;
-  --c-gray-100: 243 244 246;
-  --c-gray-200: 229 231 235;
-  --c-gray-300: 209 213 219;
-  --c-gray-400: 156 163 175;
-  --c-gray-500: 107 114 128;
-  --c-gray-600: 75 85 99;
-  --c-gray-700: 55 65 81;
-  --c-gray-800: 31 41 55;
-  --c-gray-900: 17 24 39;
-  --c-gray-950: 3 7 18;
-  --c-emerald-50: 236 253 245;
-  --c-emerald-100: 209 250 229;
-  --c-emerald-200: 167 243 208;
-  --c-emerald-300: 110 231 183;
-  --c-emerald-400: 52 211 153;
-  --c-emerald-500: 16 185 129;
-  --c-emerald-600: 5 150 105;
-  --c-emerald-700: 4 120 87;
-  --c-emerald-800: 6 95 70;
-  --c-emerald-900: 6 78 59;
-  --c-emerald-950: 2 44 34;
+  --c-white: 255 253 250;
+  --c-gray-50: 249 246 240;
+  --c-gray-100: 243 238 230;
+  --c-gray-200: 230 223 212;
+  --c-gray-300: 211 202 188;
+  --c-gray-400: 162 152 138;
+  --c-gray-500: 119 110 98;
+  --c-gray-600: 87 79 69;
+  --c-gray-700: 66 59 51;
+  --c-gray-800: 44 39 33;
+  --c-gray-900: 31 27 22;
+  --c-gray-950: 21 18 14;
+  /* Warm leaf green (brand) */
+  --c-emerald-50: 244 248 238;
+  --c-emerald-100: 231 240 219;
+  --c-emerald-200: 207 225 181;
+  --c-emerald-300: 174 203 137;
+  --c-emerald-400: 139 178 95;
+  --c-emerald-500: 109 152 63;
+  --c-emerald-600: 85 124 45;
+  --c-emerald-700: 67 98 37;
+  --c-emerald-800: 54 78 32;
+  --c-emerald-900: 45 64 28;
+  --c-emerald-950: 24 36 13;
   --c-red-50: 254 242 242;
   --c-red-100: 254 226 226;
   --c-red-200: 254 202 202;
@@ -107,17 +117,18 @@
   --c-purple-800: 107 33 168;
   --c-purple-900: 88 28 135;
   --c-purple-950: 59 7 100;
-  --c-orange-50: 255 247 237;
-  --c-orange-100: 255 237 213;
-  --c-orange-200: 254 215 170;
-  --c-orange-300: 253 186 116;
-  --c-orange-400: 251 146 60;
-  --c-orange-500: 249 115 22;
-  --c-orange-600: 234 88 12;
-  --c-orange-700: 194 65 12;
-  --c-orange-800: 154 52 18;
-  --c-orange-900: 124 45 18;
-  --c-orange-950: 67 20 7;
+  /* Terracotta clay (secondary accent) */
+  --c-orange-50: 251 245 240;
+  --c-orange-100: 247 233 223;
+  --c-orange-200: 238 210 192;
+  --c-orange-300: 226 180 152;
+  --c-orange-400: 211 143 108;
+  --c-orange-500: 193 108 70;
+  --c-orange-600: 173 84 49;
+  --c-orange-700: 144 66 39;
+  --c-orange-800: 117 55 35;
+  --c-orange-900: 95 47 32;
+  --c-orange-950: 51 23 14;
   --c-sky-50: 240 249 255;
   --c-sky-100: 224 242 254;
   --c-sky-200: 186 230 253;
@@ -144,29 +155,29 @@
 
 .dark {
   color-scheme: dark;
-  --c-white: 31 41 55; /* cards: gray-800 */
-  --c-gray-50: 17 24 39; /* gray-900 */
-  --c-gray-100: 55 65 81; /* gray-700 */
-  --c-gray-200: 55 65 81; /* gray-700 */
-  --c-gray-300: 75 85 99; /* gray-600 */
-  --c-gray-400: 156 163 175; /* gray-400 */
-  --c-gray-500: 156 163 175; /* gray-400 */
-  --c-gray-600: 209 213 219; /* gray-300 */
-  --c-gray-700: 209 213 219; /* gray-300 */
-  --c-gray-800: 229 231 235; /* gray-200 */
-  --c-gray-900: 243 244 246; /* gray-100 */
-  --c-gray-950: 249 250 251; /* gray-50 */
-  --c-emerald-50: 2 44 34;
-  --c-emerald-100: 6 78 59;
-  --c-emerald-200: 6 95 70;
-  --c-emerald-300: 4 120 87;
-  --c-emerald-400: 5 150 105;
-  --c-emerald-500: 16 185 129;
-  --c-emerald-600: 52 211 153;
-  --c-emerald-700: 110 231 183;
-  --c-emerald-800: 167 243 208;
-  --c-emerald-900: 209 250 229;
-  --c-emerald-950: 236 253 245;
+  --c-white: 44 39 33; /* cards: warm gray-800 */
+  --c-gray-50: 31 27 22; /* page: warm gray-900 */
+  --c-gray-100: 66 59 51; /* warm gray-700 */
+  --c-gray-200: 66 59 51; /* warm gray-700 */
+  --c-gray-300: 87 79 69; /* warm gray-600 */
+  --c-gray-400: 162 152 138; /* warm gray-400 */
+  --c-gray-500: 162 152 138; /* warm gray-400 */
+  --c-gray-600: 211 202 188; /* warm gray-300 */
+  --c-gray-700: 211 202 188; /* warm gray-300 */
+  --c-gray-800: 230 223 212; /* warm gray-200 */
+  --c-gray-900: 243 238 230; /* warm gray-100 */
+  --c-gray-950: 249 246 240; /* warm gray-50 */
+  --c-emerald-50: 24 36 13;
+  --c-emerald-100: 45 64 28;
+  --c-emerald-200: 54 78 32;
+  --c-emerald-300: 67 98 37;
+  --c-emerald-400: 85 124 45;
+  --c-emerald-500: 109 152 63;
+  --c-emerald-600: 139 178 95;
+  --c-emerald-700: 174 203 137;
+  --c-emerald-800: 207 225 181;
+  --c-emerald-900: 231 240 219;
+  --c-emerald-950: 244 248 238;
   --c-red-50: 69 10 10;
   --c-red-100: 127 29 29;
   --c-red-200: 153 27 27;
@@ -233,17 +244,17 @@
   --c-purple-800: 233 213 255;
   --c-purple-900: 243 232 255;
   --c-purple-950: 250 245 255;
-  --c-orange-50: 67 20 7;
-  --c-orange-100: 124 45 18;
-  --c-orange-200: 154 52 18;
-  --c-orange-300: 194 65 12;
-  --c-orange-400: 234 88 12;
-  --c-orange-500: 249 115 22;
-  --c-orange-600: 251 146 60;
-  --c-orange-700: 253 186 116;
-  --c-orange-800: 254 215 170;
-  --c-orange-900: 255 237 213;
-  --c-orange-950: 255 247 237;
+  --c-orange-50: 51 23 14;
+  --c-orange-100: 95 47 32;
+  --c-orange-200: 117 55 35;
+  --c-orange-300: 144 66 39;
+  --c-orange-400: 173 84 49;
+  --c-orange-500: 193 108 70;
+  --c-orange-600: 211 143 108;
+  --c-orange-700: 226 180 152;
+  --c-orange-800: 238 210 192;
+  --c-orange-900: 247 233 223;
+  --c-orange-950: 251 245 240;
   --c-sky-50: 8 47 73;
   --c-sky-100: 12 74 110;
   --c-sky-200: 7 89 133;

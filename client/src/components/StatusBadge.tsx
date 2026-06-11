@@ -48,7 +48,7 @@ export function StatusBadge({ status }: { status: string | null | undefined }) {
   const colors = STATUS_COLORS[safe] || 'bg-gray-100 text-gray-600';
   const label = safe ? safe.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '—';
   return (
-    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${colors}`}>
+    <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${colors}`}>
       {label}
     </span>
   );

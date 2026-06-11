@@ -1,4 +1,5 @@
 import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { Sprout } from 'lucide-react';
 
 export interface Column<T> {
   key: string;
@@ -21,19 +22,19 @@ export function DataTable<T>({
   columns,
   data,
   onRowClick,
-  emptyMessage = 'No data found',
+  emptyMessage = 'Nothing here just yet — new records will appear as your team adds them.',
   loading,
   error,
 }: DataTableProps<T>) {
   if (loading) {
     return (
       <div
-        className="rounded-xl border border-gray-200 bg-white p-8 text-center"
+        className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm"
         role="status"
         aria-live="polite"
         aria-label="Loading"
       >
-        <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+        <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
       </div>
     );
   }
@@ -51,20 +52,23 @@ export function DataTable<T>({
 
   if (data.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
-        {emptyMessage}
+      <div className="rounded-xl border border-gray-200 bg-white px-8 py-12 text-center shadow-sm">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-100">
+          <Sprout className="h-6 w-6 text-brand-700" aria-hidden="true" />
+        </div>
+        <p className="mx-auto max-w-md text-sm text-gray-500">{emptyMessage}</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
               {columns.map((col) => (
-                <th key={col.key} className={`px-4 py-3 font-medium text-gray-600 ${col.className || ''}`}>
+                <th key={col.key} className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 ${col.className || ''}`}>
                   {col.header}
                 </th>
               ))}
