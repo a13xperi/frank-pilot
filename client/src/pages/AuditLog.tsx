@@ -431,7 +431,9 @@ export function AuditLog() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          Showing {page * limit + 1}–{page * limit + (data?.logs?.length || 0)}
+          {data?.logs?.length
+            ? `Showing ${page * limit + 1}–${page * limit + data.logs.length}`
+            : 'No entries'}
         </p>
         <div className="flex gap-2">
           <Button
