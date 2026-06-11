@@ -154,14 +154,14 @@
   color-scheme: dark;
   /* Deep-forest dark — warm neutrals with a faint green cast so the dark
      theme reads as the same institution after hours, not a different app. */
-  --c-white: 38 43 40; /* cards */
+  --c-white: 45 51 47; /* cards — lifted off the page so panels don't dissolve */
   --c-gray-50: 24 28 26; /* page */
-  --c-gray-100: 50 56 52; /* hover */
-  --c-gray-200: 58 65 60; /* borders */
-  --c-gray-300: 82 91 85;
-  --c-gray-400: 144 153 147;
-  --c-gray-500: 156 165 158;
-  --c-gray-600: 198 206 200;
+  --c-gray-100: 56 62 58; /* hover */
+  --c-gray-200: 72 80 74; /* borders */
+  --c-gray-300: 94 103 97;
+  --c-gray-400: 156 165 158;
+  --c-gray-500: 178 187 180;
+  --c-gray-600: 208 215 209;
   --c-gray-700: 209 216 210;
   --c-gray-800: 224 230 225;
   --c-gray-900: 238 242 239;

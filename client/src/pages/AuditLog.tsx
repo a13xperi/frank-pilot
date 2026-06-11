@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ScrollText, Link as LinkIcon } from 'lucide-react';
+import { ScrollText, Link as LinkIcon, ChevronDown } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
 import { DataTable, type Column } from '@/components/DataTable';
@@ -213,11 +213,7 @@ function ComplianceTapePanel() {
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm w-80 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         />
-        <Button
-          variant="primary"
-          onClick={handleSearch}
-          disabled={!inputValue.trim()}
-        >
+        <Button variant="primary" onClick={handleSearch}>
           Search
         </Button>
       </div>
@@ -400,26 +396,32 @@ export function AuditLog() {
           onChange={(e) => { setApplicationId(e.target.value); setPage(0); }}
           className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm w-72 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         />
-        <select
-          value={action}
-          onChange={(e) => { setAction(e.target.value); setPage(0); }}
-          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
-        >
-          <option value="">All Actions</option>
-          <option value="application_created">Application Created</option>
-          <option value="application_submitted">Application Submitted</option>
-          <option value="screening_initiated">Screening Initiated</option>
-          <option value="tier1_approved">Tier 1 Approved</option>
-          <option value="tier1_denied">Tier 1 Denied</option>
-          <option value="tier2_approved">Tier 2 Approved</option>
-          <option value="tier2_denied">Tier 2 Denied</option>
-          <option value="tier3_approved">Tier 3 Approved</option>
-          <option value="tier3_denied">Tier 3 Denied</option>
-          <option value="fraud_flag_raised">Fraud Flag Raised</option>
-          <option value="fraud_flag_resolved">Fraud Flag Resolved</option>
-          <option value="lease_generated">Lease Generated</option>
-          <option value="tenant_onboarded">Tenant Onboarded</option>
-        </select>
+        <div className="relative">
+          <select
+            value={action}
+            onChange={(e) => { setAction(e.target.value); setPage(0); }}
+            className="appearance-none rounded-md border border-gray-300 bg-white py-2 pl-3 pr-9 text-sm text-gray-700 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="">All Actions</option>
+            <option value="application_created">Application Created</option>
+            <option value="application_submitted">Application Submitted</option>
+            <option value="screening_initiated">Screening Initiated</option>
+            <option value="tier1_approved">Tier 1 Approved</option>
+            <option value="tier1_denied">Tier 1 Denied</option>
+            <option value="tier2_approved">Tier 2 Approved</option>
+            <option value="tier2_denied">Tier 2 Denied</option>
+            <option value="tier3_approved">Tier 3 Approved</option>
+            <option value="tier3_denied">Tier 3 Denied</option>
+            <option value="fraud_flag_raised">Fraud Flag Raised</option>
+            <option value="fraud_flag_resolved">Fraud Flag Resolved</option>
+            <option value="lease_generated">Lease Generated</option>
+            <option value="tenant_onboarded">Tenant Onboarded</option>
+          </select>
+          <ChevronDown
+            className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            aria-hidden="true"
+          />
+        </div>
       </div>
 
       <DataTable
@@ -431,7 +433,9 @@ export function AuditLog() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          Showing {page * limit + 1}–{page * limit + (data?.logs?.length || 0)}
+          {(data?.logs?.length || 0) === 0
+            ? 'No entries to show'
+            : `Showing ${page * limit + 1}–${page * limit + (data?.logs?.length || 0)}`}
         </p>
         <div className="flex gap-2">
           <Button

@@ -36,7 +36,14 @@ const columns: Column<Application>[] = [
   {
     key: 'property_name',
     header: 'Property',
-    render: (r) => r.property_name ?? '—',
+    render: (r) =>
+      r.property_name ? (
+        <span className="block max-w-[30ch] truncate" title={r.property_name}>
+          {r.property_name}
+        </span>
+      ) : (
+        '—'
+      ),
   },
   { key: 'unit_number', header: 'Unit', className: 'whitespace-nowrap' },
   {
@@ -56,7 +63,7 @@ const columns: Column<Application>[] = [
   {
     key: 'qualifying_ami_tier',
     header: 'AMI Tier',
-    className: 'text-center',
+    className: 'whitespace-nowrap text-center',
     render: (r) => (r.qualifying_ami_tier ? `${r.qualifying_ami_tier}% AMI` : '—'),
   },
   {
@@ -106,7 +113,11 @@ export function Applications() {
           >
             {t.label}
             {!loading && (
-              <span className="ml-1.5 text-xs tabular-nums text-gray-400">
+              <span
+                className={`ml-1.5 text-xs font-semibold tabular-nums ${
+                  tab === t.value ? 'text-brand-700' : 'text-gray-500'
+                }`}
+              >
                 {t.value === ''
                   ? allApps.length
                   : t.value === 'approval'
