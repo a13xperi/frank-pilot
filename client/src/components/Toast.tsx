@@ -30,15 +30,15 @@ const AUTO_DISMISS_MS = 4000;
 const KIND_STYLES: Record<ToastKind, { ring: string; icon: ReactNode }> = {
   success: {
     ring: 'border-brand-200',
-    icon: <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-600" />,
+    icon: <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-600" />,
   },
   error: {
     ring: 'border-red-200',
-    icon: <XCircle className="h-5 w-5 shrink-0 text-red-600" />,
+    icon: <XCircle className="h-4 w-4 shrink-0 text-red-600" />,
   },
   info: {
     ring: 'border-gray-200',
-    icon: <Info className="h-5 w-5 shrink-0 text-gray-500" />,
+    icon: <Info className="h-4 w-4 shrink-0 text-gray-500" />,
   },
 };
 
@@ -87,10 +87,10 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
   return (
     <div
-      className={`pointer-events-auto flex items-start gap-3 rounded-xl border bg-white px-4 py-3 shadow-lg ${ring}`}
+      className={`pointer-events-auto flex items-start gap-2.5 rounded-xl border bg-white px-3.5 py-2.5 shadow-lg ${ring}`}
     >
       {icon}
-      <p className="flex-1 text-sm text-gray-700">{toast.message}</p>
+      <p className="flex-1 text-[13px] text-gray-700">{toast.message}</p>
       <button
         type="button"
         onClick={onDismiss}

@@ -49,43 +49,43 @@ export function Layout() {
       )}
       <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} onClose={closeMobile} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6">
+        <header className="flex h-12 items-center justify-between border-b border-gray-200 bg-white px-3 sm:px-4">
           {/* Mobile: open the off-canvas drawer. */}
           <button
             onClick={() => setMobileOpen(true)}
             aria-label="Open navigation menu"
             aria-expanded={mobileOpen}
             aria-controls="primary-nav-drawer"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 md:hidden"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4" />
           </button>
           {/* Desktop: collapse / expand the static rail. */}
           <button
             onClick={toggleSidebar}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-expanded={!collapsed}
-            className="hidden h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 md:flex"
+            className="hidden h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 md:flex"
           >
-            <PanelLeft className="h-5 w-5" />
+            <PanelLeft className="h-4 w-4" />
           </button>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <ThemeToggle />
             {user && (
               <>
-                <span className="hidden text-sm text-gray-700 sm:inline">
+                <span className="hidden text-[13px] font-medium text-gray-700 sm:inline">
                   {user.firstName} {user.lastName}
                 </span>
-                <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-700">
+                <span className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider text-gray-500">
                   {formatRole(user.role)}
                 </span>
               </>
             )}
             <button
               onClick={logout}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] text-gray-500 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Logout</span>
             </button>
           </div>

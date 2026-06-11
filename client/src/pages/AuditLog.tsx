@@ -51,14 +51,18 @@ const columns: Column<AuditEntry>[] = [
   {
     key: 'created_at',
     header: 'Time',
-    render: (r) => new Date(r.created_at).toLocaleString(),
+    render: (r) => (
+      <span className="font-mono text-xs tabular-nums text-gray-500">
+        {new Date(r.created_at).toLocaleString()}
+      </span>
+    ),
     className: 'whitespace-nowrap',
   },
   {
     key: 'action',
     header: 'Action',
     render: (r) => (
-      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono">
+      <span className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono text-[11px] text-gray-700">
         {r.action}
       </span>
     ),
@@ -68,7 +72,11 @@ const columns: Column<AuditEntry>[] = [
     header: 'Actor',
     render: (r) => formatRole(r.actor_role as 'leasing_agent'),
   },
-  { key: 'resource_type', header: 'Resource' },
+  {
+    key: 'resource_type',
+    header: 'Resource',
+    render: (r) => <span className="font-mono text-xs text-gray-600">{r.resource_type}</span>,
+  },
   {
     key: 'details',
     header: 'Details',
@@ -191,27 +199,27 @@ function ComplianceTapePanel() {
     tapeError?.toLowerCase().includes('501');
 
   return (
-    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6">
+    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5">
       {/* Section heading */}
       <div>
-        <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-          <LinkIcon className="h-4 w-4 text-emerald-600" />
+        <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+          <LinkIcon className="h-3.5 w-3.5 text-gray-400" />
           Compliance Tape
         </h2>
-        <p className="mt-0.5 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-gray-500">
           Tape entries are append-only, hash-chained per applicant scope.
           See <span className="font-mono">docs/bp-02-contracts.md</span>.
         </p>
       </div>
 
       {/* Filter row */}
-      <div className="flex gap-3 items-center">
+      <div className="flex gap-2 items-center">
         <input
           placeholder="Applicant ID…"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm w-80 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="input w-80 font-mono text-xs"
         />
         <Button
           variant="primary"
@@ -227,9 +235,9 @@ function ComplianceTapePanel() {
         <div className="space-y-3">
           {/* Table header row with action buttons */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h3 className="text-sm font-medium text-gray-700">
+            <h3 className="text-[13px] font-medium text-gray-700">
               Tape entries for applicant{' '}
-              <span className="font-mono text-gray-900">{applicantId}</span>
+              <span className="font-mono text-xs text-gray-900">{applicantId}</span>
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               {/* Verify Chain button + result badge */}
@@ -243,12 +251,12 @@ function ComplianceTapePanel() {
                 {verifyLoading ? 'Verifying…' : 'Verify Chain'}
               </Button>
               {verifyResult && verifyResult.ok && (
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-medium text-emerald-700">
                   Verified ✓ (sequence {verifyResult.lastSequence})
                 </span>
               )}
               {verifyResult && !verifyResult.ok && (
-                <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                <span className="rounded border border-red-200 bg-red-50 px-2 py-0.5 font-mono text-[11px] font-medium text-red-700">
                   Break at sequence {verifyResult.brokeAt ?? '?'}{verifyResult.reason ? ` — ${verifyResult.reason}` : ''}
                 </span>
               )}
@@ -260,7 +268,7 @@ function ComplianceTapePanel() {
               <button
                 onClick={handleExportPdf}
                 disabled={exportLoading || tapeLoading || entries.length === 0}
-                className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 dark:text-[#111827]"
+                className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors duration-150 hover:border-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {exportLoading ? 'Exporting…' : 'Export PDF'}
               </button>
@@ -277,14 +285,14 @@ function ComplianceTapePanel() {
 
           {/* Global-scope 501 */}
           {!tapeLoading && isGlobalScopeError && (
-            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
               Global tape view not available in v1 — filter by applicant.
             </div>
           )}
 
           {/* Generic error */}
           {!tapeLoading && tapeError && !isGlobalScopeError && (
-            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
               Could not load tape ({tapeError}).
             </div>
           )}
@@ -302,19 +310,19 @@ function ComplianceTapePanel() {
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-16">
                       Seq
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                       Kind
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                       Citation
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Created At
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                       Evidence
                     </th>
                   </tr>
@@ -326,21 +334,21 @@ function ComplianceTapePanel() {
                       className="hover:bg-gray-50 transition-colors"
                       title={`entry_hash: ${entry.entryHash}`}
                     >
-                      <td className="px-4 py-3 text-gray-900 font-mono text-xs">
+                      <td className="px-3 py-2 text-gray-900 font-mono text-xs">
                         {entry.sequence}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2">
                         <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono">
                           {entry.kind}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                      <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
                         {entry.citation}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
                         {new Date(entry.createdAt).toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 max-w-xs">
+                      <td className="px-3 py-2 max-w-xs">
                         <code className="block rounded bg-gray-50 px-2 py-1 text-xs text-gray-700 break-all">
                           {truncateJson(entry.payload.evidence ?? entry.payload)}
                         </code>
@@ -393,17 +401,17 @@ export function AuditLog() {
         description="Immutable record of all system actions"
       />
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-2">
         <input
           placeholder="Filter by Application ID..."
           value={applicationId}
           onChange={(e) => { setApplicationId(e.target.value); setPage(0); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm w-72 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="input w-72 font-mono text-xs"
         />
         <select
           value={action}
           onChange={(e) => { setAction(e.target.value); setPage(0); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          className="input w-auto"
         >
           <option value="">All Actions</option>
           <option value="application_created">Application Created</option>
@@ -430,7 +438,7 @@ export function AuditLog() {
       />
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">
+        <p className="font-mono text-xs tabular-nums text-gray-500">
           Showing {page * limit + 1}–{page * limit + (data?.logs?.length || 0)}
         </p>
         <div className="flex gap-2">

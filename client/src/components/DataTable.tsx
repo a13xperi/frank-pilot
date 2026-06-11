@@ -60,11 +60,14 @@ export function DataTable<T>({
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-left text-[13px]">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
               {columns.map((col) => (
-                <th key={col.key} className={`px-4 py-3 font-medium text-gray-600 ${col.className || ''}`}>
+                <th
+                  key={col.key}
+                  className={`px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 ${col.className || ''}`}
+                >
                   {col.header}
                 </th>
               ))}
@@ -88,10 +91,10 @@ export function DataTable<T>({
                       },
                     }
                   : {})}
-                className={`border-b border-gray-100 last:border-0 ${onRowClick ? 'cursor-pointer hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500' : ''}`}
+                className={`border-b border-gray-100 transition-colors duration-100 last:border-0 ${onRowClick ? 'cursor-pointer hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500' : ''}`}
               >
                 {columns.map((col) => (
-                  <td key={col.key} className={`px-4 py-3 text-gray-700 ${col.className || ''}`}>
+                  <td key={col.key} className={`px-3 py-2 text-gray-700 ${col.className || ''}`}>
                     {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '—')}
                   </td>
                 ))}

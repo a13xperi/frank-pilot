@@ -2,12 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  body {
+    @apply bg-gray-50 text-[13px] text-gray-700 antialiased;
+    letter-spacing: -0.011em;
+    font-feature-settings: 'tnum' 0;
+  }
+}
+
 @layer components {
   .label {
-    @apply mb-1 block text-sm font-medium text-gray-700;
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-gray-500;
   }
   .input {
-    @apply w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500;
+    @apply w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] text-gray-900 transition-colors duration-150 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500;
+  }
+  /* Faint blueprint grid + a whisper of emerald at the horizon (Login).
+   * The glow is theme-scaled: barely-there in light, hero-grade in dark. */
+  .ops-bg {
+    background-image:
+      radial-gradient(ellipse 70% 45% at 50% -5%, rgb(var(--c-emerald-500) / var(--ops-glow, 0.08)), transparent),
+      linear-gradient(rgb(var(--c-gray-200) / 0.45) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--c-gray-200) / 0.45) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      36px 36px,
+      36px 36px;
   }
 }
 
@@ -18,18 +38,22 @@
  * neutrals use a hand-tuned mapping so card > page > hover contrast holds.
  * ------------------------------------------------------------------------- */
 :root {
+  /* MODERN OPS — neutral scale re-pointed to zinc (cool, near-monochrome). */
   --c-white: 255 255 255;
-  --c-gray-50: 249 250 251;
-  --c-gray-100: 243 244 246;
-  --c-gray-200: 229 231 235;
-  --c-gray-300: 209 213 219;
-  --c-gray-400: 156 163 175;
-  --c-gray-500: 107 114 128;
-  --c-gray-600: 75 85 99;
-  --c-gray-700: 55 65 81;
-  --c-gray-800: 31 41 55;
-  --c-gray-900: 17 24 39;
-  --c-gray-950: 3 7 18;
+  --c-gray-50: 250 250 250;
+  --c-gray-100: 244 244 245;
+  --c-gray-200: 228 228 231;
+  --c-gray-300: 212 212 216;
+  --c-gray-400: 161 161 170;
+  --c-gray-500: 113 113 122;
+  --c-gray-600: 82 82 91;
+  --c-gray-700: 63 63 70;
+  --c-gray-800: 39 39 42;
+  --c-gray-900: 24 24 27;
+  --c-gray-950: 9 9 11;
+  /* Primary-action depth: flat in light, emerald glow in dark (the hero). */
+  --shadow-primary: 0 1px 2px rgb(9 9 11 / 0.08);
+  --ops-glow: 0.03;
   --c-emerald-50: 236 253 245;
   --c-emerald-100: 209 250 229;
   --c-emerald-200: 167 243 208;
@@ -144,18 +168,26 @@
 
 .dark {
   color-scheme: dark;
-  --c-white: 31 41 55; /* cards: gray-800 */
-  --c-gray-50: 17 24 39; /* gray-900 */
-  --c-gray-100: 55 65 81; /* gray-700 */
-  --c-gray-200: 55 65 81; /* gray-700 */
-  --c-gray-300: 75 85 99; /* gray-600 */
-  --c-gray-400: 156 163 175; /* gray-400 */
-  --c-gray-500: 156 163 175; /* gray-400 */
-  --c-gray-600: 209 213 219; /* gray-300 */
-  --c-gray-700: 209 213 219; /* gray-300 */
-  --c-gray-800: 229 231 235; /* gray-200 */
-  --c-gray-900: 243 244 246; /* gray-100 */
-  --c-gray-950: 249 250 251; /* gray-50 */
+  /* Rich near-black layered surfaces: page #0a0a0c < card #141417 < hover
+   * #1e1e22 < hairline #27272c. Hand-tuned so 1px borders read as hairlines. */
+  --c-white: 20 20 23; /* raised card surface */
+  --c-gray-50: 10 10 12; /* page background / table head / row hover */
+  --c-gray-100: 30 30 34; /* subtle fills, chips, hover */
+  --c-gray-200: 39 39 44; /* hairline borders */
+  --c-gray-300: 55 55 62; /* stronger borders (inputs) */
+  --c-gray-400: 110 110 120; /* muted icons / placeholders */
+  --c-gray-500: 138 138 148; /* secondary text */
+  --c-gray-600: 170 170 180;
+  --c-gray-700: 202 202 212; /* body text */
+  --c-gray-800: 224 224 232;
+  --c-gray-900: 242 242 246; /* titles */
+  --c-gray-950: 250 250 251;
+  --ops-glow: 0.1;
+  /* Subtle emerald glow on primary actions — dark mode is the hero. */
+  --shadow-primary:
+    0 0 0 1px rgb(16 185 129 / 0.35),
+    0 0 18px rgb(16 185 129 / 0.22),
+    inset 0 1px 0 rgb(255 255 255 / 0.1);
   --c-emerald-50: 2 44 34;
   --c-emerald-100: 6 78 59;
   --c-emerald-200: 6 95 70;

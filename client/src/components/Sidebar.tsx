@@ -29,23 +29,40 @@ interface NavItem {
   minRole: UserRole;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', path: '/', icon: LayoutDashboard, minRole: 'leasing_agent' },
-  { label: 'Applications', path: '/applications', icon: FileText, minRole: 'leasing_agent' },
-  { label: 'Screening', path: '/screening', icon: Search, minRole: 'senior_manager' },
-  { label: 'Approvals', path: '/approvals', icon: CheckCircle, minRole: 'senior_manager' },
-  { label: 'Ledger', path: '/ledger', icon: DollarSign, minRole: 'leasing_agent' },
-  { label: 'Properties', path: '/properties', icon: Building2, minRole: 'leasing_agent' },
-  { label: 'Users', path: '/users', icon: Users, minRole: 'senior_manager' },
-  { label: 'Inspections', path: '/inspections', icon: ClipboardCheck, minRole: 'leasing_agent' },
-  { label: 'Maintenance', path: '/maintenance', icon: Wrench, minRole: 'leasing_agent' },
-  { label: 'Renewals', path: '/renewals', icon: RefreshCw, minRole: 'senior_manager' },
-  { label: 'Move-Outs', path: '/moveouts', icon: LogOut, minRole: 'senior_manager' },
-  { label: 'Evictions', path: '/evictions', icon: Gavel, minRole: 'senior_manager' },
-  { label: 'Recertifications', path: '/recertifications', icon: CalendarClock, minRole: 'senior_manager' },
-  { label: 'Compliance', path: '/compliance', icon: Shield, minRole: 'regional_manager' },
-  { label: 'Audit Log', path: '/audit-log', icon: ScrollText, minRole: 'regional_manager' },
-  { label: 'QA Bundles', path: '/qa-bundles', icon: Camera, minRole: 'regional_manager' },
+// MODERN OPS: nav is grouped under uppercase micro-labels (pipeline /
+// operations / governance) — same items, same paths, same role gates.
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: 'Pipeline',
+    items: [
+      { label: 'Dashboard', path: '/', icon: LayoutDashboard, minRole: 'leasing_agent' },
+      { label: 'Applications', path: '/applications', icon: FileText, minRole: 'leasing_agent' },
+      { label: 'Screening', path: '/screening', icon: Search, minRole: 'senior_manager' },
+      { label: 'Approvals', path: '/approvals', icon: CheckCircle, minRole: 'senior_manager' },
+      { label: 'Ledger', path: '/ledger', icon: DollarSign, minRole: 'leasing_agent' },
+      { label: 'Properties', path: '/properties', icon: Building2, minRole: 'leasing_agent' },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { label: 'Users', path: '/users', icon: Users, minRole: 'senior_manager' },
+      { label: 'Inspections', path: '/inspections', icon: ClipboardCheck, minRole: 'leasing_agent' },
+      { label: 'Maintenance', path: '/maintenance', icon: Wrench, minRole: 'leasing_agent' },
+      { label: 'Renewals', path: '/renewals', icon: RefreshCw, minRole: 'senior_manager' },
+      { label: 'Move-Outs', path: '/moveouts', icon: LogOut, minRole: 'senior_manager' },
+      { label: 'Evictions', path: '/evictions', icon: Gavel, minRole: 'senior_manager' },
+      { label: 'Recertifications', path: '/recertifications', icon: CalendarClock, minRole: 'senior_manager' },
+    ],
+  },
+  {
+    label: 'Governance',
+    items: [
+      { label: 'Compliance', path: '/compliance', icon: Shield, minRole: 'regional_manager' },
+      { label: 'Audit Log', path: '/audit-log', icon: ScrollText, minRole: 'regional_manager' },
+      { label: 'QA Bundles', path: '/qa-bundles', icon: Camera, minRole: 'regional_manager' },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -117,15 +134,18 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
 
   if (!user) return null;
 
-  const visible = NAV_ITEMS.filter((item) => hasMinRole(user.role, item.minRole));
+  const visibleGroups = NAV_GROUPS.map((g) => ({
+    label: g.label,
+    items: g.items.filter((item) => hasMinRole(user.role, item.minRole)),
+  })).filter((g) => g.items.length > 0);
 
   // `collapsed` is a desktop affordance only (md+). On mobile the drawer is
   // always full-width when open, so collapse-driven label hiding / icon
   // centering is gated behind `md:`.
-  const collapseRail = collapsed ? 'md:w-16' : 'md:w-64';
+  const collapseRail = collapsed ? 'md:w-14' : 'md:w-56';
   const collapseLabel = collapsed ? 'md:hidden' : '';
-  const collapseItemPad = collapsed ? 'md:justify-center md:px-0' : 'md:px-3';
-  const collapseHeaderPad = collapsed ? 'md:justify-center md:px-0' : 'md:px-6';
+  const collapseItemPad = collapsed ? 'md:justify-center md:px-0' : 'md:px-2.5';
+  const collapseHeaderPad = collapsed ? 'md:justify-center md:px-0' : 'md:px-4';
 
   return (
     <aside
@@ -135,33 +155,51 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className={`flex h-16 items-center gap-2 border-b border-gray-200 px-6 ${collapseHeaderPad}`}>
-        <Building2 className="h-6 w-6 shrink-0 text-brand-600" />
-        <span className={`text-lg font-semibold text-gray-900 ${collapseLabel}`}>CDPC Hub</span>
+      <div className={`flex h-12 items-center gap-2 border-b border-gray-200 px-4 ${collapseHeaderPad}`}>
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-100">
+          <Building2 className="h-3.5 w-3.5 text-gray-700" />
+        </span>
+        <span className={`flex min-w-0 flex-col leading-none ${collapseLabel}`}>
+          <span className="truncate text-[13px] font-semibold tracking-tight text-gray-900">CDPC Hub</span>
+          <span className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.14em] text-gray-400">Compliance Ops</span>
+        </span>
       </div>
-      <nav aria-label="Primary" className="flex-1 space-y-1 overflow-y-auto p-3">
-        {visible.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.path === '/'}
-            title={collapsed ? item.label : undefined}
-            onClick={onClose}
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${collapseItemPad} ${
-                isActive
-                  ? 'bg-brand-50 text-brand-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`
-            }
-          >
-            <item.icon className="h-5 w-5 shrink-0" />
-            <span className={collapseLabel}>{item.label}</span>
-          </NavLink>
+      <nav aria-label="Primary" className="flex-1 overflow-y-auto px-2 pb-3 pt-1">
+        {visibleGroups.map((group) => (
+          <div key={group.label}>
+            <p
+              className={`px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400 ${collapseLabel}`}
+            >
+              {group.label}
+            </p>
+            <div className="space-y-px">
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.path === '/'}
+                  title={collapsed ? item.label : undefined}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors duration-100 ${collapseItemPad} ${
+                      isActive
+                        ? 'bg-gray-100 text-gray-900'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                    }`
+                  }
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className={collapseLabel}>{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
-      <div className="border-t border-gray-200 p-4">
-        <p className={`text-xs text-gray-400 ${collapseLabel}`}>CDPC Nevada</p>
+      <div className="border-t border-gray-200 px-4 py-3">
+        <p className={`font-mono text-[9px] uppercase tracking-[0.14em] text-gray-400 ${collapseLabel}`}>
+          CDPC Nevada
+        </p>
       </div>
     </aside>
   );

@@ -12,10 +12,12 @@ export function PageHeader({ icon: Icon, title, description, action }: PageHeade
   return (
     <div className="flex items-start justify-between">
       <div className="flex items-center gap-3">
-        <Icon className="h-6 w-6 text-emerald-600" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500">
+          <Icon className="h-4 w-4" />
+        </div>
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
-          {description && <p className="mt-0.5 text-sm text-gray-500">{description}</p>}
+          <h1 className="text-lg font-semibold tracking-tight text-gray-900">{title}</h1>
+          {description && <p className="mt-0.5 text-[13px] text-gray-500">{description}</p>}
         </div>
       </div>
       {action}

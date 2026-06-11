@@ -19,6 +19,35 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      // MODERN OPS: sharp 6px radii everywhere. Existing components use
+      // rounded-lg / rounded-xl; remapping the tokens sharpens the whole app
+      // without touching every call site. (rounded-full is untouched.)
+      borderRadius: {
+        lg: '0.375rem',
+        xl: '0.375rem',
+        '2xl': '0.5rem',
+      },
+      fontFamily: {
+        // Serious-infrastructure system stacks — SF Pro / SF Mono on macOS.
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          '"Helvetica Neue"',
+          'Arial',
+          'sans-serif',
+        ],
+        mono: [
+          'ui-monospace',
+          '"SF Mono"',
+          'SFMono-Regular',
+          'Menlo',
+          'Consolas',
+          '"Liberation Mono"',
+          'monospace',
+        ],
+      },
       colors: {
         white: 'rgb(var(--c-white) / <alpha-value>)',
         gray: varScale('gray'),
