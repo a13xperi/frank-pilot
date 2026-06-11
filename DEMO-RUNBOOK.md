@@ -36,7 +36,18 @@ close every other tab.
 | 2 · The ledger writes | **Audit Log** | Open page — the work order you just created is the **top entry**, timestamped, actor-attributed. "That record can't be edited after the fact." |
 | 3 · Unit-level file | **Applications → Tomasz Kowalski** | Full history in one view: $1,950 delinquent ledger, late fees, eviction trigger, 7-day notice, move-out + deposit calc. Or **Keisha Williams** for the clean tenant (renewal $1,300→$1,339). |
 | 4 · Verification | **Screening (as senior@)** | "Screen" on **Priya Patel** → green/red chips live (background, credit, AMI, fraud). Or show **Elena Vasquez** income pre-verified → Generate Lease → Onboard. |
-| 5 · The block, re-priced | **Properties + Ledger** | 17 properties w/ vacancy counts → Ledger delinquency dashboard. "Stack thousands of verified unit-events and the discount collapses — same book, provable." |
+| 5 · The block, re-priced | **Properties + Ledger** | 17 properties w/ vacancy counts → Ledger delinquency dashboard: **a 4-row delinquency ladder (Marcus Bell $2,470 → Felicia Grant $990) over a ~290-entry, 26-tenant book**. "Stack thousands of verified unit-events and the discount collapses — same book, provable." |
+
+### The populated book (enrichment seed — added after the ledger looked empty in rehearsal)
+
+`npm run seed:demo:ledger` (wired into `demo-reset.sh`) adds **24 onboarded tenants across
+the portfolio with 6 months of charge/payment history each** — current payers, slow payers
+with late fees, and a 3-tenant delinquency ladder alongside Tomasz. Drill-down rule:
+**click into Tomasz only** (his record is fully scripted: eviction, notice, move-out).
+The enrichment tenants make the dashboard and per-tenant ledgers look like a living
+system of record; their `daysOverdue` all read ~71d because the app dates overdue from
+the first rent charge — uniform and plausible, but don't invite a forensic read of a
+specific enrichment tenant.
 
 ## Reset to pristine (after every rehearsal, ~90s)
 

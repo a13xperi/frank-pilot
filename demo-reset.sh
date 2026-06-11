@@ -16,10 +16,11 @@ docker exec frank-pilot-demo-db psql -U postgres \
   -c "DROP DATABASE IF EXISTS frank_pilot_demo WITH (FORCE);" \
   -c "CREATE DATABASE frank_pilot_demo;"
 
-echo "[reset] migrate + seed + demo seed…"
+echo "[reset] migrate + seed + demo seed + ledger enrichment…"
 npm run migrate
 npm run seed
 npm run seed:demo
+npm run seed:demo:ledger
 
 echo "[reset] restarting API…"
 nohup npm run dev >/tmp/frank-demo-api.log 2>&1 &
