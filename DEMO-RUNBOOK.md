@@ -282,4 +282,11 @@ presenter would: regional@ for beats 1–3 and 5, senior@ for beat 4.
       screening target (see "Audit register pre-seeded"). Resetting undoes both.
 - [ ] Laptop: disable sleep-on-lid-close + notifications/DND for the morning
 - [ ] Craig: HDMI + TV confirmed; Frank attendance confirmed
-- [ ] Decide DM-SAGE-OC-016 (benefits-only vs admin screens) — this runbook works for both: benefits-only = beats 1–5 narrated; admin-screens = same beats, shown
+- [x] **DM-SAGE-OC-016 DECIDED (Jun 11 ~02:05): admin screens — run the five beats live.**
+      Rationale: the break-risk argument for benefits-only is gone (two human
+      rehearsals + 68-green e2e on the live stack + preflight GO + every landmine
+      scripted around), and the pitch is screen-shaped — Beat 2's live entry and
+      Beat 5's tape ARE the evidence a CPA/banker prices. Benefits-only remains
+      the in-room audible if HDMI dies (already the documented fallback).
+      ⚠️ Record in the Notion Decision Matrix via the normal /intake flow when
+      convenient — not yet written there.
