@@ -9,11 +9,16 @@ dependency (Craig owns cable + TV).
 
 ## Morning boot (~60s)
 
+**The T-minus ritual lives in `MORNING.md` — follow that.** Terminal side:
+
 ```bash
 cd ~/code/frank-pilot-demo && ./demo-up.sh
-./demo-reset.sh               # pristine data — other terminals wrote to the demo DB overnight
-./scripts/demo-preflight.sh   # 30s read-only GO/NO-GO — quote ITS beat-5 numbers in the room
+./scripts/demo-preflight.sh   # 30s, read-only — complements MORNING.md's visual sweep;
+                              # quote ITS beat-5 stat band in the room. NO-GO → MORNING.md recovery ladder.
 ```
+
+(Do NOT reset in the morning unless preflight is NO-GO — the 01:54 reset state is
+the curated baseline; see MORNING.md.)
 
 → **Demo URL: http://localhost:5180** — open in an incognito window, 100% zoom,
 close every other tab.
