@@ -212,7 +212,7 @@ export function Evictions() {
                     <button disabled={!resolveNotes.trim()} onClick={async () => {
                       try { await api.post(`/api/evictions/violations/${selectedViolation.id}/dismiss`, { notes: resolveNotes }); setActionMsg({ type: 'success', text: 'Violation dismissed' }); setSelectedViolation(null); setResolveNotes(''); refetchAll(); }
                       catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-                    }} className="rounded-lg bg-gray-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-600 disabled:opacity-50">Dismiss</button>
+                    }} className="rounded-lg bg-gray-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-600 disabled:opacity-50 dark:text-[#111827]">Dismiss</button>
                   </>
                 )}
               </div>
