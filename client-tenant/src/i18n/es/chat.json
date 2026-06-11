@@ -11,5 +11,5 @@
   "status.typing": "El asistente está escribiendo…",
   "error.generic": "Algo salió mal. Inténtalo de nuevo.",
   "error.retry": "Reintentar",
-  "empty.hint": "Prueba: «¿Qué documentos necesito?» o «Vivienda para personas mayores en Henderson»."
+  "empty.hint": "Prueba: «¿Qué documentos necesito?» o «¿Cuánto cuesta la solicitud?»"
 }
