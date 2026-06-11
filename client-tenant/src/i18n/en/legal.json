@@ -37,12 +37,12 @@
     "privacy": "Privacy",
     "cookies": "Cookies",
     "preferences": "Cookie preferences",
-    "tagline": "Frank Pilot — affordable housing, treated with the respect it deserves."
+    "tagline": "Frank — affordable housing, treated with the respect it deserves."
   },
   "privacy": {
     "title": "Privacy policy",
     "lastUpdated": "Last updated: 22 May 2026",
-    "intro": "Frank Pilot is the tenant-facing portal operated by Community Development Programs Center of Nevada (CDPC). We collect and process applicant data because federal affordable-housing programs require it — HUD income certification, fair-housing reporting, and FCRA-governed screening. This policy explains exactly what we collect, why, and who sees it.",
+    "intro": "Frank is the tenant-facing portal operated by Community Development Programs Center of Nevada (CDPC). We collect and process applicant data because federal affordable-housing programs require it — HUD income certification, fair-housing reporting, and FCRA-governed screening. This policy explains exactly what we collect, why, and who sees it.",
     "sections": {
       "whatWeCollect": {
         "title": "What we collect",
@@ -73,7 +73,7 @@
   "cookies": {
     "title": "Cookies policy",
     "lastUpdated": "Last updated: 22 May 2026",
-    "intro": "Frank Pilot uses browser storage (cookies and localStorage) for sign-in and a small number of personalisation features. We don't use third-party tracking cookies. We don't run analytics or advertising pixels today.",
+    "intro": "Frank uses browser storage (cookies and localStorage) for sign-in and a small number of personalisation features. We don't use third-party tracking cookies. We don't run analytics or advertising pixels today.",
     "tableHeaders": {
       "name": "Name",
       "purpose": "Purpose",

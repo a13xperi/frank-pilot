@@ -37,12 +37,12 @@
     "privacy": "Privacidad",
     "cookies": "Cookies",
     "preferences": "Preferencias de cookies",
-    "tagline": "Frank Pilot — vivienda asequible, tratada con el respeto que merece."
+    "tagline": "Frank — vivienda asequible, tratada con el respeto que merece."
   },
   "privacy": {
     "title": "Política de privacidad",
     "lastUpdated": "Última actualización: 22 de mayo de 2026",
-    "intro": "Frank Pilot es el portal para inquilinos operado por Community Development Programs Center of Nevada (CDPC). Recopilamos y procesamos datos de los solicitantes porque los programas federales de vivienda asequible lo exigen — certificación de ingresos de HUD, informes de vivienda justa y verificación regida por la FCRA. Esta política explica exactamente qué recopilamos, por qué y quién lo ve.",
+    "intro": "Frank es el portal para inquilinos operado por Community Development Programs Center of Nevada (CDPC). Recopilamos y procesamos datos de los solicitantes porque los programas federales de vivienda asequible lo exigen — certificación de ingresos de HUD, informes de vivienda justa y verificación regida por la FCRA. Esta política explica exactamente qué recopilamos, por qué y quién lo ve.",
     "sections": {
       "whatWeCollect": {
         "title": "Qué recopilamos",
@@ -73,7 +73,7 @@
   "cookies": {
     "title": "Política de cookies",
     "lastUpdated": "Última actualización: 22 de mayo de 2026",
-    "intro": "Frank Pilot usa almacenamiento del navegador (cookies y localStorage) para iniciar sesión y para un pequeño número de funciones de personalización. No usamos cookies de seguimiento de terceros. Hoy no usamos análisis ni píxeles publicitarios.",
+    "intro": "Frank usa almacenamiento del navegador (cookies y localStorage) para iniciar sesión y para un pequeño número de funciones de personalización. No usamos cookies de seguimiento de terceros. Hoy no usamos análisis ni píxeles publicitarios.",
     "tableHeaders": {
       "name": "Nombre",
       "purpose": "Propósito",

@@ -160,8 +160,10 @@ describe("POST /api/housing-qa — grounded answer", () => {
     // The system prompt must carry the guardrails AND the injected context.
     expect(callArg.system).toMatch(/GROUNDING RULES \(non-negotiable\)/);
     expect(callArg.system).toMatch(/BEGIN CONTEXT/);
-    // tenant surface: property retrieval is scoped out by policy
-    expect(callArg.system).toMatch(/"routing": "faq_only"/);
+    // tenant surface: the payload is the tenant shape — scope marker present,
+    // retrieval metadata (routing/properties keys) absent entirely
+    expect(callArg.system).toMatch(/"scope": "tenant"/);
+    expect(callArg.system).not.toMatch(/"routing"/);
     // always-on facts injected so the answer can be grounded
     expect(callArg.system).toMatch(/\$35\.95/);
   });
@@ -182,7 +184,9 @@ describe("POST /api/housing-qa — grounded answer", () => {
     expect(callArg.system).not.toMatch(/Test Property/i);
     expect(callArg.system).not.toMatch(/Carson City/i);
     expect(callArg.system).not.toMatch(/HUD[\s-]LIHTC|GPMG|statewide/i);
-    expect(callArg.system).toMatch(/"properties": \[\]/);
+    // Stronger than the old `"properties": []` pin: the key no longer exists
+    // on this surface at all.
+    expect(callArg.system).not.toMatch(/"properties"/);
   });
 
   it("a named-property question injects no property record and no echo of the name", async () => {

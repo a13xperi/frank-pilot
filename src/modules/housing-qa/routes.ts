@@ -23,7 +23,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { spawn } from "child_process";
 import os from "os";
 import path from "path";
-import { buildContext, RETRIEVAL_POLICIES, QaSurface } from "./retriever";
+import { buildContext, buildTenantContext, RETRIEVAL_POLICIES, QaSurface } from "./retriever";
 import { buildSystemPromptFor } from "./prompt";
 import { guardTenantAnswer } from "./output-guard";
 import { logger } from "../../utils/logger";
@@ -351,7 +351,20 @@ export function housingQaRouter(opts: HousingQaRouterOptions): Router {
     }
 
     try {
-      const context = buildContext(question, policy);
+      // The tenant surface gets the purpose-built tenant payload — it carries
+      // NO retrieval metadata (routing/properties/mode keys), so internal
+      // vocabulary can't reach the model even as JSON keys. Other surfaces
+      // keep the full HousingContext. policy.echoQuestion (false on tenant)
+      // additionally strips the question echo — the model already receives the
+      // question as the user message; duplicating it into the payload is a
+      // second channel for bait text.
+      let context: Record<string, unknown>;
+      if (opts.surface === "tenant_public") {
+        const { question: echoed, ...tenantCtx } = buildTenantContext(question);
+        context = policy.echoQuestion ? { question: echoed, ...tenantCtx } : tenantCtx;
+      } else {
+        context = buildContext(question, policy) as unknown as Record<string, unknown>;
+      }
       const system = buildSystemPromptFor(opts.surface, context);
 
       let answer: string;
@@ -431,11 +444,11 @@ export function housingQaRouter(opts: HousingQaRouterOptions): Router {
       // tokens are not PII.
       logger.info("housing-qa answered", {
         surface: opts.surface,
-        route: context.routing,
+        route: typeof context.routing === "string" ? context.routing : "tenant_faq",
         guarded,
         path: client ? "sdk" : "cli",
         qLen: question.length,
-        propertyCount: context.properties.length,
+        propertyCount: Array.isArray(context.properties) ? context.properties.length : 0,
         latencyMs: Date.now() - startedAt,
         inputTokens,
         outputTokens,

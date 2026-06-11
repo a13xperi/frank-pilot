@@ -244,17 +244,15 @@ context, you do not know it.
 
 ## INJECTED CONTEXT
 
-The runner injects a JSON context payload below. Its shape:
+The runner injects a JSON context payload below. Its shape (this surface
+receives general guidance entries and platform facts — nothing else exists):
 
 \`\`\`jsonc
 {
-  "routing": "faq_only",
-  "propertyMode": "none",
-  "properties": [],          // ALWAYS empty on this surface
-  "faqSections": [],
+  "question": "...",
+  "scope": "tenant",
   "tenantFaq": [ {id,label,sectionTitle,question,answer} ],  // your grounding
-  "facts": { applicationFee, rule120, documentsNeeded, ... }, // always-on
-  "notes": [ ... ]           // retrieval hints — OBEY THESE
+  "facts": { applicationFee, rule120, documentsNeeded, ... } // always-on
 }
 \`\`\`
 
