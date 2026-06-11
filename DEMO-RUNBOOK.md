@@ -58,6 +58,22 @@ system of record; their `daysOverdue` all read ~71d because the app dates overdu
 the first rent charge — uniform and plausible, but don't invite a forensic read of a
 specific enrichment tenant.
 
+### Bonus beat (OPTIONAL) — "Frank answers your own FAQ" (added Jun 10, ~11pm — commit fdd2c43)
+
+Only if the room is warm and time allows — the 5 rehearsed beats stay the spine.
+
+- **Where:** http://localhost:5174 (tenant app) → chat widget / "Talk to Frank" pill.
+  Boots with `./demo-up.sh` (proxied to the demo API; keyless via the claude CLI).
+- **The line for Frank Hawkins:** "We loaded your 500-question GPMG tenant FAQ into
+  Frank today — every answer below is grounded in YOUR document, with citations."
+- **Rehearsed questions** (all verified tonight, answers cite `(Tenant FAQ #N)`):
+  1. "Do food stamps count as income?" → No, SNAP excluded `(#63)`
+  2. "Can I ask for a live-in aide?" → reasonable accommodation, income excluded `(#118–120, #29, #30)`
+  3. "How much is the application fee?" → **$35.95 per adult** from platform facts (never the doc's old range)
+- **Latency:** ~5–10s per answer (CLI path) — narrate over the wait ("it's retrieving
+  from the FAQ corpus and citing its sources"), don't dead-air it.
+- **Rate limit:** 20 questions / 10 min per IP — plenty, but don't crowd-source rapid-fire.
+
 ## Reset to pristine (after every rehearsal, ~90s)
 
 ```bash
@@ -110,7 +126,7 @@ applications without a full reset (`POST /api/demo/seed`).
 2. Data looks wrong → login page → "Load Demo" (10s) or `./demo-reset.sh` (60s).
 3. API dead, no time → narrate over the **Adinkra recap + Notion script** (the
    leave-behind is designed to carry the pitch without screens).
-4. Logs: `/tmp/frank-demo-api.log`, `/tmp/frank-demo-client.log`.
+4. Logs: `/tmp/frank-demo-api.log`, `/tmp/frank-demo-client.log`, `/tmp/frank-demo-tenant.log`.
 
 ## Tonight's checklist (before sleep)
 
