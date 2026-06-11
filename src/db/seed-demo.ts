@@ -57,6 +57,17 @@ export async function seedDemoData() {
     throw new Error("Missing required user roles — run base seed first");
   }
 
+  // Scoped roles (leasing_agent, senior_manager) get deny-all with empty
+  // property_ids — the base seed leaves them empty, which blanks Maintenance
+  // for agent@ and renders The Ledger showcase all zeros for senior@ (found
+  // in the Jun 10 rehearsal). Assign the full demo portfolio so the runbook's
+  // scripted logins work as written.
+  await query(
+    `UPDATE users
+     SET property_ids = (SELECT COALESCE(array_agg(id), '{}') FROM properties)
+     WHERE role IN ('leasing_agent', 'senior_manager')`
+  );
+
   // Clean existing demo data (identifiable by SSN hash prefix pattern)
   await query("ALTER TABLE audit_log DISABLE TRIGGER trg_audit_log_immutable");
   for (const app of DEMO_APPLICANTS) {
