@@ -510,3 +510,33 @@ export interface ComplianceReport {
     consistencyScore: number;
   };
 }
+
+// ── "The Ledger" showcase types ──────────────────────────────────
+
+export interface ShowcaseTapeEvent {
+  at: string;
+  kind: 'ledger' | 'audit';
+  label: string;
+  who: string | null;
+  unitNumber: string | null;
+  propertyName: string | null;
+  amount: number | null;
+  applicationId: string | null;
+}
+
+export interface ShowcaseResponse {
+  stats: {
+    evidenceRecords: number;
+    unitsOnLedger: number;
+    properties: number;
+    eventsThisMonth: number;
+    currentRate: number;
+  };
+  tape: ShowcaseTapeEvent[];
+  byProperty: Array<{
+    propertyName: string;
+    units: number;
+    evidenceCount: number;
+    delinquent: number;
+  }>;
+}

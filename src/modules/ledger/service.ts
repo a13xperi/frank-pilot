@@ -549,6 +549,144 @@ export class LedgerService {
   }
 
   /**
+   * Showcase aggregate for "The Ledger" stakeholder view: headline evidence
+   * stats, a merged recent-event tape (ledger + audit), and per-property
+   * proof counts. Read-only; evidence metrics only — no pricing.
+   */
+  async getShowcase(req?: AuthRequest): Promise<{
+    stats: {
+      evidenceRecords: number;
+      unitsOnLedger: number;
+      properties: number;
+      eventsThisMonth: number;
+      currentRate: number;
+    };
+    tape: Array<{
+      at: string;
+      kind: "ledger" | "audit";
+      label: string;
+      who: string | null;
+      unitNumber: string | null;
+      propertyName: string | null;
+      amount: number | null;
+      applicationId: string | null;
+    }>;
+    byProperty: Array<{
+      propertyName: string;
+      units: number;
+      evidenceCount: number;
+      delinquent: number;
+    }>;
+  }> {
+    // Property scoping mirrors getDelinquencyReport: scope rows that hang off
+    // applications; portfolio-global counts (properties, audit) stay global.
+    let appScopeSql = "";
+    const appScopeParams: unknown[] = [];
+    if (req) {
+      const scope = buildPropertyScope(req, 1, "a.property_id");
+      if (scope.denyAll) {
+        return {
+          stats: { evidenceRecords: 0, unitsOnLedger: 0, properties: 0, eventsThisMonth: 0, currentRate: 0 },
+          tape: [],
+          byProperty: [],
+        };
+      }
+      if (scope.sql) {
+        appScopeSql = ` AND ${scope.sql}`;
+        appScopeParams.push(scope.param);
+      }
+    }
+
+    const statsResult = await query(
+      `SELECT
+         (SELECT count(*) FROM tenant_ledger l JOIN applications a ON a.id = l.application_id WHERE 1=1${appScopeSql})
+           + (SELECT count(*) FROM audit_log) AS evidence_records,
+         (SELECT count(*) FROM applications a WHERE a.status = 'onboarded'${appScopeSql}) AS units_on_ledger,
+         (SELECT count(*) FROM properties) AS properties,
+         (SELECT count(*) FROM tenant_ledger l JOIN applications a ON a.id = l.application_id
+            WHERE l.created_at >= date_trunc('month', now())${appScopeSql})
+           + (SELECT count(*) FROM audit_log WHERE created_at >= date_trunc('month', now())) AS events_this_month,
+         (SELECT count(*) FROM (
+            SELECT a.id FROM applications a
+            LEFT JOIN tenant_ledger l ON l.application_id = a.id
+            WHERE a.status = 'onboarded'${appScopeSql}
+            GROUP BY a.id
+            HAVING COALESCE(SUM(l.amount), 0) <= 0
+          ) cur) AS current_units`,
+      // scope.sql references $1 in every subquery — pg binds one param to all of them
+      appScopeParams
+    );
+    const s = statsResult.rows[0];
+    const unitsOnLedger = parseInt(s.units_on_ledger, 10) || 0;
+    const currentUnits = parseInt(s.current_units, 10) || 0;
+
+    const tapeResult = await query(
+      `SELECT * FROM (
+         SELECT l.created_at AS at, 'ledger' AS kind, l.entry_type::text AS label,
+                a.first_name || ' ' || a.last_name AS who, a.unit_number,
+                p.name AS property_name, l.amount::float AS amount,
+                l.application_id::text AS application_id
+           FROM tenant_ledger l
+           JOIN applications a ON a.id = l.application_id
+           JOIN properties p ON p.id = a.property_id
+          WHERE 1=1${appScopeSql}
+         UNION ALL
+         SELECT g.created_at AS at, 'audit' AS kind, g.action::text AS label,
+                COALESCE(g.actor_role::text, 'system') AS who, NULL AS unit_number,
+                NULL AS property_name, NULL::float AS amount,
+                g.application_id::text AS application_id
+           FROM audit_log g
+       ) merged
+       ORDER BY at DESC
+       LIMIT 15`,
+      appScopeParams
+    );
+
+    const byPropertyResult = await query(
+      `SELECT p.name AS property_name,
+              COUNT(DISTINCT a.id) FILTER (WHERE a.status = 'onboarded') AS units,
+              COUNT(l.id) AS evidence_count,
+              COUNT(DISTINCT a.id) FILTER (WHERE a.status = 'onboarded' AND bal.balance > 0) AS delinquent
+         FROM properties p
+         LEFT JOIN applications a ON a.property_id = p.id${appScopeSql}
+         LEFT JOIN tenant_ledger l ON l.application_id = a.id
+         LEFT JOIN (
+           SELECT application_id, SUM(amount) AS balance
+             FROM tenant_ledger GROUP BY application_id
+         ) bal ON bal.application_id = a.id
+        GROUP BY p.name
+        ORDER BY evidence_count DESC, p.name ASC`,
+      appScopeParams
+    );
+
+    return {
+      stats: {
+        evidenceRecords: parseInt(s.evidence_records, 10) || 0,
+        unitsOnLedger,
+        properties: parseInt(s.properties, 10) || 0,
+        eventsThisMonth: parseInt(s.events_this_month, 10) || 0,
+        currentRate: unitsOnLedger > 0 ? Math.round((currentUnits / unitsOnLedger) * 100) : 0,
+      },
+      tape: tapeResult.rows.map((r: any) => ({
+        at: r.at instanceof Date ? r.at.toISOString() : String(r.at),
+        kind: r.kind,
+        label: r.label,
+        who: r.who ?? null,
+        unitNumber: r.unit_number ?? null,
+        propertyName: r.property_name ?? null,
+        amount: r.amount === null || r.amount === undefined ? null : parseFloat(r.amount),
+        applicationId: r.application_id ?? null,
+      })),
+      byProperty: byPropertyResult.rows.map((r: any) => ({
+        propertyName: r.property_name,
+        units: parseInt(r.units, 10) || 0,
+        evidenceCount: parseInt(r.evidence_count, 10) || 0,
+        delinquent: parseInt(r.delinquent, 10) || 0,
+      })),
+    };
+  }
+
+  /**
    * Delinquency report: all tenants with positive balance, grouped by aging.
    */
   async getDelinquencyReport(
