@@ -38,6 +38,22 @@ knowledge source, per-call context.
 4. **Frank Hawkins sign-off** on his name in the greeting (flagged in
    voice-agent-greeting.md).
 
+## Quality tier (dashboard-only, no code — do first)
+
+1. **Frank's cloned voice on `frank-onboarder`** (clone exists — see
+   `aime-caddie (Frank voice)`; clone use approved per the May Notion decision).
+   The "digital assistant for Frank Hawkins" disclosure makes this honest.
+2. **Real system prompt**: port the chat guardrails — no personal qualification
+   rulings ("the application verifies this"), no steering, fair-housing
+   neutral, platform facts win, PM-callback escalation path.
+3. **ElevenLabs Tests suite**: fee → $35.95; food stamps → excluded;
+   "do I qualify?" → refuses to rule; fair-housing bait → neutral. Run on
+   every prompt edit.
+4. **Spanish** — EN+ES is a day-one platform requirement (roadmap); enable
+   multilingual + Spanish greeting variant.
+5. **Post-call webhook to prod** (`VOICE_INTAKE_ENABLED` + webhook secret) —
+   transcripts/consent/callbacks land in `voice_calls` + PM console + tape.
+
 ## Build order (post-demo)
 
 1. Twilio upgrade + verify FAQ answers on inbound (KB interim).
