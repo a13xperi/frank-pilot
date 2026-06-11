@@ -38,7 +38,7 @@ const columns: Column<Application>[] = [
     header: 'Property',
     render: (r) => r.property_name ?? '—',
   },
-  { key: 'unit_number', header: 'Unit' },
+  { key: 'unit_number', header: 'Unit', className: 'whitespace-nowrap' },
   {
     key: 'household_size',
     header: 'Household',
@@ -93,18 +93,20 @@ export function Applications() {
         }
       />
 
-      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+      <div className="flex flex-wrap gap-x-6 border-b border-gray-300">
         {STATUS_TABS.map((t) => (
           <button
             key={t.value}
             onClick={() => setTab(t.value)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              tab === t.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            className={`-mb-px border-b-2 px-1 pb-2.5 pt-1 text-sm font-medium transition-colors ${
+              tab === t.value
+                ? 'border-brand-700 text-brand-800'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
             }`}
           >
             {t.label}
             {!loading && (
-              <span className="ml-1.5 text-xs text-gray-400">
+              <span className="ml-1.5 text-xs tabular-nums text-gray-400">
                 {t.value === ''
                   ? allApps.length
                   : t.value === 'approval'

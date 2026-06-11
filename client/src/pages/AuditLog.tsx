@@ -191,11 +191,11 @@ function ComplianceTapePanel() {
     tapeError?.toLowerCase().includes('501');
 
   return (
-    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6">
+    <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 sm:p-8">
       {/* Section heading */}
-      <div>
-        <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-          <LinkIcon className="h-4 w-4 text-emerald-600" />
+      <div className="border-b-2 border-gray-300 pb-4">
+        <h2 className="font-serif text-xl font-semibold text-gray-900 flex items-center gap-2.5">
+          <LinkIcon className="h-4 w-4 text-emerald-700" />
           Compliance Tape
         </h2>
         <p className="mt-0.5 text-xs text-gray-500">
@@ -211,7 +211,7 @@ function ComplianceTapePanel() {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm w-80 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm w-80 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         />
         <Button
           variant="primary"
@@ -398,12 +398,12 @@ export function AuditLog() {
           placeholder="Filter by Application ID..."
           value={applicationId}
           onChange={(e) => { setApplicationId(e.target.value); setPage(0); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm w-72 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm w-72 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         />
         <select
           value={action}
           onChange={(e) => { setAction(e.target.value); setPage(0); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
         >
           <option value="">All Actions</option>
           <option value="application_created">Application Created</option>

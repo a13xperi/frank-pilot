@@ -135,11 +135,21 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className={`flex h-16 items-center gap-2 border-b border-gray-200 px-6 ${collapseHeaderPad}`}>
-        <Building2 className="h-6 w-6 shrink-0 text-brand-600" />
-        <span className={`text-lg font-semibold text-gray-900 ${collapseLabel}`}>CDPC Hub</span>
+      <div className={`flex h-16 items-center gap-3 border-b border-gray-200 px-5 ${collapseHeaderPad}`}>
+        {/* Seal-like double-ring mark. */}
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-brand-300 bg-brand-50 p-[3px]">
+          <div className="flex h-full w-full items-center justify-center rounded-full border border-brand-700">
+            <Building2 className="h-4 w-4 text-brand-700" />
+          </div>
+        </div>
+        <div className={collapseLabel}>
+          <p className="font-serif text-lg font-bold leading-tight text-gray-900">CDPC</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-gray-500">
+            Compliance Hub
+          </p>
+        </div>
       </div>
-      <nav aria-label="Primary" className="flex-1 space-y-1 overflow-y-auto p-3">
+      <nav aria-label="Primary" className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {visible.map((item) => (
           <NavLink
             key={item.path}
@@ -148,10 +158,10 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
             title={collapsed ? item.label : undefined}
             onClick={onClose}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${collapseItemPad} ${
+              `flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${collapseItemPad} ${
                 isActive
-                  ? 'bg-brand-50 text-brand-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-brand-50 font-semibold text-brand-800'
+                  : 'font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`
             }
           >
@@ -160,8 +170,13 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
           </NavLink>
         ))}
       </nav>
-      <div className="border-t border-gray-200 p-4">
-        <p className={`text-xs text-gray-400 ${collapseLabel}`}>CDPC Nevada</p>
+      <div className="border-t border-gray-200 px-5 py-4">
+        <div className={collapseLabel}>
+          <p className="font-serif text-sm font-semibold text-gray-700">CDPC Nevada</p>
+          <p className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-gray-400">
+            In Public Trust
+          </p>
+        </div>
       </div>
     </aside>
   );

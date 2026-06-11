@@ -40,16 +40,16 @@ export function Modal({ open, onClose, title, children, wide }: ModalProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`relative max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl outline-none ${wide ? 'w-full max-w-2xl' : 'w-full max-w-md'}`}
+        className={`relative max-h-[90vh] overflow-y-auto rounded-lg border-t-4 border-brand-700 bg-white p-6 shadow-xl outline-none ${wide ? 'w-full max-w-2xl' : 'w-full max-w-md'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h2>
+          <h2 id={titleId} className="font-serif text-xl font-semibold text-gray-900">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             <X className="h-5 w-5" />
           </button>
