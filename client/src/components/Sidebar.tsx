@@ -17,6 +17,7 @@ import {
   Shield,
   ScrollText,
   Camera,
+  Landmark,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,10 +32,13 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard, minRole: 'leasing_agent' },
+  // Showcase view — agents are property-scoped (often to zero properties in the
+  // demo seed), so an empty showcase would undercut it; managers and up only.
+  { label: 'The Ledger', path: '/the-ledger', icon: Landmark, minRole: 'senior_manager' },
   { label: 'Applications', path: '/applications', icon: FileText, minRole: 'leasing_agent' },
   { label: 'Screening', path: '/screening', icon: Search, minRole: 'senior_manager' },
   { label: 'Approvals', path: '/approvals', icon: CheckCircle, minRole: 'senior_manager' },
-  { label: 'Ledger', path: '/ledger', icon: DollarSign, minRole: 'leasing_agent' },
+  { label: 'Rent Ledger', path: '/ledger', icon: DollarSign, minRole: 'leasing_agent' },
   { label: 'Properties', path: '/properties', icon: Building2, minRole: 'leasing_agent' },
   { label: 'Users', path: '/users', icon: Users, minRole: 'senior_manager' },
   { label: 'Inspections', path: '/inspections', icon: ClipboardCheck, minRole: 'leasing_agent' },

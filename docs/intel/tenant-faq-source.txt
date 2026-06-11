@@ -1,0 +1,283 @@
+Global Property Management Group (GPMG LV) Affordable Housing FAQ  Managed by Frank Hawkins www.gpmglv.com
+
+This FAQ compiles answers to over 500 common questions from prospective tenants regarding LIHTC affordable housing in Las Vegas, NV.
+Key Principles:
+- Compliance with LIHTC, HUD/HOTMA, Nevada Housing Division, and Fair Housing laws.
+- Answers are general; property-specific details may vary.
+- Always verify with the leasing office.
+
+1) What does “LIHTC” mean?
+LIHTC stands for Low-Income Housing Tax Credit. It is a federal program (Section 42 of the Internal Revenue Code) that gives tax credits to developers/investors to build or rehabilitate affordable rental housing. In return, a certain percentage of units must be rented to income-qualified households at restricted (below-market) rents for at least 15–30+ years. Nevada Housing Division administers it in Nevada.
+2) Is this the same as Section 8?
+No.
+	•	LIHTC (Section 42): Property-based. Rents are set at affordable levels based on AMI (no tenant voucher needed). Focuses on creating affordable supply.
+	•	Section 8 (Housing Choice Voucher): Tenant-based subsidy from HUD/PHA. The tenant pays ~30% of income; the voucher covers the rest. Can be used in LIHTC units if the property accepts it, but not required.
+Some LIHTC properties accept Section 8 vouchers, but many do not or have limited units. They are complementary but distinct programs.
+3) Do I need a housing voucher to apply?  No. Most LIHTC units do not require a Section 8 or other voucher. You qualify based on your income and other criteria. A voucher can help with rent if the property accepts it, but it is not needed to apply or qualify.
+4) Can I apply if I do not have a voucher?
+Yes. You can (and most applicants do) apply without one. Apply directly to the property.
+5) What income limit applies to my household?
+This depends on the specific unit/set-aside at the property (commonly 50% or 60% of AMI). Limits are adjusted by household size and updated annually by HUD (MTENANT SCREENING PROCESS limits for LIHTC).
+For Clark County (Las Vegas-Henderson-Paradise MSA) in 2026, check the latest HUD MTENANT SCREENING PROCESS tables (effective May 1, 2026; must be implemented by ~June 15). Roughly (based on recent patterns; confirm current figures):
+	•	Contact the property for the exact limit for your household size and unit type.
+	•	Example prior-year ballpark for 4-person: ~$50k–$60k at 50–60% AMI (varies yearly).
+Income includes most household members’ gross income (wages, SS, etc.). Properties use the most restrictive applicable limit if multiple programs layer.
+6) Is the income limit based on my gross income or take-home pay?
+Gross income (before taxes/deductions). LIHTC follows HUD rules for annualizing verifiable income sources. Take-home pay is not used.
+7) How many people can live in the unit?
+This follows the property’s occupancy standards (in the Tenant Selection Plan), typically based on:
+	•	Minimum: Often 1–2 people per bedroom to avoid under-occupancy.
+	•	Maximum: Generally 2 persons per bedroom + 1 (e.g., 2BR unit: up to 5 people). This complies with fair housing and prevents overcrowding.
+Household size includes all who will live there (related or not), with some exceptions (e.g., live-in aides, foster children per HOTMA). The manager will assess based on unit size, bedrooms, and local rules.
+8) Can I apply before I have all my documents?
+Usually yes, but you’ll need to provide them before final approval. Common required docs include:
+	•	ID/SSN for all household members.
+	•	Income verification (pay stubs, tax returns, award letters, bank statements).
+	•	Asset info.
+	•	Rental history, background check consent.
+	•	Student status certification (strict LIHTC rules apply).
+Incomplete applications may be processed but held until verified. Start early.
+9) How long does the application process take?
+It typically takes 2–6 weeks (or longer), depending on:
+	•	Completeness of your docs.
+	•	Verification time (employer/ bank responses).
+	•	Waiting list length.
+	•	Background/credit checks.
+Properties aim for efficiency but must fully verify for compliance. Follow up with the leasing office for this property’s timeline.
+10. Am I eligible for this apartment?
+Eligibility depends on:
+	•	Your household income being at or below the property’s designated income limit (typically 50% or 60% of Area Median Income / AMI for Clark County, adjusted for household size).
+	•	Household size fitting the unit (occupancy standards).
+	•	Passing background/credit screening, student rules, and other property criteria.
+	•	Providing verifiable documentation.
+You are not automatically eligible just by applying—full verification is required. Properties maintain a waiting list if units are full.
+11. Is there an application fee?
+Many LIHTC properties charge a reasonable, non-refundable application fee to cover processing and screening costs (background/credit checks). This is typically $25–$50 per adult or per household—check the property’s current fee schedule. Some properties waive or reduce it for certain applicants. It is not the same as a security deposit. Fees must comply with state and local rules; they cannot be excessive.
+12. Is there a waiting list? How do I get on it?
+Yes, most LIHTC properties in high-demand areas like Las Vegas maintain a waiting list when units are full. To get on it: Submit a complete application (online or in-person, per property policy). Once preliminarily screened and added, you’ll be placed in chronological or preference-based order. Properties must maintain a written waiting list per their TENANT SCREENING PROCESS and Clark County/NHD guidelines.
+13. How do I know where I am on the waiting list?
+Contact the property manager regularly (by phone/email as allowed). Many properties provide your position upon request or when updates occur. Exact ranking may depend on unit size, preferences (e.g., veterans, elderly, local), and availability. Lists are managed fairly and updated as applicants are approved or withdraw.
+14. Can I apply for more than one unit size?
+Yes, in most cases. You can apply for multiple unit sizes/types (e.g., 1BR and 2BR) if your household qualifies for each under occupancy standards. Specify preferences on the application. This may place you on separate waiting lists. Confirm with the property, as some limit simultaneous applications.
+15. Can I apply if I already live in another affordable housing property?
+Yes, but you must disclose it. Properties verify current housing status. Moving may require notice to your current landlord and could affect eligibility if it violates other program rules (e.g., duplicative subsidies). LIHTC does not prohibit it outright if you meet income and other criteria for the new unit.
+16. Can I apply if I was previously denied at another property?
+Yes. A denial at one LIHTC property does not automatically disqualify you elsewhere. Reasons (e.g., income, background, credit) are property-specific. Provide full information and address any issues. Each property conducts its own independent review.
+17. Can I reapply if I am denied?
+Yes, usually after addressing the denial reason (e.g., providing missing documents, resolving credit issues, or waiting a specified period per the TENANT SCREENING PROCESS). Reapplications are reviewed as new submissions and placed on the waiting list accordingly. Some properties limit frequent reapplications—check the specific policy.
+18. What happens after I submit the application?
+	•	Preliminary review for completeness and obvious eligibility.
+	•	You may be added to the waiting list (if no immediate unit).
+	•	Full verification process begins when your turn approaches (income, assets, background, credit, rental history, student status).
+	•	Notification of approval, denial, or need for more info. The process ensures compliance with LIHTC rules.
+19. Who reviews my application? How long does it take?
+The property manager/leasing staff (or third-party screener) reviews it, following the owner’s approved Tenant Selection Plan. Reviews include income verification and compliance checks. Timeline: 2–8 weeks or longer, depending on completeness, verification responses, waiting list position, and volume. Complex cases (e.g., self-employment) take more time.
+20. What documents do I need before move-in?
+You’ll need to provide and verify:
+	•	Valid photo ID and SSN/ITIN for all household members.
+	•	Income verifications (pay stubs, tax returns, award letters, bank statements, third-party forms).
+	•	Asset information (bank accounts, etc.).
+	•	Rental history and references.
+	•	Background/credit check authorization.
+	•	Student status certification (critical for LIHTC).
+	•	Proof of any preferences (e.g., veteran status).
+Bring originals or certified copies. Additional items (lease, TIC form) are completed at move-in. Full verification is required before occupancy.
+Household Members and Occupancy
+21. Who must be listed on the application? All people who will live in the unit, including the head of household, spouse/co-head, dependents, other adults, and any anticipated additions (e.g., unborn children or custody changes). This determines household size for income limits, unit eligibility, and occupancy standards. Temporarily absent members (e.g., military) are usually included.
+22. Do I list children who live with me part-time? Yes, if they live with you more than 50% of the time or you have primary custody/shared custody and claim them for tax purposes (or per court order). Provide custody documentation. Properties verify based on time spent and support provided.
+23. Do I list unborn children? Yes, typically. Expectant mothers should note the pregnancy; the child counts toward household size for unit occupancy and (once born) income limits at move-in or recertification. Provide medical verification if requested.
+24. Do I list a child I am expecting to receive custody of? Yes, if the custody change is anticipated and verifiable (e.g., court documents). List them and provide supporting evidence during the process.
+25. Do I list a spouse who does not live with me? Generally yes, if legally married and not permanently separated/divorced. Provide documentation; they may count for income and size unless specific exceptions apply (e.g., incarceration). Consult the property for details.
+26. Do I list someone who is temporarily away? Yes (e.g., military deployment, hospitalization, school). They remain part of the household for size and income purposes if they intend to return. Provide verification.
+27. Can my adult child live with me? Yes, if the unit meets occupancy standards and they meet all eligibility (income, background, student rules). Their income counts toward household totals.
+28. Can my caregiver live with me? Possibly, as a live-in aide if approved as a reasonable accommodation for a disabled household member. They must be essential to care, not obligated for support, and would not live there otherwise.
+29. What is a live-in aide? A person (not a spouse) who resides with an elderly, near-elderly, or disabled person and is essential to their care/well-being. They are verified via medical/professional documentation and approved by the property.
+30. Does a live-in aide’s income count? No. Live-in aide income is excluded from household income calculation (but they count toward occupancy/unit size).
+31. Can I add someone after I move in? Yes, but it requires property approval, full screening/verification (income, background, student status), and often an interim recertification. They must qualify under program rules; approval is not guaranteed.
+32. Can I remove someone from the application? Yes, before move-in with updated documentation. Post-move-in changes require notification and possible recertification.
+33. What happens if my household size changes before move-in? Notify the property immediately. It may affect unit eligibility, income limits, or waiting list position. A new or updated certification is usually required.
+34. What unit size does my household qualify for? Based on the property’s occupancy standards (typically 1–2 people per bedroom, with min/max guidelines). Household size (including live-in aides for occupancy) determines suitability to avoid under- or over-crowding.
+35. Can two unrelated adults apply together? Yes, as a household. Both incomes count; they must meet all eligibility criteria and occupancy rules.
+36. Can I have a roommate? Similar to unrelated adults—yes, if listed on the application and qualifying. Roommates are treated as household members.
+37. Can I share custody and still list my child? Yes, if documentation shows significant residency/time (often >50%) or court-ordered support. Properties review case-by-case.
+38. Do foster children count as household members? Yes, for occupancy/unit size. Under HOTMA, they are generally non-family members for income purposes.
+39. Do foster adult payments count? Payments for the care of foster children/adults are excluded from income. Foster adults/children count for occupancy but their personal income/assets are often handled specifically (consult property).
+40. What if someone in my household does not have ID? Contact the property manager. Alternatives (e.g., birth certificates, affidavits, or extra time) may be allowed per TENANT SCREENING PROCESS and fair housing rules, but SSN/ITIN verification is usually required for most members.
+Income Questions
+41. What income do I have to report? All anticipated income for the next 12 months from household members (age 18+, head/spouse, and unearned for dependents), unless specifically excluded. This includes wages, benefits, etc. Full third-party verification is required.
+42. Do I report gross wages before taxes? Yes—gross income (full amount before deductions).
+43–46. Do I report overtime / tips / bonuses / commissions? Yes, as part of wages/compensation for personal services. Average or annualize based on history.
+47. Do I report seasonal income? Yes—annualize based on expected yearly total.
+48. Do I report cash jobs? Yes—self-report and verify as best as possible (e.g., bank deposits, statements). Non-disclosure can lead to denial.
+49. Do I report self-employment income? Yes—net income from business (after allowable expenses, per tax returns/schedules). Provide business records or tax returns.
+50–53. What if I just started a new job / lost my job / hours change / paid daily? Report current anticipated income; provide verification. Properties annualize or use history where possible. Recent changes require documentation.
+54. What if I am paid through an app like Uber, Lyft, etc.? Yes—report as self-employment or wages. Provide app statements, 1099s, or bank records.
+55–58. Do unemployment / Social Security / SSI / disability income count? Yes (generally). Provide award letters or verification. Some disability-related exclusions may apply.
+59. Does child support count? Yes, if received or anticipated. Provide court orders and payment history.
+60. What if I am supposed to receive child support but do not? Report actual amounts received. If court-ordered but not paid, provide evidence; it may not be counted if not reliable.
+61. Does alimony count? Yes, if received.
+62. Does TANF or welfare count? Yes.
+63. Do food stamps count as income? No—SNAP/food stamps are excluded.
+64. Does financial help from family or friends count? Yes, if regular/recurring. One-time gifts usually do not.
+65. Do recurring Zelle, Cash App, or Venmo payments count? Yes, if they represent income (e.g., support, payment for services).
+66. Do one-time gifts count? Generally no, if non-recurring.
+67–68. Does student financial aid / scholarships count? Portions may be excluded (e.g., for tuition/books); room/board or living expenses often count. Provide award letters.
+69. Does workers’ compensation count? Yes.
+70. Does pension or retirement income count? Yes—periodic payments. Lump sums may be treated as assets.
+Assets and Bank Accounts
+71. Why do I have to list my bank accounts? To calculate total household assets and any income they generate (e.g., interest). This ensures compliance with income eligibility rules. Assets help determine if imputed income applies (currently over ~$50,000 threshold for full verification in LIHTC).
+72–73. Do checking / savings accounts count as assets? Yes. The current balance (or average for checking) is included in net family assets.
+74–75. Do prepaid debit cards / Cash App, PayPal, Venmo, or Chime accounts count? Yes, if they hold funds that are accessible (treated like bank accounts). Provide statements or balances.
+76–77. Do retirement accounts / 401(k), IRA, or pension count? Generally no—IRS-recognized retirement accounts are excluded from asset calculations under HOTMA (periodic distributions may count as income).
+78. Does a car count as an asset? Usually no, if it is necessary personal property for transportation. Recreational vehicles (e.g., RVs) may count.
+79. Does life insurance count? Cash surrender value (if accessible) may count as an asset; face value generally does not.
+80. Do I have to report property I own? Yes—real property (land/homes) is included in net family assets if you have ownership interest and authority to sell. Provide details and value.
+81. What if I sold or gave away an asset? Report assets disposed of for less than fair market value in the past 2 years. This may impute income. Provide documentation.
+82. What if I have no bank account? Self-certify on the asset form. You may still need to disclose other assets or explain cash management.
+83. Why are you asking for bank statements? To verify balances, detect unreported income/deposits, and ensure accurate asset/income reporting.
+84. How many months of bank statements are required? Typically 1–3 months (or current statement) under HOTMA updates; previously more. Follow the property’s TENANT SCREENING PROCESS.
+85. What happens if my bank statement shows deposits I did not list? They will ask for explanation and verification. Unexplained deposits may be treated as income, affecting eligibility.
+Student Status
+86. Why are you asking if I am a student? LIHTC has strict rules: Households of only full-time students are generally ineligible unless an exception applies.
+87. Does being a student make me ineligible? Not automatically. Part-time students are usually fine. Full-time student households need an exception.
+88. What is considered a full-time student? Enrolled full-time (as defined by the school) for at least 5 months (not necessarily consecutive) in a calendar year at an educational institution (K-12, college, trade school, etc.).
+89. Do part-time students qualify? Yes—part-time status typically avoids the full-time student restriction.
+90. What if everyone in my household is a full-time student? The household is ineligible unless it meets one of the IRS exceptions (see below).
+91. Are there exceptions for single parents? Yes—one major exception: Single parents (not dependents of others) with their children (children not dependents of third parties other than a parent).
+92. Are there exceptions for married students filing jointly? Yes—married students filing a joint tax return qualify for the exception.
+93. Are there exceptions for TANF or job-training programs? Yes—receiving TANF (or Title IV SSA assistance), or enrolled in approved job-training programs.
+94. Do children in school count as students? School-age children are considered students, but the rule focuses on full-time status for the entire household.
+95. Do I have to verify school enrollment every year? Yes—student status must be certified annually (or as required by the property).
+Screening, Rent, Lease, and Move-In
+96. Will you check my credit? Yes, typically as part of screening per the Tenant Selection Plan (sometimes called Resident Selection Plan). Poor credit may lead to denial or additional requirements (e.g., cosigner), but policies vary. 
+97. Will you check my criminal background? Yes, usually. Convictions are reviewed individually (nature, time elapsed, rehabilitation) per fair housing/HUD guidance. Arrests alone are not typically disqualifying.
+98. Can I be denied because of an eviction? Possibly, depending on the property’s policy and circumstances (e.g., recent/non-payment evictions). Not automatic—individual review required.
+99. How much will my rent be, and does it include utilities? Rent is restricted based on the unit’s set-aside (e.g., 30% of 50%/60% AMI for qualifying income). Check current limits with the property. Utilities are often separate (with allowance) or included—confirm via utility allowance schedule.
+100. What do I need to pay before I can receive keys? Typically: First month’s rent, security deposit (often 1 month’s rent or less), and any application/ admin fees. Prorated rent may apply. All must be paid before move-in.
+ Reasonable Accommodations and Disability-Related Help
+101. Can someone help me complete the application if I have a disability? Yes. Staff can provide assistance (e.g., reading forms aloud, helping fill them out) as a reasonable accommodation. You may also bring a family member, advocate, or representative.
+102. Can I request extra time to return documents because of a disability? Yes, if the extra time is necessary due to your disability. Submit the request promptly with explanation.
+103. Can I submit my application by email, phone, mail, or in person if I cannot use the online portal? Yes. Alternative formats/methods must be provided as a reasonable accommodation upon request.
+104–106. Can I request large-print forms / accessible electronic format / help reading or understanding the forms? Yes. These are standard reasonable accommodations. Properties should provide materials in accessible formats (large print, audio, Braille, etc.) and assistance as needed.
+107. What is a reasonable accommodation? A change in rules, policies, practices, or services that allows a person with a disability equal opportunity to use and enjoy the housing (e.g., exceptions to pet policies, unit transfers, modified procedures). It must be disability-related and not cause undue financial/administrative burden or fundamental alteration.
+108. How do I request a reasonable accommodation? Make the request verbally, in writing, or via the property’s form (if available). No specific format is required—explain the need and connection to your disability. Staff will engage in an interactive process.
+109. Do I need to use special words to request an accommodation? No. Any communication indicating a need due to disability is sufficient (e.g., “I need help because of my mobility issues”).
+110. Do I need a doctor’s note for every accommodation request? Not always. Documentation may be requested if the disability or need is not obvious. It should confirm the disability-related need but need not disclose full medical details.
+111–112. What information can management ask / not allowed to ask about my disability? They can ask for information necessary to evaluate the request (disability-related need). They cannot ask about the nature/extent of the disability, medical records, or unrelated details.
+113–116. Can I ask for a lower unit / close to parking / accessible parking / grab bars, ramps, etc.? Yes, if necessary due to disability. These are common reasonable accommodations or modifications.
+117. Who pays for disability-related modifications? The tenant generally pays for modifications (e.g., grab bars), but the property may cover some or allow them to remain. Structural changes in common areas are typically the owner’s responsibility under accessibility laws.
+118–120. Can I ask for a live-in aide? / Does their income count? / Do they have to pass screening? Yes, as a reasonable accommodation if verified as necessary. Live-in aide income is excluded; they must meet basic screening (background, etc.) but not full income eligibility.
+121. Can I change my live-in aide after move-in? Yes, with approval and verification of the new aide’s necessity.
+122–123. Can I ask for a larger unit because of medical equipment / live-in aide? Yes, if justified as a reasonable accommodation and a suitable unit is available.
+124. Can I request a transfer later if my disability needs change? Yes—submit a new reasonable accommodation request. Priority may be given based on need.
+125. What happens if my accommodation request is denied? You will receive a written explanation. You can appeal internally or file a complaint with HUD (FHEO), Nevada Equal Rights Commission, or pursue other legal remedies.
+Assistance Animals and Pets
+126–128. Is an assistance animal the same as a pet? / Do they count under pet policy? / Can I have one with no-pet policy? Assistance animals (trained service animals) are not pets. They are allowed as a reasonable accommodation even in no-pet properties (per Fair Housing Act). Note: As of 2026 HUD enforcement guidance, focus is on trained service animals performing specific tasks; emotional support animals (ESAs) have narrower federal enforcement protection.
+129–130. Can management charge a pet deposit / rent for an assistance animal? No for qualified service animals.
+131–134. Can management require proof? / What documentation? / Who can provide? / Online letters? Yes, if disability or need is not obvious. Acceptable: Letter from a reliable professional (doctor, therapist, etc.) confirming the disability-related need. Online letters are evaluated case-by-case for reliability.
+135–137. Breed/size limits? / More than one? Generally no arbitrary restrictions if the animal is necessary; however, the animal must not pose a direct threat. Multiple may be approved if justified.
+138–139. Vaccination / licensing? Yes, must comply with local laws (Clark County/Nevada requirements) and proof of vaccinations.
+140–141. Can it be denied due to allergies / fear? No, if it qualifies—individual circumstances are weighed, but denial solely on that basis is generally not allowed.
+142–144. Damage / cleanup / aggressive behavior? You are responsible for damage, cleanup, and controlling the animal. It can be removed if it poses a direct threat or causes significant damage.
+145. Can I bring my assistance animal to the leasing office? Yes, for meetings related to your application (as a reasonable accommodation).
+Language Access and Help Understanding Forms
+146–148. Application in Spanish / other languages? / Interpreter? Properties should provide meaningful access for Limited English Proficiency (LEP) individuals, including translated vital documents and interpreters where feasible (especially if layered with other HUD funds). Ask for availability.
+149–150. Can a family member help translate / someone to explain? Yes, generally allowed, though professional interpreters are preferred for important documents.
+151–155. Notices in preferred language / phone instead of email / more time / foreign documents? Reasonable efforts should be made for vital communications. Extra time and translated/submitted documents are often accommodated.
+156–160. Do foreign documents need translation? / Who translates? / Consulate etc.? / Name spelling differences? Yes, certified translations may be required for key verifications. Community resources, consulates, or approved translators can help. Minor spelling variations are often accepted with explanation.
+VAWA, Safety, Confidentiality, and Emergency Situations
+161. What is VAWA? The Violence Against Women Act provides housing protections for survivors of domestic violence, dating violence, sexual assault, or stalking in covered programs (including LIHTC).
+162–166. Does VAWA apply to applicants? / Can I apply if experiencing [violence]? Yes—it applies to applicants and residents. You cannot be denied solely because of the violence experienced.
+167–171. Confidentiality? / Police report / restraining order / self-certify / advocate documentation? Information is kept confidential. Self-certification (HUD form) is usually sufficient; third-party documentation (advocate, doctor, etc.) is also accepted. Police reports or orders are not always required.
+172–175. Can I be denied because of police calls / damage / eviction / criminal activity related to abuse? No—VAWA prohibits denial or eviction based on the survivor’s victimization.
+176–180. Remove abuser? / Emergency transfer? / Confidentiality from household? / Abuser on lease? Yes—bifurcation of lease is possible. Emergency transfers are available. Information remains confidential; the abuser can be removed.
+Documents, Identity, and Verification Problems
+181–185. No birth certificate / SSN card / expired ID / name change / waiting for replacements? Contact the property—alternatives (e.g., other IDs, affidavits, extra verification time) are often accepted. Name changes require supporting documents (marriage certificate, court order, etc.).
+186–189. Employer won’t verify / cash jobs / self-employed no taxes? Provide alternative verifications (e.g., bank statements, tax returns, affidavits). Properties work with applicants on good-faith efforts.
+190–193. Recent income change / job offer / between jobs / non-income deposits? Report current anticipated income with documentation. Explain deposits.
+194–199. Family money / bills paid directly / shared accounts / no bank account / apps like Cash App? Report recurring contributions as income if applicable; one-time gifts usually excluded. Provide explanations and available records.
+200. What if I cannot get all documents before the deadline? Notify the property immediately and request an extension (especially if disability- or VAWA-related). Good-faith efforts are considered.
+More Application and Eligibility Questions
+201–204. Can I apply if I am currently homeless / staying with family/friends / in a shelter / in a motel? Yes. Current housing situation does not disqualify you if you meet income and other eligibility rules. Provide available verification (e.g., shelter letter, explanation).
+205. Can I apply if I am fleeing domestic violence? Yes—VAWA protections apply to applicants. Provide self-certification or other documentation if needed.
+206–210. Can I apply if I do not have a current lease / am temporarily out of state / moving from another city/state / not a Nevada resident yet? Yes. LIHTC does not require current tenancy, local residency, or Nevada residency to apply, though some properties may have preferences.
+211. Do I have to live or work in this city to qualify? No—there is no general requirement, but local preferences (if any) may prioritize those who do.
+212–216. Is there a local residency / veteran / disability / homelessness / live-work preference? It depends on the property’s approved TENANT SCREENING PROCESS. Many LIHTC properties have preferences for veterans, disabled households, homeless, or local residents/workers. Ask the leasing office for the current list.
+217–218. Is the application selected by first-come, first-served or lottery? Usually first-come, first-served on the waiting list, but some properties use lotteries for initial selection. Follow the property’s TENANT SCREENING PROCESS.
+219–220. How will I know if my application was received? / Confirmation number? You should receive a receipt, email, or confirmation number upon submission. Keep a copy for your records.
+Application Completion Questions
+221–223. Do I need to complete every line? / Leave something blank? / Write “N/A”? Complete all applicable fields. Use “N/A” or “None” for non-applicable items. Leaving blanks may delay processing.
+224–225. Can staff / someone else help fill out the application? Yes—staff can assist as a reasonable accommodation if needed, and you may have help from a representative or family member.
+226–232. Can I sign electronically / submit paper / online / email / fax / mail / drop off? All applications must be submitted via the GPMGLV app on your phone or computer. This ensures accuracy and speed. You may ask someone for assistance if you need help. To download the app, go to: 
+233–234. What time is the application deadline? / Miss the deadline? Deadlines (if any) are per the Tenant Screening Process. Missing one may require re-submission; contact the office.
+235–239. Can I correct a mistake / update contact info / bedroom size after submitting? Yes—notify the property promptly with updates. Changes are allowed before final approval.
+240. Can I withdraw my application and reapply later? Yes. You can withdraw and reapply (may go to the bottom of the waiting list).
+Waiting List Questions
+241–242. How long is the waiting list? / How often updated? Varies widely (months to years in high-demand areas). Check the app daily for your current status and updates.
+243–247. Will you call/email/mail me? / Miss call / voicemail / spam / how many attempts? The property will attempt contact per the app which is their preferred Tenant Screening Process. It is your responsibility to check the app frequently and respond promptly to avoid removal.
+248–250. Can I lose my place / be removed? / How to keep active? Yes, if you fail to respond, provide docs, or meet updates. Check in periodically as required and keep contact info current.
+251–254. Do I need to check in? / Add or remove household member / change income? Yes—notify the property of any changes (household, income) via the app. Updates may require re-verification.
+255–260. Can position change? / Transfer spot? / Multiple lists? / Separate for accessible / bedroom size? Positions can shift with preferences or updates. Multiple applications are usually allowed. Separate lists often exist for unit types and accessible units.
+Unit Availability and Selection Questions
+261–262. What unit sizes are available? / How many bedrooms do I qualify for? Depends on current availability and your household size per occupancy standards (typically 1–2 per bedroom). Check the app for properties and wait list times.
+263–272. Can I choose my unit / floor / downstairs / upstairs / near office/parking / away from stairs/noise / near transport/school? Requests are considered but not guaranteed, except as reasonable accommodations for disability. Availability drives assignments.
+273–276. Can I request an accessible unit / roll-in shower / grab bars / no carpet? Yes, as a reasonable accommodation if disability-related and verified.
+277. Can I request a unit because of a medical condition? Yes, via reasonable accommodation request.
+278–280. What if I reject the unit offered? / How many offers? / Wait for different unit? You may reject, but multiple rejections can result in removal from the list per TENANT SCREENING PROCESS. Some properties limit offers.
+Income Eligibility Questions
+281. What income limit applies to my unit? The property’s set-aside (e.g., 50% or 60% AMI for Clark County, adjusted for household size). Confirm current HUD MTENANT SCREENING PROCESS limits with the office.
+282–283. What if my income is too low / too high? Too high = ineligible. Too low may still qualify (no federal minimum for most LIHTC), but some properties have minimums for rent affordability.
+284–287. Is there a minimum income requirement? / Zero income? / Zero-income certification? / Explain bills? Some properties have minimums; zero income is possible with certification of how expenses are met (e.g., savings, assistance).
+288–292. Does income have to be stable? / Look back? / No longer receive? / Expect to receive? Anticipated income for next 12 months is used. History is reviewed for verification. Past income that ended is generally not counted if not expected.
+293–300. Job offer / temporary / day labor / babysitting / caregiving / cleaning / selling food/items? Yes—report and verify all anticipated income sources.
+Employment and Wage Questions
+301–317. Multiple jobs / part-time / overtime / seasonal / school district / leave / short-term disability / family leave? All are reported and annualized based on history and expectations. Provide verification.
+318–320. Employer refuses verification? / Use pay stubs? / How many? Provide alternatives (pay stubs, bank statements, tax returns). Typically 2–4 recent pay stubs.
+Self-Employment Questions
+321–330. What counts as self-employment? / Side jobs / cash / apps / small business / social media / sales / tutoring / beauty / landscaping? Any work for profit, including gigs and side hustles. All must be reported.
+331–340. Documents? / Tax returns? / No taxes yet? / No profit? / Deduct expenses? / Cash / apps / changing income / new / closed business? Tax returns/Schedule C, profit/loss statements, bank records, receipts. Net income after expenses. Good-faith estimates and alternatives are accepted.
+Benefits and Support Questions
+341–349. Social Security / SSI / survivor / VA disability / pension / annuity / unemployment / workers’ comp? Most count as income (provide award letters). Some exclusions may apply.
+350–360. Child support (irregular/cash/court-ordered not paid) / informal family support / bills paid directly / groceries / utilities / one-time / church/nonprofit? Report actual/anticipated amounts. Recurring = income; one-time gifts/assistance usually excluded.
+Asset Questions
+361. Why do you need to know about my assets? To calculate asset income (imputed if over threshold) and ensure overall eligibility.
+362–380. Checking/savings/joint/child’s/trust/retirement/investments/stocks/bonds/crypto/refund/settlement/inheritance/insurance/gift cards/prepaid/vehicle/mobile home/land? Most liquid assets count toward net family assets. Retirement accounts generally excluded. Personal vehicles usually excluded. Report all.
+Documents and Verification Questions
+381–395. Different addresses / name spelling / lost/expired ID / out-of-state / no SSN / passport / consular / birth certificate / immigration / online systems? Provide explanations, alternatives, or extra time. Many options are accepted.
+396–400. Online statements / screenshots / handwritten / notarized / expiring docs? Acceptable with verification. Screenshots may need confirmation. Extensions are often granted.
+Rent, Utilities, Deposits, and Payments
+401–402. How is my rent calculated? / Income-based or fixed? LIHTC rents are generally fixed at an affordable level based on the unit’s set-aside (e.g., 30% of 50% or 60% AMI for the household size). They are not income-based like traditional Section 8 (unless the unit has project-based vouchers).
+403–405. Can rent change before / after move-in? / How often? Rent typically remains fixed at move-in but can increase at annual recertification (usually once per year) in accordance with program rules and the lease. Increases are limited and require notice.
+406–410. Are utilities included? / What do I pay separately? / Utility allowance? / Higher bills? Some utilities may be included; others are tenant-paid. A utility allowance (based on unit size and local averages) is subtracted from the rent portion you pay. If actual bills are higher, you pay the difference.
+411–413. Put utilities in my name? / Owe utility company? / Cannot get turned on? Yes, you generally must establish service in your name. Prior debts may need resolution. Move-in is usually not possible without active utilities—work with the property on solutions.
+414. Is renters insurance required? Often recommended or required by the lease. It protects your belongings (property does not cover tenant property).
+415–417. Security deposit amount? / Refundable? / Installments? Typically equivalent to one month’s rent or less (per state limits). It is refundable minus damages and cleaning, with itemized accounting. Installments may be allowed case-by-case.
+418–420. Move-in specials? / Third-party payments? / Payment methods? Specials vary by property and availability. Third-party assistance (nonprofit, family, etc.) is usually accepted. Common methods: money order, cashier’s check, electronic payments (confirm accepted options).
+Vouchers and Rental Assistance
+421–426. Do you accept Section 8 / project-based / VASH / rapid rehousing / emergency assistance / third-party? Many LIHTC properties accept vouchers and assistance, but it depends on the specific property’s policies. Confirm current acceptance with the leasing office.
+427–433. Apply before voucher issued? / Bedroom size mismatch? / Inspection? / Fails inspection? / Voucher expires? You can often apply pre-voucher. The unit must meet the voucher bedroom size and pass HQS inspection (scheduled by the housing authority). Failures must be corrected. Vouchers have expiration dates—coordinate timelines.
+434–435. Voucher pay deposit? / Portion changes? Policies vary (some allow, some do not for deposits). Changes in voucher amounts are adjusted at recertification.
+Credit, Background, and Rental History
+436–441. Credit score needed? / No credit? / Collections / medical debt / utility debt / owe prior landlord? No strict minimum score is federally required, but properties screen per TENANT SCREENING PROCESS. Mitigating factors (e.g., medical debt, age of issues) are often considered. Outstanding debts to prior landlords may cause denial.
+442–445. Eviction filing (no judgment) / old eviction / explain history / recommendation letters? Considered case-by-case. Recent evictions are more problematic. You can provide explanations and positive references.
+446–447. Co-signer / guarantor allowed? Generally no for standard LIHTC units (income eligibility applies to household only), though exceptions may exist for reasonable accommodations.
+448–449. Criminal history check? / What causes denial? Yes, background checks are standard. Denials are based on individualized assessment (nature, recency, relevance to tenancy). Certain serious/recent convictions may disqualify.
+450–455. Appeal denial? / Timeline? / Rehabilitation / dismissed charges / wrong report? Yes—you have appeal rights per the TENANT SCREENING PROCESS (usually 10–30 days). Provide documentation of rehabilitation, dismissals, or disputes. You can dispute inaccurate reports with the screening company.
+Household Changes Before Move-In
+456–465. Member no longer moving / marriage / separation / baby / death / child turns 18 / refuses to sign / incarcerated / deployed / custody change? Notify the property immediately. Changes may affect eligibility, unit size, income, or waiting list status and require updated verification/certification.
+Lease Signing and Move-In Timing
+466–471. How soon after approval? / Choose date? / Cannot move on date / delay / hold fee? Typically within a short window after approval (e.g., 7–30 days). Holds may require a fee. Communicate promptly to avoid losing the unit.
+472–477. All adults sign? / Electronic? / Review lease? / Explanation? / Documents / keys? All adult household members must sign. Electronic signatures are often allowed. You should receive a copy to review, explanations if requested, lease packet, and keys upon full execution and payments.
+478–480. What to bring? / Weekend move-in? / Movers access? Bring ID, funds, and required documents. Weekend move-ins and mover access depend on property rules—confirm in advance.
+Unit Condition and Maintenance
+481–484. Inspect before signing? / Move-in form? / Report pre-existing damage? / Charged for prior damage? Yes—inspect and document on the move-in form. You will not be charged for pre-existing damage if properly noted.
+485–487. Appliances / washer-dryer / window coverings? Standard appliances are usually included. In-unit washer/dryer and window coverings vary—ask about the specific unit.
+488–489. Paint? / Install shelves, cameras, alarms, satellite? Minor changes may be allowed with approval; alterations often require written permission and may need restoration at move-out. Reasonable accommodations for disability-related modifications are permitted.
+490. Submit maintenance requests? Use the property’s portal, app, phone, or office—emergency vs. non-emergency procedures apply.
+Community Rules and Resident Responsibilities
+491–493. Parking / guest parking / towing? Assigned or open parking per rules. Guest parking is limited; unauthorized vehicles may be towed. Follow posted regulations.
+494. Pets allowed? Per the pet policy in the lease/TENANT SCREENING PROCESS (restrictions on size, breed, number). Service/assistance animals are allowed as reasonable accommodations.
+495–498. Quiet hours? / Guests / visitors / extended absence? Quiet hours are enforced (typically 10 PM–8 AM). Guest policies limit duration. Notify management for extended absences to avoid abandonment concerns.
+499–500. Income/household changes after move-in? / Annual recertification? Report changes promptly. Annual recertification is required (income, household, student status, assets) to maintain eligibility and adjust rent if applicable.
+
+

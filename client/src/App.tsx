@@ -16,6 +16,7 @@ import { QaBundleDetail } from '@/pages/QaBundleDetail';
 import { DemoSessionDetail } from '@/pages/DemoSessionDetail';
 import { Recertifications } from '@/pages/Recertifications';
 import { LedgerOverview, LedgerDetail } from '@/pages/Ledger';
+import { TheLedger } from '@/pages/TheLedger';
 import { Evictions } from '@/pages/Evictions';
 import { Renewals } from '@/pages/Renewals';
 import { MoveOuts } from '@/pages/MoveOuts';
@@ -40,6 +41,7 @@ export default function App() {
               <Route path="applications/:id" element={<ApplicationDetail />} />
               <Route path="screening" element={<Screening />} />
               <Route path="approvals" element={<Approvals />} />
+              <Route path="the-ledger" element={<TheLedger />} />
               <Route path="ledger" element={<LedgerOverview />} />
               <Route path="ledger/:applicationId" element={<LedgerDetail />} />
               <Route path="inspections" element={<InspectionsPage />} />

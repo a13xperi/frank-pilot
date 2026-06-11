@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { LogOut, Menu, PanelLeft } from 'lucide-react';
 import { Sidebar } from './Sidebar';
+import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { formatRole } from '@/types';
 
@@ -69,6 +70,7 @@ export function Layout() {
             <PanelLeft className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             {user && (
               <>
                 <span className="hidden text-sm text-gray-700 sm:inline">

@@ -34,6 +34,22 @@ router.get(
   }
 );
 
+// "The Ledger" stakeholder showcase — read-only evidence aggregate
+router.get(
+  "/showcase",
+  authenticate,
+  requirePermission("ledger:view"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const result = await service.getShowcase(req);
+      res.json(result);
+    } catch (err: any) {
+      logger.error("Failed to get ledger showcase", { error: err.message });
+      res.status(500).json({ error: "Failed to get ledger showcase" });
+    }
+  }
+);
+
 // Manual trigger: post monthly rent (system_admin)
 router.post(
   "/post-rent",
