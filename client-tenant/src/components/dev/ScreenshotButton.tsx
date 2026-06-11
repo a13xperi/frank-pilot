@@ -311,12 +311,15 @@ export function ScreenshotButton() {
       data-screenshot-exclude="1"
       style={{
         position: 'fixed',
-        right: 16,
+        // Bottom-LEFT, away from the housing chat widget (right:20, bottom:20)
+        // — at right/bottom:16 this z-9999 overlay sat on top of the chat
+        // bubble and swallowed its clicks in dev mode.
+        left: 16,
         bottom: 16,
         zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'flex-end',
+        alignItems: 'flex-start',
         gap: 6,
         pointerEvents: 'auto',
         maxWidth: 380,
