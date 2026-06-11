@@ -14,10 +14,40 @@ const varScale = (name) =>
 const pick = (scale, levels) =>
   Object.fromEntries(levels.map((l) => [l, scale[l]]));
 
+// Civic Trust palette — deep forest/teal green, pinned for solid action fills
+// in BOTH themes (always paired with `text-white`).
+const FOREST = {
+  500: '#3f7f66',
+  600: '#2a6650',
+  700: '#215240',
+};
+
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   darkMode: 'class',
   theme: {
+    // Serif display (Source Serif 4) over a humanist sans for UI text.
+    fontFamily: {
+      sans: [
+        'Avenir Next',
+        'Avenir',
+        'Seravek',
+        'Segoe UI',
+        'Frutiger',
+        'Helvetica Neue',
+        'Arial',
+        'sans-serif',
+      ],
+      serif: ['"Source Serif 4"', '"Source Serif Pro"', 'Georgia', '"Times New Roman"', 'serif'],
+      mono: [
+        'ui-monospace',
+        'SFMono-Regular',
+        'Menlo',
+        'Consolas',
+        'Liberation Mono',
+        'monospace',
+      ],
+    },
     extend: {
       colors: {
         white: 'rgb(var(--c-white) / <alpha-value>)',
@@ -41,8 +71,8 @@ export default {
       // shade in BOTH themes — only the background pins; text/border/ring at
       // these same levels still flip via the vars so badge text stays legible.
       backgroundColor: {
-        emerald: pick(colors.emerald, [500, 600, 700]),
-        brand: pick(colors.emerald, [500, 600, 700]),
+        emerald: FOREST,
+        brand: FOREST,
         red: pick(colors.red, [600, 700]),
         blue: pick(colors.blue, [600, 700]),
         amber: pick(colors.amber, [600, 700]),

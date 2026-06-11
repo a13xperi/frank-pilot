@@ -2,12 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}
+
 @layer components {
   .label {
     @apply mb-1 block text-sm font-medium text-gray-700;
   }
   .input {
-    @apply w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500;
+    @apply w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500;
   }
 }
 
@@ -18,29 +24,31 @@
  * neutrals use a hand-tuned mapping so card > page > hover contrast holds.
  * ------------------------------------------------------------------------- */
 :root {
+  /* Civic Trust — restrained warm-gray neutrals (Tailwind stone). */
   --c-white: 255 255 255;
-  --c-gray-50: 249 250 251;
-  --c-gray-100: 243 244 246;
-  --c-gray-200: 229 231 235;
-  --c-gray-300: 209 213 219;
-  --c-gray-400: 156 163 175;
-  --c-gray-500: 107 114 128;
-  --c-gray-600: 75 85 99;
-  --c-gray-700: 55 65 81;
-  --c-gray-800: 31 41 55;
-  --c-gray-900: 17 24 39;
-  --c-gray-950: 3 7 18;
-  --c-emerald-50: 236 253 245;
-  --c-emerald-100: 209 250 229;
-  --c-emerald-200: 167 243 208;
-  --c-emerald-300: 110 231 183;
-  --c-emerald-400: 52 211 153;
-  --c-emerald-500: 16 185 129;
-  --c-emerald-600: 5 150 105;
-  --c-emerald-700: 4 120 87;
-  --c-emerald-800: 6 95 70;
-  --c-emerald-900: 6 78 59;
-  --c-emerald-950: 2 44 34;
+  --c-gray-50: 250 250 249;
+  --c-gray-100: 245 245 244;
+  --c-gray-200: 231 229 228;
+  --c-gray-300: 214 211 209;
+  --c-gray-400: 168 162 158;
+  --c-gray-500: 120 113 108;
+  --c-gray-600: 87 83 78;
+  --c-gray-700: 68 64 60;
+  --c-gray-800: 41 37 36;
+  --c-gray-900: 28 25 23;
+  --c-gray-950: 12 10 9;
+  /* Civic Trust — deep forest/teal-green brand scale (emerald + brand alias). */
+  --c-emerald-50: 242 247 244;
+  --c-emerald-100: 224 236 229;
+  --c-emerald-200: 194 217 205;
+  --c-emerald-300: 151 189 171;
+  --c-emerald-400: 99 155 132;
+  --c-emerald-500: 63 127 102;
+  --c-emerald-600: 42 102 80;
+  --c-emerald-700: 33 82 64;
+  --c-emerald-800: 28 66 54;
+  --c-emerald-900: 24 55 45;
+  --c-emerald-950: 12 33 27;
   --c-red-50: 254 242 242;
   --c-red-100: 254 226 226;
   --c-red-200: 254 202 202;
@@ -144,29 +152,31 @@
 
 .dark {
   color-scheme: dark;
-  --c-white: 31 41 55; /* cards: gray-800 */
-  --c-gray-50: 17 24 39; /* gray-900 */
-  --c-gray-100: 55 65 81; /* gray-700 */
-  --c-gray-200: 55 65 81; /* gray-700 */
-  --c-gray-300: 75 85 99; /* gray-600 */
-  --c-gray-400: 156 163 175; /* gray-400 */
-  --c-gray-500: 156 163 175; /* gray-400 */
-  --c-gray-600: 209 213 219; /* gray-300 */
-  --c-gray-700: 209 213 219; /* gray-300 */
-  --c-gray-800: 229 231 235; /* gray-200 */
-  --c-gray-900: 243 244 246; /* gray-100 */
-  --c-gray-950: 249 250 251; /* gray-50 */
-  --c-emerald-50: 2 44 34;
-  --c-emerald-100: 6 78 59;
-  --c-emerald-200: 6 95 70;
-  --c-emerald-300: 4 120 87;
-  --c-emerald-400: 5 150 105;
-  --c-emerald-500: 16 185 129;
-  --c-emerald-600: 52 211 153;
-  --c-emerald-700: 110 231 183;
-  --c-emerald-800: 167 243 208;
-  --c-emerald-900: 209 250 229;
-  --c-emerald-950: 236 253 245;
+  /* Deep-forest dark — warm neutrals with a faint green cast so the dark
+     theme reads as the same institution after hours, not a different app. */
+  --c-white: 45 51 47; /* cards — lifted off the page so panels don't dissolve */
+  --c-gray-50: 24 28 26; /* page */
+  --c-gray-100: 56 62 58; /* hover */
+  --c-gray-200: 72 80 74; /* borders */
+  --c-gray-300: 94 103 97;
+  --c-gray-400: 156 165 158;
+  --c-gray-500: 178 187 180;
+  --c-gray-600: 208 215 209;
+  --c-gray-700: 209 216 210;
+  --c-gray-800: 224 230 225;
+  --c-gray-900: 238 242 239;
+  --c-gray-950: 247 250 248;
+  --c-emerald-50: 21 44 36;
+  --c-emerald-100: 27 57 47;
+  --c-emerald-200: 36 80 64;
+  --c-emerald-300: 50 104 84;
+  --c-emerald-400: 74 130 107;
+  --c-emerald-500: 104 159 135;
+  --c-emerald-600: 138 187 164;
+  --c-emerald-700: 168 207 188;
+  --c-emerald-800: 198 224 211;
+  --c-emerald-900: 222 238 230;
+  --c-emerald-950: 240 247 243;
   --c-red-50: 69 10 10;
   --c-red-100: 127 29 29;
   --c-red-200: 153 27 27;

@@ -51,77 +51,99 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <div className="w-full max-w-sm space-y-4">
-        <div className="rounded-xl bg-white p-8 shadow-lg">
-          <div className="mb-6 flex flex-col items-center gap-2">
-            <Building2 className="h-10 w-10 text-emerald-600" />
-            <h1 className="text-xl font-semibold text-gray-900">CDPC Compliance Hub</h1>
-            <p className="text-sm text-gray-500">Affordable Housing — Tenant Onboarding</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                placeholder="you@cdpc.test"
-              />
+    <div className="flex min-h-screen flex-col bg-gray-100">
+      {/* Thin civic accent bar, matching the app shell. */}
+      <div className="h-[3px] shrink-0 bg-brand-700" aria-hidden="true" />
+      <div className="flex flex-1 items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md space-y-6">
+          {/* Seal-like lockup, state-portal style. */}
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-brand-300 bg-brand-50 p-1">
+              <div className="flex h-full w-full items-center justify-center rounded-full border-2 border-brand-700">
+                <Building2 className="h-6 w-6 text-brand-700" />
+              </div>
             </div>
             <div>
-              <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                placeholder="Enter password"
-              />
+              <h1 className="font-serif text-3xl font-semibold tracking-tight text-gray-900">
+                CDPC Compliance Hub
+              </h1>
+              <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-gray-500">
+                CDPC Nevada &middot; Affordable Housing
+              </p>
             </div>
-
-            {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
-            )}
-
-            <Button type="submit" variant="primary" loading={submitting} className="w-full">
-              Sign In
-            </Button>
-          </form>
-        </div>
-
-        {/* Demo toggle */}
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-700">Demo Mode</p>
-              <p className="text-xs text-gray-400">Load sample applications at every pipeline stage</p>
-            </div>
-            <Button onClick={loadDemo} variant="secondary" size="sm" loading={demoLoading}>
-              <Database className="h-4 w-4" />
-              Load Demo
-            </Button>
+            <div className="h-px w-12 bg-brand-400" aria-hidden="true" />
           </div>
-          <div className="mt-3 space-y-1">
-            <p className="text-xs text-gray-400">Demo accounts (password: password123):</p>
-            <div className="grid grid-cols-2 gap-x-4 text-xs text-gray-500">
-              <span>agent@cdpc.test</span><span>Leasing Agent</span>
-              <span>senior@cdpc.test</span><span>Senior Manager</span>
-              <span>regional@cdpc.test</span><span>Regional Manager</span>
-              <span>asset@cdpc.test</span><span>Asset Manager</span>
-              <span>admin@cdpc.test</span><span>System Admin</span>
+
+          <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  placeholder="you@cdpc.test"
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  placeholder="Enter password"
+                />
+              </div>
+
+              {error && (
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                  {error}
+                </p>
+              )}
+
+              <Button type="submit" variant="primary" loading={submitting} className="w-full">
+                Sign In
+              </Button>
+            </form>
+          </div>
+
+          {/* Demo toggle */}
+          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Demo Mode</p>
+                <p className="text-xs text-gray-400">Load sample applications at every pipeline stage</p>
+              </div>
+              <Button onClick={loadDemo} variant="secondary" size="sm" loading={demoLoading}>
+                <Database className="h-4 w-4" />
+                Load Demo
+              </Button>
+            </div>
+            <div className="mt-4 space-y-1.5 border-t border-gray-200 pt-3">
+              <p className="text-xs text-gray-400">Demo accounts (password: password123):</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                <span>agent@cdpc.test</span><span>Leasing Agent</span>
+                <span>senior@cdpc.test</span><span>Senior Manager</span>
+                <span>regional@cdpc.test</span><span>Regional Manager</span>
+                <span>asset@cdpc.test</span><span>Asset Manager</span>
+                <span>admin@cdpc.test</span><span>System Admin</span>
+              </div>
             </div>
           </div>
+
+          <p className="text-center text-xs text-gray-400">
+            CDPC Nevada &middot; Affordable Housing Compliance &middot; Equal Housing Opportunity
+          </p>
         </div>
       </div>
     </div>

@@ -10,10 +10,11 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    // DEMO TRACK (Jun 11 meeting) — isolated ports; local-only change, never commit from this worktree.
+    port: 5180,
     proxy: {
       '/api': {
-        target: 'http://localhost:3002',
+        target: 'http://localhost:3010',
         changeOrigin: true,
       },
     },

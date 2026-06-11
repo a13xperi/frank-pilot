@@ -36,9 +36,16 @@ const columns: Column<Application>[] = [
   {
     key: 'property_name',
     header: 'Property',
-    render: (r) => r.property_name ?? '—',
+    render: (r) =>
+      r.property_name ? (
+        <span className="block max-w-[30ch] truncate" title={r.property_name}>
+          {r.property_name}
+        </span>
+      ) : (
+        '—'
+      ),
   },
-  { key: 'unit_number', header: 'Unit' },
+  { key: 'unit_number', header: 'Unit', className: 'whitespace-nowrap' },
   {
     key: 'household_size',
     header: 'Household',
@@ -56,7 +63,7 @@ const columns: Column<Application>[] = [
   {
     key: 'qualifying_ami_tier',
     header: 'AMI Tier',
-    className: 'text-center',
+    className: 'whitespace-nowrap text-center',
     render: (r) => (r.qualifying_ami_tier ? `${r.qualifying_ami_tier}% AMI` : '—'),
   },
   {
@@ -93,18 +100,24 @@ export function Applications() {
         }
       />
 
-      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+      <div className="flex flex-wrap gap-x-6 border-b border-gray-300">
         {STATUS_TABS.map((t) => (
           <button
             key={t.value}
             onClick={() => setTab(t.value)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              tab === t.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            className={`-mb-px border-b-2 px-1 pb-2.5 pt-1 text-sm font-medium transition-colors ${
+              tab === t.value
+                ? 'border-brand-700 text-brand-800'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
             }`}
           >
             {t.label}
             {!loading && (
-              <span className="ml-1.5 text-xs text-gray-400">
+              <span
+                className={`ml-1.5 text-xs font-semibold tabular-nums ${
+                  tab === t.value ? 'text-brand-700' : 'text-gray-500'
+                }`}
+              >
                 {t.value === ''
                   ? allApps.length
                   : t.value === 'approval'
