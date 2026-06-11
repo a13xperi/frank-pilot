@@ -19,8 +19,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { spawn } from "child_process";
 import os from "os";
 import path from "path";
-import { buildContext } from "./retriever";
-import { buildSystemPrompt } from "./prompt";
+import { buildContext, buildTenantContext } from "./retriever";
+import { buildSystemPrompt, buildTenantSystemPrompt } from "./prompt";
 import { logger } from "../../utils/logger";
 
 // Short, grounded answers → Haiku for cost. Locked by the brief.
@@ -37,8 +37,14 @@ const MAX_TOKENS = 1024;
 const USD_PER_MTOK_INPUT = 1.0; // ~$1.00 / 1M input tokens
 const USD_PER_MTOK_OUTPUT = 5.0; // ~$5.00 / 1M output tokens
 
+// `scope` picks the retrieval path. DEFAULT IS "tenant" (FAQ corpus + platform
+// facts ONLY — no property index, no statewide data): the public tenant widget
+// must be bounded even if its bundle is stale and sends no flag. "full" is the
+// explicit opt-in for the property-search experience; an unknown value 400s
+// rather than falling open.
 const questionSchema = z.object({
   question: z.string().trim().min(1).max(MAX_QUESTION_CHARS),
+  scope: z.enum(["tenant", "full"]).default("tenant"),
 });
 
 // Per-IP limiter — public endpoint, so we key on source IP (IPv6-safe via
@@ -301,7 +307,7 @@ export function housingQaRouter(): Router {
       });
       return;
     }
-    const { question } = parsed.data;
+    const { question, scope } = parsed.data;
 
     const client = getClient();
     const useCli = !client && cliFallbackEnabled();
@@ -331,8 +337,22 @@ export function housingQaRouter(): Router {
     }
 
     try {
-      const context = buildContext(question);
-      const system = buildSystemPrompt(context);
+      // Tenant scope never touches the property index — the statewide source
+      // is structurally absent from its context, not prompted away.
+      let system: string;
+      let routeLabel: string;
+      let propertyCount: number;
+      if (scope === "full") {
+        const context = buildContext(question);
+        system = buildSystemPrompt(context);
+        routeLabel = context.routing;
+        propertyCount = context.properties.length;
+      } else {
+        const context = buildTenantContext(question);
+        system = buildTenantSystemPrompt(context);
+        routeLabel = "tenant_faq";
+        propertyCount = 0;
+      }
 
       let answer: string;
       // Captured from the SDK response for the budget gate + spend log; stays
@@ -393,10 +413,11 @@ export function housingQaRouter(): Router {
       // estimated cost are present only on the metered SDK path (null on CLI);
       // tokens are not PII.
       logger.info("housing-qa answered", {
-        route: context.routing,
+        route: routeLabel,
+        scope,
         path: client ? "sdk" : "cli",
         qLen: question.length,
-        propertyCount: context.properties.length,
+        propertyCount,
         latencyMs: Date.now() - startedAt,
         inputTokens,
         outputTokens,

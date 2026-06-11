@@ -182,9 +182,13 @@ export const api = {
  * through the shared request() wrapper so demo-token / base-URL handling stays
  * consistent. Backend: POST /api/housing-qa (non-streaming, returns the full
  * answer in one response).
+ *
+ * scope: 'tenant' pins FAQ-only retrieval — this widget must never receive
+ * statewide property data. The server defaults to tenant scope anyway; the
+ * explicit flag keeps this client safe even if that default ever changes.
  */
 export function askHousingQa(question: string): Promise<{ answer: string }> {
-  return api.post<{ answer: string }>('/housing-qa', { question });
+  return api.post<{ answer: string }>('/housing-qa', { question, scope: 'tenant' });
 }
 
 /**

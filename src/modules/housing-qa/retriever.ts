@@ -457,6 +457,57 @@ export interface HousingContext {
   };
 }
 
+// --------------------------------------------------------------------------- //
+// Tenant-scoped context — the DEFAULT for the public endpoint
+// --------------------------------------------------------------------------- //
+
+/**
+ * What the tenant-widget path is allowed to see: tenant FAQ corpus matches +
+ * the always-on platform facts WITH their internal `source` fields stripped
+ * (they name repo files). No property index, no classification, no dataset
+ * counts — the statewide source must be structurally unreachable from this
+ * path, not merely prompted away.
+ */
+export interface TenantScopedContext {
+  question: string;
+  scope: "tenant";
+  tenantFaq: TenantFaqMatch[];
+  facts: {
+    applicationFee: {
+      amount: string;
+      per: string;
+      refundable: boolean;
+      note: string;
+    };
+    rule120: { days: number; note: string };
+    documentsNeeded: readonly string[];
+    documentsNote: string;
+  };
+}
+
+export function buildTenantContext(question: string): TenantScopedContext {
+  const { applicationFee, rule120, documentsNeeded, documentsNote } =
+    ALWAYS_ON_FACTS;
+  return {
+    question,
+    scope: "tenant",
+    // Same cap the process branch uses, so the rehearsed FAQ answers retrieve
+    // exactly as before.
+    tenantFaq: matchTenantFaq(question, 4),
+    facts: {
+      applicationFee: {
+        amount: applicationFee.amount,
+        per: applicationFee.per,
+        refundable: applicationFee.refundable,
+        note: applicationFee.note,
+      },
+      rule120: { days: rule120.days, note: rule120.note },
+      documentsNeeded,
+      documentsNote,
+    },
+  };
+}
+
 export function buildContext(
   question: string,
   index: HousingIndex = getHousingIndex()

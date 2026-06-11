@@ -72,6 +72,22 @@ comes up in the room: *"we stress-tested our own assistant last night, caught
 it over-answering, and pulled it until the scope guard ships — that's the
 discipline the ledger sells."* The five-beat spine is unaffected.
 
+**Update ~1:00am — CHAT path scope fix landed + verified on this branch; beat
+stays CUT.** `POST /api/housing-qa` now defaults to **tenant scope**: tenant-FAQ
+corpus + platform facts only — the statewide property index is structurally
+unreachable (not prompted away), and the tenant prompt carries no internal
+system/dataset/step names. Property retrieval requires an explicit
+`scope:"full"` opt-in; unknown scope 400s. Verified through the real widget
+path (`:5174/api/housing-qa`): the "test" repro now stays in FAQ scope (no
+Carson City card, no dataset names), and all three rehearsed questions still
+answer with citations. Pinned by `src/__tests__/housing-qa-tenant-scope.test.ts`
+(54/54 housing-qa tests green). **Why the switch stays off anyway:**
+`VITE_ENABLE_FAQ_CHAT` gates BOTH entry points, and the **voice pill
+(TalkToFrankPill) has the same leak through a separate, unfixed pipeline**
+(ElevenLabs agent — not bounded by the housing-qa fix). Do not flip the flag
+for Jun 11. Post-demo: split the flag or fix the voice agent's grounding, then
+re-verify and restore the beat below.
+
 <details><summary>Original beat — for when it returns post-fix</summary>
 
 Only if the room is warm and time allows — the 5 rehearsed beats stay the spine.

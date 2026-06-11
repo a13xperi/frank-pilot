@@ -152,21 +152,22 @@ describe("POST /api/housing-qa — grounded answer", () => {
       { role: "user", content: "How much is the application fee?" },
     ]);
     // The system prompt must carry the guardrails AND the injected context.
+    // No scope in the body → the TENANT prompt (FAQ-only) is the default.
     expect(callArg.system).toMatch(/GROUNDING RULES \(non-negotiable\)/);
     expect(callArg.system).toMatch(/BEGIN CONTEXT/);
-    expect(callArg.system).toMatch(/"routing": "process"/);
+    expect(callArg.system).toMatch(/"scope": "tenant"/);
     // always-on facts injected so the answer can be grounded
     expect(callArg.system).toMatch(/\$35\.95/);
   });
 
-  it("injects a refusal note for an unknown property", async () => {
+  it("injects a refusal note for an unknown property (full scope, explicit opt-in)", async () => {
     createMock.mockResolvedValueOnce({
       content: [{ type: "text", text: "I don't have that property." }],
     });
 
     const res = await request(makeApp())
       .post("/api/housing-qa")
-      .send({ question: "Tell me about Moonbeam Towers" });
+      .send({ question: "Tell me about Moonbeam Towers", scope: "full" });
 
     expect(res.status).toBe(200);
     const callArg = createMock.mock.calls[0][0];
