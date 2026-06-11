@@ -251,6 +251,24 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  // TENANT-SCOPE ATTESTATION (Jun 11): the agent's prompt/grounding lives in
+  // ElevenLabs dashboard config, outside this repo — the chat path's scope fix
+  // (housing-qa tenant scope) cannot bound it. The rehearsal leak (statewide
+  // HUD-LIHTC answers, internal names) applies to this surface until the
+  // remote agent is re-grounded and re-verified, so the pipeline fails closed:
+  // no mint unless an operator explicitly attests, via this flag, that the
+  // agent resolved by ELEVENLABS_AGENT_ID passed the tenant-scope checklist
+  // (FAQ-corpus grounding only, declines property searches, no internal
+  // names). Same opaque body as the master flag — callers learn nothing.
+  if (process.env.VOICE_AGENT_TENANT_SCOPED !== "true") {
+    logger.warn(
+      "voice-browser-session: mint refused — agent not attested tenant-scoped",
+      { agentId: process.env.ELEVENLABS_AGENT_ID ?? null }
+    );
+    res.status(503).json({ error: "voice_disabled" });
+    return;
+  }
+
   const ctxOrErr = loadContext();
   if ("error" in ctxOrErr) {
     res.status(ctxOrErr.status).json({ error: ctxOrErr.error });
