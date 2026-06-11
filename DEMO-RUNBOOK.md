@@ -70,8 +70,12 @@ Only if the room is warm and time allows — the 5 rehearsed beats stay the spin
   1. "Do food stamps count as income?" → No, SNAP excluded `(#63)`
   2. "Can I ask for a live-in aide?" → reasonable accommodation, income excluded `(#118–120, #29, #30)`
   3. "How much is the application fee?" → **$35.95 per adult** from platform facts (never the doc's old range)
-- **Latency:** ~5–10s per answer (CLI path) — narrate over the wait ("it's retrieving
-  from the FAQ corpus and citing its sources"), don't dead-air it.
+- **Latency: 13–16s per answer, measured (CLI path)** — it LOOKS like nothing is
+  happening. Ask the question, then immediately turn to the room and narrate
+  ("it's retrieving from your FAQ corpus and citing sources — watch for the
+  citation numbers") and let the answer interrupt you. Never stare at the screen
+  waiting. If the room is cold or time is tight, skip this beat entirely — the
+  five-beat spine carries the meeting without it.
 - **Rate limit:** 20 questions / 10 min per IP — plenty, but don't crowd-source rapid-fire.
 
 ## Reset to pristine (after every rehearsal, ~90s)
