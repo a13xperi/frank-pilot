@@ -1,5 +1,14 @@
 # Voice agent greeting — Frank (ElevenLabs first message)
 
+**Inbound number: +1 (725) 267-2488** (Las Vegas local — 702 inventory was
+exhausted). Purchased Jun 11 on the Adinkra Twilio trial account (friendly
+name "Frank voice agent — Donna Louise 2"), imported into ElevenLabs and
+assigned to the Frank agent. Twilio trial caveat: callers hear Twilio's trial
+preamble and must press a key before the agent answers — upgrading the Twilio
+account removes it. Do NOT publish the number to tenants until the voice agent
+is re-grounded (VOICE_AGENT_TENANT_SCOPED — same scope-leak class that cut the
+chat widget for Jun 11).
+
 Canonical intro copy for the inbound voice agent. The greeting is configured as
 the agent's **first message** in the ElevenLabs dashboard (agent resolved via
 `ELEVENLABS_AGENT_ID`; this repo only proxies `get-signed-url` and receives the
