@@ -1,0 +1,92 @@
+# Demo Ops Runbook — Frank/CPA/Chase (Jun 11)
+
+**This worktree is the parallel demo track.** Pinned at commit `fe23dc3` — dev work on
+`main` cannot move it. Own database (docker container `frank-pilot-demo-db`, port
+**5433**, db `frank_pilot_demo`, own volume), own ports (**API :3010**, **client
+:5180**). Nothing here reads or writes production (`api-production-ed89.up.railway.app`
+is untouched). Runs fully offline — venue wifi is irrelevant; HDMI is the only
+dependency (Craig owns cable + TV).
+
+## Morning boot (~60s)
+
+```bash
+cd ~/code/frank-pilot-demo && ./demo-up.sh
+```
+
+→ **Demo URL: http://localhost:5180** — open in an incognito window, 100% zoom,
+close every other tab.
+
+## Logins (password: `password123`)
+
+| Email | Role | Used for |
+|---|---|---|
+| `regional@cdpc.test` | Regional Manager | **Primary demo driver** — ledger, evictions, audit log, compliance |
+| `agent@cdpc.test` | Leasing Agent | Role-scoping beat (sees less nav) |
+| `senior@cdpc.test` | Senior Manager | Screening + Tier-1 |
+| `asset@cdpc.test` | Asset Manager | Renewals, move-outs, Tier-3 |
+| `admin@cdpc.test` | System Admin | Demo Controls (Post Rent / Process Late Fees) — only if asked |
+
+## The five Round-2 beats → exact clicks
+
+*(Talk track per beat lives in the Notion "Ledger Demo — Script + Leave-Behind" §3.)*
+
+| Beat | Where | Clicks |
+|---|---|---|
+| 1 · A tenant acts | **Maintenance** | "+ New Work Order" → property: any, title: "Bathroom sink leaking", priority: urgent → Create. (3 seeded work orders incl. 1 emergency already visible.) |
+| 2 · The ledger writes | **Audit Log** | Open page — the work order you just created is the **top entry**, timestamped, actor-attributed. "That record can't be edited after the fact." |
+| 3 · Unit-level file | **Applications → Tomasz Kowalski** | Full history in one view: $1,950 delinquent ledger, late fees, eviction trigger, 7-day notice, move-out + deposit calc. Or **Keisha Williams** for the clean tenant (renewal $1,300→$1,339). |
+| 4 · Verification | **Screening (as senior@)** | "Screen" on **Priya Patel** → green/red chips live (background, credit, AMI, fraud). Or show **Elena Vasquez** income pre-verified → Generate Lease → Onboard. |
+| 5 · The block, re-priced | **Properties + Ledger** | 17 properties w/ vacancy counts → Ledger delinquency dashboard. "Stack thousands of verified unit-events and the discount collapses — same book, provable." |
+
+## Reset to pristine (after every rehearsal, ~90s)
+
+```bash
+cd ~/code/frank-pilot-demo && ./demo-reset.sh
+```
+
+The reset **stops and restarts the API itself** (dropping the DB under a live API
+crashes it — found in rehearsal) and exits only after `/health` is green again.
+
+Mid-meeting lighter option: **"Load Demo" button on the login page** re-seeds
+applications without a full reset (`POST /api/demo/seed`).
+
+## Rehearsal findings (Jun 10, ~9:45pm — full run: 9/9 PASS)
+
+- All five beats verified live, plus role-scoping (agent → 403 on audit log) and
+  Keisha's renewal offer. Screening on Priya returns background/credit/compliance
+  chips in ~1s.
+- **`ENCRYPTION_KEY` must stay pinned in `.env`** (it is — do not delete the line).
+  Unset, every process invents a random key: seeds encrypt SSNs the API can't
+  decrypt and the scripted "Screen Priya Patel" moment dies with
+  "Unsupported state or unable to authenticate data." If screening ever throws
+  that error: `./demo-reset.sh` re-encrypts everything consistently.
+
+## Do-not-touch list (tonight is not the night)
+
+- **Compliance-tape "Verify" button** on Audit Log — backed by a dark flag
+  (`COMPLIANCE_TAPE_V2_ENABLED=false`); will error. Stay on the standard audit view.
+- All dark feature flags stay **false** (identity verification, CRA screening,
+  auto-screening, pre-adverse window) — they ship dark pending credentials.
+- Don't demo from the production URLs. The parallel track exists so prod and dev
+  can't surprise you.
+- **Late-fee open decision** (flagged in DEMO-SCRIPT.md): engine uses $50 + $10/day
+  (GPMGLV lease); HUD standard for subsidized LIHTC is $5 + $1/day max $30. If it
+  comes up: "that's a config decision we've flagged for Frank — the engine takes
+  either." Do not present $50 as the compliant number to a LIHTC CPA.
+
+## If something breaks in the room
+
+1. Page won't load → rerun `./demo-up.sh` (idempotent; reuses what's alive).
+2. Data looks wrong → login page → "Load Demo" (10s) or `./demo-reset.sh` (60s).
+3. API dead, no time → narrate over the **Adinkra recap + Notion script** (the
+   leave-behind is designed to carry the pitch without screens).
+4. Logs: `/tmp/frank-demo-api.log`, `/tmp/frank-demo-client.log`.
+
+## Tonight's checklist (before sleep)
+
+- [ ] `./demo-up.sh` → green READY
+- [ ] One full rehearsal of the 5 beats (≤10 min)
+- [ ] `./demo-reset.sh` → pristine
+- [ ] Laptop: disable sleep-on-lid-close + notifications/DND for the morning
+- [ ] Craig: HDMI + TV confirmed; Frank attendance confirmed
+- [ ] Decide DM-SAGE-OC-016 (benefits-only vs admin screens) — this runbook works for both: benefits-only = beats 1–5 narrated; admin-screens = same beats, shown
