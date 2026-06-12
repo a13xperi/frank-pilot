@@ -1,4 +1,5 @@
 import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { Inbox } from 'lucide-react';
 
 export interface Column<T> {
   key: string;
@@ -49,10 +50,19 @@ export function DataTable<T>({
     );
   }
 
+  // Supportive empty state grafted from Warm Community (design study),
+  // re-voiced into the civic register — quiet icon chip matching the Recent
+  // Activity pattern, helpful copy, no sprout.
   if (data.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
-        {emptyMessage}
+      <div className="rounded-lg border border-gray-200 bg-white px-8 py-12 text-center">
+        <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-gray-50">
+          <Inbox className="h-5 w-5 text-gray-400" aria-hidden="true" />
+        </div>
+        <p className="text-sm font-medium text-gray-600">{emptyMessage}</p>
+        <p className="mx-auto mt-1 max-w-md text-xs text-gray-500">
+          New records will appear in this register as they are entered.
+        </p>
       </div>
     );
   }
