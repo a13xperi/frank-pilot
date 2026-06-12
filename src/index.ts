@@ -56,6 +56,7 @@ import { housingQaRouter } from "./modules/housing-qa/routes";
 import acquisitionRoutes from "./modules/acquisitions/routes";
 import savedRoutes from "./modules/saved/routes";
 import { outboundValidationRoutes } from "./modules/outbound-validation";
+import { managerRoutes } from "./modules/manager";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -314,6 +315,9 @@ app.use("/api/properties", propertyRoutes);
 
 // QAP acquisitions — Demand-Evidence Engine (asset_manager+ / acquisition:view)
 app.use("/api/acquisitions", acquisitionRoutes);
+
+// Manager briefing — unified operations rollup (senior_manager+ / manager_briefing:view)
+app.use("/api/manager", managerRoutes);
 
 // Voice intake PM console (flag-gated to avoid surfacing unstamped review
 // surface area when the feature is off in an environment).
