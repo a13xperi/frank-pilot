@@ -22,6 +22,7 @@ import { Renewals } from '@/pages/Renewals';
 import { MoveOuts } from '@/pages/MoveOuts';
 import { InspectionsPage } from '@/pages/Inspections';
 import { MaintenancePage } from '@/pages/Maintenance';
+import { ManagerBriefing } from '@/pages/ManagerBriefing';
 import { ApplicationForm } from '@/pages/ApplicationForm';
 import { ApplicationDetail } from '@/pages/ApplicationDetail';
 import { DemoOverlay } from '@/components/DemoOverlay';
@@ -36,6 +37,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route index element={<Dashboard />} />
+              <Route path="manager-briefing" element={<ManagerBriefing />} />
               <Route path="applications" element={<Applications />} />
               <Route path="applications/new" element={<ApplicationForm />} />
               <Route path="applications/:id" element={<ApplicationDetail />} />

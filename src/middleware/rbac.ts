@@ -107,6 +107,10 @@ const PERMISSIONS: Record<string, string[]> = {
   // can watch progress and pull the report.
   "outbound_validation:run": ["system_admin"],
   "outbound_validation:view": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+
+  // Manager briefing — the unified operations rollup (KPIs, attention list,
+  // per-property snapshot). Senior+ surface; service scopes by property_ids.
+  "manager_briefing:view": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
 };
 
 export function requireRole(...roles: string[]) {
