@@ -55,6 +55,8 @@ import { qaRouter } from "./modules/qa/routes";
 import { housingQaRouter } from "./modules/housing-qa/routes";
 import acquisitionRoutes from "./modules/acquisitions/routes";
 import savedRoutes from "./modules/saved/routes";
+import { outboundValidationRoutes } from "./modules/outbound-validation";
+import { managerRoutes } from "./modules/manager";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -314,6 +316,9 @@ app.use("/api/properties", propertyRoutes);
 // QAP acquisitions — Demand-Evidence Engine (asset_manager+ / acquisition:view)
 app.use("/api/acquisitions", acquisitionRoutes);
 
+// Manager briefing — unified operations rollup (senior_manager+ / manager_briefing:view)
+app.use("/api/manager", managerRoutes);
+
 // Voice intake PM console (flag-gated to avoid surfacing unstamped review
 // surface area when the feature is off in an environment).
 if (process.env.VOICE_INTAKE_ENABLED === "true") {
@@ -335,6 +340,11 @@ if (process.env.VOICE_INTAKE_ENABLED === "true") {
 // Idempotent — safe even when VOICE_TOOLS_ENABLED is off; the tool-callback
 // router will still 503 until that flag flips on.
 registerVoiceToolHandlers();
+
+// Outbound waitlist-validation dialer admin surface (DM-FRANK-029).
+// Always mounted; every route 503s while FRANK_OUTBOUND_ENABLED is off
+// (router-level guard), so a dark deploy is byte-identical in behavior.
+app.use("/api/admin/outbound-validation", outboundValidationRoutes);
 
 // Compliance reports (Fair Housing Act — audit:view / Regional Manager+)
 app.use("/api/compliance", complianceRoutes);
