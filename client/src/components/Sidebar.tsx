@@ -18,6 +18,7 @@ import {
   ScrollText,
   Camera,
   Landmark,
+  Megaphone,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,6 +33,9 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard, minRole: 'leasing_agent' },
+  // Unified ops rollup for managers (KPIs + attention + property snapshot).
+  // Senior+ to match the manager_briefing:view permission on the API.
+  { label: 'Manager Briefing', path: '/manager-briefing', icon: Megaphone, minRole: 'senior_manager' },
   // Showcase view — agents are property-scoped (often to zero properties in the
   // demo seed), so an empty showcase would undercut it; managers and up only.
   { label: 'The Ledger', path: '/the-ledger', icon: Landmark, minRole: 'senior_manager' },
