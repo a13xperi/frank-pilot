@@ -208,9 +208,12 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onClose }: Side
                   title={collapsed ? item.label : undefined}
                   onClick={onClose}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${collapseItemPad} ${
+                    // Left-bar active state grafted from Refined Emerald (design
+                    // study runner-up, operator-lens winner) — Civic Trust tint
+                    // kept; the 3px brand bar just anchors the active row.
+                    `relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${collapseItemPad} ${
                       isActive
-                        ? 'bg-brand-50 font-semibold text-brand-800'
+                        ? 'bg-brand-50 font-semibold text-brand-800 before:absolute before:bottom-[7px] before:left-0 before:top-[7px] before:w-[3px] before:rounded-full before:bg-brand-600'
                         : 'font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`
                   }
