@@ -21,6 +21,8 @@
  * answers, narrow the pattern — do not weaken the fail-closed behavior.
  */
 
+import type { RetrievalPolicy } from "./retriever";
+
 export interface DenyRule {
   /** Stable id — what gets logged when the rule trips. */
   id: string;
@@ -35,15 +37,15 @@ export const INTERNAL_LANGUAGE_DENYLIST: readonly DenyRule[] = [
   // Application pipeline step names (Intent → Pick → Review → Confirm → Claim).
   { id: "pipeline-step", re: /\b(?:intent|pick|review|confirm|claim)\s+step\b/i },
   // Dataset names.
-  { id: "dataset-hud-lihtc", re: /\bHUD[\s-]?LIHTC\b/i },
+  { id: "dataset-hud-lihtc", re: /\bHUD[\s-]*LIHTC\b/i },
   { id: "dataset-gpmg", re: /\bGPMG\b/ },
   {
     id: "dataset-statewide",
-    re: /\bstatewide\s+(?:hud|lihtc|dataset|data|feed|index|records?)\b/i,
+    re: /\bstatewide\s+(?:hud|lihtc|datasets?|data|feeds?|index(?:es)?|listings?|records?|sources?)\b/i,
   },
   {
     id: "dataset-available-now",
-    re: /\bavailable[\s-]now\s+(?:feed|dataset|data|index|records?)\b/i,
+    re: /\bavailable[\s-]+now\s+(?:feeds?|datasets?|data|index(?:es)?|listings?|records?)\b/i,
   },
   // Repo file names (apply.json, faq.md, tenant-faq.json, …).
   { id: "internal-file", re: /\b[\w-]+\.(?:json|md|py|ts|mjs)\b/i },
@@ -83,4 +85,21 @@ export function guardTenantAnswer(answer: string): GuardResult {
     return { ok: true, answer, violations };
   }
   return { ok: false, answer: SAFE_FALLBACK_ANSWER, violations };
+}
+
+/**
+ * THE policy-keyed enforcement choke point. Every path that turns a model
+ * response into a client answer must route through this — unconditionally,
+ * with the surface's policy — so `guardOutput` is decided by the policy
+ * object, never by an `if` a new caller can forget. Unguarded surfaces pass
+ * through untouched.
+ */
+export function finalizeAnswer(
+  policy: Pick<RetrievalPolicy, "guardOutput">,
+  answer: string
+): GuardResult {
+  if (!policy.guardOutput) {
+    return { ok: true, answer, violations: [] };
+  }
+  return guardTenantAnswer(answer);
 }

@@ -100,7 +100,11 @@ export interface RetrievalPolicy {
   echoQuestion: boolean;
   /** Strip internal provenance (`source` fields naming repo files) from facts. */
   redactInternalProvenance: boolean;
-  /** Run the response through the internal-language output guard (routes.ts). */
+  /**
+   * Run the response through the internal-language output guard — enforced by
+   * finalizeAnswer (output-guard.ts), the choke point every model-calling
+   * path must route answers through.
+   */
   guardOutput: boolean;
 }
 
@@ -573,46 +577,47 @@ export interface HousingContext {
  * the always-on platform facts WITH their internal `source` fields stripped
  * (they name repo files). No property index, no classification, no dataset
  * counts — the statewide source must be structurally unreachable from this
- * path, not merely prompted away.
+ * path, not merely prompted away. The question is never echoed either: the
+ * model already receives it as the user message, and the payload carries
+ * only what retrieval ADDED.
  */
 export interface TenantScopedContext {
-  question: string;
   scope: "tenant";
   tenantFaq: TenantFaqMatch[];
-  facts: {
-    applicationFee: {
-      amount: string;
-      per: string;
-      refundable: boolean;
-      note: string;
-    };
-    rule120: { days: number; note: string };
-    documentsNeeded: readonly string[];
-    documentsNote: string;
-  };
+  facts: PublicFacts;
 }
 
 export function buildTenantContext(question: string): TenantScopedContext {
-  const { applicationFee, rule120, documentsNeeded, documentsNote } =
-    ALWAYS_ON_FACTS;
   return {
-    question,
     scope: "tenant",
     // Same cap the process branch uses, so the rehearsed FAQ answers retrieve
     // exactly as before.
     tenantFaq: matchTenantFaq(question, 4),
-    facts: {
-      applicationFee: {
-        amount: applicationFee.amount,
-        per: applicationFee.per,
-        refundable: applicationFee.refundable,
-        note: applicationFee.note,
-      },
-      rule120: { days: rule120.days, note: rule120.note },
-      documentsNeeded,
-      documentsNote,
-    },
+    facts: PUBLIC_FACTS,
   };
+}
+
+/**
+ * THE single surface→payload dispatch. Routes (and any future model-calling
+ * path) must build context through here: the switch is exhaustive over
+ * QaSurface — adding a surface FAILS COMPILATION until a payload shape is
+ * chosen, instead of silently falling through to full retrieval.
+ */
+export function buildContextForSurface(
+  surface: QaSurface,
+  question: string,
+  index: HousingIndex = getHousingIndex()
+): TenantScopedContext | HousingContext {
+  switch (surface) {
+    case "tenant_public":
+      return buildTenantContext(question);
+    case "applicant_portal":
+      return buildContext(question, RETRIEVAL_POLICIES[surface], index);
+    default: {
+      const unhandled: never = surface;
+      throw new Error(`housing-qa: no context builder for surface ${unhandled}`);
+    }
+  }
 }
 
 export function buildContext(

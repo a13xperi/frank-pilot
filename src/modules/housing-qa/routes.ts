@@ -23,9 +23,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { spawn } from "child_process";
 import os from "os";
 import path from "path";
-import { buildContext, buildTenantContext, RETRIEVAL_POLICIES, QaSurface } from "./retriever";
+import { buildContextForSurface, RETRIEVAL_POLICIES, QaSurface } from "./retriever";
 import { buildSystemPromptFor } from "./prompt";
-import { guardTenantAnswer } from "./output-guard";
+import { finalizeAnswer } from "./output-guard";
 import { logger } from "../../utils/logger";
 
 // Short, grounded answers → Haiku for cost. Locked by the brief.
@@ -351,20 +351,12 @@ export function housingQaRouter(opts: HousingQaRouterOptions): Router {
     }
 
     try {
-      // The tenant surface gets the purpose-built tenant payload — it carries
-      // NO retrieval metadata (routing/properties/mode keys), so internal
-      // vocabulary can't reach the model even as JSON keys. Other surfaces
-      // keep the full HousingContext. policy.echoQuestion (false on tenant)
-      // additionally strips the question echo — the model already receives the
-      // question as the user message; duplicating it into the payload is a
-      // second channel for bait text.
-      let context: Record<string, unknown>;
-      if (opts.surface === "tenant_public") {
-        const { question: echoed, ...tenantCtx } = buildTenantContext(question);
-        context = policy.echoQuestion ? { question: echoed, ...tenantCtx } : tenantCtx;
-      } else {
-        context = buildContext(question, policy) as unknown as Record<string, unknown>;
-      }
+      // Surface→payload dispatch lives in the retriever (exhaustive over
+      // QaSurface). The tenant surface gets the purpose-built tenant payload —
+      // no retrieval metadata (routing/properties/mode keys) and no question
+      // echo, so internal vocabulary can't reach the model even as JSON keys.
+      // Other surfaces keep the full HousingContext.
+      const context = buildContextForSurface(opts.surface, question);
       const system = buildSystemPromptFor(opts.surface, context);
 
       let answer: string;
@@ -420,21 +412,20 @@ export function housingQaRouter(opts: HousingQaRouterOptions): Router {
         return;
       }
 
-      // Response-side internal-language guard (policy-gated; ON for the
-      // public tenant surface). A tripped guard replaces the WHOLE answer
-      // with the safe fallback — fail-closed, see output-guard.ts. Log rule
-      // ids only: the answer text can embed the user's question (PII).
-      let guarded = false;
-      if (policy.guardOutput) {
-        const verdict = guardTenantAnswer(answer);
-        if (!verdict.ok) {
-          guarded = true;
-          logger.warn("housing-qa output guard tripped — answer replaced", {
-            surface: opts.surface,
-            violations: verdict.violations,
-          });
-          answer = verdict.answer;
-        }
+      // Response-side internal-language guard. finalizeAnswer is the policy-
+      // keyed choke point (no-op on unguarded surfaces) — called
+      // unconditionally so no future change can skip it. A tripped guard
+      // replaces the WHOLE answer with the safe fallback — fail-closed, see
+      // output-guard.ts. Log rule ids only: the answer text can embed the
+      // user's question (PII).
+      const verdict = finalizeAnswer(policy, answer);
+      const guarded = !verdict.ok;
+      if (guarded) {
+        logger.warn("housing-qa output guard tripped — answer replaced", {
+          surface: opts.surface,
+          violations: verdict.violations,
+        });
+        answer = verdict.answer;
       }
 
       // PII-safe usage line for cost-spike + abuse visibility. Question LENGTH
@@ -444,11 +435,11 @@ export function housingQaRouter(opts: HousingQaRouterOptions): Router {
       // tokens are not PII.
       logger.info("housing-qa answered", {
         surface: opts.surface,
-        route: typeof context.routing === "string" ? context.routing : "tenant_faq",
+        route: "routing" in context ? context.routing : "tenant_faq",
         guarded,
         path: client ? "sdk" : "cli",
         qLen: question.length,
-        propertyCount: Array.isArray(context.properties) ? context.properties.length : 0,
+        propertyCount: "properties" in context ? context.properties.length : 0,
         latencyMs: Date.now() - startedAt,
         inputTokens,
         outputTokens,
