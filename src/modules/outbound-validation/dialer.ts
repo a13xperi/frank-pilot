@@ -1,5 +1,6 @@
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
+import { stampTape } from "../tape";
 import {
   claimNextCall,
   recordCallOutcome,
@@ -184,6 +185,33 @@ function last4(phone: string): string {
   return phone.replace(/\D/g, "").slice(-4);
 }
 
+/**
+ * TCPA PEWC audit anchor (grafted from the voice-outbound review-queue
+ * design): EVERY dial attempt — dry runs included — stamps the compliance
+ * tape, so "we attempted to call this applicant under this consent basis"
+ * is durable even when no conversation ever happens.
+ */
+function stampAttempt(
+  applicant: SageApplicant,
+  toNumber: string,
+  opts: { dryRun: boolean; testCall: boolean; conversationId?: string | null; failed?: boolean }
+): void {
+  void stampTape({
+    kind: "VOICE_INTAKE_OUTBOUND_ATTEMPTED",
+    actor: "outbound-validation-dialer",
+    sessionId: opts.conversationId ?? `${opts.dryRun ? "dry" : opts.failed ? "fail" : "dial"}:${applicant.id}:${Date.now()}`,
+    payload: {
+      applicantId: applicant.id,
+      toLast4: last4(toNumber),
+      dryRun: opts.dryRun,
+      testCall: opts.testCall,
+      conversationId: opts.conversationId ?? null,
+      failed: opts.failed ?? false,
+      consentSource: applicant.consent_source ?? null,
+    },
+  });
+}
+
 /** Initials-only name for logs — full PII stays in Sage. */
 function logName(a: SageApplicant): string {
   return a.full_name
@@ -226,6 +254,7 @@ export async function runDialerTick(
       [applicant.id, last4(toNumber), Boolean(testNumber), JSON.stringify(vars)]
     );
     await resetClaim(applicant.id);
+    stampAttempt(applicant, toNumber, { dryRun: true, testCall: Boolean(testNumber) });
     logger.info("Outbound validation DRY RUN — would dial", {
       trigger: opts.trigger,
       applicant: logName(applicant),
@@ -261,6 +290,11 @@ export async function runDialerTick(
         JSON.stringify(vars),
       ]
     );
+    stampAttempt(applicant, toNumber, {
+      dryRun: false,
+      testCall: Boolean(testNumber),
+      conversationId,
+    });
     logger.info("Outbound validation call dialed", {
       trigger: opts.trigger,
       applicant: logName(applicant),
@@ -288,6 +322,11 @@ export async function runDialerTick(
       applicantId: applicant.id,
       outcome: "no_answer",
       notes: `dial failed: ${message.slice(0, 200)}`,
+    });
+    stampAttempt(applicant, toNumber, {
+      dryRun: false,
+      testCall: Boolean(testNumber),
+      failed: true,
     });
     logger.error("Outbound validation dial failed", {
       applicantId: applicant.id,

@@ -25,6 +25,11 @@ jest.mock("../modules/outbound-validation/sage-client", () => ({
   resetClaim: (...args: unknown[]) => mockResetClaim(...args),
 }));
 
+const mockStampTape = jest.fn().mockResolvedValue(null);
+jest.mock("../modules/tape", () => ({
+  stampTape: (...args: unknown[]) => mockStampTape(...args),
+}));
+
 import {
   runDialerTick,
   isWithinCallWindow,
@@ -114,6 +119,7 @@ beforeEach(() => {
   mockClaimNextCall.mockReset();
   mockRecordCallOutcome.mockReset().mockResolvedValue(undefined);
   mockResetClaim.mockReset().mockResolvedValue(undefined);
+  mockStampTape.mockClear();
 });
 
 afterEach(() => {
@@ -224,6 +230,13 @@ describe("runDialerTick gate chain", () => {
     expect(mockResetClaim).toHaveBeenCalledWith(APPLICANT.id);
     expect(inserts).toHaveLength(1);
     expect(inserts[0].sql).toContain("'dry_run'");
+    // TCPA tape anchor: dry runs stamp the attempt too.
+    expect(mockStampTape).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "VOICE_INTAKE_OUTBOUND_ATTEMPTED",
+        payload: expect.objectContaining({ applicantId: APPLICANT.id, dryRun: true }),
+      })
+    );
   });
 
   it("dials through ElevenLabs and tracks the conversation", async () => {
@@ -250,6 +263,13 @@ describe("runDialerTick gate chain", () => {
     expect(inserts[0].sql).toContain("'dialed'");
     expect(mockResetClaim).not.toHaveBeenCalled();
     expect(mockRecordCallOutcome).not.toHaveBeenCalled();
+    expect(mockStampTape).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "VOICE_INTAKE_OUTBOUND_ATTEMPTED",
+        sessionId: "conv_abc",
+        payload: expect.objectContaining({ dryRun: false, conversationId: "conv_abc" }),
+      })
+    );
   });
 
   it("FRANK_OUTBOUND_TEST_NUMBER reroutes every dial", async () => {

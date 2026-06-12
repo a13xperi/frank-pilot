@@ -30,7 +30,6 @@ import {
   voiceIntakeApplicantRoutes,
   registerVoiceToolHandlers,
 } from "./modules/voice-intake";
-import { voiceOutboundRoutes } from "./modules/voice-outbound";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
 import adverseActionRoutes from "./modules/adverse-action/routes";
@@ -331,17 +330,6 @@ if (process.env.VOICE_INTAKE_ENABLED === "true") {
 if (process.env.VOICE_INTAKE_ENABLED === "true") {
   app.use("/api/voice/intakes", voiceIntakeApplicantRoutes);
   logger.info("Voice intake applicant routes mounted");
-}
-
-// Outbound wait-list calling (voice-intake Phase 2, DM-FRANK-029). Same
-// fail-closed posture as VOICE_INTAKE_ENABLED; actually placing calls is a
-// SECOND flag (VOICE_OUTBOUND_DIALING_ENABLED) — routes-on + dialing-off is
-// the dry-run rehearsal mode for the go-live week.
-if (process.env.VOICE_OUTBOUND_ENABLED === "true") {
-  app.use("/api/pm/outbound-calls", voiceOutboundRoutes);
-  logger.info("Voice outbound routes mounted");
-} else {
-  logger.info("Voice outbound routes skipped — VOICE_OUTBOUND_ENABLED is off");
 }
 
 // Phase B: register in-call server-tool handlers (send_app_link, etc.).

@@ -31,6 +31,11 @@ export interface SageApplicant {
   still_interested: boolean | null;
   last_call_at: string | null;
   call_notes: string | null;
+  // TCPA PEWC consent gate (grafted from the voice-outbound design). The
+  // queue view + claim RPC filter on consent_outbound server-side; these
+  // fields ride along for tape-stamp payloads and the report.
+  consent_outbound?: boolean;
+  consent_source?: string | null;
 }
 
 export interface SageValidationCall {
