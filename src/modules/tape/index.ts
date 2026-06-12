@@ -45,6 +45,11 @@ export const TAPE_STAMP_KINDS = {
   VOICE_INTAKE_COMPLETED: "voice_intake.completed",
   VOICE_INTAKE_DECISION: "voice_intake.decision",
   VOICE_INTAKE_OUTBOUND_ATTEMPTED: "voice_intake.outbound_attempted",
+  // Outbound waitlist-validation call results (DM-FRANK-029): every post-call
+  // webhook for the outbound validation agent stamps one of these with the
+  // conversation id + mapped outcome — the audit anchor for "we called this
+  // wait-list applicant and here is what came back".
+  OUTBOUND_VALIDATION_CALL_COMPLETED: "outbound_validation.call_completed",
   // Voice agent in-call server-tool invocations. Every tool the agent fires
   // mid-call (send_app_link, lookup_tenant, file_maintenance_request,
   // file_compliance_report) stamps VOICE_TOOL_INVOKED with the tool name +
@@ -81,6 +86,7 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   VOICE_INTAKE_COMPLETED: "HUD 4350.3 Ch. 4-6 / NRS 200.620",
   VOICE_INTAKE_DECISION: "HUD 4350.3 Ch. 4-6",
   VOICE_INTAKE_OUTBOUND_ATTEMPTED: "TCPA 47 CFR §64.1200(a)(2)",
+  OUTBOUND_VALIDATION_CALL_COMPLETED: "TCPA 47 CFR §64.1200 / HUD 4350.3 Ch. 4-6",
   VOICE_TOOL_INVOKED: "HUD 4350.3 Ch. 4-6",
   VOICE_BROWSER_SESSION_STARTED: "HUD 4350.3 Ch. 4-6",
   VOICE_BROWSER_SESSION_DENIED: "HUD 4350.3 Ch. 4-6",

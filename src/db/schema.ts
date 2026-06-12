@@ -1570,6 +1570,7 @@ CREATE TABLE IF NOT EXISTS acq_awards (
 );
 CREATE INDEX IF NOT EXISTS idx_acq_awards_project ON acq_awards(acq_project_id);
 CREATE INDEX IF NOT EXISTS idx_acq_awards_property ON acq_awards(property_id);
+
 `;
 
 export const DROP_SCHEMA_SQL = `

@@ -101,6 +101,12 @@ const PERMISSIONS: Record<string, string[]> = {
   // promotion of an intake into an `applications` row, so it's senior+ only.
   "voice_intake:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
   "voice_intake:approve": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+
+  // Outbound waitlist-validation dialer (DM-FRANK-029). Firing real phone
+  // calls to applicants is high blast radius — system_admin only; managers
+  // can watch progress and pull the report.
+  "outbound_validation:run": ["system_admin"],
+  "outbound_validation:view": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
 };
 
 export function requireRole(...roles: string[]) {

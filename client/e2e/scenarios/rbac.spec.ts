@@ -13,7 +13,8 @@ const ALL_NAV = [
   "Applications",
   "Screening",
   "Approvals",
-  "Ledger",
+  "The Ledger",
+  "Rent Ledger",
   "Properties",
   "Users",
   "Inspections",
@@ -28,8 +29,8 @@ const ALL_NAV = [
 ] as const;
 
 // Exact set of sidebar items each role should see (cumulative by hierarchy).
-const AGENT_NAV = ["Dashboard", "Applications", "Ledger", "Properties", "Inspections", "Maintenance"];
-const SENIOR_NAV = [...AGENT_NAV, "Screening", "Approvals", "Users", "Renewals", "Move-Outs", "Evictions", "Recertifications"];
+const AGENT_NAV = ["Dashboard", "Applications", "Rent Ledger", "Properties", "Inspections", "Maintenance"];
+const SENIOR_NAV = [...AGENT_NAV, "The Ledger", "Screening", "Approvals", "Users", "Renewals", "Move-Outs", "Evictions", "Recertifications"];
 const FULL_NAV = [...ALL_NAV];
 
 async function assertNav(page: Page, visible: readonly string[]) {
