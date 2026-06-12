@@ -30,6 +30,7 @@ import {
   voiceIntakeApplicantRoutes,
   registerVoiceToolHandlers,
 } from "./modules/voice-intake";
+import { voiceOutboundRoutes } from "./modules/voice-outbound";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
 import adverseActionRoutes from "./modules/adverse-action/routes";
@@ -55,6 +56,7 @@ import { qaRouter } from "./modules/qa/routes";
 import { housingQaRouter } from "./modules/housing-qa/routes";
 import acquisitionRoutes from "./modules/acquisitions/routes";
 import savedRoutes from "./modules/saved/routes";
+import { outboundValidationRoutes } from "./modules/outbound-validation";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -331,10 +333,26 @@ if (process.env.VOICE_INTAKE_ENABLED === "true") {
   logger.info("Voice intake applicant routes mounted");
 }
 
+// Outbound wait-list calling (voice-intake Phase 2, DM-FRANK-029). Same
+// fail-closed posture as VOICE_INTAKE_ENABLED; actually placing calls is a
+// SECOND flag (VOICE_OUTBOUND_DIALING_ENABLED) — routes-on + dialing-off is
+// the dry-run rehearsal mode for the go-live week.
+if (process.env.VOICE_OUTBOUND_ENABLED === "true") {
+  app.use("/api/pm/outbound-calls", voiceOutboundRoutes);
+  logger.info("Voice outbound routes mounted");
+} else {
+  logger.info("Voice outbound routes skipped — VOICE_OUTBOUND_ENABLED is off");
+}
+
 // Phase B: register in-call server-tool handlers (send_app_link, etc.).
 // Idempotent — safe even when VOICE_TOOLS_ENABLED is off; the tool-callback
 // router will still 503 until that flag flips on.
 registerVoiceToolHandlers();
+
+// Outbound waitlist-validation dialer admin surface (DM-FRANK-029).
+// Always mounted; every route 503s while FRANK_OUTBOUND_ENABLED is off
+// (router-level guard), so a dark deploy is byte-identical in behavior.
+app.use("/api/admin/outbound-validation", outboundValidationRoutes);
 
 // Compliance reports (Fair Housing Act — audit:view / Regional Manager+)
 app.use("/api/compliance", complianceRoutes);

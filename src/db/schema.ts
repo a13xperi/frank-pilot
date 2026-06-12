@@ -1570,9 +1570,84 @@ CREATE TABLE IF NOT EXISTS acq_awards (
 );
 CREATE INDEX IF NOT EXISTS idx_acq_awards_project ON acq_awards(acq_project_id);
 CREATE INDEX IF NOT EXISTS idx_acq_awards_property ON acq_awards(property_id);
+
+-- Outbound AI calling (voice-intake Phase 2, DM-FRANK-029). Legacy wait list
+-- arrives as a file; source_position preserves the operator's ordering —
+-- compliance sequencing FILTERS (consent, windows, attempts) but NEVER
+-- reorders. Removal is never automatic ('removal_review' + a person decides).
+-- Mirrors 2026-06-12-outbound-calling.sql.
+CREATE TABLE IF NOT EXISTS waitlist_import_batches (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id   UUID REFERENCES properties(id) ON DELETE SET NULL,
+  source_label  TEXT NOT NULL,
+  row_count     INTEGER NOT NULL DEFAULT 0,
+  skipped_count INTEGER NOT NULL DEFAULT 0,
+  imported_by   UUID NOT NULL REFERENCES users(id),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS external_waitlist_entries (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  batch_id        UUID NOT NULL REFERENCES waitlist_import_batches(id) ON DELETE CASCADE,
+  property_id     UUID REFERENCES properties(id) ON DELETE SET NULL,
+  source_position INTEGER NOT NULL,
+  full_name       TEXT NOT NULL,
+  phone           VARCHAR(20),
+  email           TEXT,
+  bedroom_count   SMALLINT,
+  listed_at       DATE,
+  consent_outbound BOOLEAN NOT NULL DEFAULT FALSE,
+  consent_source   TEXT,
+  status          VARCHAR(20) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','queued','contacted','interested','declined',
+                      'unreachable','removal_review','removed','converted')),
+  contact_attempts           INTEGER NOT NULL DEFAULT 0,
+  first_contacted_at         TIMESTAMPTZ,
+  last_contacted_at          TIMESTAMPTZ,
+  response_window_expires_at TIMESTAMPTZ,
+  removal_window_expires_at  TIMESTAMPTZ,
+  matched_application_id     UUID REFERENCES applications(id) ON DELETE SET NULL,
+  notes           TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (batch_id, source_position)
+);
+
+CREATE INDEX IF NOT EXISTS idx_external_waitlist_lane
+  ON external_waitlist_entries(property_id, status, source_position);
+CREATE INDEX IF NOT EXISTS idx_external_waitlist_phone
+  ON external_waitlist_entries(phone);
+
+CREATE TABLE IF NOT EXISTS outbound_call_queue (
+  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  entry_id         UUID NOT NULL REFERENCES external_waitlist_entries(id) ON DELETE CASCADE,
+  status           VARCHAR(20) NOT NULL DEFAULT 'proposed'
+    CHECK (status IN ('proposed','approved','rejected','dialing','completed','failed')),
+  attempt_number   INTEGER NOT NULL DEFAULT 1,
+  proposed_by      UUID REFERENCES users(id),
+  reviewed_by      UUID REFERENCES users(id),
+  reviewed_at      TIMESTAMPTZ,
+  reject_reason    TEXT,
+  consent_snapshot BOOLEAN,
+  scheduled_after  TIMESTAMPTZ,
+  conversation_id  TEXT,
+  dial_result      VARCHAR(20),
+  dialed_at        TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_outbound_queue_one_active
+  ON outbound_call_queue(entry_id)
+  WHERE status IN ('proposed','approved','dialing');
+CREATE INDEX IF NOT EXISTS idx_outbound_queue_status
+  ON outbound_call_queue(status, created_at);
 `;
 
 export const DROP_SCHEMA_SQL = `
+DROP TABLE IF EXISTS outbound_call_queue CASCADE;
+DROP TABLE IF EXISTS external_waitlist_entries CASCADE;
+DROP TABLE IF EXISTS waitlist_import_batches CASCADE;
 DROP TABLE IF EXISTS acq_awards CASCADE;
 DROP TABLE IF EXISTS acq_projects CASCADE;
 DROP TABLE IF EXISTS lease_signatures CASCADE;
