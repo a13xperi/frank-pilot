@@ -5,6 +5,10 @@ import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stampTape } from "../tape";
 import { persistConversation, type PostCallPayload } from "./service";
+import {
+  isOutboundValidationEvent,
+  handleOutboundPostCall,
+} from "../outbound-validation/outcome";
 
 /**
  * ElevenLabs Conv. AI post-call webhook receiver.
@@ -229,6 +233,31 @@ async function dispatch(event: ElevenLabsEvent): Promise<void> {
   switch (event.type) {
     case "post_call_transcription":
     case "post_call_audio": {
+      // Outbound waitlist-validation calls share this front door (same
+      // signature/idempotency/DLQ stack) but are NOT intakes — route them to
+      // the outcome mapper and skip voice_intake_calls persistence.
+      if (isOutboundValidationEvent(event.data)) {
+        await handleOutboundPostCall(event.data);
+        void stampTape({
+          kind: "OUTBOUND_VALIDATION_CALL_COMPLETED",
+          actor: "elevenlabs-webhook",
+          sessionId: event.data.conversation_id,
+          payload: {
+            conversationId: event.data.conversation_id,
+            agentId: event.data.agent_id,
+            eventType: event.type,
+          },
+        });
+        return;
+      }
+      if (process.env.VOICE_INTAKE_ENABLED !== "true") {
+        // Receiver is open because FRANK_OUTBOUND_ENABLED is on, but intake
+        // persistence stays dark while its own flag is off.
+        logger.info("ElevenLabs webhook: non-outbound event ignored (voice intake off)", {
+          conversationId: event.data.conversation_id,
+        });
+        return;
+      }
       const result = await persistConversation(event.data);
       void stampTape({
         kind: "VOICE_INTAKE_COMPLETED",
@@ -258,7 +287,10 @@ router.post(
   "/",
   express.raw({ type: "application/json", limit: "5mb" }),
   async (req: Request, res: Response): Promise<void> => {
-    if (process.env.VOICE_INTAKE_ENABLED !== "true") {
+    if (
+      process.env.VOICE_INTAKE_ENABLED !== "true" &&
+      process.env.FRANK_OUTBOUND_ENABLED !== "true"
+    ) {
       res.status(503).json({ error: "Voice intake disabled" });
       return;
     }

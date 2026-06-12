@@ -5,6 +5,8 @@ import { LeaseRenewalService } from "./modules/renewal/service";
 import { createTapeService } from "./modules/tape/service";
 import { PgTapeRepository } from "./modules/tape/repository";
 import { AdverseActionService } from "./modules/adverse-action/service";
+import { runDialerTick, sweepStuckCalls } from "./modules/outbound-validation/dialer";
+import { pushReportToNotion } from "./modules/outbound-validation/report";
 import { logger } from "./utils/logger";
 
 const recertService = new RecertificationService();
@@ -200,6 +202,65 @@ export function startScheduler() {
     logger.info(
       "FCRA pre-adverse finalizer cron skipped — FCRA_PRE_ADVERSE_ENABLED is off"
     );
+  }
+
+  // DM-FRANK-029 outbound waitlist-validation dialer — gated on
+  // FRANK_OUTBOUND_ENABLED. One dial per tick max; the in-code gates
+  // (call window, in-flight, daily batch cap, pacing, DRY_RUN) do the real
+  // throttling, the cron is just the heartbeat. Default OFF ⇒ byte-identical
+  // scheduler, same pattern as the BP-02 and FCRA blocks above.
+  if (process.env.FRANK_OUTBOUND_ENABLED === "true") {
+    // Every 5 minutes, 9am–8pm Pacific — dialer tick.
+    cron.schedule(
+      "*/5 9-19 * * *",
+      async () => {
+        try {
+          const result = await runDialerTick({ trigger: "cron" });
+          if (result.action !== "queue_empty" && result.action !== "paced") {
+            logger.info("Outbound validation dialer tick", { ...result });
+          }
+        } catch (err) {
+          logger.error("Outbound validation dialer tick failed", {
+            error: (err as Error).message,
+          });
+        }
+      },
+      { timezone: "America/Los_Angeles" }
+    );
+
+    // Every 15 minutes — expire dialed calls that never produced a webhook.
+    cron.schedule(
+      "*/15 * * * *",
+      async () => {
+        try {
+          await sweepStuckCalls();
+        } catch (err) {
+          logger.error("Outbound validation sweep failed", {
+            error: (err as Error).message,
+          });
+        }
+      },
+      { timezone: "America/Los_Angeles" }
+    );
+
+    // Daily at 8:05pm Pacific (just after the call window closes) — push the
+    // day's sweep report to the Notion live-report page.
+    cron.schedule(
+      "5 20 * * *",
+      async () => {
+        try {
+          await pushReportToNotion();
+        } catch (err) {
+          logger.error("Outbound validation report push failed", {
+            error: (err as Error).message,
+          });
+        }
+      },
+      { timezone: "America/Los_Angeles" }
+    );
+    logger.info("Outbound validation dialer cron registered (FRANK_OUTBOUND_ENABLED=true)");
+  } else {
+    logger.info("Outbound validation dialer cron skipped — FRANK_OUTBOUND_ENABLED is off");
   }
 
   logger.info("Scheduler started: rent postings (1st @ 6AM) + late fees (7AM) + renewals (7:30AM) + recert reminders (8AM) + TRACS checks (9AM)");
