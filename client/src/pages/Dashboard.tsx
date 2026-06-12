@@ -14,7 +14,7 @@ function StatCard({ icon: Icon, label, value, loading, to }: { icon: LucideIcon;
         {label}
       </p>
       <div className="mt-2 flex items-end justify-between gap-3">
-        <p className="font-serif text-3xl font-semibold text-gray-900">
+        <p className="font-serif text-3xl font-semibold tabular-nums text-gray-900">
           {loading ? <span className="inline-block h-8 w-12 animate-pulse rounded bg-gray-200" /> : value}
         </p>
         <div className="rounded-full border border-brand-200 bg-brand-50 p-2">

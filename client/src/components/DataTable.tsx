@@ -58,16 +58,18 @@ export function DataTable<T>({
   }
 
   // Classic registry table: strong header rule, full-width hairline row rules.
+  // Data-UI mechanics grafted from Refined Emerald (operator-lens winner):
+  // tabular numerals throughout and tighter row density (~17 rows/screen).
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-left text-sm tabular-nums">
           <thead>
             <tr className="border-b-2 border-gray-300">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500 ${col.className || ''}`}
+                  className={`px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 ${col.className || ''}`}
                 >
                   {col.header}
                 </th>
@@ -95,7 +97,7 @@ export function DataTable<T>({
                 className={`border-b border-gray-200 last:border-0 ${onRowClick ? 'cursor-pointer transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500' : ''}`}
               >
                 {columns.map((col) => (
-                  <td key={col.key} className={`px-5 py-3.5 text-gray-700 ${col.className || ''}`}>
+                  <td key={col.key} className={`px-5 py-2.5 text-gray-700 ${col.className || ''}`}>
                     {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '—')}
                   </td>
                 ))}
