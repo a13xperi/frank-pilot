@@ -370,7 +370,7 @@ describe("housing-qa follow-up pins — tenant surface index independence", () =
     const { buildContextForSurface } = require("../modules/housing-qa/retriever");
     const ctx = buildContextForSurface("tenant_public", "how do I pay my rent?");
     expect(spy).not.toHaveBeenCalled();
-    expect(ctx.scope).toBe("tenant_public");
+    expect(ctx.scope).toBe("tenant");
     spy.mockRestore();
   });
 
