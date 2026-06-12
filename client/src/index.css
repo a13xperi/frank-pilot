@@ -152,19 +152,21 @@
 
 .dark {
   color-scheme: dark;
-  /* Deep-forest dark — warm neutrals with a faint green cast so the dark
-     theme reads as the same institution after hours, not a different app. */
-  --c-white: 45 51 47; /* cards — lifted off the page so panels don't dissolve */
-  --c-gray-50: 24 28 26; /* page */
-  --c-gray-100: 56 62 58; /* hover */
-  --c-gray-200: 72 80 74; /* borders */
-  --c-gray-300: 94 103 97;
-  --c-gray-400: 156 165 158;
-  --c-gray-500: 178 187 180;
-  --c-gray-600: 208 215 209;
-  --c-gray-700: 209 216 210;
+  /* Deep-forest dark — the same institution after hours, with the layered
+     near-black surface stack grafted from the design-study runners-up
+     (Modern Ops / Refined Emerald): page < card < hover < hairline, so cards
+     read as elevation and 1px borders read as hairlines. Green cast kept. */
+  --c-white: 26 32 28; /* cards — clearly elevated off the page */
+  --c-gray-50: 13 17 15; /* page background */
+  --c-gray-100: 34 41 37; /* subtle fills, skeletons, hover */
+  --c-gray-200: 47 56 51; /* hairline borders */
+  --c-gray-300: 63 74 68; /* input borders */
+  --c-gray-400: 126 137 130; /* placeholders / faint text */
+  --c-gray-500: 150 161 154; /* secondary text */
+  --c-gray-600: 180 190 183; /* body text */
+  --c-gray-700: 204 212 206; /* emphasized body */
   --c-gray-800: 224 230 225;
-  --c-gray-900: 238 242 239;
+  --c-gray-900: 238 243 239; /* headings */
   --c-gray-950: 247 250 248;
   --c-emerald-50: 21 44 36;
   --c-emerald-100: 27 57 47;
