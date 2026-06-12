@@ -51,7 +51,13 @@ const columns: Column<AuditEntry>[] = [
   {
     key: 'created_at',
     header: 'Time',
-    render: (r) => new Date(r.created_at).toLocaleString(),
+    // Ledger monospace grafted from Modern Ops (design study): timestamps on
+    // the immutable record align like a terminal log.
+    render: (r) => (
+      <span className="font-mono text-xs tabular-nums text-gray-500">
+        {new Date(r.created_at).toLocaleString()}
+      </span>
+    ),
     className: 'whitespace-nowrap',
   },
   {
@@ -333,7 +339,7 @@ function ComplianceTapePanel() {
                       <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
                         {entry.citation}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      <td className="px-4 py-3 font-mono text-xs tabular-nums text-gray-500 whitespace-nowrap">
                         {new Date(entry.createdAt).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 max-w-xs">

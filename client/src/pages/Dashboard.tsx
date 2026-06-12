@@ -125,7 +125,7 @@ export function Dashboard() {
                       {formatRole(entry.actor_role as 'leasing_agent')}
                     </span>
                   </div>
-                  <span className="text-xs tabular-nums text-gray-400">
+                  <span className="font-mono text-[11px] tabular-nums text-gray-400">
                     {new Date(entry.created_at).toLocaleString()}
                   </span>
                 </div>
