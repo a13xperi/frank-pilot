@@ -1,0 +1,194 @@
+{
+  "_comment": "VENDORED from gpmglv-energy-model/src/data/rows.real.ts (Clark Co. Assessor owner-verified 2026-06-03). Source of truth for the GPM parcel/APN identity layer; vendored so frank-pilot has no cross-repo dependency (mirrors bins.json). apn_confidence=provisional set by WS-2 for any row whose notes contain a multi-parcel / confirm / 0-permits disambiguation warning — a provisional APN is never silently trusted and its buildings are left unlinked. Regenerate with src/db/data/README or re-running the vendoring step.",
+  "_source": "clark-assessor:2026-06-03",
+  "_generatedBy": "WS-2 import (unit-identity-ledger)",
+  "rows": [
+    {
+      "id": "aldene-kline-barlow",
+      "name": "Aldene Kline Barlow",
+      "apn": "13928503028",
+      "owner": "CDPC NL LLC",
+      "units": 39,
+      "ahj": "City of LV",
+      "tractGeoid": "32003000302",
+      "notes": "Hi-rise (277/480V likely). 1327 H St campus = 3 separate parcels/services.",
+      "apn_confidence": "provisional"
+    },
+    {
+      "id": "ethel-mae-robinson",
+      "name": "Ethel Mae Robinson",
+      "apn": "13928503027",
+      "owner": "CDPC NL LLC",
+      "units": 82,
+      "ahj": "City of LV",
+      "tractGeoid": "32003000302",
+      "notes": "Hi-rise. 2× Electrical-Only permits corroborate service.",
+      "apn_confidence": "confirmed"
+    },
+    {
+      "id": "sarann-knight",
+      "name": "Sarann Knight",
+      "apn": "13928503026",
+      "owner": "CDPC NL LLC",
+      "units": 38,
+      "ahj": "City of LV",
+      "tractGeoid": "32003000302",
+      "notes": null,
+      "apn_confidence": "confirmed"
+    },
+    {
+      "id": "david-hoggard",
+      "name": "David J. Hoggard Family",
+      "apn": "13928503022",
+      "owner": "SOUTHERN NV HOUSING AUTHORITY",
+      "units": 100,
+      "ahj": "City of LV",
+      "tractGeoid": "32003000302",
+      "notes": null,
+      "apn_confidence": "confirmed"
+    },
+    {
+      "id": "donna-louise-1",
+      "name": "Donna Louise 1",
+      "apn": "12426103004",
+      "owner": "DONNALOUISE LLC",
+      "units": 48,
+      "ahj": "North Las Vegas",
+      "tractGeoid": "32003003652",
+      "notes": "PILOT. David (M&M Electric) reviewing drawings; Blue Star delivery target 2026-06-20, energize before 6/30 (time-of-the-essence). ⚠ TRACT 32003003652 NOT §30C-ELIGIBLE — $0 §30C here even if it makes the cliff; the six lean-feasible sites (Robinson, Hoggard, Louise Shell, Reid, Bryan, Yale Keyes) are all in eligible tracts.",
+      "apn_confidence": "confirmed"
+    },
+    {
+      "id": "donna-louise-2",
+      "name": "Donna Louise 2",
+      "apn": "12426103002",
+      "owner": "DONNA LOUISE 2 LLC",
+      "units": 48,
+      "ahj": "North Las Vegas",
+      "tractGeoid": "32003003652",
+      "notes": "Separate parcel/SPE from Donna 1 (built 2025) — likely its own service.",
+      "apn_confidence": "provisional"
+    },
+    {
+      "id": "luther-mack",
+      "name": "Luther Mack, Jr. Senior",
+      "apn": "17716101027",
+      "owner": "MIXED INCOME LLC",
+      "units": 48,
+      "ahj": "Unincorp. Clark Co.",
+      "tractGeoid": "32003002828",
+      "notes": null,
+      "apn_confidence": "confirmed"
+    },
+    {
+      "id": "paul-meacham",
+      "name": "Dr. Paul Meacham Senior",
+      "apn": "17716101026",
+      "owner": "MIXED INCOME 2 LLC",
+      "units": 57,
+      "ahj": "Unincorp. Clark Co.",
+      "tractGeoid": "32003002828",
+      "notes": null,
+      "apn_confidence": "confirmed"
+    },
+    {
+      "id": "ethel-mae-fletcher",
+      "name": "Ethel Mae Fletcher",
+      "apn": "13825504001",
+      "owner": "VGAS 1 DCATUR LLC",
+      "units": 18,
+      "ahj": "City of LV",
+      "tractGeoid": "32003000108",
+      "notes": "⚠ Confirm GPMG's \"Fletcher\" is the 18u at 1503 Laurelhurst (this APN) vs adjacent same-owner 42u at 1403 (APN 13825504002).",
+      "apn_confidence": "provisional"
+    },
+    {
+      "id": "mike-ocallaghan",
+      "name": "Mike O'Callaghan Legacy",
+      "apn": "13825518004",
+      "owner": "1501 LLC",
+      "units": 40,
+      "ahj": "City of LV",
+      "tractGeoid": "32003000108",
+      "notes": "⚠ Operating 40u hi-rise = APN …518004 (owner \"1501 LLC\"); first pass pinned the adjacent vacant lot …518005. Confirm GPMG operates …518004. 0 permits on this APN.",
+      "apn_confidence": "provisional"
+    },
+    {
+      "id": "juan-garcia",
+      "name": "Juan Garcia Garden",
+      "apn": "13936402015",
+      "owner": "ERNIE CRAGIN LP",
+      "units": 52,
+      "ahj": "City of LV",
+      "tractGeoid": "32003000523",
+      "notes": null,
+      "apn_confidence": "confirmed"
+    },
+    {
+      "id": "louise-shell",
+      "name": "Louise Shell Senior",
+      "apn": "13921202007",
+      "owner": "LSHP LP",
+      "units": 100,
+      "ahj": "City of LV",
+      "tractGeoid": "32003003500",
+      "notes": null,
+      "apn_confidence": "confirmed"
+    },
+    {
+      "id": "owens-senior",
+      "name": "Owens Senior Housing",
+      "apn": "13922810039",
+      "owner": "OWENS 2 LP",
+      "units": 72,
+      "ahj": "North Las Vegas",
+      "tractGeoid": "32003003800",
+      "notes": "Possibly 2 services (2001 + 2008 Commercial-New permits).",
+      "apn_confidence": "provisional"
+    },
+    {
+      "id": "harry-reid",
+      "name": "Senator Harry Reid Senior",
+      "apn": "13935201001",
+      "owner": "11TH STREET LP",
+      "units": 100,
+      "ahj": "City of LV",
+      "tractGeoid": "32003000403",
+      "notes": null,
+      "apn_confidence": "confirmed"
+    },
+    {
+      "id": "richard-bryan",
+      "name": "Senator Richard Bryan Senior",
+      "apn": "13925101022",
+      "owner": "SOUTHERN NV HOUSING AUTHORITY",
+      "units": 165,
+      "ahj": "City of LV",
+      "tractGeoid": "32003000525",
+      "notes": "61 permits incl. 2× Electrical-Only + pool ⇒ larger service likely.",
+      "apn_confidence": "confirmed"
+    },
+    {
+      "id": "smith-williams",
+      "name": "Smith Williams Senior",
+      "apn": "17908301011",
+      "owner": "CHURCH COMMUNITY BAPTIST",
+      "units": 80,
+      "ahj": "Henderson",
+      "tractGeoid": "32003005438",
+      "notes": "⚠ Owner of record is the church; main building likely on the church parcel (carport-only permit on this APN).",
+      "apn_confidence": "provisional"
+    },
+    {
+      "id": "yale-keyes",
+      "name": "Yale Keyes Senior",
+      "apn": "13922810051",
+      "owner": "YALE KEYES LP",
+      "units": 70,
+      "ahj": "North Las Vegas",
+      "tractGeoid": "32003003800",
+      "notes": "Lapsed 2020 NV Energy dry-utility permit on record.",
+      "apn_confidence": "confirmed"
+    }
+  ]
+}

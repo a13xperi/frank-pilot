@@ -290,6 +290,7 @@ describe("TapeService", () => {
         kind: "WAITING_LIST_APP_CAPTURED",
         citation: TAPE_CITATIONS.WAITING_LIST_APP_CAPTURED,
         applicantId,
+        subjectUnitId: null,
         payload: fakePayload,
         prevHash: wrongPrevHash,
         entryHash: fakeEntryHash,
