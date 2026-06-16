@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "name": "Community Care Line FAQ",
+    "source": "docs/intel/care-line-sot.md §9 (Notion e985741bcf39472280bcdea87bcde5fa)",
+    "discipline": "No guesses, no guaranteed dates/outcomes, no legal/medical/financial advice. If not here, log + human follow-up.",
+    "version": "v0-draft-counsel-gated"
+  },
+  "entries": [
+    { "id": "cl-1", "section": "move_in", "question": "When can I move in / what's my status?", "answer": "I can't lock in an exact date myself, but I'll log your request right now and flag it so someone advocates to get you in as soon as possible. We're rebuilding the move-in process to move faster, and expedited timelines have been landing within the week." },
+    { "id": "cl-2", "section": "move_in", "question": "Is there an application fee?", "answer": "An application fee may apply — please confirm the current amount with the office; I don't want to quote a number that's out of date." },
+    { "id": "cl-3", "section": "move_in", "question": "How does the waitlist work?", "answer": "Applications are processed in waitlist sequence. I'll log your name so an advocate can push for the soonest fair timeline; working with us directly tends to be more expeditious." },
+    { "id": "cl-4", "section": "maintenance", "question": "Something in my unit is broken.", "answer": "Tell me what it is, where, and whether it's still happening, and I'll open a request and route it. Urgent safety items — elevator, water, heat, power — get same-day attention." },
+    { "id": "cl-5", "section": "safety", "question": "How do you handle what I report?", "answer": "What you report goes into our incident system and our ongoing building-management meetings so it's acted on, not lost. You can report anonymously, and reporting is welcomed and protected — never held against you." },
+    { "id": "cl-6", "section": "safety", "question": "Can I report something anonymously?", "answer": "Absolutely. I'll write down exactly what's happening without putting your name on it, and I'll give you a reference code so you can check back. Reporting is protected either way." },
+    { "id": "cl-7", "section": "safety", "question": "Someone is in immediate danger right now.", "answer": "If anyone is in immediate danger, please hang up and call 911 first — that's the right move. I'll also flag it on our side so a person follows up today." },
+    { "id": "cl-8", "section": "wellbeing", "question": "I'm struggling / I need someone to talk to.", "answer": "I'm really glad you told me. If you're feeling unsafe right now, please call 911. If you just need someone to talk to, you can reach the 988 line any time. I'm also going to have a real person from our team follow up with you." },
+    { "id": "cl-9", "section": "amenities", "question": "An amenity or common area has a problem.", "answer": "Common areas — workout room, yoga room, laundry, elevator — are for everyone. Tell me what's wrong or if someone's misusing the space, and I'll note it and route it for repair or attention." },
+    { "id": "cl-10", "section": "rights", "question": "Will reporting get me in trouble?", "answer": "No. You're protected under fair-housing rules and our anti-retaliation policy for raising concerns. I treat every resident the same and I won't ask about or act on any protected personal characteristics." },
+    { "id": "cl-11", "section": "process", "question": "What happens after I tell you something?", "answer": "I log it into our incident system, set the priority, and tell you who will follow up and by when. Serious items go to our building-management meeting so they get handled." },
+    { "id": "cl-12", "section": "process", "question": "Can someone call me back?", "answer": "Yes — if you'd like a callback, I can note a number to reach you, and that's entirely optional. If you'd rather stay anonymous, I'll keep your reference code as the way to check back." }
+  ]
+}
