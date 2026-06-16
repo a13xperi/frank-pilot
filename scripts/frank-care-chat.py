@@ -13,6 +13,7 @@ Run it IN YOUR OWN TERMINAL (needs a live prompt):
 Type a line as the resident; Frank replies + prints a CAPTURE summary. Ctrl-C to quit.
 """
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -52,6 +53,20 @@ EXAMPLES = """Try things like:
 """
 
 
+VOICE = shutil.which("bs-say") is not None and os.environ.get("FRANK_VOICE", "1") != "0"
+
+
+def speak(text):
+    """Speak Frank's reply aloud in his ElevenLabs voice (bs-say). Best-effort."""
+    if not VOICE or not text:
+        return
+    try:
+        subprocess.run(["bs-say", "-"], input=text, text=True,
+                       stderr=subprocess.DEVNULL, timeout=120)
+    except Exception:  # noqa
+        pass
+
+
 def frank(history):
     convo = "\n".join(f"{role}: {text}" for role, text in history)
     prompt = f"{SYSTEM}\n\n--- conversation so far ---\n{convo}\nFrank:"
@@ -76,6 +91,7 @@ def main():
     reply = frank(history)
     spoken = reply.split("CAPTURE:")[0].strip()
     print(f"\nFrank: {spoken}\n")
+    speak(spoken)
     history[-1] = ("Resident", "")  # drop the synthetic connect marker
     history.append(("Frank", spoken))
     while True:
@@ -95,6 +111,7 @@ def main():
         if capture:
             print(f"   📋 {('CAPTURE: ' + capture)}")
         print()
+        speak(spoken)
         history.append(("Frank", spoken))
 
 
