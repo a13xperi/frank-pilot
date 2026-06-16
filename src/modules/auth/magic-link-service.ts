@@ -5,9 +5,10 @@ import { logger } from "../../utils/logger";
 import { getEmailService } from "../integrations/email";
 import { TwilioService } from "../integrations/twilio";
 
-// Delivery channels for a magic link. Default stays 'email' so existing
-// callers (and the /register contract) are unchanged; 'sms' / 'both' opt in
-// to the Twilio transport added here.
+// Delivery channels for a magic link. TEXT-FIRST: 'sms' is the DEFAULT — the
+// golden path's first touch + channel of record. 'email' is opt-in (used only
+// where a real address is required, e.g. screening) or the automatic fallback
+// when no phone is resolvable. 'both' sends via both.
 export type MagicLinkChannel = "email" | "sms" | "both";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
@@ -50,6 +51,34 @@ export async function createMagicLink(email: string): Promise<{ link: string; us
   const portalBase = process.env.TENANT_PORTAL_URL || "http://localhost:5174";
   const link = `${portalBase}/auth/callback?token=${rawToken}`;
   return { link, userId: user.id };
+}
+
+/**
+ * Mint a magic link for a KNOWN user id (no email lookup). The phone-first /
+ * SMS-first golden-path entries create a synthetic-email applicant and already
+ * hold the user id, so this avoids a round-trip through the (synthetic) email
+ * address. Same token TTL + single-use semantics as createMagicLink.
+ */
+export async function createMagicLinkByUserId(
+  userId: string
+): Promise<{ link: string; userId: string } | null> {
+  const userRes = await query(
+    "SELECT id, role, is_active FROM users WHERE id = $1",
+    [userId]
+  );
+  const user = userRes.rows[0];
+  if (!user || !user.is_active) return null;
+  if (!["applicant", "tenant"].includes(user.role)) return null;
+
+  const rawToken = crypto.randomBytes(32).toString("base64url");
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date(Date.now() + TOKEN_TTL_MINUTES * 60 * 1000);
+  await query(
+    `INSERT INTO magic_link_tokens (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
+    [tokenHash, user.id, expiresAt]
+  );
+  const portalBase = process.env.TENANT_PORTAL_URL || "http://localhost:5174";
+  return { link: `${portalBase}/auth/callback?token=${rawToken}`, userId: user.id };
 }
 
 export async function verifyMagicLink(rawToken: string): Promise<{ token: string; user: AuthUser } | null> {
@@ -118,7 +147,9 @@ export function sendMagicLink(
   link: string,
   options?: { firstName?: string; channel?: MagicLinkChannel; userId?: string }
 ): void {
-  const channel: MagicLinkChannel = options?.channel ?? "email";
+  // Text-first: SMS is the default. Email only when explicitly requested
+  // (screening) or as the fallback below when no phone is resolvable.
+  const channel: MagicLinkChannel = options?.channel ?? "sms";
 
   if (channel === "email" || channel === "both") {
     void getEmailService()
@@ -136,7 +167,16 @@ export function sendMagicLink(
     if (options?.userId) {
       sendMagicLinkSms(options.userId, link);
     } else {
-      logger.warn("magic-link sms requested without userId — no phone to resolve");
+      // SMS requested but no userId to resolve a phone — fall back to email so
+      // the link still lands (never strand a registrant on the text-first default).
+      logger.warn("magic-link sms requested without userId — falling back to email");
+      void getEmailService()
+        .sendMagicLink(email, link, { firstName: options?.firstName })
+        .catch((err: unknown) => {
+          logger.error("magic-link email fallback failed", {
+            error: (err as Error)?.message ?? String(err),
+          });
+        });
     }
   }
 }

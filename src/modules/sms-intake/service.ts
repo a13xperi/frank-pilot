@@ -1,6 +1,7 @@
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stepSms, type SmsStep } from "./state-machine";
+import { createMagicLinkByUserId, sendMagicLinkSms } from "../auth/magic-link-service";
 
 /**
  * Inbound-SMS intake service (Phase 1, phone-first Frank).
@@ -91,16 +92,62 @@ async function loadOrCreateSession(phoneE164: string): Promise<SessionRow> {
  *
  * Income is stored verbatim like the voice path — no AMI math here.
  */
+/**
+ * Phone-first applicant: find an active applicant/tenant by phone, else create
+ * one with an internal synthetic email (users.email is NOT NULL + UNIQUE, but
+ * email is NEVER a user-facing touch on the golden path — SMS is). Best-effort:
+ * returns the user id or null, never throws into the inbound webhook.
+ */
+async function findOrCreateUser(
+  phoneE164: string,
+  firstName: string,
+  lastName: string
+): Promise<string | null> {
+  try {
+    const existing = await query(
+      `SELECT id FROM users
+        WHERE phone = $1 AND role IN ('applicant', 'tenant') AND is_active = TRUE
+        ORDER BY created_at DESC LIMIT 1`,
+      [phoneE164]
+    );
+    if (existing.rows[0]?.id) return existing.rows[0].id as string;
+
+    const digits = phoneE164.replace(/[^0-9]/g, "");
+    const email = `sms+${digits}@sms-intake.invalid`; // RFC 2606 .invalid — never receives mail
+    const inserted = await query(
+      `INSERT INTO users (email, first_name, last_name, phone, role, is_active, password_hash)
+       VALUES ($1, $2, $3, $4, 'applicant', TRUE, '')
+       ON CONFLICT (email) DO UPDATE SET phone = EXCLUDED.phone
+       RETURNING id`,
+      [email, firstName || "SMS", lastName || "Texter", phoneE164]
+    );
+    return (inserted.rows[0]?.id as string) ?? null;
+  } catch (err) {
+    logger.error("SMS intake user create failed", { error: (err as Error).message });
+    return null;
+  }
+}
+
+/**
+ * Insert an `applications` draft (source 'sms') AND create the phone-keyed user
+ * + link + text a magic link, so an SMS-only resident has an auth path back (the
+ * previous dead end). Returns the draft id + the user id.
+ *
+ * `applications.property_id` is NOT NULL with an FK — the SMS flow never collects
+ * a property, so we route the draft to SMS_INTAKE_DEFAULT_PROPERTY_ID. If unset
+ * we skip the insert (logged), still completing the conversation; we never crash
+ * the webhook over a config gap (fail-closed). Income is stored verbatim.
+ */
 async function promoteToDraft(
   session: SessionRow,
   collected: Record<string, string>
-): Promise<string | null> {
+): Promise<{ applicationId: string | null; userId: string | null }> {
   const propertyId = process.env.SMS_INTAKE_DEFAULT_PROPERTY_ID;
   if (!propertyId) {
     logger.warn("SMS intake complete but SMS_INTAKE_DEFAULT_PROPERTY_ID unset — draft skipped", {
       sessionId: session.id,
     });
-    return null;
+    return { applicationId: null, userId: null };
   }
 
   const name = (collected.name ?? "").trim() || "Unknown Texter";
@@ -113,6 +160,8 @@ async function promoteToDraft(
   const monthlyIncome = incomeRaw ? Number(incomeRaw.replace(/[^0-9.]/g, "")) : null;
   const annualIncome = monthlyIncome ? monthlyIncome * 12 : null;
   const currentCity = (collected.current_city ?? "").trim() || null;
+
+  const userId = await findOrCreateUser(session.phone_e164, firstName ?? "SMS", lastName);
 
   const inserted = await query(
     `INSERT INTO applications (
@@ -131,7 +180,29 @@ async function promoteToDraft(
       annualIncome,
     ]
   );
-  return (inserted.rows[0]?.id as string) ?? null;
+  const applicationId = (inserted.rows[0]?.id as string) ?? null;
+
+  // Link the user to the draft + text a magic link so they can continue — all
+  // best-effort, never block completion (answers already persisted on the session).
+  if (applicationId && userId) {
+    try {
+      await query(
+        `INSERT INTO user_applications (user_id, application_id, relationship)
+         VALUES ($1, $2, 'primary')
+         ON CONFLICT (user_id, application_id) DO NOTHING`,
+        [userId, applicationId]
+      );
+      const magic = await createMagicLinkByUserId(userId);
+      if (magic) sendMagicLinkSms(userId, magic.link);
+    } catch (err) {
+      logger.error("SMS intake user-link / magic-link failed", {
+        sessionId: session.id,
+        error: (err as Error).message,
+      });
+    }
+  }
+
+  return { applicationId, userId };
 }
 
 /**
@@ -151,11 +222,13 @@ export async function handleInbound(fromPhone: string, body: string): Promise<st
   // On completion, promote to a draft before flipping the session so the
   // back-reference and status land together.
   let applicationId = session.application_id;
+  let userId: string | null = null;
   let status: "active" | "completed" = "active";
   if (result.done) {
     try {
-      const draftId = await promoteToDraft(session, result.collected);
-      if (draftId) applicationId = draftId;
+      const promoted = await promoteToDraft(session, result.collected);
+      if (promoted.applicationId) applicationId = promoted.applicationId;
+      userId = promoted.userId;
     } catch (err) {
       // Never crash the inbound webhook over a draft-insert failure — log and
       // still complete the conversation (answers persisted on the session).
@@ -173,9 +246,10 @@ export async function handleInbound(fromPhone: string, body: string): Promise<st
             collected = $3::jsonb,
             status = $4,
             application_id = $5,
+            user_id = $6,
             updated_at = now()
       WHERE id = $1`,
-    [session.id, result.nextStep, JSON.stringify(result.collected), status, applicationId]
+    [session.id, result.nextStep, JSON.stringify(result.collected), status, applicationId, userId]
   );
 
   return result.reply;

@@ -17,10 +17,15 @@ jest.mock("../config/database", () => ({ query: jest.fn() }));
 jest.mock("../utils/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
+jest.mock("../modules/auth/magic-link-service", () => ({
+  createMagicLinkByUserId: jest.fn().mockResolvedValue({ link: "https://x/auth/callback?token=t", userId: "user-9" }),
+  sendMagicLinkSms: jest.fn(),
+}));
 
 import { query } from "../config/database";
 import { stepSms } from "../modules/sms-intake/state-machine";
 import smsIntakeRoutes from "../modules/sms-intake/routes";
+import { sendMagicLinkSms } from "../modules/auth/magic-link-service";
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 
@@ -170,7 +175,10 @@ describe("POST /inbound — happy path", () => {
           },
         ],
       } as any) // SELECT active session → at `city`
+      .mockResolvedValueOnce({ rows: [] } as any) // findOrCreateUser: SELECT existing → none
+      .mockResolvedValueOnce({ rows: [{ id: "user-9" }] } as any) // findOrCreateUser: INSERT user
       .mockResolvedValueOnce({ rows: [{ id: "app-draft-1" }] } as any) // INSERT applications draft
+      .mockResolvedValueOnce({ rows: [] } as any) // INSERT user_applications link
       .mockResolvedValueOnce({ rows: [] } as any); // UPDATE session
 
     const res = await postInbound({ From: FROM, Body: "Las Vegas" });
@@ -192,6 +200,13 @@ describe("POST /inbound — happy path", () => {
     expect(params[1]).toBe("done"); // step
     expect(params[3]).toBe("completed"); // status
     expect(params[4]).toBe("app-draft-1"); // application_id back-ref
+    expect(params[5]).toBe("user-9"); // user_id back-ref — the SMS-only auth path
+
+    // Spine seam fix: the SMS-only resident gets a phone-keyed user + a texted
+    // magic link (the previous dead end where they were stranded).
+    const userInsert = mockQuery.mock.calls.find((c) => /INSERT INTO users/i.test(String(c[0])));
+    expect(userInsert).toBeTruthy();
+    expect(sendMagicLinkSms).toHaveBeenCalled();
   });
 
   it("completes WITHOUT inserting a draft when SMS_INTAKE_DEFAULT_PROPERTY_ID is unset", async () => {
