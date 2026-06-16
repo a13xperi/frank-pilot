@@ -48,6 +48,42 @@ reason.)
 
 Reply with a yes (or your edits) and we flip it on. Until then it stays off.
 
+## Ready-to-send cover message (STAGED — do not send without Alex's go-ahead)
+
+Two clips of exactly what callers will hear are generated and ready to attach:
+`battlestation/out/briefings/2026-06-16-frank-intro-inbound.mp3` and
+`…-outbound.mp3` (frank-onboarder voice — swap for Frank's own clone once he
+records one).
+
+**Text / SMS:**
+> Frank — we built the AI assistant that helps your Donna Louise residents get
+> answers any time, by phone and text. Before it goes live I want your OK on how
+> it introduces you. Here's exactly what a caller hears (clip attached). It says
+> you *built* it — never pretends to be you. Good to go, or want changes? — Alex
+
+**Email:**
+> **Subject:** Quick OK needed — how the Frank assistant introduces you
+>
+> Frank,
+>
+> The AI assistant is ready to start helping your residents by phone and text.
+> Before we turn it on, I'd like your sign-off on the intro, since it uses your
+> name and your story.
+>
+> Attached are two short clips — what a caller hears when they call in, and when
+> the assistant calls an applicant back. It tells people you *built* this so your
+> communities can get answers with the latest technology, and it's always clear
+> it's the AI assistant you built — never pretending to be you.
+>
+> Three quick things:
+> 1. OK to use your name + this story?
+> 2. Open to recording a short voice sample so it can speak in your voice?
+> 3. Anything you'd change in the wording?
+>
+> Reply yes (or your edits) and we'll flip it on.
+>
+> — Alex
+
 ## For the operator (internal)
 
 - Live copy + the exact go-live `PATCH` command: `docs/voice-agent-greeting.md`
