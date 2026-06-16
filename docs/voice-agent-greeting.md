@@ -9,19 +9,33 @@ post-call webhook — the greeting itself is dashboard config, not code).
 > of the Jun 11 demo. This copy is parked here so the dashboard update and the
 > repo stay in sync when it goes live.
 
-## Donna Louise Phase 2 (pilot property)
+## Donna Louise Phase 2 (pilot property) — inbound
 
-> "Welcome to Donna Louise Phase 2 Apartments. We are grateful to have you
-> start your application process to become a resident. We have one- and
-> two-bedroom units. Please follow the instructions. This is Frank, the
-> digital assistant for Frank Hawkins and the GPMG team — thank you."
+> "Hi, this is Frank — the digital assistant Frank Hawkins built for the
+> Donna Louise Phase 2 community. He wanted the good people living here to be
+> able to get answers with the latest technology, any time. That's why you're
+> talking to me today. We're grateful you're starting your application to
+> become a resident. We have one- and two-bedroom units. Please follow the
+> instructions, and ask me anything along the way."
 
-## Per-property template
+## Per-property template — inbound
 
-> "Welcome to {{property_name}}. We are grateful to have you start your
-> application process to become a resident. We have {{unit_mix}} units.
-> Please follow the instructions. This is Frank, the digital assistant for
-> Frank Hawkins and the GPMG team — thank you."
+> "Hi, this is Frank — the digital assistant Frank Hawkins built for the
+> {{property_name}} community. He wanted the good people living here to be able
+> to get answers with the latest technology, any time. That's why you're
+> talking to me today. We're grateful you're starting your application to
+> become a resident. We have {{unit_mix}} units. Please follow the
+> instructions, and ask me anything along the way."
+
+## Per-property template — outbound (waitlist-validation calls)
+
+Used by the outbound agent (`ELEVENLABS_OUTBOUND_AGENT_ID`, `dialer.ts`); the
+property name comes in as a per-call dynamic variable.
+
+> "Hi, this is Frank — the digital assistant Frank Hawkins built for the
+> {{property_name}} community, so the good people on our list can hear from us
+> with the latest technology. I'm calling about your housing application with
+> {{property_name}}. Is now an okay time for a couple of quick questions?"
 
 ## Branding rule (applies to ALL tenant conversations, voice and chat)
 
@@ -33,9 +47,15 @@ the i18n strings on Jun 11.)
 
 ## Disclosure note
 
-The greeting uses the AI-disclosure form ("Frank, the digital assistant for
-Frank Hawkins and the GPMG team") — adopted Jun 11. The earlier draft closed
-with "This is Frank Hawkins" spoken by the AI voice; an agent introducing
-itself as a real, named person without disclosure carries
-impersonation/consumer-protection risk in a fair-housing context. Still get
-Frank Hawkins' sign-off on the use of his name before go-live.
+The greeting above uses the **founder's-note form** (Alex Jun 16): the AI tells
+the caller that Frank Hawkins built this assistant so his communities can get
+answers with the latest technology, "that's why you're talking to me." It keeps
+the personal warmth **while still disclosing** the caller is talking to the AI
+assistant Frank built — it does NOT claim to BE Frank Hawkins.
+
+This replaces an earlier draft that closed with "This is Frank Hawkins" spoken
+by the AI voice; an agent introducing itself as a real, named person without
+disclosure carries impersonation/consumer-protection risk in a fair-housing
+context. Keep the mid-call identity honest (see voice-agent-system-prompt.md,
+WHO YOU ARE). **Still get Frank Hawkins' written sign-off on the use of his
+name/story before flipping the live agents.**
