@@ -421,3 +421,201 @@ describe("POST /intents — blocked path (terminal status)", () => {
     expect(res.body.reason).toBe("failed");
   });
 });
+
+// ── ACH (us_bank_account) rail ───────────────────────────────────────────────
+
+/**
+ * Wires the DB mock for a clean create path and returns a controllable
+ * pending-row factory. Mirrors the create-path setup used above so each ACH /
+ * fee test reads top-to-bottom.
+ */
+function mockCreatePath(persistedAmountCents: number) {
+  mockAuthQuery(applicant);
+  mockOwnership(1);
+  mockIdempotencyLookup(null); // no existing row → create
+  mockPaymentIntentsCreate.mockResolvedValue({
+    id: "pi_live_ach",
+    client_secret: "pi_live_ach_secret",
+  });
+  mockQuery.mockResolvedValueOnce({ rows: [] } as any); // insertPending INSERT
+  mockQuery.mockResolvedValueOnce({
+    rows: [
+      {
+        idempotency_key: `pi:${APP_ID}:1`,
+        application_id: APP_ID,
+        attempt_n: 1,
+        status: "pending",
+        payment_intent_id: "pi_live_ach",
+        client_secret: "pi_live_ach_secret",
+        amount_cents: persistedAmountCents,
+        currency: "usd",
+        last_event_at: null,
+        created_at: new Date(),
+      },
+    ],
+  } as any); // insertPending SELECT
+  mockQuery.mockResolvedValueOnce({ rows: [] } as any); // writeAuditLog
+}
+
+describe("POST /intents — ACH (us_bank_account) rail", () => {
+  it("pins payment_method_types to us_bank_account and sets verification options", async () => {
+    mockCreatePath(12500);
+
+    const res = await request(app)
+      .post("/intents")
+      .set("Authorization", tokenFor(applicant))
+      .send({
+        applicationId: APP_ID,
+        amountCents: 12500,
+        attemptN: 1,
+        paymentMethod: "us_bank_account",
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.paymentMethod).toBe("us_bank_account");
+
+    const [params] = mockPaymentIntentsCreate.mock.calls[0];
+    expect(params.payment_method_types).toEqual(["us_bank_account"]);
+    expect(params.payment_method_options.us_bank_account.verification_method).toBe(
+      "automatic"
+    );
+    expect(params.metadata.paymentMethod).toBe("us_bank_account");
+  });
+
+  it("defaults to the card rail when paymentMethod is omitted", async () => {
+    mockCreatePath(12500);
+
+    const res = await request(app)
+      .post("/intents")
+      .set("Authorization", tokenFor(applicant))
+      .send({ applicationId: APP_ID, amountCents: 12500, attemptN: 1 });
+
+    expect(res.status).toBe(201);
+    expect(res.body.paymentMethod).toBe("card");
+
+    const [params] = mockPaymentIntentsCreate.mock.calls[0];
+    expect(params.payment_method_types).toEqual(["card"]);
+    // No us_bank_account options on the card path.
+    expect(params.payment_method_options).toBeUndefined();
+  });
+
+  it("rejects an unknown paymentMethod with 400", async () => {
+    mockAuthQuery(applicant);
+
+    const res = await request(app)
+      .post("/intents")
+      .set("Authorization", tokenFor(applicant))
+      .send({
+        applicationId: APP_ID,
+        amountCents: 12500,
+        attemptN: 1,
+        paymentMethod: "crypto",
+      });
+
+    expect(res.status).toBe(400);
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled();
+  });
+});
+
+// ── Fee pass-through (surcharge + application_fee_amount) ─────────────────────
+
+describe("POST /intents — fee pass-through", () => {
+  it("charges base + surcharge and persists the grand total", async () => {
+    mockCreatePath(13000); // 12500 base + 500 surcharge
+
+    const res = await request(app)
+      .post("/intents")
+      .set("Authorization", tokenFor(applicant))
+      .send({
+        applicationId: APP_ID,
+        amountCents: 12500,
+        attemptN: 1,
+        surchargeCents: 500,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.amountCents).toBe(13000);
+
+    const [params] = mockPaymentIntentsCreate.mock.calls[0];
+    expect(params.amount).toBe(13000); // Stripe charges the grand total
+    expect(params.metadata.baseAmountCents).toBe("12500");
+    expect(params.metadata.surchargeCents).toBe("500");
+
+    // The persisted amount_cents (insertPending) is the grand total so refunds
+    // cap against everything the customer paid.
+    const insertCall = mockQuery.mock.calls.find((c) =>
+      (c[0] as string).includes("INSERT INTO payment_idempotency")
+    );
+    expect(insertCall).toBeDefined();
+    // amount_cents is the 6th positional param: ($1..$7) → idx 5.
+    expect(insertCall![1]![5]).toBe(13000);
+
+    // Stamp reflects the breakdown.
+    expect(mockStampTape).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "BP08_PAYMENT_INTENT_CREATED",
+        payload: expect.objectContaining({
+          amountCents: 13000,
+          baseAmountCents: 12500,
+          surchargeCents: 500,
+        }),
+      })
+    );
+  });
+
+  it("passes application_fee_amount straight through without inflating amount", async () => {
+    mockCreatePath(12500);
+
+    const res = await request(app)
+      .post("/intents")
+      .set("Authorization", tokenFor(applicant))
+      .send({
+        applicationId: APP_ID,
+        amountCents: 12500,
+        attemptN: 1,
+        applicationFeeCents: 300,
+      });
+
+    expect(res.status).toBe(201);
+
+    const [params] = mockPaymentIntentsCreate.mock.calls[0];
+    expect(params.amount).toBe(12500); // fee is NOT added to amount
+    expect(params.application_fee_amount).toBe(300);
+    expect(params.metadata.applicationFeeCents).toBe("300");
+  });
+
+  it("returns 400 when applicationFeeCents exceeds the charged total", async () => {
+    // The fee>total guard fires before the ownership check, so only the auth
+    // query is consumed — do NOT queue an ownership row (it would leak into the
+    // next test, since jest.clearAllMocks() doesn't drain mockResolvedValueOnce).
+    mockAuthQuery(applicant);
+
+    const res = await request(app)
+      .post("/intents")
+      .set("Authorization", tokenFor(applicant))
+      .send({
+        applicationId: APP_ID,
+        amountCents: 12500,
+        attemptN: 1,
+        surchargeCents: 0,
+        applicationFeeCents: 99999,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/cannot exceed the charged total/i);
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled();
+  });
+
+  it("omits application_fee_amount when no fee is supplied", async () => {
+    mockCreatePath(12500);
+
+    const res = await request(app)
+      .post("/intents")
+      .set("Authorization", tokenFor(applicant))
+      .send({ applicationId: APP_ID, amountCents: 12500, attemptN: 1 });
+
+    expect(res.status).toBe(201);
+    const [params] = mockPaymentIntentsCreate.mock.calls[0];
+    expect(params.application_fee_amount).toBeUndefined();
+  });
+});

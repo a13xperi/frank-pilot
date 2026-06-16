@@ -28,8 +28,10 @@ jest.mock("../utils/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-// Stripe is require()'d dynamically inside the constructor — mock it at
-// module level so jest intercepts the dynamic require.
+// PaymentService now resolves the shared client via getStripe() (src/lib/stripe)
+// instead of constructing its own. The underlying `stripe` package is still the
+// thing we mock — getStripe() does `new Stripe(key)` — but getStripe() memoises
+// the client, so we reset that cache between tests via resetStripeClientForTests.
 const mockStripeCustomersCreate = jest.fn();
 const mockStripeCustomersUpdate = jest.fn();
 const mockStripePaymentMethodsAttach = jest.fn();
@@ -51,6 +53,7 @@ jest.mock("stripe", () => {
 
 import { query } from "../config/database";
 import { writeAuditLog } from "../middleware/audit";
+import { resetStripeClientForTests } from "../lib/stripe";
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockAuditLog = writeAuditLog as jest.MockedFunction<typeof writeAuditLog>;
@@ -84,6 +87,7 @@ describe("PaymentService.createCustomer — stub (Stripe not configured)", () =>
     mockStripeCustomersCreate.mockReset();
     mockStripeCustomersUpdate.mockReset();
     mockStripePaymentMethodsAttach.mockReset();
+    resetStripeClientForTests();
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY; // ensure stub path
     mockAuditLog.mockResolvedValue(undefined);
@@ -161,6 +165,7 @@ describe("PaymentService.createCustomer — live Stripe path", () => {
     mockStripeCustomersCreate.mockReset();
     mockStripeCustomersUpdate.mockReset();
     mockStripePaymentMethodsAttach.mockReset();
+    resetStripeClientForTests();
     process.env = { ...originalEnv, STRIPE_SECRET_KEY: "sk_test_real123" };
     mockAuditLog.mockResolvedValue(undefined);
     mockQuery.mockResolvedValue(qr([]));
@@ -246,6 +251,7 @@ describe("PaymentService.setupPaymentMethod", () => {
     mockStripeCustomersCreate.mockReset();
     mockStripeCustomersUpdate.mockReset();
     mockStripePaymentMethodsAttach.mockReset();
+    resetStripeClientForTests();
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY; // stub mode — no Stripe calls
     mockAuditLog.mockResolvedValue(undefined);
@@ -365,6 +371,7 @@ describe("PaymentService.enrollAutoPay", () => {
     mockStripeCustomersCreate.mockReset();
     mockStripeCustomersUpdate.mockReset();
     mockStripePaymentMethodsAttach.mockReset();
+    resetStripeClientForTests();
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY;
     mockAuditLog.mockResolvedValue(undefined);
@@ -439,6 +446,7 @@ describe("PaymentService.getPaymentStatus", () => {
     mockStripeCustomersCreate.mockReset();
     mockStripeCustomersUpdate.mockReset();
     mockStripePaymentMethodsAttach.mockReset();
+    resetStripeClientForTests();
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY;
     service = new PaymentService();

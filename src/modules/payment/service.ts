@@ -1,7 +1,13 @@
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
+import { getStripe } from "../../lib/stripe";
+
+// The placeholder set the shared boot-guard treats as "no real key wired". Kept
+// in sync with src/lib/stripe.ts so this service's dark-by-default behaviour
+// matches the rest of the payment module.
+const PLACEHOLDER_SECRET_KEYS = new Set(["", "sk_test_changeme", "sk_live_changeme"]);
 
 /**
  * Payment Processing Module.
@@ -11,13 +17,18 @@ import { logger } from "../../utils/logger";
  * PCI-compliant: tokenized via Stripe, no physical card capture.
  */
 export class PaymentService {
-  private stripe?: Stripe;
-
-  constructor() {
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (stripeKey && stripeKey !== "sk_test_changeme") {
-      this.stripe = new Stripe(stripeKey);
-    }
+  /**
+   * Resolve the shared, memoised Stripe client — or `null` when no real key is
+   * wired (the dark-by-default stub path). We fold onto `getStripe()` rather
+   * than constructing our own `new Stripe(...)` so the API version is pinned in
+   * one place and the client is shared across the module. `getStripe()` throws
+   * on a missing/placeholder key (defense-in-depth), so we gate on the same
+   * placeholder check first and stay dark instead of throwing.
+   */
+  private getStripeOrNull(): Stripe | null {
+    const key = process.env.STRIPE_SECRET_KEY ?? "";
+    if (PLACEHOLDER_SECRET_KEYS.has(key)) return null;
+    return getStripe();
   }
 
   /**
@@ -31,7 +42,8 @@ export class PaymentService {
     actorId: string;
     actorRole: string;
   }): Promise<{ customerId: string }> {
-    if (!this.stripe) {
+    const stripe = this.getStripeOrNull();
+    if (!stripe) {
       logger.warn("Stripe not configured — using stub customer ID");
       const stubId = `cus_stub_${Date.now()}`;
       await query(
@@ -41,7 +53,7 @@ export class PaymentService {
       return { customerId: stubId };
     }
 
-    const customer = await this.stripe.customers.create({
+    const customer = await stripe.customers.create({
       email: input.email,
       name: `${input.firstName} ${input.lastName}`,
       metadata: { applicationId: input.applicationId },
@@ -79,14 +91,15 @@ export class PaymentService {
       throw new Error("Customer must be created before setting up payment method");
     }
 
-    if (this.stripe) {
+    const stripe = this.getStripeOrNull();
+    if (stripe) {
       // Attach payment method to customer
-      await this.stripe.paymentMethods.attach(input.paymentMethodId, {
+      await stripe.paymentMethods.attach(input.paymentMethodId, {
         customer: app.stripe_customer_id,
       });
 
       // Set as default
-      await this.stripe.customers.update(app.stripe_customer_id, {
+      await stripe.customers.update(app.stripe_customer_id, {
         invoice_settings: { default_payment_method: input.paymentMethodId },
       });
     }
@@ -132,7 +145,7 @@ export class PaymentService {
       [input.applicationId]
     );
 
-    if (this.stripe && app.stripe_customer_id) {
+    if (this.getStripeOrNull() && app.stripe_customer_id) {
       // Create recurring subscription in Stripe
       // In production, this would create a Stripe Subscription or Schedule
       logger.info("Auto-pay subscription would be created in Stripe", {
