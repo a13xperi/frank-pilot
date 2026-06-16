@@ -574,6 +574,7 @@ describe("POST /intents — fee pass-through", () => {
         amountCents: 12500,
         attemptN: 1,
         applicationFeeCents: 300,
+        destinationAccount: "acct_test123",
       });
 
     expect(res.status).toBe(201);
@@ -581,7 +582,29 @@ describe("POST /intents — fee pass-through", () => {
     const [params] = mockPaymentIntentsCreate.mock.calls[0];
     expect(params.amount).toBe(12500); // fee is NOT added to amount
     expect(params.application_fee_amount).toBe(300);
+    // Stripe rejects a bare application fee — it must ride with transfer_data.
+    expect(params.transfer_data).toEqual({ destination: "acct_test123" });
     expect(params.metadata.applicationFeeCents).toBe("300");
+  });
+
+  it("rejects an application fee without a destinationAccount", async () => {
+    // The destinationAccount guard fires before the ownership check, so only the
+    // auth query is consumed — mirror the fee>total test's single-mock setup.
+    mockAuthQuery(applicant);
+
+    const res = await request(app)
+      .post("/intents")
+      .set("Authorization", tokenFor(applicant))
+      .send({
+        applicationId: APP_ID,
+        amountCents: 12500,
+        attemptN: 1,
+        applicationFeeCents: 300,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/destinationAccount is required/i);
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled();
   });
 
   it("returns 400 when applicationFeeCents exceeds the charged total", async () => {

@@ -36,6 +36,25 @@ export function getStripe(): Stripe {
 }
 
 /**
+ * True when a real (non-placeholder) STRIPE_SECRET_KEY is wired. The single
+ * source of truth for "is Stripe configured" — callers that need to stay
+ * dark-by-default (e.g. PaymentService) gate on this instead of re-declaring
+ * the placeholder set.
+ */
+export function isStripeConfigured(): boolean {
+  return !PLACEHOLDER_SECRET_KEYS.has(process.env.STRIPE_SECRET_KEY ?? "");
+}
+
+/**
+ * Like {@link getStripe} but returns `null` when no real key is wired instead
+ * of throwing — for the dark-by-default paths that must no-op rather than fail
+ * when Stripe is unconfigured.
+ */
+export function getStripeOrNull(): Stripe | null {
+  return isStripeConfigured() ? getStripe() : null;
+}
+
+/**
  * Expected Stripe livemode for the currently-configured secret key.
  *
  * Only `sk_live_*` keys produce live-mode events; everything else (`sk_test_*`,

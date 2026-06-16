@@ -30,8 +30,12 @@ jest.mock("../modules/tape", () => {
 });
 
 const mockRefundsCreate = jest.fn();
+const mockPaymentIntentsRetrieve = jest.fn();
 jest.mock("../lib/stripe", () => ({
-  getStripe: () => ({ refunds: { create: mockRefundsCreate } }),
+  getStripe: () => ({
+    refunds: { create: mockRefundsCreate },
+    paymentIntents: { retrieve: mockPaymentIntentsRetrieve },
+  }),
 }));
 
 import { query } from "../config/database";
@@ -110,6 +114,13 @@ const app = buildApp();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // The refund path now reads the intent back (to decide refund_application_fee /
+  // reverse_transfer). Default to a non-Connect, no-fee charge so the existing
+  // refund assertions are unchanged unless a test opts into a fee.
+  mockPaymentIntentsRetrieve.mockResolvedValue({
+    application_fee_amount: null,
+    transfer_data: null,
+  });
 });
 
 // ── Auth + permission gate ───────────────────────────────────────────────

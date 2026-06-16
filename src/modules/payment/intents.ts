@@ -53,8 +53,12 @@ import {
  *     returns everything the customer actually paid.
  *   - `applicationFeeCents`→ Stripe Connect `application_fee_amount`: the slice
  *     of the (already-surcharged) total that routes to the platform account.
- *     Passed straight through to Stripe; never added to `amount`. No-op unless
- *     the account is wired for Connect, so it's safe to omit.
+ *     Never added to `amount`. Stripe REJECTS a bare `application_fee_amount`
+ *     unless the charge also carries `transfer_data[destination]` (a destination
+ *     charge on a connected account), so this field is only honoured alongside
+ *     `destinationAccount`; supplying the fee without a destination is a 400 —
+ *     we never hand Stripe a config it will reject. `onBehalfOf` is forwarded
+ *     when present for the cross-region settlement-merchant case.
  */
 
 const PAYMENT_METHODS = ["card", "us_bank_account"] as const;
@@ -75,7 +79,15 @@ const intentSchema = z.object({
   // Convenience fee added on top of amountCents — bounded to the same ceiling.
   surchargeCents: z.number().int().nonnegative().max(10_000_000).optional(),
   // Stripe Connect platform fee taken from the total. Cannot exceed the total.
+  // Requires `destinationAccount` — Stripe rejects a bare application fee.
   applicationFeeCents: z.number().int().nonnegative().max(20_000_000).optional(),
+  // Connected account that the funds settle into (the `acct_…` id). Mandatory
+  // whenever `applicationFeeCents` is set — it becomes `transfer_data.destination`,
+  // turning the charge into a destination charge so the platform fee is legal.
+  destinationAccount: z.string().min(1).optional(),
+  // Cross-region settlement merchant (`on_behalf_of`). Optional; forwarded as-is
+  // when present so funds settle in the connected account's region.
+  onBehalfOf: z.string().min(1).optional(),
 });
 
 async function callerOwnsApplication(
@@ -122,6 +134,17 @@ router.post(
     // what we persist and what refunds cap against.
     const totalCents = amountCents + surchargeCents;
     const applicationFeeCents = input.applicationFeeCents;
+    const { destinationAccount, onBehalfOf } = input;
+
+    // Each field is individually capped at 10_000_000, but the SUM is not — two
+    // maxed fields would charge ~$200k. Cap the grand total at the same $100k
+    // ceiling so the surcharge can't smuggle the charge past it.
+    if (totalCents > 10_000_000) {
+      res
+        .status(400)
+        .json({ error: "amountCents + surchargeCents exceeds the 10,000,000 ceiling" });
+      return;
+    }
 
     // A Connect application fee can never exceed the total being charged — Stripe
     // would reject it, but failing fast here keeps a bad caller out of Stripe.
@@ -129,6 +152,17 @@ router.post(
       res
         .status(400)
         .json({ error: "applicationFeeCents cannot exceed the charged total" });
+      return;
+    }
+
+    // Stripe rejects a PaymentIntent that sets `application_fee_amount` without a
+    // `transfer_data[destination]`. Reject the bad shape here rather than letting
+    // every fee-bearing caller eat a hard Stripe error — and never silently emit
+    // a bare application fee that Stripe would refuse.
+    if (applicationFeeCents != null && !destinationAccount) {
+      res.status(400).json({
+        error: "destinationAccount is required when applicationFeeCents is set",
+      });
       return;
     }
 
@@ -225,8 +259,20 @@ router.post(
       }
 
       if (applicationFeeCents != null) {
+        // Guarded above: applicationFeeCents implies a destinationAccount, so
+        // the application fee always rides on a destination charge — the only
+        // shape Stripe accepts a platform fee on.
         params.application_fee_amount = applicationFeeCents;
+        params.transfer_data = { destination: destinationAccount! };
+        // Cross-region settlement merchant, when the caller supplies one.
+        if (onBehalfOf) {
+          params.on_behalf_of = onBehalfOf;
+        }
         params.metadata!.applicationFeeCents = String(applicationFeeCents);
+        params.metadata!.destinationAccount = destinationAccount!;
+        if (onBehalfOf) {
+          params.metadata!.onBehalfOf = onBehalfOf;
+        }
       }
 
       const intent = await stripe.paymentIntents.create(params, { idempotencyKey });

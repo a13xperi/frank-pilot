@@ -2,12 +2,7 @@ import type Stripe from "stripe";
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
-import { getStripe } from "../../lib/stripe";
-
-// The placeholder set the shared boot-guard treats as "no real key wired". Kept
-// in sync with src/lib/stripe.ts so this service's dark-by-default behaviour
-// matches the rest of the payment module.
-const PLACEHOLDER_SECRET_KEYS = new Set(["", "sk_test_changeme", "sk_live_changeme"]);
+import { getStripeOrNull } from "../../lib/stripe";
 
 /**
  * Payment Processing Module.
@@ -19,16 +14,12 @@ const PLACEHOLDER_SECRET_KEYS = new Set(["", "sk_test_changeme", "sk_live_change
 export class PaymentService {
   /**
    * Resolve the shared, memoised Stripe client — or `null` when no real key is
-   * wired (the dark-by-default stub path). We fold onto `getStripe()` rather
-   * than constructing our own `new Stripe(...)` so the API version is pinned in
-   * one place and the client is shared across the module. `getStripe()` throws
-   * on a missing/placeholder key (defense-in-depth), so we gate on the same
-   * placeholder check first and stay dark instead of throwing.
+   * wired (the dark-by-default stub path). Delegates to the shared
+   * `getStripeOrNull()` in src/lib/stripe.ts so the placeholder-key contract
+   * lives in exactly one place.
    */
   private getStripeOrNull(): Stripe | null {
-    const key = process.env.STRIPE_SECRET_KEY ?? "";
-    if (PLACEHOLDER_SECRET_KEYS.has(key)) return null;
-    return getStripe();
+    return getStripeOrNull();
   }
 
   /**
