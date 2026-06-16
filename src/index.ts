@@ -57,6 +57,7 @@ import acquisitionRoutes from "./modules/acquisitions/routes";
 import savedRoutes from "./modules/saved/routes";
 import { outboundValidationRoutes } from "./modules/outbound-validation";
 import { managerRoutes } from "./modules/manager";
+import { cockpitMetricsRoutes } from "./modules/cockpit-metrics";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -318,6 +319,10 @@ app.use("/api/acquisitions", acquisitionRoutes);
 
 // Manager briefing — unified operations rollup (senior_manager+ / manager_briefing:view)
 app.use("/api/manager", managerRoutes);
+
+// Cockpit metrics — NO-PII inbound voice counts for the token-watch Frank tab
+// (shared-secret COCKPIT_METRICS_TOKEN; fail-closed 503 until set).
+app.use("/api/cockpit", cockpitMetricsRoutes);
 
 // Voice intake PM console (flag-gated to avoid surfacing unstamped review
 // surface area when the feature is off in an environment).
