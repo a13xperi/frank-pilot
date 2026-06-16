@@ -4,6 +4,7 @@ import { generateToken, AuthUser } from "../../middleware/auth";
 import { logger } from "../../utils/logger";
 import { getEmailService } from "../integrations/email";
 import { TwilioService } from "../integrations/twilio";
+import { getFieldTrailEmitter } from "../integrations/field-trail-emit";
 
 // Delivery channels for a magic link. Default stays 'email' so existing
 // callers (and the /register contract) are unchanged; 'sms' / 'both' opt in
@@ -83,6 +84,15 @@ export async function verifyMagicLink(rawToken: string): Promise<{ token: string
      WHERE id = $1 AND email_verified_at IS NULL`,
     [row.user_id]
   );
+
+  // Field trail: record that the magic link was tapped — the identity-binding moment.
+  // Fire-and-forget; the emitter never throws, so this can't affect auth.
+  void getFieldTrailEmitter().emit({
+    actor: `user:${row.user_id}`,
+    eventType: "onboarding.link_tapped",
+    summary: "magic link verified",
+    detail: { role: row.role },
+  });
 
   const authUser: AuthUser = {
     id: row.user_id,
@@ -164,7 +174,15 @@ export function sendMagicLinkSms(userIdOrPhone: string, link: string): void {
       const body = `Your sign-in link for CDPC Nevada: ${link} (expires in ${TOKEN_TTL_MINUTES} minutes). If you didn't request this, ignore this message.`;
       return getTwilioService()
         .sendSMS(phone, body)
-        .then(() => undefined);
+        .then(() => {
+          // Field trail: the first written touch went out. Fire-and-forget.
+          const actor = UUID_RE.test(userIdOrPhone) ? `user:${userIdOrPhone}` : `phone:${phone}`;
+          void getFieldTrailEmitter().emit({
+            actor,
+            eventType: "onboarding.text_sent",
+            summary: "magic-link SMS sent",
+          });
+        });
     })
     .catch((err: unknown) => {
       logger.error("magic-link sms send failed", {
