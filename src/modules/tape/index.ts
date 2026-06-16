@@ -61,6 +61,13 @@ export const TAPE_STAMP_KINDS = {
   // budget trip (mirrors the deny audit trail of the BP-08 payment loop).
   VOICE_BROWSER_SESSION_STARTED: "voice_intake.browser_session_started",
   VOICE_BROWSER_SESSION_DENIED: "voice_intake.browser_session_denied",
+  // Concierge co-browse (Phase 2): consent + session lifecycle audit anchors.
+  COBROWSE_CONSENT_CAPTURED: "cobrowse.consent_captured",
+  COBROWSE_SESSION_STARTED: "cobrowse.session_started",
+  COBROWSE_FIELD_FILLED: "cobrowse.field_filled",
+  COBROWSE_CONFIRMED: "cobrowse.confirmed",
+  COBROWSE_DENIED: "cobrowse.denied",
+  COBROWSE_HANDED_OFF: "cobrowse.handed_off",
 } as const;
 
 export type TapeStampKind = keyof typeof TAPE_STAMP_KINDS;
@@ -90,6 +97,12 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   VOICE_TOOL_INVOKED: "HUD 4350.3 Ch. 4-6",
   VOICE_BROWSER_SESSION_STARTED: "HUD 4350.3 Ch. 4-6",
   VOICE_BROWSER_SESSION_DENIED: "HUD 4350.3 Ch. 4-6",
+  COBROWSE_CONSENT_CAPTURED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_SESSION_STARTED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_FIELD_FILLED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_CONFIRMED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_DENIED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_HANDED_OFF: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
 };
 
 export interface TapeStampInput {

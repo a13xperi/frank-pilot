@@ -29,6 +29,7 @@ import {
   voiceIntakeRoutes,
   voiceIntakeApplicantRoutes,
   registerVoiceToolHandlers,
+  registerNameVerificationHandler,
 } from "./modules/voice-intake";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
@@ -57,6 +58,10 @@ import acquisitionRoutes from "./modules/acquisitions/routes";
 import savedRoutes from "./modules/saved/routes";
 import { outboundValidationRoutes } from "./modules/outbound-validation";
 import { managerRoutes } from "./modules/manager";
+import { frankContactRoutes } from "./modules/frank-contact";
+import { smsIntakeRoutes } from "./modules/sms-intake";
+import { cobrowseRoutes, registerCobrowseHandlers } from "./modules/cobrowse";
+import { truthTokenRoutes } from "./modules/truth-token";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -127,6 +132,11 @@ app.use("/api/webhooks/elevenlabs/tools", voiceToolCallbackRouter);
 // parser. See modules/screening/cra-webhook.ts.
 app.use("/api/webhooks/cra", craWebhookRouter);
 
+// Inbound SMS intake (phone-first Frank, Phase 1). Carries its OWN
+// express.urlencoded on POST /inbound, so it mounts BEFORE the global
+// express.json(). Self-gates 503 until SMS_INTAKE_ENABLED.
+app.use("/api/webhooks/twilio", smsIntakeRoutes);
+
 app.use(express.json({ limit: "1mb" }));
 
 // Request logging (PII-safe)
@@ -183,6 +193,9 @@ app.use("/api/applicants", applicantRoutes);
 // Degrades to 503 when ANTHROPIC_API_KEY is absent.
 app.use("/api/housing-qa", housingQaRouter({ surface: "tenant_public" }));
 
+// Frank vCard — public "save my number" contact card (Phase 0b).
+app.use("/api/frank", frankContactRoutes);
+
 // Break-glass kill-switch for the public housing-QA endpoint (system_admin
 // only). HOUSING_QA_ENABLED=false is the restart-durable default; this flips
 // the in-memory override instantly with NO redeploy. GET reports current state
@@ -222,6 +235,10 @@ app.post(
 // per-IP + per-cookie rate limits are enforced inside the router.
 app.use("/api/voice/sessions", voiceBrowserSessionRouter);
 
+// Concierge co-browse watch-along (Phase 2). Flag-gated 503 until COBROWSE_ENABLED;
+// scaffold dark — live computer-use loop pending counsel sign-off.
+app.use("/api/cobrowse", cobrowseRoutes);
+
 // Saved-property shortlist (public — guests via uh_guest cookie OR authed users).
 // Guests save without an account; on magic-link conversion the saves migrate
 // onto the real user. See src/modules/saved/.
@@ -251,6 +268,13 @@ if (process.env.COMPLIANCE_TAPE_V2_ENABLED === "true") {
   logger.info(
     "BP-02 compliance-tape viewer routes skipped — COMPLIANCE_TAPE_V2_ENABLED is off"
   );
+}
+
+// Truth Token — public read-only grounding attestation verify surface (Phase 3).
+// Flag-gated on TRUTH_TOKEN_ENABLED; off => routes NOT mounted => 404 fallthrough.
+if (process.env.TRUTH_TOKEN_ENABLED === "true") {
+  app.use("/api/truth-tokens", truthTokenRoutes());
+  logger.info("Truth Token verify routes mounted");
 }
 
 // Password login (staff)
@@ -340,6 +364,8 @@ if (process.env.VOICE_INTAKE_ENABLED === "true") {
 // Idempotent — safe even when VOICE_TOOLS_ENABLED is off; the tool-callback
 // router will still 503 until that flag flips on.
 registerVoiceToolHandlers();
+registerNameVerificationHandler();
+registerCobrowseHandlers();
 
 // Outbound waitlist-validation dialer admin surface (DM-FRANK-029).
 // Always mounted; every route 503s while FRANK_OUTBOUND_ENABLED is off
