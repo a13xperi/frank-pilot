@@ -5,6 +5,7 @@ import { logger } from "../../utils/logger";
 import { CreateApplicationInput, UpdateApplicationInput } from "./validation";
 import { FraudDetectionService } from "../screening/fraud-detection";
 import { transitionApplicationStatus } from "../screening/state-machine";
+import { getFieldTrailEmitter } from "../integrations/field-trail-emit";
 
 export class ApplicationService {
   private fraudDetection = new FraudDetectionService();
@@ -242,6 +243,15 @@ export class ApplicationService {
       resourceType: "application",
       resourceId: applicationId,
       details: { status: "submitted" },
+    });
+
+    // Field trail: the applicant completed the walkthrough (draft -> submitted). Fire-and-forget;
+    // the emitter never throws, so this can't affect submission.
+    void getFieldTrailEmitter().emit({
+      actor: `user:${submittedBy}`,
+      eventType: "onboarding.walkthrough_complete",
+      summary: "application submitted",
+      detail: { applicationId },
     });
 
     // Phase 4b — Stripe Identity capture on submit, dark behind
