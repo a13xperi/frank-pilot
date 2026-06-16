@@ -53,6 +53,27 @@ interface GpmParcelsJson {
 // seed-buildings' bin_source convention (e.g. 'gpmg-email:2026-05-27').
 const APN_SOURCE = "clark-assessor:2026-06-03";
 
+// Curated GPM-site -> HUD-catalog name aliases. The energy-model site names differ from
+// the catalog names seeded by seed-property-geo.ts (variants: "Apts", "Senior", periods,
+// "/"), so an EXACT-name resolve misses them. These 8 were confirmed by a token-overlap
+// review (>=50%, clean surname match); resolution still requires an EXACT match on the
+// aliased name, so a wrong alias simply fails closed (no mis-link).
+// DELIBERATELY NOT aliased — await Frank's confirmation (a wrong APN on the wrong property
+// is a compliance hazard), tracked in ADI-230: Ethel Mae Robinson (two catalog "Robinson"
+// rows — ambiguous), Ethel Mae Fletcher (NOT the Robinson row: shared first name, different
+// property), Senator Harry Reid Senior, Louise Shell Senior, Juan Garcia Garden,
+// Donna Louise 1/2, Aldene Kline Barlow, Mike O'Callaghan Legacy (no catalog overlap).
+const GPM_NAME_ALIASES: Record<string, string> = {
+  "Luther Mack, Jr. Senior": "Dr. Luther Mack Jr. Senior Apartments",
+  "Dr. Paul Meacham Senior": "Dr. Paul Meacham",
+  "David J. Hoggard Family": "David Hoggard Family Community",
+  "Senator Richard Bryan Senior": "Senator Richard Bryan Apts",
+  "Sarann Knight": "Sarann Knight Apts",
+  "Smith Williams Senior": "Smith Williams Apts",
+  "Yale Keyes Senior": "Yale/Keyes Senior Apts",
+  "Owens Senior Housing": "Owens Senior",
+};
+
 // ── Pure transform (no IO / DB / clock) ───────────────────────────────────────
 
 /** Re-derive apn_confidence from notes, so the importer is correct even if the
@@ -93,13 +114,15 @@ export async function importGpmParcels(query: QueryFn = dbQuery): Promise<void> 
   const resolvedPropertyIds = new Set<string>();
 
   for (const row of rows) {
-    // Resolve property by EXACT name equality only. No ILIKE / substring.
-    const propRow = await query("SELECT id FROM properties WHERE name = $1", [row.name]);
+    // Resolve property by EXACT name equality (on the curated alias if present). No fuzzy.
+    const resolveName = GPM_NAME_ALIASES[row.name] ?? row.name;
+    const propRow = await query("SELECT id FROM properties WHERE name = $1", [resolveName]);
     if (propRow.rows.length === 0) {
       propsSkipped++;
       logger.warn(
-        `importGpmParcels: skipping '${row.id}' — no property row with name = '${row.name}' ` +
-          `(run seed-property-geo.ts first; fresh demo DB lacks the statewide name rows)`
+        `importGpmParcels: skipping '${row.id}' — no property row with name = '${resolveName}'` +
+          (resolveName !== row.name ? ` (aliased from '${row.name}')` : ``) +
+          ` (run seed-property-geo.ts first; fresh demo DB lacks the statewide name rows)`
       );
       continue;
     }
