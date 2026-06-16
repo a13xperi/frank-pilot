@@ -28,10 +28,12 @@ export class ApplicationService {
           previous_landlord_name, previous_landlord_phone, previous_rental_address, previous_rental_duration_months,
           emergency_contact_name, emergency_contact_phone, emergency_contact_relationship,
           requested_lease_term_months, requested_rent_amount, requested_move_in_date,
+          conversation_id,
           status, submitted_by
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
           $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29,
+          $31,
           'draft', $30
         ) RETURNING id, status, created_at`,
         [
@@ -49,6 +51,7 @@ export class ApplicationService {
           input.requestedLeaseTermMonths, input.requestedRentAmount || null,
           input.requestedMoveInDate || null,
           submittedBy,
+          input.conversationId || null,
         ]
       );
 
@@ -134,6 +137,7 @@ export class ApplicationService {
             requested_lease_term_months = $28, requested_rent_amount = $29,
             requested_move_in_date = $30,
             submitted_by = $31,
+            conversation_id = $32,
             updated_at = NOW()
           WHERE id = $1 AND status = 'draft'
           RETURNING id, status, created_at`,
@@ -153,6 +157,7 @@ export class ApplicationService {
           input.requestedLeaseTermMonths, input.requestedRentAmount || null,
           input.requestedMoveInDate || null,
           submittedBy,
+          input.conversationId || null,
         ]
       );
 

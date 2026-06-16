@@ -18,13 +18,26 @@ jest.mock("../utils/logger", () => ({
 }));
 
 jest.mock("../modules/tape", () => ({ stampTape: jest.fn().mockResolvedValue(null) }));
-jest.mock("../modules/auth/magic-link-service", () => ({ sendMagicLinkSms: jest.fn() }));
+jest.mock("../modules/auth/magic-link-service", () => ({
+  sendMagicLinkSms: jest.fn(),
+  createMagicLinkByUserId: jest
+    .fn()
+    .mockResolvedValue({ link: "https://x/auth/callback?token=t", userId: "u1" }),
+}));
+jest.mock("../modules/outbound-validation/sage-client", () => ({
+  recordCallOutcome: jest.fn().mockResolvedValue(undefined),
+  getApplicantPhone: jest.fn().mockResolvedValue("+17025550001"),
+}));
 
 import {
   mapPostCallToOutcome,
   isOutboundValidationEvent,
+  handleOutboundPostCall,
 } from "../modules/outbound-validation/outcome";
+import { sendMagicLinkSms } from "../modules/auth/magic-link-service";
 import type { PostCallPayload } from "../modules/voice-intake/service";
+
+const flush = () => new Promise((r) => setTimeout(r, 10));
 
 const OUTBOUND_AGENT = "agent_outbound_test_123";
 
@@ -175,5 +188,67 @@ describe("mapPostCallToOutcome precedence", () => {
     expect(mapped.outcome).toBe("confirmed");
     expect(mapped.notes).toContain("apt: 2 bedroom");
     expect(mapped.notes).toContain("needed: end of June");
+  });
+});
+
+// ── GP-C: the send_app_link text handoff fires ONLY when it's safe ───────────
+// This gate guards against accidentally texting a real applicant: it must fire
+// only on a CONFIRMED outcome, only when FRANK_OUTBOUND_APP_LINK_ENABLED=true,
+// and never on a test call (which dialed a test number, not the applicant).
+describe("handleOutboundPostCall — outbound app-link gate", () => {
+  const savedFlag = process.env.FRANK_OUTBOUND_APP_LINK_ENABLED;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  afterEach(() => {
+    if (savedFlag === undefined) delete process.env.FRANK_OUTBOUND_APP_LINK_ENABLED;
+    else process.env.FRANK_OUTBOUND_APP_LINK_ENABLED = savedFlag;
+  });
+
+  // findLocalCall SELECT → one dialed row; UPDATE; then (if the gate opens)
+  // findOrCreateUserByPhone SELECT returns an existing user (so no INSERT path).
+  function primeQueries(testCall: boolean) {
+    mockQuery.mockReset();
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: "call-1", applicant_id: "appl-1", status: "dialed", test_call: testCall }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "u1" }] });
+  }
+
+  const confirmed = () => buildPayload({ data: { still_interested: field(true) } });
+
+  it("confirmed + flag on + real call → texts the app link", async () => {
+    process.env.FRANK_OUTBOUND_APP_LINK_ENABLED = "true";
+    primeQueries(false);
+    await handleOutboundPostCall(confirmed());
+    await flush();
+    expect(sendMagicLinkSms).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT text when the flag is off", async () => {
+    delete process.env.FRANK_OUTBOUND_APP_LINK_ENABLED;
+    primeQueries(false);
+    await handleOutboundPostCall(confirmed());
+    await flush();
+    expect(sendMagicLinkSms).not.toHaveBeenCalled();
+  });
+
+  it("does NOT text on a test call (dialed a test number, not the applicant)", async () => {
+    process.env.FRANK_OUTBOUND_APP_LINK_ENABLED = "true";
+    primeQueries(true);
+    await handleOutboundPostCall(confirmed());
+    await flush();
+    expect(sendMagicLinkSms).not.toHaveBeenCalled();
+  });
+
+  it("does NOT text on a non-confirmed outcome (declined)", async () => {
+    process.env.FRANK_OUTBOUND_APP_LINK_ENABLED = "true";
+    primeQueries(false);
+    await handleOutboundPostCall(buildPayload({ data: { still_interested: field("false") } }));
+    await flush();
+    expect(sendMagicLinkSms).not.toHaveBeenCalled();
   });
 });
