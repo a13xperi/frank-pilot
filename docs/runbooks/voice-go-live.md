@@ -50,13 +50,17 @@ ELEVENLABS_WEBHOOK_SECRET=<real secret> DATABASE_URL=<prod db url> \
 Call **725**, complete the intake, then verify:
 ```sql
 -- a row for your call (most recent):
-SELECT conversation_id, agent_id, status, created_at
+-- NOTE: voice_intake_calls has NO `status` column — the call outcome lives in `call_successful`.
+SELECT conversation_id, agent_id, call_successful, started_at, created_at
   FROM voice_intake_calls ORDER BY created_at DESC LIMIT 5;
 
 -- nothing parked in the dead-letter queue in the last hour (expect 0):
 SELECT count(*) FROM elevenlabs_webhook_dlq WHERE created_at > now() - interval '1 hour';
 
 -- the compliance tape stamped the completion:
+-- NOTE: by default the tape lands in the NDJSON ledger; a `compliance_tape` ROW only
+-- appears when COMPLIANCE_TAPE_V2_ENABLED=true. Without the flag, 0 rows here is EXPECTED —
+-- the canonical go-live signals are the voice_intake_calls row + DLQ count = 0.
 SELECT kind, session_id, created_at
   FROM compliance_tape WHERE kind = 'VOICE_INTAKE_COMPLETED'
   ORDER BY created_at DESC LIMIT 5;

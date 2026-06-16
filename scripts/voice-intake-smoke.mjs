@@ -154,7 +154,7 @@ async function verifyRow() {
     pg = new Client({ connectionString: process.env.DATABASE_URL });
     await pg.connect();
     const { rows } = await pg.query(
-      "SELECT conversation_id, agent_id, status FROM voice_intake_calls WHERE conversation_id = $1",
+      "SELECT conversation_id, agent_id, call_successful, started_at FROM voice_intake_calls WHERE conversation_id = $1",
       [convId],
     );
     const ok = rows.length === 1;
