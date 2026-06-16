@@ -3,6 +3,8 @@ import { z } from "zod";
 export const createApplicationSchema = z.object({
   propertyId: z.string().guid(),
   unitNumber: z.string().max(20).optional(),
+  // Golden-path spine: links a web draft back to the voice/SMS conversation that started it.
+  conversationId: z.string().max(120).optional(),
 
   // Applicant info
   firstName: z.string().min(1).max(100),

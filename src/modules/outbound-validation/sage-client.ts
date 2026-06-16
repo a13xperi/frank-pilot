@@ -152,6 +152,19 @@ export async function listApplicants(): Promise<SageApplicant[]> {
   return (await res.json()) as SageApplicant[];
 }
 
+/**
+ * Fetch just the E.164 phone for one applicant by id (the outbound app-link
+ * handoff needs it, fresh from the source of truth — we never persist the full
+ * number on the local call row). Null if not found or no phone on record.
+ */
+export async function getApplicantPhone(applicantId: string): Promise<string | null> {
+  const res = await sageFetch(
+    `gpm_waitlist_applicants?id=eq.${encodeURIComponent(applicantId)}&select=phone_e164&limit=1`
+  );
+  const rows = (await res.json()) as Array<{ phone_e164: string | null }>;
+  return rows[0]?.phone_e164 ?? null;
+}
+
 /** Per-attempt call log, newest first. */
 export async function listValidationCalls(): Promise<SageValidationCall[]> {
   const res = await sageFetch(

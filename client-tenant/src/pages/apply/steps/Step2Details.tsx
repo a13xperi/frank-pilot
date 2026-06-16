@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
 import { useApply } from '../ApplyContext';
 import { useTranslation } from 'react-i18next';
@@ -31,6 +31,10 @@ const inputStyle = {
 export function Step2Details() {
   const s = useApply();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Golden-path spine: carry the originating voice/SMS conversation id (?intake=…)
+  // through so the draft self-links to the call that started it.
+  const conversationId = searchParams.get('intake') || undefined;
   const { t } = useTranslation('apply');
 
   function validateSsn(value: string) {
@@ -61,6 +65,7 @@ export function Step2Details() {
         householdSize: Number(s.householdSize),
         requestedMoveInDate: s.moveInDate || undefined,
         requestedLeaseTermMonths: 12,
+        conversationId,
       });
       s.setDone(true);
       setTimeout(() => navigate('/status'), 2000);
