@@ -53,9 +53,14 @@ CREATE TABLE IF NOT EXISTS care_incidents (
   raw_payload              JSONB,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  -- §8: anonymous rows must NOT carry identity columns (DB-level guarantee)
+  -- §8: anonymous rows must NOT carry ANYTHING that could re-identify the
+  -- reporter — name, phone, a callback number, the conversation id, or the raw
+  -- payload (which carries the transcript + audio url). DB-level guarantee.
   CONSTRAINT care_incidents_anon_no_pii CHECK (
-    reporter_kind <> 'anonymous' OR (reporter_name IS NULL AND reporter_phone IS NULL)
+    reporter_kind <> 'anonymous' OR (
+      reporter_name IS NULL AND reporter_phone IS NULL AND callback_phone IS NULL
+      AND conversation_id IS NULL AND raw_payload IS NULL
+    )
   )
 );
 
@@ -103,8 +108,6 @@ CREATE OR REPLACE VIEW frank_tips AS
          category,
          summary_what   AS body_text,
          status,
-         callback_opt_in,
-         callback_phone,
          created_at,
          updated_at
   FROM care_incidents

@@ -86,7 +86,7 @@ describe("handleCareLinePostCall", () => {
     expect(kinds).toContain("CARE_LINE_CALL_CAPTURED");
   });
 
-  it("persists NO identity for an anonymous reporter", async () => {
+  it("persists NO identity for an anonymous reporter (name, phone, callback, conversation, raw payload)", async () => {
     mockQuery.mockResolvedValueOnce(okInsert());
     await handleCareLinePostCall(
       payload("agent_CARE", {
@@ -95,13 +95,34 @@ describe("handleCareLinePostCall", () => {
         reporter_kind: { value: "anonymous" },
         reporter_name: { value: "Should Not Persist" },
         reporter_phone: { value: "702-555-0000" },
+        callback_opt_in: { value: true },
+        callback_phone: { value: "702-555-1212" },
       })
     );
     expect(mockQuery).toHaveBeenCalledTimes(1); // P3 → no escalation insert
     const p = mockQuery.mock.calls[0][1] as unknown[];
+    expect(p[0]).toMatch(/^FRANK-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/); // bearer-grade ref code
     expect(p[16]).toBe("anonymous"); // reporter_kind
     expect(p[17]).toBeNull(); // reporter_name suppressed
     expect(p[18]).toBeNull(); // reporter_phone suppressed
+    expect(p[19]).toBe(false); // callback_opt_in forced false
+    expect(p[20]).toBeNull(); // callback_phone suppressed (the review's HIGH finding)
+    expect(p[23]).toBeNull(); // conversation_id suppressed (no call-linkage for anon)
+    expect(p[24]).toBeNull(); // raw_payload suppressed (no transcript/audio for anon)
+  });
+
+  it("keeps the raw payload + conversation id for a NAMED reporter", async () => {
+    mockQuery.mockResolvedValueOnce(okInsert());
+    await handleCareLinePostCall(
+      payload("agent_CARE", {
+        incident_category: { value: "move_in" },
+        summary_what: { value: "move-in question" },
+        reporter_kind: { value: "named" },
+      })
+    );
+    const p = mockQuery.mock.calls[0][1] as unknown[];
+    expect(p[23]).toBe("conv_CARE_1"); // conversation_id kept
+    expect(typeof p[24]).toBe("string"); // raw_payload kept (JSON string)
   });
 
   it("retries on a duplicate reference code then succeeds", async () => {

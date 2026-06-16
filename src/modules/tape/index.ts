@@ -66,6 +66,8 @@ export const TAPE_STAMP_KINDS = {
   // durable "a human was flagged" audit anchor (survives an SMS-paging failure).
   CARE_LINE_CALL_CAPTURED: "care_line.call_captured",
   CARE_LINE_ESCALATED: "care_line.escalated",
+  // Permanent opt-out (TCPA DNC). Must feed a do-not-call store before any dial.
+  CARE_LINE_OPTOUT: "care_line.optout",
 } as const;
 
 export type TapeStampKind = keyof typeof TAPE_STAMP_KINDS;
@@ -97,6 +99,7 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   VOICE_BROWSER_SESSION_DENIED: "HUD 4350.3 Ch. 4-6",
   CARE_LINE_CALL_CAPTURED: "TCPA 47 CFR §64.1200 / Fair Housing 24 CFR Part 100 / NRS 200.620",
   CARE_LINE_ESCALATED: "Anti-retaliation 24 CFR §100.400 / 988 Suicide & Crisis Lifeline",
+  CARE_LINE_OPTOUT: "TCPA 47 CFR §64.1200(d) — permanent opt-out / DNC",
 };
 
 export interface TapeStampInput {
