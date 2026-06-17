@@ -70,6 +70,17 @@ const PERMISSIONS: Record<string, string[]> = {
   "ledger:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
   "ledger:manage": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
 
+  // Accounts Payable (DM-FRANK-024). Roles tier the capability; the per-person
+  // segregation of duties (cutter ≠ reviewer ≠ signer) is enforced at runtime by
+  // enforceSeparationOfDuties, not by the role matrix. ap:correct (void/reissue)
+  // is elevated, distinct from ap:cut.
+  "ap:view": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "ap:cut": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "ap:review": ["regional_manager", "asset_manager", "system_admin"],
+  "ap:sign": ["asset_manager", "system_admin"],
+  "ap:correct": ["asset_manager", "system_admin"],
+  "ap:manage": ["asset_manager", "system_admin"],
+
   // Recertification
   "recertification:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
   "recertification:manage": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],

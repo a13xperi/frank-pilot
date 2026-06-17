@@ -104,10 +104,13 @@ export function createTapeService(repo: TapeRepository): TapeService {
   async function stamp(event: TapeEvent): Promise<TapeEntry> {
     // Resolve scope from payload: subjectId is the applicant id in Lane C
     // makers.  Null subjectId → global scope.
+    // DM-FRANK-024: honor an explicit scope (e.g. AP = property-scoped) when the
+    // caller provides one; otherwise derive from subjectId (applicant) / null (global).
     const scope: TapeScope =
-      event.payload.subjectId !== null && event.payload.subjectId !== undefined
+      event.scope ??
+      (event.payload.subjectId !== null && event.payload.subjectId !== undefined
         ? { type: "applicant", applicantId: event.payload.subjectId }
-        : { type: "global" };
+        : { type: "global" });
 
     let lastError: unknown;
     for (let attempt = 0; attempt < MAX_STAMP_RETRIES; attempt++) {
@@ -135,6 +138,8 @@ export function createTapeService(repo: TapeRepository): TapeService {
         const entry = await repo.insert({
           applicantId:
             scope.type === "applicant" ? scope.applicantId : null,
+          propertyId:
+            scope.type === "property" ? scope.propertyId : null,
           sequence,
           kind: event.kind,
           citation,

@@ -37,7 +37,17 @@ export type TapeStampKind =
   | "acq.nau_satisfied"
   | "acq.nau_lost"
   // Screening pipeline — application_status transitions (screening on funnel)
-  | "screening.state_transition";
+  | "screening.state_transition"
+  // DM-FRANK-024 Accounts Payable lifecycle (property-scoped chain)
+  | "AP_VENDOR_REGISTERED"
+  | "AP_INVOICE_CAPTURED"
+  | "AP_CHECK_CUT"
+  | "AP_CHECK_REVIEWED"
+  | "AP_CHECK_REJECTED"
+  | "AP_CHECK_SIGNED"
+  | "AP_CHECK_DISBURSED"
+  | "AP_CHECK_VOIDED"
+  | "AP_CHECK_REISSUED";
 
 /** A JSON-LD payload. Lane C provides one `make<Event>Payload` per kind.
  *  The `@context` URL is stubbed in v1 (see docs/bp-02-contracts.md §5). */
@@ -69,6 +79,10 @@ export interface TapeEvent {
   /** Optional idempotency key — preserve current stub's session-dedup behavior
    *  during cutover. Implemented via UNIQUE (kind, session_id) constraint. */
   sessionId?: string;
+  /** DM-FRANK-024: explicit scope for non-applicant chains (e.g. AP =
+   *  property-scoped). When omitted, the service derives scope from
+   *  payload.subjectId (applicant) / null (global), preserving prior behavior. */
+  scope?: TapeScope;
 }
 
 /** What `verify` and `list` return per row. Mirrors the `compliance_tape`
@@ -82,6 +96,8 @@ export interface TapeEntry {
   /** Per Lane A schema: applicant_id is the scope key for v1.
    *  Null = global / un-scoped (rare; admin events). */
   applicantId: string | null;
+  /** DM-FRANK-024 property/entity scope key (e.g. AP). Null/absent for applicant/global. */
+  propertyId?: string | null;
   payload: TapeJsonLdPayload;
   /** SHA-256 of the previous entry's `entryHash`. Hex string (64 chars). */
   prevHash: string;
@@ -107,6 +123,7 @@ export interface VerifyResult {
  *  501 in v1 (Lane D). */
 export type TapeScope =
   | { type: "applicant"; applicantId: string }
+  | { type: "property"; propertyId: string }
   | { type: "global" };
 
 /** Internal helper passed to hashing.ts. Not exported to callers. */
@@ -155,6 +172,16 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   "acq.nau_satisfied": "IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)",
   "acq.nau_lost": "IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)",
   "screening.state_transition": "FCRA 15 U.S.C. §1681b + HUD 4350.3 Ch. 4",
+  // DM-FRANK-024 Accounts Payable — operator disbursement controls + segregation of duties.
+  AP_VENDOR_REGISTERED: "Operator AP control — vendor master (W-9/TIN on file)",
+  AP_INVOICE_CAPTURED: "Operator AP control — invoice capture (memo triad)",
+  AP_CHECK_CUT: "Operator AP control — check cut on blank stock",
+  AP_CHECK_REVIEWED: "Segregation of duties — reviewer ≠ cutter (AICPA AU-C 315)",
+  AP_CHECK_REJECTED: "Operator AP control — review/sign rejection (reason required)",
+  AP_CHECK_SIGNED: "Segregation of duties — wet-signature authorization (AICPA AU-C 315)",
+  AP_CHECK_DISBURSED: "Operator AP control — disbursement (mailed)",
+  AP_CHECK_VOIDED: "Operator AP control — void (elevated, append-only)",
+  AP_CHECK_REISSUED: "Operator AP control — reissue (references voided check)",
 };
 
 /** Feature flag controlling dual-write during cutover. When false, the new
