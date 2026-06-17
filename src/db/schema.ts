@@ -178,7 +178,17 @@ CREATE TYPE audit_action AS ENUM (
   'identity_verification_completed',
   -- Screening state machine — every application_status transition driven by
   -- the screening pipeline (transitionApplicationStatus chokepoint).
-  'screening_state_transition'
+  'screening_state_transition',
+  -- DM-FRANK-024 Accounts Payable lifecycle (accounts-payable module)
+  'ap_vendor_registered',
+  'ap_invoice_captured',
+  'ap_check_cut',
+  'ap_check_reviewed',
+  'ap_check_rejected',
+  'ap_check_signed',
+  'ap_check_disbursed',
+  'ap_check_voided',
+  'ap_check_reissued'
 );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
@@ -220,6 +230,32 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
 CREATE TYPE ledger_entry_status AS ENUM ('posted', 'reversed', 'pending');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- DM-FRANK-024 Accounts Payable (money out) — counterpart to the rent ledger.
+-- Build spec: docs/modules/accounts-payable.md. 023-independent core.
+DO $$ BEGIN
+CREATE TYPE ap_received_via AS ENUM ('email', 'postal', 'manager_forward');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+CREATE TYPE ap_invoice_status AS ENUM ('entered', 'cut', 'disbursed', 'rejected', 'voided');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+CREATE TYPE ap_check_state AS ENUM ('cut', 'reviewed', 'signed', 'disbursed', 'rejected', 'voided');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+CREATE TYPE ap_check_run_status AS ENUM ('open', 'closed');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+CREATE TYPE ap_approval_step AS ENUM ('review', 'sign', 'property_signoff');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+CREATE TYPE ap_approval_decision AS ENUM ('approve', 'reject');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
@@ -734,6 +770,9 @@ CREATE TABLE IF NOT EXISTS compliance_tape (
   kind TEXT NOT NULL,
   citation TEXT NOT NULL,
   applicant_id UUID NULL REFERENCES users(id) ON DELETE RESTRICT,
+  -- DM-FRANK-024: property/entity scope for non-applicant chains (e.g. AP).
+  -- A row is scoped to at most one of {applicant_id, property_id}; both NULL = global.
+  property_id UUID NULL REFERENCES properties(id) ON DELETE RESTRICT,
   payload JSONB NOT NULL,
   prev_hash BYTEA NOT NULL CHECK (octet_length(prev_hash) = 32),
   entry_hash BYTEA NOT NULL UNIQUE CHECK (octet_length(entry_hash) = 32),
@@ -741,18 +780,24 @@ CREATE TABLE IF NOT EXISTS compliance_tape (
   session_id TEXT NULL
 );
 
--- Per-scope monotonic sequence: applicant_id NULL collapses to a sentinel
--- UUID so the same index enforces "no gaps, no dupes per scope" for both
--- the per-applicant chain and the global chain.
+-- Per-scope monotonic sequence: the scope key collapses applicant_id →
+-- property_id → a sentinel UUID, so one index enforces "no gaps, no dupes per
+-- scope" across the per-applicant, per-property (DM-FRANK-024), and global
+-- chains. A row sets at most one of {applicant_id, property_id}; existing rows
+-- keep their original scope key (property_id NULL → unchanged).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_compliance_tape_scope_sequence
   ON compliance_tape (
-    COALESCE(applicant_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    COALESCE(applicant_id, property_id, '00000000-0000-0000-0000-000000000000'::uuid),
     sequence
   );
 
 CREATE INDEX IF NOT EXISTS idx_compliance_tape_applicant_sequence
   ON compliance_tape (applicant_id, sequence)
   WHERE applicant_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_compliance_tape_property_sequence
+  ON compliance_tape (property_id, sequence)
+  WHERE property_id IS NOT NULL;
 
 -- Backs the repository's ON CONFLICT (kind, session_id) idempotency clause.
 -- Non-partial: PostgreSQL's default NULL semantics treat each NULL as distinct,
@@ -1080,6 +1125,108 @@ CREATE TABLE IF NOT EXISTS tenant_ledger (
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ============================================================
+-- DM-FRANK-024 Accounts Payable (money OUT) — counterpart to tenant_ledger.
+-- Build spec: docs/modules/accounts-payable.md. This is the 023-independent
+-- core (capture → cut → review → sign → disburse; append-only void→reissue;
+-- separation-of-duties; tape-stamped). Money in integer cents, like payment.
+-- The disbursement SINK (RealPage push vs in-platform print) is wired at the
+-- app layer behind DisbursementSink and selected by DM-FRANK-023.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS ap_vendors (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(200) NOT NULL,
+  address TEXT,
+  phone VARCHAR(40),
+  -- Sensitive PII: restricted read (ap:manage) + at-rest encryption at the
+  -- platform layer; redacted/hashed in tape payloads. Never logged plaintext.
+  tax_id VARCHAR(40),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ap_invoices (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  vendor_id UUID NOT NULL REFERENCES ap_vendors(id),
+  property_id UUID NOT NULL REFERENCES properties(id),
+  unit_id UUID REFERENCES units(id),
+  amount_cents BIGINT NOT NULL CHECK (amount_cents >= 0),
+  -- RealPage memo triad, load-bearing, first-class here
+  invoice_number VARCHAR(100),
+  billing_number VARCHAR(100),
+  unit_number VARCHAR(50),
+  due_date DATE,
+  received_via ap_received_via NOT NULL,
+  status ap_invoice_status NOT NULL DEFAULT 'entered',
+  entered_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- A weekly batch the approval chain acts on (per-property bank account).
+CREATE TABLE IF NOT EXISTS ap_check_runs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id UUID NOT NULL REFERENCES properties(id),
+  bank_account_ref VARCHAR(100) NOT NULL,
+  week_of DATE NOT NULL,                       -- Monday-6pm cutoff window
+  status ap_check_run_status NOT NULL DEFAULT 'open',
+  cut_by UUID REFERENCES users(id),
+  closed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ap_checks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  check_run_id UUID NOT NULL REFERENCES ap_check_runs(id),
+  invoice_id UUID NOT NULL REFERENCES ap_invoices(id),
+  amount_cents BIGINT NOT NULL CHECK (amount_cents >= 0),
+  check_number VARCHAR(50),                    -- blank-stock; routing/account printed at cut
+  state ap_check_state NOT NULL DEFAULT 'cut',
+  cut_by UUID REFERENCES users(id),
+  reviewed_by UUID REFERENCES users(id),
+  signed_by UUID REFERENCES users(id),
+  voided_by UUID REFERENCES users(id),
+  reissued_from_check_id UUID REFERENCES ap_checks(id),  -- void→reissue link (never an in-place mutation)
+  reject_reason TEXT,
+  void_reason TEXT,
+  -- Shape-agnostic disbursement seam: RealPage voucher id (Shape A) or
+  -- in-platform print artifact ref (Shape B), set at signed→disbursed.
+  disbursement_ref VARCHAR(200),
+  cut_at TIMESTAMPTZ DEFAULT NOW(),
+  reviewed_at TIMESTAMPTZ,
+  signed_at TIMESTAMPTZ,
+  disbursed_at TIMESTAMPTZ,
+  voided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Per-decision separation-of-duties trail: who reviewed/signed/signed-off what.
+CREATE TABLE IF NOT EXISTS ap_approvals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  check_id UUID NOT NULL REFERENCES ap_checks(id),
+  step ap_approval_step NOT NULL,
+  actor_id UUID NOT NULL REFERENCES users(id),
+  decision ap_approval_decision NOT NULL,
+  notes TEXT,
+  decided_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ap_invoices_property_status ON ap_invoices(property_id, status);
+CREATE INDEX IF NOT EXISTS idx_ap_invoices_vendor ON ap_invoices(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_ap_invoices_due_date ON ap_invoices(due_date);
+CREATE INDEX IF NOT EXISTS idx_ap_checks_check_run ON ap_checks(check_run_id);
+CREATE INDEX IF NOT EXISTS idx_ap_checks_state ON ap_checks(state);
+CREATE INDEX IF NOT EXISTS idx_ap_checks_invoice ON ap_checks(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_ap_approvals_check ON ap_approvals(check_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ap_vendors_tax_id ON ap_vendors(tax_id) WHERE tax_id IS NOT NULL;
+-- Don't pay the same invoice twice in a run. Voided and rejected checks are
+-- inactive, so they don't block a re-cut/reissue of the same invoice in the run.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ap_checks_run_invoice_active
+  ON ap_checks(check_run_id, invoice_id) WHERE state NOT IN ('voided', 'rejected');
 
 -- Recertifications (Module 7: Annual/Interim HUD recertification tracking)
 CREATE TABLE IF NOT EXISTS recertifications (

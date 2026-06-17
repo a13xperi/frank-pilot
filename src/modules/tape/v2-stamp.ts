@@ -34,7 +34,7 @@ import {
   type LeaseExecutedInput,
   type ScreeningStateTransitionInput,
 } from "./events";
-import { COMPLIANCE_TAPE_V2_FLAG, type TapeJsonLdPayload, type TapeStampKind } from "./types";
+import { COMPLIANCE_TAPE_V2_FLAG, TAPE_CITATIONS, type TapeJsonLdPayload, type TapeStampKind, type TapeScope } from "./types";
 
 function flagEnabled(): boolean {
   return process.env[COMPLIANCE_TAPE_V2_FLAG] === "true";
@@ -57,16 +57,51 @@ async function stampV2(
   kind: TapeStampKind,
   payload: TapeJsonLdPayload,
   sessionId?: string,
+  scope?: TapeScope,
 ): Promise<void> {
   if (!flagEnabled()) return;
   try {
-    await getService().stamp({ kind, payload, sessionId });
+    await getService().stamp({ kind, payload, sessionId, scope });
   } catch (err) {
     logger.error("Tape v2 stamp failed", {
       kind,
       error: (err as Error).message,
     });
   }
+}
+
+/**
+ * DM-FRANK-024 Accounts Payable — stamp a property-scoped AP event onto the
+ * hash-chained tape. AP is scoped to a property (its own bank account / chain),
+ * not an applicant, so it passes an explicit `property` scope. No-op unless
+ * COMPLIANCE_TAPE_V2_ENABLED. Errors are logged + swallowed (tape failure must
+ * never break the disbursement flow); the audit_log write is the durable record.
+ */
+export async function stampV2Ap(
+  kind: TapeStampKind,
+  propertyId: string | null,
+  fields: {
+    actorId: string | null;
+    subjectId: string | null;
+    evidence?: Record<string, unknown>;
+  },
+  sessionId?: string,
+): Promise<void> {
+  if (!flagEnabled()) return;
+  const payload: TapeJsonLdPayload = {
+    "@context": "https://frank.global/contexts/ap.jsonld",
+    "@type": kind,
+    actorId: fields.actorId,
+    subjectId: fields.subjectId,
+    ruleCitation: TAPE_CITATIONS[kind],
+    evidence: fields.evidence,
+  };
+  // Property-scoped chain for check events; global chain for portfolio-wide
+  // reference events (e.g. vendor registration, which has no single property).
+  const scope: TapeScope = propertyId
+    ? { type: "property", propertyId }
+    : { type: "global" };
+  return stampV2(kind, payload, sessionId, scope);
 }
 
 export async function stampV2WelcomeLetterDelivered(
