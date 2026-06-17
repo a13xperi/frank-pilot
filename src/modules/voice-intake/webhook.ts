@@ -4,7 +4,8 @@ import crypto from "crypto";
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stampTape } from "../tape";
-import { persistConversation, type PostCallPayload } from "./service";
+import { persistConversation, pickField, normalizePhone, type PostCallPayload } from "./service";
+import { getFieldTrailEmitter } from "../integrations/field-trail-emit";
 
 /**
  * ElevenLabs Conv. AI post-call webhook receiver.
@@ -225,11 +226,34 @@ async function recordDlq(
   }
 }
 
+/** Genesis actor for an inbound call: phone:<e164> when the agent collected one, else call:<id>. */
+export function deriveCallActor(data: PostCallPayload): string {
+  const phone = normalizePhone(pickField(data.analysis?.data_collection_results, "phone"));
+  return phone ? `phone:${phone}` : `call:${data.conversation_id}`;
+}
+
 async function dispatch(event: ElevenLabsEvent): Promise<void> {
   switch (event.type) {
     case "post_call_transcription":
     case "post_call_audio": {
       const result = await persistConversation(event.data);
+      // Field trail: an inbound voice intake call happened — the genesis of the trail. Emit once
+      // per call (transcription only; audio is a second delivery of the same call). Fire-and-forget
+      // + INERT-safe (the emitter no-ops without SAGE) — never affects webhook processing.
+      if (event.type === "post_call_transcription") {
+        void getFieldTrailEmitter().emit({
+          actor: deriveCallActor(event.data),
+          eventType: "onboarding.call_placed",
+          summary: "inbound voice intake call completed",
+          detail: {
+            conversationId: event.data.conversation_id,
+            agentId: event.data.agent_id,
+            callSuccessful: result.callSuccessful,
+            language: result.language,
+            consentRecording: result.consentRecording,
+          },
+        });
+      }
       void stampTape({
         kind: "VOICE_INTAKE_COMPLETED",
         actor: "elevenlabs-webhook",
