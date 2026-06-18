@@ -7,6 +7,7 @@ import { PgTapeRepository } from "./modules/tape/repository";
 import { AdverseActionService } from "./modules/adverse-action/service";
 import { runDialerTick, sweepStuckCalls } from "./modules/outbound-validation/dialer";
 import { pushReportToNotion } from "./modules/outbound-validation/report";
+import { WorkOrderEscalationService } from "./modules/maintenance/escalation";
 import { logger } from "./utils/logger";
 
 const recertService = new RecertificationService();
@@ -14,6 +15,7 @@ const ledgerService = new LedgerService();
 const renewalService = new LeaseRenewalService();
 const tapeService = createTapeService(new PgTapeRepository());
 const adverseActionService = new AdverseActionService();
+const workOrderEscalationService = new WorkOrderEscalationService();
 
 /**
  * Start daily scheduled jobs.
@@ -261,6 +263,30 @@ export function startScheduler() {
     logger.info("Outbound validation dialer cron registered (FRANK_OUTBOUND_ENABLED=true)");
   } else {
     logger.info("Outbound validation dialer cron skipped — FRANK_OUTBOUND_ENABLED is off");
+  }
+
+  // Work-order stale-sweep + manager escalation (D1) — gated on
+  // WORK_ORDER_ESCALATION_ENABLED. Until the flag is on, the cron stays
+  // unregistered ⇒ byte-identical scheduler, same pattern as the BP-02 / FCRA /
+  // outbound blocks above. The default LoggingWorkOrderNotifier only LOGS the
+  // alert — no live email/SMS is wired (a real channel is a separate change).
+  if (process.env.WORK_ORDER_ESCALATION_ENABLED === "true") {
+    // Daily at 7:15 AM — flag stale open work orders, re-flag breached ETAs,
+    // and emit a manager alert per newly-escalated order.
+    cron.schedule("15 7 * * *", async () => {
+      logger.info("Scheduler: Running work-order stale-sweep");
+      try {
+        const stats = await workOrderEscalationService.sweepStaleWorkOrders();
+        logger.info("Scheduler: Work-order stale-sweep complete", stats);
+      } catch (err) {
+        logger.error("Scheduler: Work-order stale-sweep failed", {
+          error: (err as Error).message,
+        });
+      }
+    });
+    logger.info("Work-order escalation cron registered (WORK_ORDER_ESCALATION_ENABLED=true)");
+  } else {
+    logger.info("Work-order escalation cron skipped — WORK_ORDER_ESCALATION_ENABLED is off");
   }
 
   logger.info("Scheduler started: rent postings (1st @ 6AM) + late fees (7AM) + renewals (7:30AM) + recert reminders (8AM) + TRACS checks (9AM)");
