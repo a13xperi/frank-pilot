@@ -68,6 +68,12 @@ export const TAPE_STAMP_KINDS = {
   COBROWSE_CONFIRMED: "cobrowse.confirmed",
   COBROWSE_DENIED: "cobrowse.denied",
   COBROWSE_HANDED_OFF: "cobrowse.handed_off",
+  // Tier 1 "guided co-pilot" (no computer-use): the applicant fills their own
+  // /apply wizard while Frank coaches by voice. GUIDED_STARTED marks the first
+  // step report; STEP_REACHED records each step the applicant's browser reports
+  // (step key only — never field values, keeping the PII-minimal posture).
+  COBROWSE_GUIDED_STARTED: "cobrowse.guided_started",
+  COBROWSE_STEP_REACHED: "cobrowse.step_reached",
 } as const;
 
 export type TapeStampKind = keyof typeof TAPE_STAMP_KINDS;
@@ -103,6 +109,8 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   COBROWSE_CONFIRMED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
   COBROWSE_DENIED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
   COBROWSE_HANDED_OFF: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_GUIDED_STARTED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_STEP_REACHED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
 };
 
 export interface TapeStampInput {

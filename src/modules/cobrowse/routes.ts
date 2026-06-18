@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
+import { recordGuidedStep } from "./guided";
 
 /**
  * Concierge co-browse viewer routes (Phase 2 — DARK scaffold).
@@ -127,6 +128,37 @@ router.get("/:id/view", async (req: Request, res: Response): Promise<void> => {
     fieldsFilled: row.fields_filled,
     // The viewer client uses this to decide whether to poll for the stream.
     streamReady: false,
+  });
+});
+
+/**
+ * POST /api/cobrowse/:id/step  — Tier 1 "guided co-pilot" step report.
+ *
+ * The applicant's OWN /apply wizard posts which step they're on so Frank (live
+ * on the call, via the cobrowse_status voice tool) can narrate the matching
+ * coaching. Auth is the raw viewer token (`vt`, body or query); only the step
+ * KEY is accepted — never field values. Self-gates 503 behind
+ * COBROWSE_GUIDED_ENABLED. No browser is driven; this is the safe lane.
+ */
+router.post("/:id/step", async (req: Request, res: Response): Promise<void> => {
+  const sessionId = String(req.params.id ?? "");
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const rawToken =
+    pickQueryString(req.query.vt) ?? pickQueryString(body.vt);
+  const stepKey = pickQueryString(body.step) ?? pickQueryString(req.query.step);
+
+  const result = await recordGuidedStep({ sessionId, rawToken, stepKey });
+
+  if (!result.ok) {
+    res.status(result.code).json({ error: result.error });
+    return;
+  }
+
+  res.status(200).json({
+    sessionId,
+    state: result.state,
+    currentStep: result.currentStep,
+    stepsReached: result.stepsReached,
   });
 });
 

@@ -6,6 +6,7 @@ import { CTA, FormGrid } from '@/components/primitives';
 import { StepCTA } from '../StepCTA';
 import { HF } from '@/styles/tokens';
 import { PropertySelector } from './PropertySelector';
+import { reportCobrowseField } from '../useCobrowseStep';
 
 const labelStyle = {
   display: 'block',
@@ -102,6 +103,7 @@ export function Step2Details() {
               autoComplete="off"
               value={s.ssn}
               onChange={(e) => s.setSsn(e.target.value)}
+              onFocus={() => reportCobrowseField('ssn')}
               onBlur={() => validateSsn(s.ssn)}
             />
             {s.ssnError && <p className="mt-1 text-xs" style={{ color: HF.err }}>{s.ssnError}</p>}
@@ -116,6 +118,7 @@ export function Step2Details() {
               autoComplete="bday"
               value={s.dateOfBirth}
               onChange={(e) => s.setDateOfBirth(e.target.value)}
+              onFocus={() => reportCobrowseField('dob')}
             />
           </div>
         </FormGrid>
@@ -127,6 +130,7 @@ export function Step2Details() {
             autoComplete="street-address"
             value={s.addressLine1}
             onChange={(e) => s.setAddressLine1(e.target.value)}
+            onFocus={() => reportCobrowseField('address')}
           />
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -138,6 +142,7 @@ export function Step2Details() {
               autoComplete="address-level2"
               value={s.city}
               onChange={(e) => s.setCity(e.target.value)}
+              onFocus={() => reportCobrowseField('city')}
             />
           </div>
           <div>
@@ -150,6 +155,7 @@ export function Step2Details() {
               autoComplete="address-level1"
               value={s.state}
               onChange={(e) => s.setState(e.target.value.toUpperCase())}
+              onFocus={() => reportCobrowseField('state')}
             />
           </div>
           <div>
@@ -162,6 +168,7 @@ export function Step2Details() {
               autoComplete="postal-code"
               value={s.zip}
               onChange={(e) => s.setZip(e.target.value)}
+              onFocus={() => reportCobrowseField('zip')}
             />
           </div>
         </div>
@@ -173,6 +180,7 @@ export function Step2Details() {
             autoComplete="organization"
             value={s.employerName}
             onChange={(e) => s.setEmployerName(e.target.value)}
+            onFocus={() => reportCobrowseField('employer')}
           />
         </div>
         <FormGrid columns={2}>
@@ -187,11 +195,12 @@ export function Step2Details() {
               autoComplete="off"
               value={s.annualIncome}
               onChange={(e) => s.setAnnualIncome(e.target.value)}
+              onFocus={() => reportCobrowseField('income')}
             />
           </div>
           <div>
             <label style={labelStyle} htmlFor="household">{t('details.household')}</label>
-            <select id="household" style={inputStyle} required value={s.householdSize} onChange={(e) => s.setHouseholdSize(e.target.value)}>
+            <select id="household" style={inputStyle} required value={s.householdSize} onChange={(e) => s.setHouseholdSize(e.target.value)} onFocus={() => reportCobrowseField('household')}>
               {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
@@ -206,6 +215,7 @@ export function Step2Details() {
             style={inputStyle}
             value={s.moveInDate}
             onChange={(e) => s.setMoveInDate(e.target.value)}
+            onFocus={() => reportCobrowseField('moveIn')}
           />
         </div>
         <div className="flex gap-3">

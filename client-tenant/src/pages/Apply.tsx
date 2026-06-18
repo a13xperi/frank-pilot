@@ -16,6 +16,7 @@ import {
   type ApplyState,
   type Step,
 } from './apply/ApplyContext';
+import { useCobrowseStep } from './apply/useCobrowseStep';
 import { StepIndicator } from './apply/StepIndicator';
 import { MobileApplyShell } from './apply/MobileApplyShell';
 import { Step1Register } from './apply/steps/Step1Register';
@@ -140,6 +141,11 @@ export function Apply() {
   useEffect(() => {
     logDemoEvent('step-entered', { step: String(step) });
   }, [step]);
+
+  // Tier 1 guided co-pilot: when opened from Frank's co-browse link
+  // (`?cobrowse=&vt=`), report the wizard step so Frank can coach in sync.
+  // No-op otherwise; only the step KEY is sent, never field values.
+  useCobrowseStep(step);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

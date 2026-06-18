@@ -15,3 +15,19 @@ export {
   type CobrowseOrchestratorOptions,
   type FieldVerification,
 } from "./runtime/orchestrator";
+export {
+  recordGuidedStep,
+  cobrowseStatusHandler,
+  guidedEnabled,
+  type RecordStepResult,
+} from "./guided";
+export {
+  coachingFor,
+  nextStepKey,
+  isGuidedStep,
+  composeGuidedStatus,
+  GUIDED_STEP_ORDER,
+  type GuidedStepKey,
+  type CoachingScript,
+  type GuidedStatus,
+} from "./runtime/coaching";

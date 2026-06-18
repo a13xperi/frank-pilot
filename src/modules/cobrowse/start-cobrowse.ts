@@ -275,6 +275,7 @@ export function registerCobrowseHandlers(): void {
   if (registered) return;
   registerToolHandler("start_cobrowse", startCobrowseHandler);
   registerToolHandler("confirm_cobrowse", confirmCobrowseHandlerProxy);
+  registerToolHandler("cobrowse_status", cobrowseStatusHandlerProxy);
   registered = true;
 }
 
@@ -292,4 +293,14 @@ async function confirmCobrowseHandlerProxy(
 ): Promise<ToolCallbackResult> {
   const { confirmCobrowseHandler } = await import("./confirm-cobrowse");
   return confirmCobrowseHandler(parameters, context);
+}
+
+// Tier 1 guided co-pilot: Frank's `cobrowse_status` read-back tool. Lazy import
+// keeps the guided runtime out of the require graph until a call dispatches it.
+async function cobrowseStatusHandlerProxy(
+  parameters: Record<string, unknown>,
+  context: ToolCallbackContext
+): Promise<ToolCallbackResult> {
+  const { cobrowseStatusHandler } = await import("./guided");
+  return cobrowseStatusHandler(parameters, context);
 }
