@@ -56,6 +56,13 @@ import { housingQaRouter } from "./modules/housing-qa/routes";
 import acquisitionRoutes from "./modules/acquisitions/routes";
 import savedRoutes from "./modules/saved/routes";
 import { outboundValidationRoutes } from "./modules/outbound-validation";
+import { callFeedbackRoutes } from "./modules/call-feedback";
+import { waitlistGraduationRoutes } from "./modules/waitlist-graduation";
+import { propertyRouterRoutes } from "./modules/property-router";
+import {
+  outboundApplicationRoutes,
+  registerOutboundApplicationToolHandlers,
+} from "./modules/outbound-application";
 import { managerRoutes } from "./modules/manager";
 import { startScheduler } from "./scheduler";
 
@@ -341,10 +348,33 @@ if (process.env.VOICE_INTAKE_ENABLED === "true") {
 // router will still 503 until that flag flips on.
 registerVoiceToolHandlers();
 
+// Jacqueline's in-call application tools (Frank core C3). Safe to register dark
+// — the tools only fire if a live outbound agent (DEFERRED) is wired to call
+// them, and the tool-callback router still 503s until VOICE_TOOLS_ENABLED.
+registerOutboundApplicationToolHandlers();
+
 // Outbound waitlist-validation dialer admin surface (DM-FRANK-029).
 // Always mounted; every route 503s while FRANK_OUTBOUND_ENABLED is off
 // (router-level guard), so a dark deploy is byte-identical in behavior.
 app.use("/api/admin/outbound-validation", outboundValidationRoutes);
+
+// Tenant-call feedback loop (Frank core C1). Auth'd; capture/view open to
+// leasing agents, dataset export senior+ (see rbac matrix). No feature flag —
+// the marks are inert data until a training job reads them.
+app.use("/api/call-feedback", callFeedbackRoutes);
+
+// Waitlist→application graduation + relationship-ID dedup (Frank core C5).
+// Auth'd; application:create authority. Idempotent per waitlist entry.
+app.use("/api/waitlist", waitlistGraduationRoutes);
+
+// Multi-property inbound router (Frank core C4). Maps property→agent and buckets
+// inbound contacts. Lookup/selection only — never touches live DID/IVR config.
+app.use("/api/property-routing", propertyRouterRoutes);
+
+// Outbound full-application agent admin (Frank core C3, "Jacqueline"). Every
+// route 503s while FRANK_OUTBOUND_APPLICATION_ENABLED is off. The DIAL is
+// DEFERRED — this surface only manages the queue, it never places a call.
+app.use("/api/admin/outbound-application", outboundApplicationRoutes);
 
 // Compliance reports (Fair Housing Act — audit:view / Regional Manager+)
 app.use("/api/compliance", complianceRoutes);

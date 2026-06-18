@@ -111,6 +111,26 @@ const PERMISSIONS: Record<string, string[]> = {
   // Manager briefing — the unified operations rollup (KPIs, attention list,
   // per-property snapshot). Senior+ surface; service scopes by property_ids.
   "manager_briefing:view": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+
+  // Tenant-call feedback loop (Frank core C1). Capturing a good/bad mark on a
+  // call transcript is part of leasing-agent triage; viewing one call's marks
+  // is the same audience. Exporting the training dataset surfaces transcript
+  // content in bulk, so it's senior+.
+  "call_feedback:capture": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "call_feedback:view": ["leasing_agent", "senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "call_feedback:dataset": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+
+  // Multi-property inbound router (Frank core C4). Viewing the property→agent
+  // map is a manager surface; editing the map is asset-manager+ (it changes
+  // which voice agent answers which property's callers).
+  "property_routing:view": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
+  "property_routing:manage": ["asset_manager", "system_admin"],
+
+  // Outbound full-application agent queue (Frank core C3, "Jacqueline"). Firing
+  // application-completion calls is high blast radius — system_admin only;
+  // managers can watch the queue.
+  "outbound_application:run": ["system_admin"],
+  "outbound_application:view": ["senior_manager", "regional_manager", "asset_manager", "system_admin"],
 };
 
 export function requireRole(...roles: string[]) {
