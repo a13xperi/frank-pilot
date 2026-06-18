@@ -138,12 +138,16 @@ afterAll(() => {
 });
 
 describe("BP-02 compliance-tape viewer flag gate", () => {
+  // First test in the suite pays the full-app cold boot inside
+  // loadAppWithFlag(); under loaded CI runners that alone can blow the 5s
+  // default (flaked 4x on Jun 12 across main/#297/#299). 15s is boot
+  // headroom, not a behavior change.
   it("falls through to the 404 handler when the flag is unset (default OFF)", async () => {
     const app = loadAppWithFlag(undefined);
     const res = await request(app).get("/api/compliance-tape/list");
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "Not found" });
-  });
+  }, 15_000);
 
   it("falls through to the 404 handler when the flag is the string \"false\"", async () => {
     const app = loadAppWithFlag("false");
