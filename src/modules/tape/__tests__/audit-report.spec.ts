@@ -276,6 +276,7 @@ describe("Compliance tape — JPM audit report", () => {
       kind: "acq.award_recorded",
       citation: TAPE_CITATIONS["acq.award_recorded"],
       applicantId: null,
+      subjectUnitId: null,
       payload: {
         "@context": "x",
         "@type": "y",
