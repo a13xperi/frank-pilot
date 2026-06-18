@@ -385,6 +385,25 @@ export interface WorkOrder {
   created_at: string;
 }
 
+// D2 — geolocated, timestamped maintenance-tech evidence photo.
+export type WorkOrderAttachmentKind =
+  | 'arrival'
+  | 'departure'
+  | 'completion_photo'
+  | 'other';
+
+export interface WorkOrderAttachment {
+  id: string;
+  work_order_id: string;
+  url: string;
+  kind: WorkOrderAttachmentKind;
+  taken_at: string;
+  latitude: number | null;
+  longitude: number | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
 // ── Renewal types ────────────────────────────────────────────────
 
 export interface LeaseRenewal {
