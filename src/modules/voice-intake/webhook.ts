@@ -5,6 +5,7 @@ import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stampTape } from "../tape";
 import { persistConversation, type PostCallPayload } from "./service";
+import { maybeNotifyInbound } from "./inbound-notify";
 import {
   isOutboundValidationEvent,
   handleOutboundPostCall,
@@ -267,6 +268,11 @@ async function dispatch(event: ElevenLabsEvent): Promise<void> {
         return;
       }
       const result = await persistConversation(event.data);
+      // Phase 2 — fire-and-forget inbound notifications (team care-line alert + caller
+      // callback confirmation). Flag-gated; must never throw into the webhook path.
+      void maybeNotifyInbound(event.data, result).catch((err) =>
+        logger.error("inbound post-call notify failed", { error: (err as Error).message })
+      );
       void stampTape({
         kind: "VOICE_INTAKE_COMPLETED",
         actor: "elevenlabs-webhook",
