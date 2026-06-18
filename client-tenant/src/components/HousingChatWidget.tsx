@@ -28,10 +28,11 @@ let _seq = 0;
 const nextId = () => `m${Date.now()}-${_seq++}`;
 
 export function HousingChatWidget() {
-  // KILL SWITCH (Jun 11 demo): the assistant answers tenant questions from the
-  // statewide HUD-LIHTC dataset and leaks internal route/system names — scope
-  // fix is in flight on main (fix/housing-qa-tenant-scope PR). Re-enable by
-  // setting VITE_ENABLE_FAQ_CHAT=true once that lands.
+  // FEATURE FLAG (was the Jun 11 kill switch): the statewide-dataset leak is
+  // fixed server-side on this branch — POST /api/housing-qa defaults to tenant
+  // scope (FAQ corpus + facts only) and this client pins scope:'tenant'. The
+  // voice pill is gated separately (VITE_ENABLE_VOICE_PILL) because its
+  // ElevenLabs pipeline is not bounded by that fix.
   if (import.meta.env.VITE_ENABLE_FAQ_CHAT !== 'true' && import.meta.env.MODE !== 'test') return null;
   const { t } = useTranslation('chat');
   // While the cookie-consent banner is showing (needsChoice === true), the

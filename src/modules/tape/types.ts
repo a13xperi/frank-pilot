@@ -37,7 +37,11 @@ export type TapeStampKind =
   | "acq.nau_satisfied"
   | "acq.nau_lost"
   // Screening pipeline — application_status transitions (screening on funnel)
-  | "screening.state_transition";
+  | "screening.state_transition"
+  // Unit-identity Phase B (WS-3) — UNIT-scoped chain. Anchors a unit's identity
+  // (lot/parcel/permit/external uid + LIHTC §42 BIN) onto its own hash chain,
+  // separate from the applicant/global chains.
+  | "unit.identity_anchored";
 
 /** A JSON-LD payload. Lane C provides one `make<Event>Payload` per kind.
  *  The `@context` URL is stubbed in v1 (see docs/bp-02-contracts.md §5). */
@@ -54,8 +58,13 @@ export interface TapeJsonLdPayload {
   /** Free-form, kind-specific fields. Validated per-kind in Lane C. */
   evidence?: Record<string, unknown>;
   /** LIHTC §42 Building Identification Number, when a stamp scopes to a specific
-   *  building/unit. Optional and not emitted by any maker yet (Phase A data layer). */
+   *  building/unit. Emitted by unit-scoped makers (Phase B / WS-3, e.g.
+   *  `unit.identity_anchored`); optional and absent on applicant/global stamps. */
   bin?: string;
+  /** Unit-identity Phase B (WS-3): the `units(id)` a unit-scoped stamp is about.
+   *  Read by service.stamp() to derive the unit scope when no explicit scope is
+   *  passed. Absent on applicant/global stamps. */
+  unitId?: string;
   /** Any other JSON-LD fields the kind needs. */
   [extra: string]: unknown;
 }
@@ -69,6 +78,11 @@ export interface TapeEvent {
   /** Optional idempotency key — preserve current stub's session-dedup behavior
    *  during cutover. Implemented via UNIQUE (kind, session_id) constraint. */
   sessionId?: string;
+  /** Unit-identity Phase B (WS-3): explicit target chain. When set it WINS over
+   *  the legacy subjectId→applicant/global derivation, letting unit-scoped makers
+   *  (and dual-writers) append onto a `{ type: "unit"; unitId }` chain. Omit it
+   *  and stamp() preserves the exact pre-existing applicant/global behavior. */
+  scope?: TapeScope;
 }
 
 /** What `verify` and `list` return per row. Mirrors the `compliance_tape`
@@ -80,8 +94,13 @@ export interface TapeEntry {
   kind: TapeStampKind;
   citation: string;
   /** Per Lane A schema: applicant_id is the scope key for v1.
-   *  Null = global / un-scoped (rare; admin events). */
+   *  Null = global / un-scoped (rare; admin events) — or unit-scoped, in which
+   *  case `subjectUnitId` carries the scope key instead. */
   applicantId: string | null;
+  /** Unit-identity Phase B scope key: `units(id)` for a UNIT-scoped chain.
+   *  Mutually exclusive with `applicantId` (DB CHECK compliance_tape_scope_exclusive).
+   *  Null on applicant- and global-scoped rows. */
+  subjectUnitId: string | null;
   payload: TapeJsonLdPayload;
   /** SHA-256 of the previous entry's `entryHash`. Hex string (64 chars). */
   prevHash: string;
@@ -104,9 +123,12 @@ export interface VerifyResult {
 }
 
 /** Scope of a tape read / verify. v1 implements `applicant`; `global` returns
- *  501 in v1 (Lane D). */
+ *  501 in v1 (Lane D). Unit-identity Phase B (WS-3) adds `unit`: a forward-only,
+ *  unit-scoped hash chain keyed on `compliance_tape.subject_unit_id`
+ *  (`units(id)`), independent from the applicant + global chains. */
 export type TapeScope =
   | { type: "applicant"; applicantId: string }
+  | { type: "unit"; unitId: string }
   | { type: "global" };
 
 /** Internal helper passed to hashing.ts. Not exported to callers. */
@@ -155,6 +177,7 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   "acq.nau_satisfied": "IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)",
   "acq.nau_lost": "IRC §42(g)(2)(D)(ii) (Next Available Unit Rule)",
   "screening.state_transition": "FCRA 15 U.S.C. §1681b + HUD 4350.3 Ch. 4",
+  "unit.identity_anchored": "IRC §42 + 26 CFR 1.42-5",
 };
 
 /** Feature flag controlling dual-write during cutover. When false, the new

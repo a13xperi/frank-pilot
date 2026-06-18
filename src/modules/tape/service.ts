@@ -39,6 +39,7 @@ const PDFDocument = require("pdfkit") as new (opts?: {
 
 import { PassThrough } from "stream";
 import { computeEntryHash, GENESIS_HASH } from "./hashing";
+import { buildAuditReport, type AuditReport } from "./audit-report";
 import type {
   TapeEntry,
   TapeEvent,
@@ -80,6 +81,15 @@ export interface TapeService {
   exportPdf(scope: TapeScope): Promise<Buffer>;
 
   /**
+   * Build the JPM "gold standard" audit report for a scope: the chain in
+   * sequence order, HUD-cited, with a self-contained verification summary
+   * (this method verifies first, so the summary and rows always agree).
+   * Returns a JSON-serializable object — the machine-checkable counterpart to
+   * exportPdf's human printout.
+   */
+  exportAuditReport(scope: TapeScope): Promise<AuditReport>;
+
+  /**
    * Read entries in scope, oldest first.  Passthrough to repo.list — exposed
    * on the service so callers (BP-19 viewer routes, verify-cron) don't have
    * to hold a reference to the repository directly.
@@ -102,12 +112,16 @@ export function createTapeService(repo: TapeRepository): TapeService {
   // stamp
   // -------------------------------------------------------------------------
   async function stamp(event: TapeEvent): Promise<TapeEntry> {
-    // Resolve scope from payload: subjectId is the applicant id in Lane C
-    // makers.  Null subjectId → global scope.
+    // Scope resolution. An explicit event.scope WINS (unit-identity Phase B /
+    // WS-3 — lets unit-scoped makers and dual-writers target a unit chain).
+    // Otherwise preserve the legacy derivation EXACTLY: subjectId is the
+    // applicant id in Lane C makers; null subjectId → global scope.
     const scope: TapeScope =
-      event.payload.subjectId !== null && event.payload.subjectId !== undefined
-        ? { type: "applicant", applicantId: event.payload.subjectId }
-        : { type: "global" };
+      event.scope !== undefined
+        ? event.scope
+        : event.payload.subjectId !== null && event.payload.subjectId !== undefined
+          ? { type: "applicant", applicantId: event.payload.subjectId }
+          : { type: "global" };
 
     let lastError: unknown;
     for (let attempt = 0; attempt < MAX_STAMP_RETRIES; attempt++) {
@@ -135,6 +149,7 @@ export function createTapeService(repo: TapeRepository): TapeService {
         const entry = await repo.insert({
           applicantId:
             scope.type === "applicant" ? scope.applicantId : null,
+          subjectUnitId: scope.type === "unit" ? scope.unitId : null,
           sequence,
           kind: event.kind,
           citation,
@@ -309,7 +324,9 @@ export function createTapeService(repo: TapeRepository): TapeService {
       const scopeLabel =
         scope.type === "applicant"
           ? `Applicant: ${scope.applicantId}`
-          : "Global Scope";
+          : scope.type === "unit"
+            ? `Unit: ${scope.unitId}`
+            : "Global Scope";
 
       doc
         .fontSize(14)
@@ -367,6 +384,18 @@ export function createTapeService(repo: TapeRepository): TapeService {
   }
 
   // -------------------------------------------------------------------------
+  // exportAuditReport — JPM gold-standard structured audit artifact
+  // -------------------------------------------------------------------------
+  async function exportAuditReport(scope: TapeScope): Promise<AuditReport> {
+    // Verify first so the report's summary is authoritative and can never
+    // disagree with the rows it ships. verify() reads the same chain
+    // buildAuditReport renders, so they are consistent by construction.
+    const verifyResult = await verify(scope);
+    const entries = await repo.list(scope);
+    return buildAuditReport(scope, entries, verifyResult);
+  }
+
+  // -------------------------------------------------------------------------
   // list
   // -------------------------------------------------------------------------
   async function list(
@@ -376,5 +405,5 @@ export function createTapeService(repo: TapeRepository): TapeService {
     return repo.list(scope, opts);
   }
 
-  return { stamp, verify, exportPdf, list };
+  return { stamp, verify, exportPdf, exportAuditReport, list };
 }

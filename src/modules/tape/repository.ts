@@ -23,6 +23,7 @@ function rowToEntry(row: Record<string, unknown>): TapeEntry {
     kind: row.kind as TapeEntry["kind"],
     citation: row.citation as string,
     applicantId: (row.applicant_id as string | null) ?? null,
+    subjectUnitId: (row.subject_unit_id as string | null) ?? null,
     payload: row.payload as TapeEntry["payload"],
     prevHash: (row.prev_hash as Buffer).toString("hex"),
     entryHash: (row.entry_hash as Buffer).toString("hex"),
@@ -48,8 +49,14 @@ function scopeWhere(
       param: scope.applicantId,
     };
   }
-  // global scope
-  return { sql: "applicant_id IS NULL", param: null };
+  if (scope.type === "unit") {
+    return {
+      sql: `subject_unit_id = $${paramOffset}`,
+      param: scope.unitId,
+    };
+  }
+  // global scope — neither scope id set
+  return { sql: "applicant_id IS NULL AND subject_unit_id IS NULL", param: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -67,13 +74,14 @@ export class PgTapeRepository implements TapeRepository {
     return transaction(async (client) => {
       const result = await client.query(
         `INSERT INTO compliance_tape
-           (applicant_id, sequence, kind, citation, payload,
+           (applicant_id, subject_unit_id, sequence, kind, citation, payload,
             prev_hash, entry_hash, session_id, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (kind, session_id) DO NOTHING
          RETURNING *`,
         [
           row.applicantId ?? null,
+          row.subjectUnitId ?? null,
           row.sequence,
           row.kind,
           row.citation,
