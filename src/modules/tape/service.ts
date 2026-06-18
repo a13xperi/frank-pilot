@@ -39,6 +39,7 @@ const PDFDocument = require("pdfkit") as new (opts?: {
 
 import { PassThrough } from "stream";
 import { computeEntryHash, GENESIS_HASH } from "./hashing";
+import { buildAuditReport, type AuditReport } from "./audit-report";
 import type {
   TapeEntry,
   TapeEvent,
@@ -78,6 +79,15 @@ export interface TapeService {
    * SHA-256 of the last entry so the printout is self-verifying.
    */
   exportPdf(scope: TapeScope): Promise<Buffer>;
+
+  /**
+   * Build the JPM "gold standard" audit report for a scope: the chain in
+   * sequence order, HUD-cited, with a self-contained verification summary
+   * (this method verifies first, so the summary and rows always agree).
+   * Returns a JSON-serializable object — the machine-checkable counterpart to
+   * exportPdf's human printout.
+   */
+  exportAuditReport(scope: TapeScope): Promise<AuditReport>;
 
   /**
    * Read entries in scope, oldest first.  Passthrough to repo.list — exposed
@@ -367,6 +377,18 @@ export function createTapeService(repo: TapeRepository): TapeService {
   }
 
   // -------------------------------------------------------------------------
+  // exportAuditReport — JPM gold-standard structured audit artifact
+  // -------------------------------------------------------------------------
+  async function exportAuditReport(scope: TapeScope): Promise<AuditReport> {
+    // Verify first so the report's summary is authoritative and can never
+    // disagree with the rows it ships. verify() reads the same chain
+    // buildAuditReport renders, so they are consistent by construction.
+    const verifyResult = await verify(scope);
+    const entries = await repo.list(scope);
+    return buildAuditReport(scope, entries, verifyResult);
+  }
+
+  // -------------------------------------------------------------------------
   // list
   // -------------------------------------------------------------------------
   async function list(
@@ -376,5 +398,5 @@ export function createTapeService(repo: TapeRepository): TapeService {
     return repo.list(scope, opts);
   }
 
-  return { stamp, verify, exportPdf, list };
+  return { stamp, verify, exportPdf, exportAuditReport, list };
 }
