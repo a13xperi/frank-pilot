@@ -4,11 +4,13 @@ import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requirePermission } from "../../middleware/rbac";
 import { RecertificationService } from "./service";
 import { RecertComplianceService } from "../acquisitions/recert-compliance";
+import { Form8823Service, summarizeForm8823 } from "./form-8823";
 import { logger } from "../../utils/logger";
 
 const router = Router();
 const service = new RecertificationService();
 const compliance = new RecertComplianceService();
+const form8823 = new Form8823Service();
 
 // List recertifications with filters
 router.get(
@@ -44,6 +46,36 @@ router.get(
     } catch (err: any) {
       logger.error("Failed to get upcoming recertifications", { error: err.message });
       res.status(500).json({ error: "Failed to get upcoming recertifications" });
+    }
+  }
+);
+
+// Form 8823 export — out-of-compliance recerts assembled into the IRS
+// noncompliance-report data shape (optionally CSV-summary). Read-only.
+// MUST be registered before "/:id" so the literal path isn't captured as an id.
+router.get(
+  "/form-8823",
+  authenticate,
+  requirePermission("recertification:view"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const report = await form8823.assemble({
+        propertyId: req.query.propertyId as string | undefined,
+        includeCorrected: req.query.includeCorrected === "true",
+        withEvidence: req.query.withEvidence !== "false",
+      });
+      if (req.query.format === "csv") {
+        const lines = ["bin | property | unit | category | state | date_identified",
+          ...summarizeForm8823(report)];
+        res.setHeader("content-type", "text/csv; charset=utf-8");
+        res.setHeader("content-disposition", 'attachment; filename="form-8823.csv"');
+        res.send(lines.join("\n"));
+        return;
+      }
+      res.json(report);
+    } catch (err: any) {
+      logger.error("Failed to assemble Form 8823 export", { error: err.message });
+      res.status(500).json({ error: "Failed to assemble Form 8823 export" });
     }
   }
 );
