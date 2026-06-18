@@ -122,6 +122,14 @@ export async function verifyMagicLink(rawToken: string): Promise<{ token: string
     summary: "magic link verified",
     detail: { role: row.role },
   });
+  // ...and rebind the pre-account trail (email:<addr>) to the now-proven user identity — the
+  // genesis weld so earlier email/phone events attach to user:<id>. Fire-and-forget.
+  void getFieldTrailEmitter().emit({
+    actor: `user:${row.user_id}`,
+    eventType: "onboarding.identity_rebind",
+    summary: "pre-account trail rebound to user",
+    detail: { from: `email:${String(row.email).toLowerCase()}`, to: `user:${row.user_id}` },
+  });
 
   const authUser: AuthUser = {
     id: row.user_id,
