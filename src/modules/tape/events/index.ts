@@ -43,3 +43,8 @@ export {
   makeScreeningStateTransitionPayload,
   type ScreeningStateTransitionInput,
 } from "./screening-state-transition";
+
+export {
+  makeUnitIdentityAnchoredPayload,
+  type UnitIdentityAnchoredInput,
+} from "./unit-identity-anchored";

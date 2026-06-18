@@ -102,12 +102,16 @@ export function createTapeService(repo: TapeRepository): TapeService {
   // stamp
   // -------------------------------------------------------------------------
   async function stamp(event: TapeEvent): Promise<TapeEntry> {
-    // Resolve scope from payload: subjectId is the applicant id in Lane C
-    // makers.  Null subjectId → global scope.
+    // Scope resolution. An explicit event.scope WINS (unit-identity Phase B /
+    // WS-3 — lets unit-scoped makers and dual-writers target a unit chain).
+    // Otherwise preserve the legacy derivation EXACTLY: subjectId is the
+    // applicant id in Lane C makers; null subjectId → global scope.
     const scope: TapeScope =
-      event.payload.subjectId !== null && event.payload.subjectId !== undefined
-        ? { type: "applicant", applicantId: event.payload.subjectId }
-        : { type: "global" };
+      event.scope !== undefined
+        ? event.scope
+        : event.payload.subjectId !== null && event.payload.subjectId !== undefined
+          ? { type: "applicant", applicantId: event.payload.subjectId }
+          : { type: "global" };
 
     let lastError: unknown;
     for (let attempt = 0; attempt < MAX_STAMP_RETRIES; attempt++) {
@@ -135,6 +139,7 @@ export function createTapeService(repo: TapeRepository): TapeService {
         const entry = await repo.insert({
           applicantId:
             scope.type === "applicant" ? scope.applicantId : null,
+          subjectUnitId: scope.type === "unit" ? scope.unitId : null,
           sequence,
           kind: event.kind,
           citation,
@@ -309,7 +314,9 @@ export function createTapeService(repo: TapeRepository): TapeService {
       const scopeLabel =
         scope.type === "applicant"
           ? `Applicant: ${scope.applicantId}`
-          : "Global Scope";
+          : scope.type === "unit"
+            ? `Unit: ${scope.unitId}`
+            : "Global Scope";
 
       doc
         .fontSize(14)

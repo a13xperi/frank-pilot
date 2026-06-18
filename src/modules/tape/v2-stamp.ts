@@ -26,6 +26,7 @@ import {
   makePositionLetterSentPayload,
   makeLeaseExecutedPayload,
   makeScreeningStateTransitionPayload,
+  makeUnitIdentityAnchoredPayload,
   type WelcomeLetterDeliveredInput,
   type Hud9281FairHousingPostedInput,
   type WaitingListAppCapturedInput,
@@ -33,8 +34,14 @@ import {
   type PositionLetterSentInput,
   type LeaseExecutedInput,
   type ScreeningStateTransitionInput,
+  type UnitIdentityAnchoredInput,
 } from "./events";
-import { COMPLIANCE_TAPE_V2_FLAG, type TapeJsonLdPayload, type TapeStampKind } from "./types";
+import {
+  COMPLIANCE_TAPE_V2_FLAG,
+  type TapeJsonLdPayload,
+  type TapeScope,
+  type TapeStampKind,
+} from "./types";
 
 function flagEnabled(): boolean {
   return process.env[COMPLIANCE_TAPE_V2_FLAG] === "true";
@@ -57,10 +64,11 @@ async function stampV2(
   kind: TapeStampKind,
   payload: TapeJsonLdPayload,
   sessionId?: string,
+  scope?: TapeScope,
 ): Promise<void> {
   if (!flagEnabled()) return;
   try {
-    await getService().stamp({ kind, payload, sessionId });
+    await getService().stamp({ kind, payload, sessionId, scope });
   } catch (err) {
     logger.error("Tape v2 stamp failed", {
       kind,
@@ -128,10 +136,37 @@ export async function stampV2LeaseExecuted(
   input: LeaseExecutedInput,
 ): Promise<void> {
   if (!flagEnabled()) return;
+  const payload = makeLeaseExecutedPayload(input);
+  // Applicant-scoped stamp — unchanged (subjectId = signerId drives the scope).
+  await stampV2("LEASE_EXECUTED", payload, input.sessionId);
+  // Unit-identity Phase B (WS-3): when the lease is tied to a unit, ALSO write
+  // the same event onto that unit's chain (additive dual-write). A distinct
+  // sessionId suffix keeps the unit row from colliding with the applicant row
+  // on the (kind, session_id) idempotency key.
+  if (input.unitId != null) {
+    await stampV2(
+      "LEASE_EXECUTED",
+      payload,
+      input.sessionId !== undefined ? `${input.sessionId}:unit` : undefined,
+      { type: "unit", unitId: input.unitId },
+    );
+  }
+}
+
+/**
+ * Unit-identity Phase B (WS-3): anchor a unit's identity onto its own chain.
+ * Always unit-scoped — the explicit { type: "unit"; unitId } scope wins over the
+ * (null) subjectId derivation. Lights up payload.bin + payload.unitId.
+ */
+export async function stampV2UnitIdentityAnchored(
+  input: UnitIdentityAnchoredInput,
+): Promise<void> {
+  if (!flagEnabled()) return;
   return stampV2(
-    "LEASE_EXECUTED",
-    makeLeaseExecutedPayload(input),
+    "unit.identity_anchored",
+    makeUnitIdentityAnchoredPayload(input),
     input.sessionId,
+    { type: "unit", unitId: input.unitId },
   );
 }
 

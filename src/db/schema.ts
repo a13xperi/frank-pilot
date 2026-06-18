@@ -1192,6 +1192,120 @@ CREATE TABLE IF NOT EXISTS ami_limits (
 );
 
 -- ============================================================
+-- UNIT-IDENTITY (Phase B) — site -> parcel(APN) -> building(BIN) -> unit -> permit
+-- Mirrors src/db/migrations/2026-06-16-0N-*.sql. Declared after all base tables so
+-- SCHEMA_SQL stays in parity with the deltas: the deltas re-run as no-ops on a
+-- fresh install, and on an existing DB this block self-heals every object via
+-- IF NOT EXISTS. All additive + nullable. See the deltas for full rationale.
+-- ============================================================
+
+-- (1/7) parcels — the APN layer (nullable; single- and multi-parcel sites).
+CREATE TABLE IF NOT EXISTS parcels (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id     UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  apn             VARCHAR(20),
+  apn_county      VARCHAR(40),
+  owner_of_record VARCHAR(200),
+  ahj             VARCHAR(60),
+  census_tract    VARCHAR(20),
+  apn_confidence  VARCHAR(12) NOT NULL DEFAULT 'confirmed'
+                  CHECK (apn_confidence IN ('confirmed','provisional')),
+  apn_source      VARCHAR(60),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (property_id, apn)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_parcels_apn
+  ON parcels(apn) WHERE apn IS NOT NULL AND apn_confidence = 'confirmed';
+CREATE INDEX IF NOT EXISTS idx_parcels_property ON parcels(property_id);
+
+-- (2/7) buildings -> parcels bridge.
+ALTER TABLE buildings ADD COLUMN IF NOT EXISTS parcel_id UUID REFERENCES parcels(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_buildings_parcel ON buildings(parcel_id);
+
+-- (3/7) per-unit identity columns.
+ALTER TABLE units ADD COLUMN IF NOT EXISTS lot_number            VARCHAR(20);
+ALTER TABLE units ADD COLUMN IF NOT EXISTS parcel_id             UUID REFERENCES parcels(id) ON DELETE SET NULL;
+ALTER TABLE units ADD COLUMN IF NOT EXISTS primary_permit_number VARCHAR(40);
+ALTER TABLE units ADD COLUMN IF NOT EXISTS external_uid          VARCHAR(40);
+CREATE INDEX IF NOT EXISTS idx_units_parcel ON units(parcel_id);
+CREATE INDEX IF NOT EXISTS idx_units_permit ON units(primary_permit_number) WHERE primary_permit_number IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_units_external_uid ON units(external_uid) WHERE external_uid IS NOT NULL;
+
+-- (4/7) unit_permits — recurring permits per unit (1 unit -> N permits).
+CREATE TABLE IF NOT EXISTS unit_permits (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  unit_id       UUID NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+  permit_number VARCHAR(40) NOT NULL,
+  permit_type   VARCHAR(40),
+  jurisdiction  VARCHAR(60),
+  issued_date   DATE,
+  permit_source VARCHAR(60),
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (unit_id, permit_number)
+);
+CREATE INDEX IF NOT EXISTS idx_unit_permits_number ON unit_permits(permit_number);
+CREATE INDEX IF NOT EXISTS idx_unit_permits_unit   ON unit_permits(unit_id);
+
+-- (5/7) re-anchor transactions to the unit (application_id stays = tenancy episode).
+-- audit_log.unit_id is forward-only (append-only table; existing rows stay NULL).
+ALTER TABLE tenant_ledger    ADD COLUMN IF NOT EXISTS unit_id UUID REFERENCES units(id) ON DELETE SET NULL;
+ALTER TABLE recertifications ADD COLUMN IF NOT EXISTS unit_id UUID REFERENCES units(id) ON DELETE SET NULL;
+ALTER TABLE lease_violations ADD COLUMN IF NOT EXISTS unit_id UUID REFERENCES units(id) ON DELETE SET NULL;
+ALTER TABLE lease_renewals   ADD COLUMN IF NOT EXISTS unit_id UUID REFERENCES units(id) ON DELETE SET NULL;
+ALTER TABLE move_outs        ADD COLUMN IF NOT EXISTS unit_id UUID REFERENCES units(id) ON DELETE SET NULL;
+ALTER TABLE audit_log        ADD COLUMN IF NOT EXISTS unit_id UUID REFERENCES units(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_tenant_ledger_unit    ON tenant_ledger(unit_id);
+CREATE INDEX IF NOT EXISTS idx_recertifications_unit ON recertifications(unit_id);
+CREATE INDEX IF NOT EXISTS idx_lease_violations_unit ON lease_violations(unit_id);
+CREATE INDEX IF NOT EXISTS idx_lease_renewals_unit   ON lease_renewals(unit_id);
+CREATE INDEX IF NOT EXISTS idx_move_outs_unit        ON move_outs(unit_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_unit        ON audit_log(unit_id);
+
+-- (6/7) compliance_tape unit scope (forward-only; verify() unchanged). The
+-- scope-sequence key is re-keyed to span applicant XOR unit XOR global so a
+-- unit row (applicant_id NULL) does not collapse into the global bucket.
+ALTER TABLE compliance_tape
+  ADD COLUMN IF NOT EXISTS subject_unit_id UUID REFERENCES units(id) ON DELETE RESTRICT;
+DROP INDEX IF EXISTS idx_compliance_tape_scope_sequence;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_compliance_tape_scope_sequence
+  ON compliance_tape (
+    COALESCE(applicant_id, subject_unit_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    sequence
+  );
+CREATE INDEX IF NOT EXISTS idx_compliance_tape_unit_sequence
+  ON compliance_tape (subject_unit_id, sequence)
+  WHERE subject_unit_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_compliance_tape_payload_bin
+  ON compliance_tape ((payload->>'bin'));
+ALTER TABLE compliance_tape DROP CONSTRAINT IF EXISTS compliance_tape_scope_exclusive;
+ALTER TABLE compliance_tape ADD CONSTRAINT compliance_tape_scope_exclusive
+  CHECK (NOT (applicant_id IS NOT NULL AND subject_unit_id IS NOT NULL));
+
+-- (7/7) the Truth-Unit projection.
+CREATE OR REPLACE VIEW unit_identity AS
+SELECT
+  u.id   AS unit_id,
+  u.unit_number,
+  u.lot_number,
+  u.primary_permit_number,
+  u.external_uid,
+  COALESCE(u.parcel_id, b.parcel_id) AS resolved_parcel_id,
+  b.id   AS building_id,
+  b.bin,
+  b.bin_confidence,
+  pc.apn,
+  pc.apn_confidence,
+  pc.owner_of_record,
+  pc.ahj,
+  p.id   AS property_id,
+  p.name AS property_name
+FROM units u
+LEFT JOIN buildings b  ON u.building_id = b.id
+LEFT JOIN parcels   pc ON COALESCE(u.parcel_id, b.parcel_id) = pc.id
+JOIN properties p ON u.property_id = p.id;
+
+-- ============================================================
 -- INDEXES
 -- ============================================================
 
@@ -1574,6 +1688,9 @@ CREATE INDEX IF NOT EXISTS idx_acq_awards_property ON acq_awards(property_id);
 `;
 
 export const DROP_SCHEMA_SQL = `
+DROP VIEW IF EXISTS unit_identity CASCADE;
+DROP TABLE IF EXISTS unit_permits CASCADE;
+DROP TABLE IF EXISTS parcels CASCADE;
 DROP TABLE IF EXISTS acq_awards CASCADE;
 DROP TABLE IF EXISTS acq_projects CASCADE;
 DROP TABLE IF EXISTS lease_signatures CASCADE;
