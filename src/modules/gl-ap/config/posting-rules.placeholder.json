@@ -1,0 +1,40 @@
+{
+  "$comment": "PLACEHOLDER posting rules — THIS IS EXACTLY WHERE TANYA'S 8 STEPS GO. Each rule maps a source document type to the Debit→Credit account pair to post (docs/deals/TANYA-GL-INTAKE.md, Part 1, the 'Journal entry (Debit → Credit acct)' column). These placeholder rules use standard textbook pairs against the placeholder COA so the engine is demonstrable; they are NOT Frank/GPM's real posting logic. To go live: transcribe Tanya's 8 steps into rules here (one rule per source-doc-type / step), point debitAccount/creditAccount at her real account codes, set placeholder=false. account codes here reference chart-of-accounts.placeholder.json.",
+  "version": "placeholder-2026-06-18",
+  "placeholder": true,
+  "source": "PLACEHOLDER — replace from TANYA-GL-INTAKE",
+  "rules": [
+    {
+      "id": "PLACEHOLDER-vendor_invoice-accrue",
+      "sourceDocType": "vendor_invoice",
+      "description": "PLACEHOLDER: accrue a vendor bill on approval — Dr expense, Cr Accounts Payable. Replace expense account + amount basis from Tanya's step for this doc type.",
+      "debitAccount": "5000",
+      "creditAccount": "2000",
+      "amountSource": "amount"
+    },
+    {
+      "id": "PLACEHOLDER-vendor_payment-disburse",
+      "sourceDocType": "vendor_payment",
+      "description": "PLACEHOLDER: pay a vendor bill — Dr Accounts Payable, Cr Cash. Replace cash/clearing account from Tanya's step.",
+      "debitAccount": "2000",
+      "creditAccount": "1000",
+      "amountSource": "amount"
+    },
+    {
+      "id": "PLACEHOLDER-utility_invoice-accrue",
+      "sourceDocType": "utility_invoice",
+      "description": "PLACEHOLDER: utility bill — Dr Utilities, Cr Accounts Payable.",
+      "debitAccount": "5100",
+      "creditAccount": "2000",
+      "amountSource": "amount"
+    },
+    {
+      "id": "PLACEHOLDER-rent_receipt",
+      "sourceDocType": "rent_receipt",
+      "description": "PLACEHOLDER: rent collected — Dr Cash, Cr Rental Income. (Example non-AP rule; remove if rent posts via the tenant_ledger path instead.)",
+      "debitAccount": "1000",
+      "creditAccount": "4000",
+      "amountSource": "amount"
+    }
+  ]
+}
