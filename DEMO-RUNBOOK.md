@@ -58,7 +58,13 @@ system of record; their `daysOverdue` all read ~71d because the app dates overdu
 the first rent charge — uniform and plausible, but don't invite a forensic read of a
 specific enrichment tenant.
 
-### Bonus beat — ❌ CUT for Jun 11 (kill switch flipped ~12:45am)
+### Bonus beat — ✅ RESTORED for Jun 11, **CHAT ONLY** (~1:10am — voice pill stays dark)
+
+**Current state:** the chat widget is back at http://localhost:5174 (bottom-right
+bubble; `demo-up.sh` now starts the tenant client with `VITE_ENABLE_FAQ_CHAT=true`).
+The **"Talk to Frank" voice pill is intentionally ABSENT** — don't look for it,
+don't mention it. Run the beat exactly as rehearsed below (the three questions
+are all chat). History of the cut + fix follows.
 
 **Do not demo the tenant chat/voice assistant.** Verified leak on a direct
 question: it answers from the **statewide HUD-LIHTC dataset** ("all 14 Carson
@@ -88,12 +94,30 @@ answer with citations. Pinned by `src/__tests__/housing-qa-tenant-scope.test.ts`
 for Jun 11. Post-demo: split the flag or fix the voice agent's grounding, then
 re-verify and restore the beat below.
 
-<details><summary>Original beat — for when it returns post-fix</summary>
+**Update ~1:10am — flag split; chat RESTORED, voice pipeline hardened + dark.**
+The single kill switch is now two: `VITE_ENABLE_FAQ_CHAT` gates only the chat
+widget (ON via `demo-up.sh` — re-verified post-restart: "test" repro clean,
+rehearsed questions cite correctly), and the voice pill sits behind its own
+`VITE_ENABLE_VOICE_PILL` (OFF — not set anywhere). The voice agent's grounding
+lives in ElevenLabs dashboard config, outside this repo, so it can't be fixed
+from here tonight; instead the **mint pipeline now fails closed in code**:
+`POST /api/voice/sessions` returns 503 unless `VOICE_AGENT_TENANT_SCOPED=true`
+attests the remote agent passed the tenant-scope checklist (see `.env.example`)
+— on the demo box it also has no ElevenLabs creds and the demo runs offline, so
+voice was never viable in the room anyway. **To restore voice later:** re-ground
+the ElevenLabs agent (FAQ-corpus only, declines property searches, no internal
+names — main-track PR #289 owns this), verify by voice, then set
+`VOICE_AGENT_TENANT_SCOPED=true` server-side and `VITE_ENABLE_VOICE_PILL=true`
+client-side. Pinned by `voice-browser-session.test.ts` (attestation gate) and
+the tenant-scope suite.
+
+<details><summary>The beat as rehearsed (chat) — voice pill line removed Jun 11</summary>
 
 Only if the room is warm and time allows — the 5 rehearsed beats stay the spine.
 
-- **Where:** http://localhost:5174 (tenant app) → chat widget / "Talk to Frank" pill.
+- **Where:** http://localhost:5174 (tenant app) → chat widget (bottom-right bubble).
   Boots with `./demo-up.sh` (proxied to the demo API; keyless via the claude CLI).
+  The "Talk to Frank" voice pill is hidden for Jun 11 — chat only.
 - **The line for Frank Hawkins:** "We loaded your 500-question GPMG tenant FAQ into
   Frank today — every answer below is grounded in YOUR document, with citations."
 - **Rehearsed questions** (all verified tonight, answers cite `(Tenant FAQ #N)`):

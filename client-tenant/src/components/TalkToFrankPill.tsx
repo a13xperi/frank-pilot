@@ -81,11 +81,14 @@ export function __setVoiceDriverForTests(d: VoiceDriver | null): void {
 }
 
 export function TalkToFrankPill() {
-  // KILL SWITCH (Jun 11 demo): same scope leak as HousingChatWidget — the
-  // assistant surface can answer from the statewide HUD-LIHTC dataset and leak
-  // internal names. Re-enable via VITE_ENABLE_FAQ_CHAT=true after the
-  // fix/housing-qa-tenant-scope PR lands on main.
-  if (import.meta.env.VITE_ENABLE_FAQ_CHAT !== 'true' && import.meta.env.MODE !== 'test') return null;
+  // KILL SWITCH (Jun 11 demo), split from the chat widget's flag: the chat
+  // path is bounded server-side (housing-qa tenant scope), but THIS surface
+  // speaks through the remote ElevenLabs agent, whose grounding lives outside
+  // the repo and still has the statewide/internal-names leak. The pill stays
+  // dark behind its own flag until that agent is re-grounded and the server
+  // attestation (VOICE_AGENT_TENANT_SCOPED) is set — the mint route fails
+  // closed regardless, this just keeps the dead pill out of the UI.
+  if (import.meta.env.VITE_ENABLE_VOICE_PILL !== 'true' && import.meta.env.MODE !== 'test') return null;
   const { t } = useTranslation('voice');
   const { needsChoice } = useConsent();
   const [state, setState] = useState<PillState>({ kind: 'idle' });

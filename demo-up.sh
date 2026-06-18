@@ -40,10 +40,15 @@ if ! curl -sf -m 2 http://localhost:5180/ >/dev/null 2>&1; then
   (cd client && nohup npm run dev >/tmp/frank-demo-client.log 2>&1 &)
 fi
 
-# 4b · tenant client (:5174) — Frank Q&A chat widget, proxied to the demo API
+# 4b · tenant client (:5174) — Frank Q&A chat widget, proxied to the demo API.
+# VITE_ENABLE_FAQ_CHAT=true: chat is back for Jun 11 — the API defaults to
+# tenant scope (FAQ corpus + facts only; statewide index unreachable).
+# VITE_ENABLE_VOICE_PILL stays UNSET: the ElevenLabs voice agent is not yet
+# re-grounded/attested (VOICE_AGENT_TENANT_SCOPED) — do not enable it here.
 if ! curl -sf -m 2 http://localhost:5174/ >/dev/null 2>&1; then
   say "starting tenant client on :5174…"
   (cd client-tenant && VITE_API_PROXY_TARGET=http://localhost:3010 \
+    VITE_ENABLE_FAQ_CHAT=true \
     nohup npm run dev >/tmp/frank-demo-tenant.log 2>&1 &)
 fi
 

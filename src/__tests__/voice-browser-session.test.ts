@@ -69,6 +69,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   __setSignedUrlFetcherForTests(null);
   process.env.VOICE_BROWSER_SESSIONS_ENABLED = "true";
+  // Tenant-scope attestation (Jun 11) — required alongside the master flag.
+  process.env.VOICE_AGENT_TENANT_SCOPED = "true";
   process.env.ELEVENLABS_AGENT_ID = AGENT_ID;
   process.env.ELEVENLABS_API_KEY = API_KEY;
   process.env.VOICE_BROWSER_IP_HASH_SECRET = IP_HASH_SECRET;
@@ -80,6 +82,7 @@ beforeEach(() => {
 afterAll(() => {
   __setSignedUrlFetcherForTests(null);
   delete process.env.VOICE_BROWSER_SESSIONS_ENABLED;
+  delete process.env.VOICE_AGENT_TENANT_SCOPED;
   delete process.env.ELEVENLABS_AGENT_ID;
   delete process.env.ELEVENLABS_API_KEY;
   delete process.env.VOICE_BROWSER_IP_HASH_SECRET;
@@ -91,6 +94,23 @@ afterAll(() => {
 describe("voice browser session — config gates", () => {
   it("returns 503 when VOICE_BROWSER_SESSIONS_ENABLED is off", async () => {
     process.env.VOICE_BROWSER_SESSIONS_ENABLED = "false";
+    const res = await request(buildApp()).post("/api/voice/sessions").send({});
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ error: "voice_disabled" });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when the agent is not attested tenant-scoped — even with sessions enabled", async () => {
+    delete process.env.VOICE_AGENT_TENANT_SCOPED;
+    const res = await request(buildApp()).post("/api/voice/sessions").send({});
+    expect(res.status).toBe(503);
+    // Same opaque body as the master flag — the caller can't distinguish.
+    expect(res.body).toEqual({ error: "voice_disabled" });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("attestation fails closed on any value other than the literal 'true'", async () => {
+    process.env.VOICE_AGENT_TENANT_SCOPED = "1";
     const res = await request(buildApp()).post("/api/voice/sessions").send({});
     expect(res.status).toBe(503);
     expect(res.body).toEqual({ error: "voice_disabled" });
