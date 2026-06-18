@@ -47,9 +47,16 @@ describe("verifyMagicLink — field-trail emission", () => {
 
     expect(res?.user.id).toBe("u-123");
     expect(res?.token).toBe("jwt-token");
-    expect(mockEmit).toHaveBeenCalledTimes(1);
+    expect(mockEmit).toHaveBeenCalledTimes(2);
     expect(mockEmit).toHaveBeenCalledWith(
       expect.objectContaining({ actor: "user:u-123", eventType: "onboarding.link_tapped" })
+    );
+    expect(mockEmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: "user:u-123",
+        eventType: "onboarding.identity_rebind",
+        detail: expect.objectContaining({ from: "email:a@b.com", to: "user:u-123" }),
+      })
     );
   });
 
