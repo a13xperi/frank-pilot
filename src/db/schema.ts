@@ -164,6 +164,7 @@ CREATE TYPE audit_action AS ENUM (
   'work_order_created',
   'work_order_assigned',
   'work_order_completed',
+  'work_order_attachment_added',
   -- BP-08 Stripe payment lifecycle (intents.ts + webhook.ts)
   'payment_intent_created',
   'payment_intent_replay',
@@ -944,6 +945,25 @@ CREATE TABLE IF NOT EXISTS work_orders (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Maintenance-tech completion evidence (build-list D2). One row per captured
+-- photo; the GATING photo is kind='completion_photo' WITH a non-null lat/long,
+-- enforced in the service layer before a work order may reach 'completed'.
+-- See migrations/2026-06-18-work-order-attachments.sql for the full rationale.
+CREATE TABLE IF NOT EXISTS work_order_attachments (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  work_order_id UUID NOT NULL REFERENCES work_orders(id) ON DELETE CASCADE,
+  url           TEXT NOT NULL,
+  kind          TEXT NOT NULL DEFAULT 'completion_photo'
+                  CHECK (kind IN ('arrival','departure','completion_photo','other')),
+  taken_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  latitude      DOUBLE PRECISION
+                  CHECK (latitude IS NULL OR (latitude BETWEEN -90 AND 90)),
+  longitude     DOUBLE PRECISION
+                  CHECK (longitude IS NULL OR (longitude BETWEEN -180 AND 180)),
+  uploaded_by   UUID REFERENCES users(id),
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Lease Renewals (Module 8)
 CREATE TABLE IF NOT EXISTS lease_renewals (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -1335,6 +1355,7 @@ CREATE INDEX IF NOT EXISTS idx_inspections_scheduled ON inspections(scheduled_da
 CREATE INDEX IF NOT EXISTS idx_work_orders_property ON work_orders(property_id);
 CREATE INDEX IF NOT EXISTS idx_work_orders_status ON work_orders(status);
 CREATE INDEX IF NOT EXISTS idx_work_orders_priority ON work_orders(priority);
+CREATE INDEX IF NOT EXISTS idx_work_order_attachments_wo_kind ON work_order_attachments(work_order_id, kind);
 
 CREATE INDEX IF NOT EXISTS idx_renewals_application ON lease_renewals(application_id);
 CREATE INDEX IF NOT EXISTS idx_renewals_status ON lease_renewals(status);
@@ -1698,6 +1719,7 @@ DROP TABLE IF EXISTS stripe_webhook_dlq CASCADE;
 DROP TABLE IF EXISTS stripe_processed_events CASCADE;
 DROP TABLE IF EXISTS payment_idempotency CASCADE;
 DROP TABLE IF EXISTS application_messages CASCADE;
+DROP TABLE IF EXISTS work_order_attachments CASCADE;
 DROP TABLE IF EXISTS work_orders CASCADE;
 DROP TABLE IF EXISTS inspections CASCADE;
 DROP TABLE IF EXISTS move_outs CASCADE;

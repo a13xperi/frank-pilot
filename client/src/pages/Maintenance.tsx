@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Wrench, Plus, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Wrench, Plus, AlertTriangle, Clock, CheckCircle, MapPin } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { DataTable, type Column } from '@/components/DataTable';
 import { ResponsiveCards } from '@/components/ResponsiveCards';
@@ -8,8 +8,9 @@ import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { RoleGate } from '@/components/RoleGate';
+import { GeoPhotoCapture } from '@/components/GeoPhotoCapture';
 import { api } from '@/api/client';
-import type { WorkOrder, PropertyListResponse, UserListResponse } from '@/types';
+import type { WorkOrder, WorkOrderAttachment, PropertyListResponse, UserListResponse } from '@/types';
 
 const CATEGORIES = [
   'plumbing_leak', 'frozen_pipes', 'no_heat', 'electrical_failure',
@@ -37,6 +38,28 @@ export function MaintenancePage() {
   const [assignTo, setAssignTo] = useState('');
   const [completeNotes, setCompleteNotes] = useState('');
   const [completeCost, setCompleteCost] = useState('');
+
+  // D2 — attachments for the selected work order. `hasGeoCompletionPhoto` gates
+  // the Complete button: it's true once ≥1 completion_photo with both
+  // coordinates is attached (mirrors the backend gate, for immediate feedback).
+  const [attachments, setAttachments] = useState<WorkOrderAttachment[]>([]);
+  const hasGeoCompletionPhoto = attachments.some(
+    (a) => a.kind === 'completion_photo' && a.latitude != null && a.longitude != null
+  );
+
+  const loadAttachments = useCallback(async (woId: string) => {
+    try {
+      const res = await api.get<{ attachments: WorkOrderAttachment[] }>(`/api/maintenance/${woId}/attachments`);
+      setAttachments(res.attachments || []);
+    } catch {
+      setAttachments([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selected?.id) loadAttachments(selected.id);
+    else setAttachments([]);
+  }, [selected?.id, loadAttachments]);
 
   const workOrders = data?.workOrders || [];
   const emergencies = workOrders.filter((w) => w.is_emergency && w.status !== 'completed' && w.status !== 'cancelled').length;
@@ -138,7 +161,7 @@ export function MaintenancePage() {
       </Modal>
 
       {/* Detail Modal */}
-      <Modal open={!!selected} onClose={() => { setSelected(null); setAssignTo(''); setCompleteNotes(''); setCompleteCost(''); }} title={`Work Order: ${selected?.title || ''}`} wide>
+      <Modal open={!!selected} onClose={() => { setSelected(null); setAssignTo(''); setCompleteNotes(''); setCompleteCost(''); setAttachments([]); }} title={`Work Order: ${selected?.title || ''}`} wide>
         {selected && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -175,24 +198,61 @@ export function MaintenancePage() {
                   </div>
                 )}
 
-                {/* Start */}
+                {/* Start — with an optional geolocated arrival photo */}
                 {selected.status === 'assigned' && (
-                  <button onClick={async () => {
-                    try {
-                      await api.post(`/api/maintenance/${selected.id}/start`);
-                      setActionMsg({ type: 'success', text: 'Work started' });
-                      setSelected(null); refetch();
-                    } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
-                  }} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">Start Work</button>
+                  <div className="space-y-2">
+                    <GeoPhotoCapture workOrderId={selected.id} kind="arrival" onUploaded={() => loadAttachments(selected.id)} />
+                    <button onClick={async () => {
+                      try {
+                        await api.post(`/api/maintenance/${selected.id}/start`);
+                        setActionMsg({ type: 'success', text: 'Work started' });
+                        setSelected(null); refetch();
+                      } catch (err: any) { setActionMsg({ type: 'error', text: err?.message || 'Failed' }); }
+                    }} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">Start Work</button>
+                  </div>
                 )}
 
-                {/* Complete */}
+                {/* Complete — REQUIRES a geolocated completion photo (D2 gate) */}
                 {['assigned', 'in_progress'].includes(selected.status) && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    {/* Capture surfaces for the on-site tech */}
+                    <GeoPhotoCapture workOrderId={selected.id} kind="completion_photo" onUploaded={() => loadAttachments(selected.id)} />
+                    {selected.status === 'in_progress' && (
+                      <GeoPhotoCapture workOrderId={selected.id} kind="departure" onUploaded={() => loadAttachments(selected.id)} />
+                    )}
+
+                    {/* Attached evidence */}
+                    {attachments.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-xs text-gray-400">Attached photos</p>
+                        <ul className="space-y-1">
+                          {attachments.map((a) => (
+                            <li key={a.id} className="flex items-center gap-2 text-xs text-gray-600">
+                              {a.latitude != null && a.longitude != null
+                                ? <MapPin className="h-3.5 w-3.5 text-green-600" />
+                                : <MapPin className="h-3.5 w-3.5 text-gray-300" />}
+                              <span className="font-medium">{a.kind.replace(/_/g, ' ')}</span>
+                              <span className="text-gray-400">{new Date(a.taken_at).toLocaleString()}</span>
+                              {a.latitude != null && a.longitude != null && (
+                                <span className="text-gray-400">· {a.latitude.toFixed(4)}, {a.longitude.toFixed(4)}</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {!hasGeoCompletionPhoto && (
+                      <div className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>A geolocated completion photo is required before this work order can be completed.</span>
+                      </div>
+                    )}
+
                     <textarea value={completeNotes} onChange={(e) => setCompleteNotes(e.target.value)} rows={2} className="input" placeholder="Completion notes (required)" />
                     <div className="flex gap-2">
                       <input type="number" step="0.01" min="0" value={completeCost} onChange={(e) => setCompleteCost(e.target.value)} className="input w-40" placeholder="Actual cost" />
-                      <Button variant="primary" disabled={!completeNotes.trim()} onClick={async () => {
+                      <Button variant="primary" disabled={!completeNotes.trim() || !hasGeoCompletionPhoto} onClick={async () => {
                         try {
                           await api.post(`/api/maintenance/${selected.id}/complete`, {
                             notes: completeNotes, actualCost: completeCost ? parseFloat(completeCost) : undefined,

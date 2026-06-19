@@ -21,6 +21,12 @@
 import request from "supertest";
 import type { Express } from "express";
 
+// Each case resets the module registry and re-`require("../index")`, re-evaluating
+// the whole app module graph from cold. On CI that first cold load can exceed
+// jest's 5s default — and grows with index.ts — so give the suite headroom rather
+// than let it be a load-dependent flake. (See docs/deals/BUILD-LANDING-RUNBOOK.)
+jest.setTimeout(30000);
+
 /**
  * config/database mock.  PgTapeRepository runs every read inside transaction(),
  * so the mock invokes the callback with a fake client whose query() returns an

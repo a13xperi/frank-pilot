@@ -60,8 +60,38 @@ test.describe("Maintenance — create + full lifecycle (write)", () => {
     await expect(main.getByText(/Work started/i)).toBeVisible();
 
     // --- Complete (in_progress → completed) ---
+    // D2 gate: completion now requires a geolocated completion photo. Drive the
+    // real flow — capture location (mocked), attach a photo, THEN complete.
     await row.click();
     detail = adminPage.getByRole("dialog");
+
+    // Mock the device location so navigator.geolocation.getCurrentPosition resolves.
+    await adminPage.context().grantPermissions(["geolocation"]);
+    await adminPage.context().setGeolocation({ latitude: 36.1699, longitude: -115.1398 });
+
+    // Scope to the completion-photo capture card; the departure card shares the
+    // "Capture location" / "Take photo" button labels, so disambiguate by heading.
+    const completionCapture = detail
+      .locator("div.space-y-2.rounded-lg.border.border-gray-200.p-3")
+      .filter({ hasText: "Completion photo" });
+    await completionCapture.getByRole("button", { name: /Capture location/i }).click();
+    await expect(completionCapture.getByText(/36\.16990/)).toBeVisible();
+
+    // A 1×1 PNG is enough for the FileReader → canvas downscale path in onPick.
+    const onePxPng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "base64"
+    );
+    await completionCapture
+      .locator('input[type="file"]')
+      .setInputFiles({ name: "completion.png", mimeType: "image/png", buffer: onePxPng });
+    await expect(completionCapture.locator("img")).toBeVisible();
+    await completionCapture.getByRole("button", { name: /Attach completion photo/i }).click();
+
+    // Upload confirmed → the gate (hasGeoCompletionPhoto) is now satisfied and
+    // the Complete button enables.
+    await expect(detail.getByText(/Completion photo attached with location/i)).toBeVisible();
+
     await detail.getByPlaceholder(/Completion notes/i).fill("Repaired and verified on site.");
     await detail.getByRole("button", { name: /^Complete$/ }).click();
     await expect(detail).toBeHidden();
