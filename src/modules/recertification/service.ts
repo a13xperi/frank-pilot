@@ -1,16 +1,33 @@
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
-import { TwilioService } from "../integrations/twilio";
 import { AuthRequest } from "../../middleware/auth";
 import { buildPropertyScope } from "../../middleware/scope";
 import { RecertComplianceService } from "../acquisitions/recert-compliance";
 import { recommendedRentAction } from "../acquisitions/compliance-bridge";
+import { Notifier, TwilioNotifier } from "./notifier";
 import { resolveUnitIdForApplication } from "../../utils/resolve-unit";
 
 export class RecertificationService {
-  private twilio = new TwilioService();
+  private notifier: Notifier;
   private compliance = new RecertComplianceService();
+
+  /**
+   * @param opts.notifier  the reminder-dispatch channel. Defaults to
+   *   {@link TwilioNotifier} (SMS via Twilio, matching prior behavior). Inject a
+   *   mock in tests, or a notifier with an `email` sender to dispatch on both.
+   */
+  constructor(opts: { notifier?: Notifier } = {}) {
+    this.notifier = opts.notifier ?? new TwilioNotifier();
+  }
+
+  /** Fire-and-forget dispatch — a notifier failure must never break the reminder
+   *  state machine (mirrors the prior inline `.catch(() => {})`). */
+  private dispatch(n: { phone?: string | null; subject?: string; message: string }): void {
+    this.notifier.notify(n).catch((err) => {
+      logger.error("Recert reminder dispatch failed (non-fatal)", { error: (err as Error)?.message });
+    });
+  }
 
   /**
    * Create an annual recertification record for a newly onboarded tenant.
@@ -126,7 +143,11 @@ export class RecertificationService {
           details: { reason: "Non-responsive past anniversary date" },
         });
         if (phone) {
-          this.twilio.sendSMS(phone, `${name}: Your rent has been adjusted to market rate due to non-completion of annual recertification.`).catch(() => {});
+          this.dispatch({
+            phone,
+            subject: "Recertification — rent adjusted to market rate",
+            message: `${name}: Your rent has been adjusted to market rate due to non-completion of annual recertification.`,
+          });
         }
         stats.marketRent++;
         continue;
@@ -155,7 +176,11 @@ export class RecertificationService {
           [rec.id]
         );
         if (phone) {
-          this.twilio.sendSMS(phone, `URGENT — ${name}: Your annual recertification for ${rec.tenant_name} is due in ${daysUntil} days. Failure to complete by the cutoff date may result in rent adjustment to market rate. Contact your property manager immediately.`).catch(() => {});
+          this.dispatch({
+            phone,
+            subject: "URGENT — annual recertification due soon",
+            message: `URGENT — ${name}: Your annual recertification for ${rec.tenant_name} is due in ${daysUntil} days. Failure to complete by the cutoff date may result in rent adjustment to market rate. Contact your property manager immediately.`,
+          });
         }
         await this.logReminderSent(rec, "60-day");
         stats.reminded++;
@@ -169,7 +194,11 @@ export class RecertificationService {
           [rec.id]
         );
         if (phone) {
-          this.twilio.sendSMS(phone, `REMINDER — ${name}: Your annual recertification is due in ${daysUntil} days. Please submit required documents to your property manager.`).catch(() => {});
+          this.dispatch({
+            phone,
+            subject: "Reminder — annual recertification due",
+            message: `REMINDER — ${name}: Your annual recertification is due in ${daysUntil} days. Please submit required documents to your property manager.`,
+          });
         }
         await this.logReminderSent(rec, "90-day");
         stats.reminded++;
@@ -183,7 +212,11 @@ export class RecertificationService {
           [rec.id]
         );
         if (phone) {
-          this.twilio.sendSMS(phone, `${name}: Your annual recertification is approaching. Anniversary date: ${anniv.toLocaleDateString()}. Please begin gathering income verification documents.`).catch(() => {});
+          this.dispatch({
+            phone,
+            subject: "Annual recertification approaching",
+            message: `${name}: Your annual recertification is approaching. Anniversary date: ${anniv.toLocaleDateString()}. Please begin gathering income verification documents.`,
+          });
         }
         await this.logReminderSent(rec, "120-day");
         stats.reminded++;
