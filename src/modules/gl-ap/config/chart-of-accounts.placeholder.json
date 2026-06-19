@@ -1,0 +1,25 @@
+{
+  "$comment": "PLACEHOLDER chart of accounts — replace from docs/deals/TANYA-GL-INTAKE.md (Part 2: 'Chart of accounts'). This is a STANDARD textbook COA so the GL/AP foundation is demonstrable end-to-end; it is NOT Frank/GPM's real chart. Every account is flagged isPlaceholder=true. The loader (posting-rules.ts → loadChartOfAccounts) applies this to a book; the same list is seeded into one demo book by the migration. To go live: export Tanya's real COA, drop it in here (or a book-specific file), set placeholder=false.",
+  "version": "placeholder-2026-06-18",
+  "placeholder": true,
+  "accounts": [
+    { "code": "1000", "name": "Cash — Operating", "accountType": "asset", "normalSide": "debit", "isPlaceholder": true },
+    { "code": "1100", "name": "Accounts Receivable", "accountType": "asset", "normalSide": "debit", "isPlaceholder": true },
+    { "code": "1200", "name": "Prepaid Expenses", "accountType": "asset", "normalSide": "debit", "isPlaceholder": true },
+    { "code": "1500", "name": "Fixed Assets", "accountType": "asset", "normalSide": "debit", "isPlaceholder": true },
+    { "code": "1600", "name": "Accumulated Depreciation", "accountType": "asset", "normalSide": "credit", "isPlaceholder": true },
+    { "code": "2000", "name": "Accounts Payable", "accountType": "liability", "normalSide": "credit", "isPlaceholder": true },
+    { "code": "2100", "name": "Accrued Liabilities", "accountType": "liability", "normalSide": "credit", "isPlaceholder": true },
+    { "code": "2200", "name": "Security Deposits Held", "accountType": "liability", "normalSide": "credit", "isPlaceholder": true },
+    { "code": "3000", "name": "Owner Equity", "accountType": "equity", "normalSide": "credit", "isPlaceholder": true },
+    { "code": "3900", "name": "Retained Earnings", "accountType": "equity", "normalSide": "credit", "isPlaceholder": true },
+    { "code": "4000", "name": "Rental Income", "accountType": "revenue", "normalSide": "credit", "isPlaceholder": true },
+    { "code": "4100", "name": "Other Income", "accountType": "revenue", "normalSide": "credit", "isPlaceholder": true },
+    { "code": "5000", "name": "Repairs & Maintenance", "accountType": "expense", "normalSide": "debit", "isPlaceholder": true },
+    { "code": "5100", "name": "Utilities", "accountType": "expense", "normalSide": "debit", "isPlaceholder": true },
+    { "code": "5200", "name": "Property Management Fees", "accountType": "expense", "normalSide": "debit", "isPlaceholder": true },
+    { "code": "5300", "name": "Insurance", "accountType": "expense", "normalSide": "debit", "isPlaceholder": true },
+    { "code": "5400", "name": "Property Taxes", "accountType": "expense", "normalSide": "debit", "isPlaceholder": true },
+    { "code": "5900", "name": "Depreciation Expense", "accountType": "expense", "normalSide": "debit", "isPlaceholder": true }
+  ]
+}
