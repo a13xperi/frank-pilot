@@ -3,6 +3,7 @@ import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 import { AuthRequest } from "../../middleware/auth";
 import { buildPropertyScope } from "../../middleware/scope";
+import { resolveUnitIdForApplication } from "../../utils/resolve-unit";
 
 // Late fee rules per Master Build List (Module 6)
 const GRACE_PERIOD_DAYS = 5;     // Rent due 1st, late on 6th
@@ -172,18 +173,20 @@ export class LedgerService {
     const [year, month] = billingPeriod.split("-").map(Number);
     const dueDate = `${billingPeriod}-01`;
 
+    const unitId = await resolveUnitIdForApplication(query, applicationId);
     const currentBalance = await this.getBalanceAmount(applicationId);
     const newBalance = currentBalance + amount;
 
     const result = await query(
       `INSERT INTO tenant_ledger
-         (application_id, property_id, entry_type, description, amount, balance_after,
+         (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
           billing_period, due_date, posted_by)
-       VALUES ($1, $2, 'rent_charge', $3, $4, $5, $6, $7, $8)
+       VALUES ($1, $2, $3, 'rent_charge', $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         applicationId,
         app.rows[0].property_id,
+        unitId,
         `Monthly rent — ${billingPeriod}`,
         amount,
         newBalance,
@@ -248,15 +251,21 @@ export class LedgerService {
       const now = new Date();
       const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
+      const unitId = await resolveUnitIdForApplication(
+        (t, p) => client.query(t, p),
+        applicationId
+      );
+
       const insert = await client.query(
         `INSERT INTO tenant_ledger
-           (application_id, property_id, entry_type, description, amount, balance_after,
+           (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
             billing_period, reference_id, posted_by, notes)
-         VALUES ($1, $2, 'payment', $3, $4, $5, $6, $7, $8, $9)
+         VALUES ($1, $2, $3, 'payment', $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
           applicationId,
           app.rows[0].property_id,
+          unitId,
           `Payment received`,
           -amount, // Negative = reduces balance
           newBalance,
@@ -326,15 +335,21 @@ export class LedgerService {
       const now = new Date();
       const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
+      const unitId = await resolveUnitIdForApplication(
+        (t, p) => client.query(t, p),
+        applicationId
+      );
+
       const insert = await client.query(
         `INSERT INTO tenant_ledger
-           (application_id, property_id, entry_type, description, amount, balance_after,
+           (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
             billing_period, reference_id, posted_by, notes)
-         VALUES ($1, $2, 'refund', $3, $4, $5, $6, $7, $8, $9)
+         VALUES ($1, $2, $3, 'refund', $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
           applicationId,
           app.rows[0].property_id,
+          unitId,
           `Refund issued`,
           amount, // Positive = restores balance the prior payment reduced
           newBalance,
@@ -394,13 +409,18 @@ export class LedgerService {
       const now = new Date();
       const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
+      const unitId = await resolveUnitIdForApplication(
+        (t, p) => client.query(t, p),
+        applicationId
+      );
+
       const insert = await client.query(
         `INSERT INTO tenant_ledger
-           (application_id, property_id, entry_type, description, amount, balance_after,
+           (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
             billing_period, posted_by)
-         VALUES ($1, $2, 'credit', $3, $4, $5, $6, $7)
+         VALUES ($1, $2, $3, 'credit', $4, $5, $6, $7, $8)
          RETURNING *`,
-        [applicationId, app.rows[0].property_id, description, -amount, newBalance, billingPeriod, postedBy]
+        [applicationId, app.rows[0].property_id, unitId, description, -amount, newBalance, billingPeriod, postedBy]
       );
 
       return insert.rows[0];
@@ -453,13 +473,18 @@ export class LedgerService {
       const now = new Date();
       const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
+      const unitId = await resolveUnitIdForApplication(
+        (t, p) => client.query(t, p),
+        applicationId
+      );
+
       const insert = await client.query(
         `INSERT INTO tenant_ledger
-           (application_id, property_id, entry_type, description, amount, balance_after,
+           (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
             billing_period, posted_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [applicationId, app.rows[0].property_id, entryType, description, amount, newBalance, billingPeriod, postedBy]
+        [applicationId, app.rows[0].property_id, unitId, entryType, description, amount, newBalance, billingPeriod, postedBy]
       );
 
       return insert.rows[0];
@@ -511,16 +536,18 @@ export class LedgerService {
       // Mark original as reversed
       await client.query(`UPDATE tenant_ledger SET status = 'reversed' WHERE id = $1`, [entryId]);
 
-      // Create offsetting entry
+      // Create offsetting entry — inherit the original's unit anchor (the
+      // reversal lives on the same unit; may be NULL for pre-backfill rows).
       const insert = await client.query(
         `INSERT INTO tenant_ledger
-           (application_id, property_id, entry_type, status, description, amount, balance_after,
+           (application_id, property_id, unit_id, entry_type, status, description, amount, balance_after,
             billing_period, reversed_by_id, posted_by, notes)
-         VALUES ($1, $2, $3, 'posted', $4, $5, $6, $7, $8, $9, $10)
+         VALUES ($1, $2, $3, $4, 'posted', $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
         [
           orig.application_id,
           orig.property_id,
+          orig.unit_id ?? null,
           orig.entry_type,
           `REVERSAL: ${orig.description}`,
           -parseFloat(orig.amount),
@@ -782,7 +809,13 @@ export class LedgerService {
     const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
     const tenants = await query(
-      `SELECT a.id, a.requested_rent_amount, a.auto_pay_enrolled, a.property_id
+      `SELECT a.id, a.requested_rent_amount, a.auto_pay_enrolled, a.property_id,
+              COALESCE(
+                a.claimed_unit_id,
+                (SELECT u.id FROM units u
+                  WHERE u.property_id = a.property_id AND u.unit_number = a.unit_number
+                  LIMIT 1)
+              ) AS unit_id
        FROM applications a
        WHERE a.status = 'onboarded' AND a.lease_start_date IS NOT NULL
          AND a.requested_rent_amount IS NOT NULL`
@@ -810,12 +843,13 @@ export class LedgerService {
 
       await query(
         `INSERT INTO tenant_ledger
-           (application_id, property_id, entry_type, description, amount, balance_after,
+           (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
             billing_period, due_date, posted_by)
-         VALUES ($1, $2, 'rent_charge', $3, $4, $5, $6, $7, NULL)`,
+         VALUES ($1, $2, $3, 'rent_charge', $4, $5, $6, $7, $8, NULL)`,
         [
           tenant.id,
           tenant.property_id,
+          tenant.unit_id ?? null,
           `Monthly rent — ${billingPeriod}`,
           rentAmount,
           currentBalance + rentAmount,
@@ -829,12 +863,13 @@ export class LedgerService {
         const afterRent = currentBalance + rentAmount;
         await query(
           `INSERT INTO tenant_ledger
-             (application_id, property_id, entry_type, description, amount, balance_after,
+             (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
               billing_period, posted_by)
-           VALUES ($1, $2, 'concession', $3, $4, $5, $6, NULL)`,
+           VALUES ($1, $2, $3, 'concession', $4, $5, $6, $7, NULL)`,
           [
             tenant.id,
             tenant.property_id,
+            tenant.unit_id ?? null,
             `Auto-pay discount — ${billingPeriod}`,
             -AUTO_PAY_DISCOUNT,
             afterRent - AUTO_PAY_DISCOUNT,
@@ -861,7 +896,7 @@ export class LedgerService {
 
     // Find unpaid rent charges past grace period
     const unpaid = await query(
-      `SELECT l.id, l.application_id, l.property_id, l.amount, l.billing_period, l.due_date,
+      `SELECT l.id, l.application_id, l.property_id, l.unit_id, l.amount, l.billing_period, l.due_date,
               (SELECT COALESCE(SUM(amount), 0) FROM tenant_ledger
                WHERE application_id = l.application_id AND billing_period = l.billing_period
                  AND entry_type = 'payment' AND status = 'posted') as payments_for_period
@@ -905,12 +940,13 @@ export class LedgerService {
 
       await query(
         `INSERT INTO tenant_ledger
-           (application_id, property_id, entry_type, description, amount, balance_after,
+           (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
             billing_period, posted_by)
-         VALUES ($1, $2, 'late_fee', $3, $4, $5, $6, NULL)`,
+         VALUES ($1, $2, $3, 'late_fee', $4, $5, $6, $7, NULL)`,
         [
           charge.application_id,
           charge.property_id,
+          charge.unit_id ?? null,
           `Late fee — ${charge.billing_period} (${daysLate} days late)`,
           fee,
           currentBalance + fee,

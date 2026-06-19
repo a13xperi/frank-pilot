@@ -5,10 +5,12 @@ import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stampTape } from "../tape";
 import { persistConversation, type PostCallPayload } from "./service";
+import { maybeNotifyInbound } from "./inbound-notify";
 import {
   isOutboundValidationEvent,
   handleOutboundPostCall,
 } from "../outbound-validation/outcome";
+import { isCareLineEvent, handleCareLinePostCall } from "../care-line";
 
 /**
  * ElevenLabs Conv. AI post-call webhook receiver.
@@ -250,6 +252,13 @@ async function dispatch(event: ElevenLabsEvent): Promise<void> {
         });
         return;
       }
+      // Community Care Line outbound calls also share this front door; route by
+      // agent_id to the care-line capture handler (fail-closed on CARE_LINE_ENABLED
+      // inside the handler). Distinct from intake persistence.
+      if (isCareLineEvent(event.data)) {
+        await handleCareLinePostCall(event.data);
+        return;
+      }
       if (process.env.VOICE_INTAKE_ENABLED !== "true") {
         // Receiver is open because FRANK_OUTBOUND_ENABLED is on, but intake
         // persistence stays dark while its own flag is off.
@@ -259,6 +268,11 @@ async function dispatch(event: ElevenLabsEvent): Promise<void> {
         return;
       }
       const result = await persistConversation(event.data);
+      // Phase 2 — fire-and-forget inbound notifications (team care-line alert + caller
+      // callback confirmation). Flag-gated; must never throw into the webhook path.
+      void maybeNotifyInbound(event.data, result).catch((err) =>
+        logger.error("inbound post-call notify failed", { error: (err as Error).message })
+      );
       void stampTape({
         kind: "VOICE_INTAKE_COMPLETED",
         actor: "elevenlabs-webhook",
@@ -289,7 +303,8 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     if (
       process.env.VOICE_INTAKE_ENABLED !== "true" &&
-      process.env.FRANK_OUTBOUND_ENABLED !== "true"
+      process.env.FRANK_OUTBOUND_ENABLED !== "true" &&
+      process.env.CARE_LINE_ENABLED !== "true"
     ) {
       res.status(503).json({ error: "Voice intake disabled" });
       return;

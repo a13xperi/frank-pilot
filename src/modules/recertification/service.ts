@@ -6,6 +6,7 @@ import { buildPropertyScope } from "../../middleware/scope";
 import { RecertComplianceService } from "../acquisitions/recert-compliance";
 import { recommendedRentAction } from "../acquisitions/compliance-bridge";
 import { Notifier, TwilioNotifier } from "./notifier";
+import { resolveUnitIdForApplication } from "../../utils/resolve-unit";
 
 export class RecertificationService {
   private notifier: Notifier;
@@ -40,7 +41,13 @@ export class RecertificationService {
     actorRole: string
   ): Promise<{ id: string; anniversaryDate: string }> {
     const appResult = await query(
-      `SELECT a.id, a.first_name, a.last_name, a.property_id, a.lease_start_date, a.annual_income
+      `SELECT a.id, a.first_name, a.last_name, a.property_id, a.lease_start_date, a.annual_income,
+              COALESCE(
+                a.claimed_unit_id,
+                (SELECT u.id FROM units u
+                  WHERE u.property_id = a.property_id AND u.unit_number = a.unit_number
+                  LIMIT 1)
+              ) AS unit_id
        FROM applications a WHERE a.id = $1`,
       [applicationId]
     );
@@ -58,13 +65,14 @@ export class RecertificationService {
 
     const result = await query(
       `INSERT INTO recertifications
-         (application_id, property_id, tenant_name, type, status,
+         (application_id, property_id, unit_id, tenant_name, type, status,
           anniversary_date, cutoff_date, tracs_deadline, previous_annual_income)
-       VALUES ($1, $2, $3, 'annual', 'pending', $4, $5, $6, $7)
+       VALUES ($1, $2, $3, $4, 'annual', 'pending', $5, $6, $7, $8)
        RETURNING id`,
       [
         applicationId,
         app.property_id,
+        app.unit_id ?? null,
         `${app.first_name} ${app.last_name}`,
         anniversary.toISOString().split("T")[0],
         cutoff.toISOString().split("T")[0],
@@ -332,13 +340,17 @@ export class RecertificationService {
         const nextCutoff = new Date(nextAnniv.getFullYear(), nextAnniv.getMonth() - 1, 10);
         const nextTracs = new Date(nextAnniv.getFullYear(), nextAnniv.getMonth() + 15, nextAnniv.getDate());
 
+        // Anchor next year's recert to the same unit (resolved from the
+        // application; null-tolerant — the unit is the durable spine).
+        const unitId = await resolveUnitIdForApplication(query, recert.applicationId);
+
         await query(
           `INSERT INTO recertifications
-             (application_id, property_id, tenant_name, type, status,
+             (application_id, property_id, unit_id, tenant_name, type, status,
               anniversary_date, cutoff_date, tracs_deadline, previous_annual_income)
-           VALUES ($1, $2, $3, 'annual', 'pending', $4, $5, $6, $7)`,
+           VALUES ($1, $2, $3, $4, 'annual', 'pending', $5, $6, $7, $8)`,
           [
-            recert.applicationId, recert.propertyId, recert.tenantName,
+            recert.applicationId, recert.propertyId, unitId, recert.tenantName,
             nextAnniv.toISOString().split("T")[0],
             nextCutoff.toISOString().split("T")[0],
             nextTracs.toISOString().split("T")[0],

@@ -1,0 +1,49 @@
+{
+  "_meta": {
+    "title": "The Frank Collection — agent & library registry",
+    "purpose": "Single catalogue of every Frank voice agent + its grounding library (KB, system prompt, SoT). Git is the source of truth; mirror to Notion. Add a row when a new library lands.",
+    "updated": "2026-06-16"
+  },
+  "agents": [
+    {
+      "id": "frank-onboarder",
+      "name": "Frank — Tenant Onboarding (Inbound)",
+      "direction": "inbound",
+      "elevenlabs_agent_id": "agent_8001ksp9ar8cf8ct2x70kacxr8qq",
+      "phone_number_id": "phnum_8001kttx7qkae73sr2xtqq2p0xyd",
+      "kb_source": "src/db/data/tenant-faq.json",
+      "housing_qa_surface": "tenant_public",
+      "system_prompt_ref": "src/modules/housing-qa/prompt.ts (TENANT_SYSTEM_PROMPT)",
+      "notion_sot_page_id": null,
+      "status": "live"
+    },
+    {
+      "id": "frank-gpm-validation",
+      "name": "Frank — GPM Waitlist Validation (Outbound)",
+      "direction": "outbound",
+      "elevenlabs_agent_id": "agent_6601ktwp1tz1e9591gg20w2rf226",
+      "phone_number_id": "phnum_8001kttx7qkae73sr2xtqq2p0xyd",
+      "kb_source": null,
+      "housing_qa_surface": null,
+      "system_prompt_ref": "battlestation/docs/gpm-waitlist-validation-runbook.md",
+      "notion_sot_page_id": null,
+      "status": "built-dark"
+    },
+    {
+      "id": "frank-care-line",
+      "name": "Frank — Community Care Line (Outbound)",
+      "direction": "outbound",
+      "elevenlabs_agent_id": null,
+      "phone_number_id": null,
+      "kb_source": "src/db/data/care-line-faq.json",
+      "housing_qa_surface": null,
+      "system_prompt_ref": "docs/care-line-system-prompt.md",
+      "sot_ref": "docs/intel/care-line-sot.md",
+      "notion_sot_page_id": "e985741bcf39472280bcdea87bcde5fa",
+      "incident_model": "care_incidents (migration 2026-06-16-care-line-incidents.sql)",
+      "module": "src/modules/care-line/",
+      "flags": ["CARE_LINE_ENABLED", "ELEVENLABS_CARE_LINE_AGENT_ID", "CARE_LINE_DRY_RUN", "CARE_LINE_ONCALL_SMS_ENABLED"],
+      "status": "built-dark-counsel-gated"
+    }
+  ]
+}

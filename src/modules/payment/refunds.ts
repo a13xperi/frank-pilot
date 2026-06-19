@@ -93,10 +93,25 @@ router.post(
     let refundStatus: string | null;
     try {
       const stripe = getStripe();
+
+      // A destination charge that took a platform fee (`application_fee_amount`
+      // + `transfer_data`) must reverse both on refund, or the platform keeps
+      // the fee and the connected account eats the clawback. We don't persist
+      // the fee locally, so read it back off the PaymentIntent: refund the
+      // application fee whenever one was charged, and reverse the transfer when
+      // the charge was routed to a connected account.
+      const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const hadApplicationFee = (intent.application_fee_amount ?? 0) > 0;
+      const wasDestinationCharge = intent.transfer_data?.destination != null;
+
       const refund = await stripe.refunds.create(
         {
           payment_intent: paymentIntentId,
           ...(amountCents != null ? { amount: amountCents } : {}),
+          // Reverse the platform's slice in lockstep with the refund so a
+          // fee-bearing payment refunds whole. No-ops on a non-Connect charge.
+          ...(hadApplicationFee ? { refund_application_fee: true } : {}),
+          ...(wasDestinationCharge ? { reverse_transfer: true } : {}),
           // Stripe's `reason` is a fixed enum; our free-text reason rides in
           // metadata so staff notes survive without tripping enum validation.
           reason: "requested_by_customer",

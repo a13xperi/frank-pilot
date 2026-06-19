@@ -1,0 +1,845 @@
+{
+  "_comment": "VENDORED from windsor-park/out/windsor.db lots table (Frank document feed, 2025). All 93 Windsor Park lots (lot==unit). Vendored so frank-pilot has no sqlite/cross-repo runtime dependency (mirrors bins.json). uid = source-system identity token (WNDSR-001..093); permit = per-lot building permit; address/house_no/street = situs. AHJ is uniform = City of North Las Vegas (CNLV) across all lots. Regenerate by re-exporting the lots table.",
+  "_source": "windsor.db:2025",
+  "_ahj": "North Las Vegas",
+  "_generatedBy": "WS-2 import (unit-identity-ledger)",
+  "lots": [
+    {
+      "lot_no": 1,
+      "permit": "BUILD-015834-2025",
+      "address": "2448 CC SMITH AVE",
+      "house_no": 2448,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-001"
+    },
+    {
+      "lot_no": 2,
+      "permit": "BUILD-015820-2025",
+      "address": "2444 CC SMITH AVE",
+      "house_no": 2444,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-002"
+    },
+    {
+      "lot_no": 3,
+      "permit": "BUILD-015821-2025",
+      "address": "2440 CC SMITH AVE",
+      "house_no": 2440,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-003"
+    },
+    {
+      "lot_no": 4,
+      "permit": "BUILD-015822-2025",
+      "address": "2436 CC SMITH AVE",
+      "house_no": 2436,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-004"
+    },
+    {
+      "lot_no": 5,
+      "permit": "BUILD-015823-2025",
+      "address": "2432 CC SMITH AVE",
+      "house_no": 2432,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-005"
+    },
+    {
+      "lot_no": 6,
+      "permit": "BUILD-015859-2025",
+      "address": "2428 CC SMITH AVE",
+      "house_no": 2428,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-006"
+    },
+    {
+      "lot_no": 7,
+      "permit": "BUILD-015824-2025",
+      "address": "2424 CC SMITH AVE",
+      "house_no": 2424,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-007"
+    },
+    {
+      "lot_no": 8,
+      "permit": "BUILD-015867-2025",
+      "address": "2420 CC SMITH AVE",
+      "house_no": 2420,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-008"
+    },
+    {
+      "lot_no": 9,
+      "permit": "BUILD-015872-2025",
+      "address": "2416 CC SMITH AVE",
+      "house_no": 2416,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-009"
+    },
+    {
+      "lot_no": 10,
+      "permit": "BUILD-015825-2025",
+      "address": "2412 CC SMITH AVE",
+      "house_no": 2412,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-010"
+    },
+    {
+      "lot_no": 11,
+      "permit": "BUILD-015826-2025",
+      "address": "2408 CC SMITH AVE",
+      "house_no": 2408,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-011"
+    },
+    {
+      "lot_no": 12,
+      "permit": "BUILD-015865-2025",
+      "address": "2404 CC SMITH AVE",
+      "house_no": 2404,
+      "street": "CC SMITH AVE",
+      "side": "A",
+      "uid": "WNDSR-012"
+    },
+    {
+      "lot_no": 13,
+      "permit": "BUILD-015827-2025",
+      "address": "1701 HATTIE CANTY AVE",
+      "house_no": 1701,
+      "street": "HATTIE CANTY AVE",
+      "side": "B",
+      "uid": "WNDSR-013"
+    },
+    {
+      "lot_no": 14,
+      "permit": "BUILD-015828-2025",
+      "address": "1705 HATTIE CANTY AVE",
+      "house_no": 1705,
+      "street": "HATTIE CANTY AVE",
+      "side": "B",
+      "uid": "WNDSR-014"
+    },
+    {
+      "lot_no": 15,
+      "permit": "BUILD-015829-2025",
+      "address": "1709 HATTIE CANTY AVE",
+      "house_no": 1709,
+      "street": "HATTIE CANTY AVE",
+      "side": "B",
+      "uid": "WNDSR-015"
+    },
+    {
+      "lot_no": 16,
+      "permit": "BUILD-015833-2025",
+      "address": "1713 HATTIE CANTY AVE",
+      "house_no": 1713,
+      "street": "HATTIE CANTY AVE",
+      "side": "B",
+      "uid": "WNDSR-016"
+    },
+    {
+      "lot_no": 17,
+      "permit": "BUILD-015832-2025",
+      "address": "1717 HATTIE CANTY AVE",
+      "house_no": 1717,
+      "street": "HATTIE CANTY AVE",
+      "side": "B",
+      "uid": "WNDSR-017"
+    },
+    {
+      "lot_no": 18,
+      "permit": "BUILD-015846-2025",
+      "address": "1721 HATTIE CANTY AVE",
+      "house_no": 1721,
+      "street": "HATTIE CANTY AVE",
+      "side": "B",
+      "uid": "WNDSR-018"
+    },
+    {
+      "lot_no": 19,
+      "permit": "BUILD-015831-2025",
+      "address": "2405 PRENTICE WALKER AVE",
+      "house_no": 2405,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-019"
+    },
+    {
+      "lot_no": 20,
+      "permit": "BUILD-015830-2025",
+      "address": "2409 PRENTICE WALKER AVE",
+      "house_no": 2409,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-020"
+    },
+    {
+      "lot_no": 21,
+      "permit": "BUILD-015759-2025",
+      "address": "2413 PRENTICE WALKER AVE",
+      "house_no": 2413,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-021"
+    },
+    {
+      "lot_no": 22,
+      "permit": "BUILD-015760-2025",
+      "address": "2417 PRENTICE WALKER AVE",
+      "house_no": 2417,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-022"
+    },
+    {
+      "lot_no": 23,
+      "permit": "BUILD-015763-2025",
+      "address": "2421 PRENTICE WALKER AVE",
+      "house_no": 2421,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-023"
+    },
+    {
+      "lot_no": 24,
+      "permit": "BUILD-015765-2025",
+      "address": "2429 PRENTICE WALKER AVE",
+      "house_no": 2429,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-024"
+    },
+    {
+      "lot_no": 25,
+      "permit": "BUILD-015766-2025",
+      "address": "2433 PRENTICE WALKER AVE",
+      "house_no": 2433,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-025"
+    },
+    {
+      "lot_no": 26,
+      "permit": "BUILD-015768-2025",
+      "address": "2437 PRENTICE WALKER AVE",
+      "house_no": 2437,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-026"
+    },
+    {
+      "lot_no": 27,
+      "permit": "BUILD-015770-2025",
+      "address": "2441 PRENTICE WALKER AVE",
+      "house_no": 2441,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-027"
+    },
+    {
+      "lot_no": 28,
+      "permit": "BUILD-015771-2025",
+      "address": "2445 PRENTICE WALKER AVE",
+      "house_no": 2445,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-028"
+    },
+    {
+      "lot_no": 29,
+      "permit": "BUILD-015773-2025",
+      "address": "2449 PRENTICE WALKER AVE",
+      "house_no": 2449,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-029"
+    },
+    {
+      "lot_no": 30,
+      "permit": "BUILD-015775-2025",
+      "address": "2501 PRENTICE WALKER AVE",
+      "house_no": 2501,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-030"
+    },
+    {
+      "lot_no": 31,
+      "permit": "BUILD-015778-2025",
+      "address": "2505 PRENTICE WALKER AVE",
+      "house_no": 2505,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-031"
+    },
+    {
+      "lot_no": 32,
+      "permit": "BUILD-015779-2025",
+      "address": "2509 PRENTICE WALKER AVE",
+      "house_no": 2509,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-032"
+    },
+    {
+      "lot_no": 33,
+      "permit": "BUILD-015780-2025",
+      "address": "2513 PRENTICE WALKER AVE",
+      "house_no": 2513,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-033"
+    },
+    {
+      "lot_no": 34,
+      "permit": "BUILD-015781-2025",
+      "address": "2517 PRENTICE WALKER AVE",
+      "house_no": 2517,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-034"
+    },
+    {
+      "lot_no": 35,
+      "permit": "BUILD-015782-2025",
+      "address": "2521 PRENTICE WALKER AVE",
+      "house_no": 2521,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-035"
+    },
+    {
+      "lot_no": 36,
+      "permit": "BUILD-015783-2025",
+      "address": "2525 PRENTICE WALKER AVE",
+      "house_no": 2525,
+      "street": "PRENTICE WALKER AVE",
+      "side": "B",
+      "uid": "WNDSR-036"
+    },
+    {
+      "lot_no": 37,
+      "permit": "BUILD-015409-2025",
+      "address": "1624 PAUL ROBESON ST",
+      "house_no": 1624,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-037"
+    },
+    {
+      "lot_no": 38,
+      "permit": "BUILD-015489-2025",
+      "address": "1620 PAUL ROBESON ST",
+      "house_no": 1620,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-038"
+    },
+    {
+      "lot_no": 39,
+      "permit": "BUILD-015490-2025",
+      "address": "1616 PAUL ROBESON ST",
+      "house_no": 1616,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-039"
+    },
+    {
+      "lot_no": 40,
+      "permit": "BUILD-015491-2025",
+      "address": "1612 PAUL ROBESON ST",
+      "house_no": 1612,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-040"
+    },
+    {
+      "lot_no": 41,
+      "permit": "BUILD-015492-2025",
+      "address": "1608 PAUL ROBESON ST",
+      "house_no": 1608,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-041"
+    },
+    {
+      "lot_no": 42,
+      "permit": "BUILD-015493-2025",
+      "address": "1604 PAUL ROBESON ST",
+      "house_no": 1604,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-042"
+    },
+    {
+      "lot_no": 43,
+      "permit": "BUILD-015494-2025",
+      "address": "1528 PAUL ROBESON ST",
+      "house_no": 1528,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-043"
+    },
+    {
+      "lot_no": 44,
+      "permit": "BUILD-015495-2025",
+      "address": "1524 PAUL ROBESON ST",
+      "house_no": 1524,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-044"
+    },
+    {
+      "lot_no": 45,
+      "permit": "BUILD-015496-2025",
+      "address": "1520 PAUL ROBESON ST",
+      "house_no": 1520,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-045"
+    },
+    {
+      "lot_no": 46,
+      "permit": "BUILD-015497-2025",
+      "address": "1516 PAUL ROBESON ST",
+      "house_no": 1516,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-046"
+    },
+    {
+      "lot_no": 47,
+      "permit": "BUILD-015498-2025",
+      "address": "1512 PAUL ROBESON ST",
+      "house_no": 1512,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-047"
+    },
+    {
+      "lot_no": 48,
+      "permit": "BUILD-015499-2025",
+      "address": "1508 PAUL ROBESON ST",
+      "house_no": 1508,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-048"
+    },
+    {
+      "lot_no": 49,
+      "permit": "BUILD-015844-2025",
+      "address": "1504 PAUL ROBESON ST",
+      "house_no": 1504,
+      "street": "PAUL ROBESON ST",
+      "side": "A",
+      "uid": "WNDSR-049"
+    },
+    {
+      "lot_no": 50,
+      "permit": "BUILD-015624-2025",
+      "address": "1505 PAUL ROBESON ST",
+      "house_no": 1505,
+      "street": "PAUL ROBESON ST",
+      "side": "B",
+      "uid": "WNDSR-050"
+    },
+    {
+      "lot_no": 51,
+      "permit": "BUILD-015500-2025",
+      "address": "1509 PAUL ROBESON ST",
+      "house_no": 1509,
+      "street": "PAUL ROBESON ST",
+      "side": "B",
+      "uid": "WNDSR-051"
+    },
+    {
+      "lot_no": 52,
+      "permit": "BUILD-015501-2025",
+      "address": "1513 PAUL ROBESON ST",
+      "house_no": 1513,
+      "street": "PAUL ROBESON ST",
+      "side": "B",
+      "uid": "WNDSR-052"
+    },
+    {
+      "lot_no": 53,
+      "permit": "BUILD-015502-2025",
+      "address": "1517 PAUL ROBESON ST",
+      "house_no": 1517,
+      "street": "PAUL ROBESON ST",
+      "side": "B",
+      "uid": "WNDSR-053"
+    },
+    {
+      "lot_no": 54,
+      "permit": "BUILD-015503-2025",
+      "address": "1521 PAUL ROBESON ST",
+      "house_no": 1521,
+      "street": "PAUL ROBESON ST",
+      "side": "B",
+      "uid": "WNDSR-054"
+    },
+    {
+      "lot_no": 55,
+      "permit": "BUILD-015504-2025",
+      "address": "1525 PAUL ROBESON ST",
+      "house_no": 1525,
+      "street": "PAUL ROBESON ST",
+      "side": "B",
+      "uid": "WNDSR-055"
+    },
+    {
+      "lot_no": 56,
+      "permit": "BUILD-015505-2025",
+      "address": "1529 PAUL ROBESON ST",
+      "house_no": 1529,
+      "street": "PAUL ROBESON ST",
+      "side": "B",
+      "uid": "WNDSR-056"
+    },
+    {
+      "lot_no": 57,
+      "permit": "BUILD-015506-2025",
+      "address": "1601 PAUL ROBESON ST",
+      "house_no": 1601,
+      "street": "PAUL ROBESON ST",
+      "side": "B",
+      "uid": "WNDSR-057"
+    },
+    {
+      "lot_no": 58,
+      "permit": "BUILD-015507-2025",
+      "address": "1605 PAUL ROBESON ST",
+      "house_no": 1605,
+      "street": "PAUL ROBESON ST",
+      "side": "B",
+      "uid": "WNDSR-058"
+    },
+    {
+      "lot_no": 59,
+      "permit": "BUILD-015625-2025",
+      "address": "1609 PAUL ROBESON ST",
+      "house_no": 1609,
+      "street": "PAUL ROBESON ST",
+      "side": "B",
+      "uid": "WNDSR-059"
+    },
+    {
+      "lot_no": 60,
+      "permit": "BUILD-015784-2025",
+      "address": "1612 MARY TERRELL LN",
+      "house_no": 1612,
+      "street": "MARY TERRELL LN",
+      "side": "A",
+      "uid": "WNDSR-060"
+    },
+    {
+      "lot_no": 61,
+      "permit": "BUILD-015785-2025",
+      "address": "1608 MARY TERRELL LN",
+      "house_no": 1608,
+      "street": "MARY TERRELL LN",
+      "side": "A",
+      "uid": "WNDSR-061"
+    },
+    {
+      "lot_no": 62,
+      "permit": "BUILD-015786-2025",
+      "address": "1604 MARY TERRELL LN",
+      "house_no": 1604,
+      "street": "MARY TERRELL LN",
+      "side": "A",
+      "uid": "WNDSR-062"
+    },
+    {
+      "lot_no": 63,
+      "permit": "BUILD-015787-2025",
+      "address": "1528 MARY TERRELL LN",
+      "house_no": 1528,
+      "street": "MARY TERRELL LN",
+      "side": "A",
+      "uid": "WNDSR-063"
+    },
+    {
+      "lot_no": 64,
+      "permit": "BUILD-015788-2025",
+      "address": "1524 MARY TERRELL LN",
+      "house_no": 1524,
+      "street": "MARY TERRELL LN",
+      "side": "A",
+      "uid": "WNDSR-064"
+    },
+    {
+      "lot_no": 65,
+      "permit": "BUILD-015789-2025",
+      "address": "1525 MARY TERRELL LN",
+      "house_no": 1525,
+      "street": "MARY TERRELL LN",
+      "side": "B",
+      "uid": "WNDSR-065"
+    },
+    {
+      "lot_no": 66,
+      "permit": "BUILD-015790-2025",
+      "address": "1529 MARY TERRELL LN",
+      "house_no": 1529,
+      "street": "MARY TERRELL LN",
+      "side": "B",
+      "uid": "WNDSR-066"
+    },
+    {
+      "lot_no": 67,
+      "permit": "BUILD-015792-2025",
+      "address": "1601 MARY TERRELL LN",
+      "house_no": 1601,
+      "street": "MARY TERRELL LN",
+      "side": "B",
+      "uid": "WNDSR-067"
+    },
+    {
+      "lot_no": 68,
+      "permit": "BUILD-015793-2025",
+      "address": "1605 MARY TERRELL LN",
+      "house_no": 1605,
+      "street": "MARY TERRELL LN",
+      "side": "B",
+      "uid": "WNDSR-068"
+    },
+    {
+      "lot_no": 69,
+      "permit": "BUILD-015794-2025",
+      "address": "1609 MARY TERRELL LN",
+      "house_no": 1609,
+      "street": "MARY TERRELL LN",
+      "side": "B",
+      "uid": "WNDSR-069"
+    },
+    {
+      "lot_no": 70,
+      "permit": "BUILD-015795-2025",
+      "address": "2508 PRENTICE WALKER AVE",
+      "house_no": 2508,
+      "street": "PRENTICE WALKER AVE",
+      "side": "A",
+      "uid": "WNDSR-070"
+    },
+    {
+      "lot_no": 71,
+      "permit": "BUILD-015796-2025",
+      "address": "2504 PRENTICE WALKER AVE",
+      "house_no": 2504,
+      "street": "PRENTICE WALKER AVE",
+      "side": "A",
+      "uid": "WNDSR-071"
+    },
+    {
+      "lot_no": 72,
+      "permit": "BUILD-015798-2025",
+      "address": "2448 PRENTICE WALKER AVE",
+      "house_no": 2448,
+      "street": "PRENTICE WALKER AVE",
+      "side": "A",
+      "uid": "WNDSR-072"
+    },
+    {
+      "lot_no": 73,
+      "permit": "BUILD-015799-2025",
+      "address": "2444 PRENTICE WALKER AVE",
+      "house_no": 2444,
+      "street": "PRENTICE WALKER AVE",
+      "side": "A",
+      "uid": "WNDSR-073"
+    },
+    {
+      "lot_no": 74,
+      "permit": "BUILD-015800-2025",
+      "address": "2440 PRENTICE WALKER AVE",
+      "house_no": 2440,
+      "street": "PRENTICE WALKER AVE",
+      "side": "A",
+      "uid": "WNDSR-074"
+    },
+    {
+      "lot_no": 75,
+      "permit": "BUILD-015801-2025",
+      "address": "2436 PRENTICE WALKER AVE",
+      "house_no": 2436,
+      "street": "PRENTICE WALKER AVE",
+      "side": "A",
+      "uid": "WNDSR-075"
+    },
+    {
+      "lot_no": 76,
+      "permit": "BUILD-015802-2025",
+      "address": "2432 PRENTICE WALKER AVE",
+      "house_no": 2432,
+      "street": "PRENTICE WALKER AVE",
+      "side": "A",
+      "uid": "WNDSR-076"
+    },
+    {
+      "lot_no": 77,
+      "permit": "BUILD-015803-2025",
+      "address": "2428 PRENTICE WALKER AVE",
+      "house_no": 2428,
+      "street": "PRENTICE WALKER AVE",
+      "side": "A",
+      "uid": "WNDSR-077"
+    },
+    {
+      "lot_no": 78,
+      "permit": "BUILD-015804-2025",
+      "address": "2424 PRENTICE WALKER AVE",
+      "house_no": 2424,
+      "street": "PRENTICE WALKER AVE",
+      "side": "A",
+      "uid": "WNDSR-078"
+    },
+    {
+      "lot_no": 79,
+      "permit": "BUILD-015805-2025",
+      "address": "2420 PRENTICE WALKER AVE",
+      "house_no": 2420,
+      "street": "PRENTICE WALKER AVE",
+      "side": "A",
+      "uid": "WNDSR-079"
+    },
+    {
+      "lot_no": 80,
+      "permit": "BUILD-015806-2025",
+      "address": "1716 HATTIE CANTY AVE",
+      "house_no": 1716,
+      "street": "HATTIE CANTY AVE",
+      "side": "A",
+      "uid": "WNDSR-080"
+    },
+    {
+      "lot_no": 81,
+      "permit": "BUILD-015807-2025",
+      "address": "1712 HATTIE CANTY AVE",
+      "house_no": 1712,
+      "street": "HATTIE CANTY AVE",
+      "side": "A",
+      "uid": "WNDSR-081"
+    },
+    {
+      "lot_no": 82,
+      "permit": "BUILD-015808-2025",
+      "address": "1708 HATTIE CANTY AVE",
+      "house_no": 1708,
+      "street": "HATTIE CANTY AVE",
+      "side": "A",
+      "uid": "WNDSR-082"
+    },
+    {
+      "lot_no": 83,
+      "permit": "BUILD-015809-2025",
+      "address": "1704 HATTIE CANTY AVE",
+      "house_no": 1704,
+      "street": "HATTIE CANTY AVE",
+      "side": "A",
+      "uid": "WNDSR-083"
+    },
+    {
+      "lot_no": 84,
+      "permit": "BUILD-015810-2025",
+      "address": "2413 CC SMITH AVE",
+      "house_no": 2413,
+      "street": "CC SMITH AVE",
+      "side": "B",
+      "uid": "WNDSR-084"
+    },
+    {
+      "lot_no": 85,
+      "permit": "BUILD-015811-2025",
+      "address": "2417 CC SMITH AVE",
+      "house_no": 2417,
+      "street": "CC SMITH AVE",
+      "side": "B",
+      "uid": "WNDSR-085"
+    },
+    {
+      "lot_no": 86,
+      "permit": "BUILD-015812-2025",
+      "address": "2421 CC SMITH AVE",
+      "house_no": 2421,
+      "street": "CC SMITH AVE",
+      "side": "B",
+      "uid": "WNDSR-086"
+    },
+    {
+      "lot_no": 87,
+      "permit": "BUILD-015813-2025",
+      "address": "2425 CC SMITH AVE",
+      "house_no": 2425,
+      "street": "CC SMITH AVE",
+      "side": "B",
+      "uid": "WNDSR-087"
+    },
+    {
+      "lot_no": 88,
+      "permit": "BUILD-015814-2025",
+      "address": "2429 CC SMITH AVE",
+      "house_no": 2429,
+      "street": "CC SMITH AVE",
+      "side": "B",
+      "uid": "WNDSR-088"
+    },
+    {
+      "lot_no": 89,
+      "permit": "BUILD-015815-2025",
+      "address": "2433 CC SMITH AVE",
+      "house_no": 2433,
+      "street": "CC SMITH AVE",
+      "side": "B",
+      "uid": "WNDSR-089"
+    },
+    {
+      "lot_no": 90,
+      "permit": "BUILD-015816-2025",
+      "address": "2437 CC SMITH AVE",
+      "house_no": 2437,
+      "street": "CC SMITH AVE",
+      "side": "B",
+      "uid": "WNDSR-090"
+    },
+    {
+      "lot_no": 91,
+      "permit": "BUILD-015817-2025",
+      "address": "2441 CC SMITH AVE",
+      "house_no": 2441,
+      "street": "CC SMITH AVE",
+      "side": "B",
+      "uid": "WNDSR-091"
+    },
+    {
+      "lot_no": 92,
+      "permit": "BUILD-015818-2025",
+      "address": "2445 CC SMITH AVE",
+      "house_no": 2445,
+      "street": "CC SMITH AVE",
+      "side": "B",
+      "uid": "WNDSR-092"
+    },
+    {
+      "lot_no": 93,
+      "permit": "BUILD-015819-2025",
+      "address": "2449 CC SMITH AVE",
+      "house_no": 2449,
+      "street": "CC SMITH AVE",
+      "side": "B",
+      "uid": "WNDSR-093"
+    }
+  ]
+}

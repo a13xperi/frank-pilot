@@ -31,6 +31,12 @@ export interface LeaseExecutedInput {
   documentHash?: string | null;
   /** Optional idempotency / session key. */
   sessionId?: string;
+  /** Unit-identity Phase B (WS-3): the unit this lease is for. When set, the
+   *  lease execution is ALSO dual-written onto the unit chain (additive — the
+   *  applicant-scoped stamp above is unchanged). units(id). */
+  unitId?: string | null;
+  /** LIHTC §42 BIN of the leased unit's building, carried onto the unit chain. */
+  bin?: string | null;
 }
 
 /**
@@ -49,6 +55,8 @@ export function makeLeaseExecutedPayload(
     signerIp,
     documentHash,
     sessionId,
+    unitId,
+    bin,
   } = input;
 
   return {
@@ -60,6 +68,11 @@ export function makeLeaseExecutedPayload(
     // evidence below.
     subjectId: signerId,
     ruleCitation: TAPE_CITATIONS[KIND],
+    // Top-level bin/unitId light up the dormant fields when the lease is for a
+    // known unit; they do not affect the applicant-scoped derivation (which
+    // keys on subjectId). Absent when the caller omits unit context.
+    ...(bin != null ? { bin } : {}),
+    ...(unitId != null ? { unitId } : {}),
     evidence: {
       applicationId,
       signerId,
@@ -69,6 +82,8 @@ export function makeLeaseExecutedPayload(
       ...(signerIp != null ? { signerIp } : {}),
       ...(documentHash != null ? { documentHash } : {}),
       ...(sessionId !== undefined ? { sessionId } : {}),
+      ...(unitId != null ? { unitId } : {}),
+      ...(bin != null ? { bin } : {}),
     },
   };
 }

@@ -4,6 +4,7 @@ import { logger } from "../../utils/logger";
 import { TwilioService } from "../integrations/twilio";
 import { AuthRequest } from "../../middleware/auth";
 import { buildPropertyScope } from "../../middleware/scope";
+import { resolveUnitIdForApplication } from "../../utils/resolve-unit";
 
 // Pre-state guards for the move-out inspection state machine.
 // Pre-inspection may run from notice_received or pre_inspection_scheduled.
@@ -215,13 +216,21 @@ export class MoveOutService {
           [m.application_id]
         );
         const billingPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+        // Anchor the refund credit to the unit: prefer the move-out's own
+        // unit_id, else resolve from the application (null-tolerant).
+        const unitId =
+          m.unit_id ??
+          (await resolveUnitIdForApplication(
+            (t, p) => client.query(t, p),
+            m.application_id
+          ));
         await client.query(
           `INSERT INTO tenant_ledger
-             (application_id, property_id, entry_type, description, amount, balance_after,
+             (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
               billing_period, posted_by)
-           VALUES ($1, $2, 'credit', 'Security deposit refund', $3, $4, $5, $6)`,
+           VALUES ($1, $2, $3, 'credit', 'Security deposit refund', $4, $5, $6, $7)`,
           [
-            m.application_id, m.property_id,
+            m.application_id, m.property_id, unitId,
             -refundAmount,
             parseFloat(currentBal.rows[0].balance) - refundAmount,
             billingPeriod,
