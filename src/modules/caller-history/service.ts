@@ -65,6 +65,13 @@ const MAX_ISSUE_LEN = 240;
 const MAX_CITY_LEN = 120;
 const MAX_OUTCOME_LEN = 16;
 
+// How recently the caller must have cleared the PIN gate (validation_pins) for
+// `get_caller_history` to release any remembered context. Server-side identity
+// fence: a caller-memory readback must be backed by a real, fresh verification —
+// we do NOT trust the agent prompt to enforce this. Matches the PIN's own
+// 10-minute live window with a little slack for the in-call back-and-forth.
+const VERIFIED_PIN_WINDOW_MINUTES = 15;
+
 /**
  * The per-call signal the webhook hands us once a conversation lands. Field
  * names mirror the post-call dispatch shape (camelCase `dataCollection` /
@@ -277,6 +284,37 @@ export async function getCallerHistory(
   return rowToProfile(result.rows[0]);
 }
 
+/**
+ * Server-side identity fence for caller memory.
+ *
+ * Returns true only if this phone cleared the PIN gate recently — i.e. there is
+ * a `validation_pins` row with `status = 'verified'` whose `verified_at` falls
+ * inside the last `VERIFIED_PIN_WINDOW_MINUTES`. `get_caller_history` calls this
+ * before releasing ANY remembered context, so a caller who hasn't proven control
+ * of the number gets nothing back regardless of what the agent prompt does.
+ *
+ * Fails closed: an unusable phone, no verified row, or a stale verification all
+ * return false.
+ */
+export async function hasRecentVerifiedPin(
+  phoneE164: string | null
+): Promise<boolean> {
+  const phone = normalizePhone(phoneE164);
+  if (!phone) return false;
+
+  const result = await query(
+    `SELECT 1
+       FROM validation_pins
+      WHERE phone_e164 = $1
+        AND status = 'verified'
+        AND verified_at IS NOT NULL
+        AND verified_at > NOW() - ($2 || ' minutes')::interval
+      LIMIT 1`,
+    [phone, String(VERIFIED_PIN_WINDOW_MINUTES)]
+  );
+  return result.rows.length > 0;
+}
+
 function rowToProfile(row: Record<string, unknown> | undefined): CallerProfile | null {
   if (!row) return null;
   return {
@@ -376,6 +414,24 @@ export async function getCallerHistoryHandler(
       ok: false,
       message:
         "I didn't catch your phone number, so I can't pull up your history just yet.",
+    };
+  }
+
+  // Identity fence (server-side, not prompt-side): never read remembered context
+  // back to a caller who hasn't cleared the PIN gate for this number recently.
+  // Fail closed — if there's no fresh verified validation_pins row, hand back a
+  // neutral "verify first" line and NO history.
+  const verified = await hasRecentVerifiedPin(phone);
+  if (!verified) {
+    logger.info("get_caller_history blocked — caller not verified", {
+      conversationId: context.conversationId,
+      phoneMasked: maskPhone(phone),
+    });
+    return {
+      ok: true,
+      result: { returning: false, verified: false },
+      message:
+        "I need to verify you first before I can pull up anything from a past call. Let me text you a quick code.",
     };
   }
 

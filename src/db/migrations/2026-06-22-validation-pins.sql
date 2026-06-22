@@ -7,9 +7,10 @@
 -- a leak of this table can't be replayed into a verification.
 --
 -- One row per challenge: `attempt_count` is bumped on each wrong guess and the
--- gate fails closed once it reaches `max_attempts`; `expires_at` (10 min)
--- caps the live window so an unanswered challenge can't be brute-forced later.
--- `conversation_id` ties the challenge back to the ElevenLabs call once issued.
+-- gate fails closed (status -> 'failed') once it reaches `max_attempts`;
+-- `expires_at` (10 min) caps the live window so an unanswered challenge can't be
+-- brute-forced later. `conversation_id` ties the challenge back to the
+-- ElevenLabs call once issued.
 --
 -- PII-minimal: no PIN plaintext, no name — just the E.164 number, the hash, and
 -- the verification lifecycle the in-call tool reads on each attempt.
@@ -24,7 +25,7 @@ CREATE TABLE IF NOT EXISTS validation_pins (
   max_attempts     INT NOT NULL DEFAULT 3,
   verified_at      TIMESTAMPTZ,
   status           TEXT NOT NULL DEFAULT 'pending'
-                     CHECK (status IN ('pending', 'verified', 'expired')),
+                     CHECK (status IN ('pending', 'verified', 'failed', 'expired')),
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at       TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '10 minutes'
 );
