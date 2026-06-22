@@ -765,11 +765,30 @@ async function main() {
   }
   console.log(`[extract-gpmglv] structured index covers ${Object.keys(structured).length}/${slugs.length} properties`);
 
+  // Address-of-record overrides (slug -> corrected address fields). The GPMGLV
+  // marketing site lists Donna Louise 2 at DL1's address (6225 Donna St) with a
+  // coming-soon photo; the Clark County Assessor record (APN 124-26-103-002,
+  // DONNA LOUISE 2 LLC, built 2025) is 6275 Donna St. Applied here so a re-scrape
+  // never silently reverts the corrected address. Remove an entry once GPM fixes
+  // their own listing. See battlestation docs/deals/DECISION-LOG.md D-2026-06-22-01.
+  const ADDRESS_OVERRIDES = {
+    'donna-louise-2-apartments': { line1: '6275 Donna St.' },
+  };
+
   // Properties
   const properties = [];
   for (const slug of slugs) {
     const p = await extractProperty(slug, rawDir, structured);
     if (p) {
+      const ov = ADDRESS_OVERRIDES[slug];
+      if (ov && p.address) {
+        for (const [k, v] of Object.entries(ov)) {
+          if (p.address[k] !== v) {
+            note(`property ${slug}: address.${k} overridden '${p.address[k]}' -> '${v}' (Assessor record)`);
+            p.address[k] = v;
+          }
+        }
+      }
       // Sanity log: count which fields are missing
       const missing = [];
       if (!p.description) missing.push('description');
