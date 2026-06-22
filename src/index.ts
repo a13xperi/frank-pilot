@@ -63,6 +63,7 @@ import {
   outboundApplicationRoutes,
   registerOutboundApplicationToolHandlers,
 } from "./modules/outbound-application";
+import { registerVoiceVerificationHandlers } from "./modules/voice-verification";
 import { managerRoutes } from "./modules/manager";
 import { cockpitMetricsRoutes } from "./modules/cockpit-metrics";
 import { startScheduler } from "./scheduler";
@@ -357,6 +358,18 @@ registerVoiceToolHandlers();
 // — the tools only fire if a live outbound agent (DEFERRED) is wired to call
 // them, and the tool-callback router still 503s until VOICE_TOOLS_ENABLED.
 registerOutboundApplicationToolHandlers();
+
+// Phase 2 voice verification + caller history (send_verification,
+// get_caller_history). Flag-gated: only register when VOICE_VERIFICATION_ENABLED
+// is on. Each handler ALSO fails closed on the flag (belt + suspenders), and the
+// tool-callback router still 503s until VOICE_TOOLS_ENABLED — a dark deploy with
+// the flag off never wires these tools into the dispatch table.
+if (process.env.VOICE_VERIFICATION_ENABLED === "true") {
+  registerVoiceVerificationHandlers();
+  logger.info("Voice verification tool handlers registered (send_verification, get_caller_history)");
+} else {
+  logger.info("Voice verification tool handlers skipped — VOICE_VERIFICATION_ENABLED is off");
+}
 
 // Outbound waitlist-validation dialer admin surface (DM-FRANK-029).
 // Always mounted; every route 503s while FRANK_OUTBOUND_ENABLED is off
