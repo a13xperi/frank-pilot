@@ -72,8 +72,10 @@ async function seed() {
         rentSchedule: { "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380 },
       },
       {
-        // Donna Louise 2 unit count not in source → assumed 48 (twin building, same address).
-        name: "Donna Louise Apartments 2", addressLine1: "6225 Donna St", city: "North Las Vegas", zip: "89081",
+        // Donna Louise 2 = the 2025 new-build at 6275 Donna St (Assessor APN 124-26-103-002,
+        // DONNA LOUISE 2 LLC), a SEPARATE parcel from DL1. unitMix/rents below are DL1
+        // placeholders pending GPM's real DL2 breakdown; prod loads via onboard-property.ts.
+        name: "Donna Louise Apartments 2", addressLine1: "6275 Donna St", city: "North Las Vegas", zip: "89081",
         unitCount: 48, phone: "702-920-6548", email: "donnalouise@gpmglv.org", propertyManager: MGR,
         propertyType: "family", jurisdiction: "North Las Vegas", totalVacancy: 2, waitingListEnabled: false,
         unitMix: { "1BR": 12, "2BR": 24, "3BR": 12 },
