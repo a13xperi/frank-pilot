@@ -65,6 +65,11 @@ import {
 } from "./modules/outbound-application";
 import { managerRoutes } from "./modules/manager";
 import { cockpitMetricsRoutes } from "./modules/cockpit-metrics";
+// Caller-memory voice tools (Phase 2/3): texted-PIN validation
+// (send_pin / verify_pin) + caller-history rapport (get_caller_history).
+// Registered alongside the other in-call server-tool handlers below.
+import { registerValidationPinHandlers } from "./modules/outbound-validation/validation-tools";
+import { registerCallerHistoryHandler } from "./modules/caller-history/service";
 import { startScheduler } from "./scheduler";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
@@ -357,6 +362,11 @@ registerVoiceToolHandlers();
 // — the tools only fire if a live outbound agent (DEFERRED) is wired to call
 // them, and the tool-callback router still 503s until VOICE_TOOLS_ENABLED.
 registerOutboundApplicationToolHandlers();
+// Caller-memory in-call tools (Phase 2/3). Same idempotent one-time-register
+// contract as the handlers above; the tool-callback router still 503s until
+// VOICE_TOOLS_ENABLED flips on, so this is safe to wire unconditionally.
+registerValidationPinHandlers();
+registerCallerHistoryHandler();
 
 // Outbound waitlist-validation dialer admin surface (DM-FRANK-029).
 // Always mounted; every route 503s while FRANK_OUTBOUND_ENABLED is off
