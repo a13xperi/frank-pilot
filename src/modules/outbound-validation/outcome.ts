@@ -232,21 +232,58 @@ export async function handleOutboundPostCall(payload: PostCallPayload): Promise<
 
   const mapped = mapPostCallToOutcome(payload);
 
-  // Sage write first: if it throws, the webhook DLQ parks the event and the
-  // local row stays 'dialed' for the retry to converge on.
-  await recordCallOutcome({
-    applicantId: local.applicant_id,
-    outcome: mapped.outcome,
-    stillInterested: mapped.stillInterested,
-    notes: mapped.notes,
-  });
-
-  await query(
+  // Atomically claim the row BEFORE the Sage write. ElevenLabs can deliver the
+  // same post-call event more than once (retries, at-least-once delivery); the
+  // fast-path check above is racy on its own, so the flip to 'completed' is the
+  // real idempotency fence. Only the webhook that wins this CAS (status was still
+  // 'dialed') proceeds to record on Sage — losers see 0 rows and return, so the
+  // applicant's call_attempts is never double-incremented.
+  const claim = await query(
     `UPDATE outbound_validation_calls
         SET status = 'completed', outcome = $2, completed_at = NOW()
-      WHERE id = $1`,
+      WHERE id = $1 AND status = 'dialed'
+      RETURNING id`,
     [local.id, mapped.outcome]
   );
+  if (claim.rows.length === 0) {
+    logger.info("Outbound validation webhook: row already claimed by a concurrent delivery, skipping", {
+      conversationId: payload.conversation_id,
+      callId: local.id,
+    });
+    return;
+  }
+
+  // We own the row now. Write to Sage. Skip it entirely for test calls — those
+  // dial a test number, so the claimed applicant's row was only used to build the
+  // script; recording this outcome would corrupt a real applicant.
+  if (!local.test_call) {
+    try {
+      await recordCallOutcome({
+        applicantId: local.applicant_id,
+        outcome: mapped.outcome,
+        stillInterested: mapped.stillInterested,
+        notes: mapped.notes,
+      });
+    } catch (err) {
+      // Sage failed after we claimed the row locally. Revert the claim so local
+      // and Sage stay consistent (the row goes back to 'dialed', re-openable by a
+      // retry or the sweeper) and rethrow so the webhook DLQ re-delivers the whole
+      // event. Without this the row would sit 'completed' while Sage never recorded
+      // the attempt — and the sweeper would never touch it again.
+      await query(
+        `UPDATE outbound_validation_calls
+            SET status = 'dialed', outcome = NULL, completed_at = NULL
+          WHERE id = $1`,
+        [local.id]
+      );
+      logger.error("Outbound validation webhook: Sage write failed, reverted local row to dialed", {
+        conversationId: payload.conversation_id,
+        applicantId: local.applicant_id,
+        error: (err as Error).message,
+      });
+      throw err;
+    }
+  }
 
   logger.info("Outbound validation outcome recorded", {
     conversationId: payload.conversation_id,
