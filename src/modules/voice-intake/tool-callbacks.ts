@@ -1,9 +1,25 @@
+import crypto from "crypto";
 import { Router, Request, Response } from "express";
 import express from "express";
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stampTape } from "../tape";
 import { verifySignature } from "./signature";
+
+/**
+ * Constant-time string compare for the server-tool shared secret. Equal-length
+ * guard first (timingSafeEqual throws on length mismatch); false on any error.
+ */
+function constantTimeStrEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  try {
+    return crypto.timingSafeEqual(ab, bb);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * ElevenLabs Conv. AI in-call server-tool receiver.
@@ -140,16 +156,29 @@ function validatePayload(
   if (body.tool_name && body.tool_name !== toolNameFromUrl) {
     return { ok: false, reason: "tool-name-mismatch" };
   }
-  if (!body.conversation_id) return { ok: false, reason: "missing-conversation-id" };
-  if (!body.agent_id) return { ok: false, reason: "missing-agent-id" };
-  if (!body.tool_call_id) return { ok: false, reason: "missing-tool-call-id" };
+
+  // ElevenLabs convai SERVER TOOLS post only the request_body_schema fields
+  // (flat) — they do NOT wrap the call in {agent_id, tool_call_id, parameters}.
+  // So these system ids are best-effort, not required: default a missing
+  // tool_call_id to a fresh uuid (keeps the idempotency key unique so two real
+  // calls never collide), and fall conversation_id back to it. Requiring them
+  // is what 400'd every real tool call.
+  const toolCallId =
+    typeof body.tool_call_id === "string" && body.tool_call_id
+      ? body.tool_call_id
+      : crypto.randomUUID();
+  const conversationId =
+    typeof body.conversation_id === "string" && body.conversation_id
+      ? body.conversation_id
+      : toolCallId;
+  const agentId = typeof body.agent_id === "string" ? body.agent_id : "";
 
   return {
     ok: true,
     ctx: {
-      agentId: body.agent_id,
-      conversationId: body.conversation_id,
-      toolCallId: body.tool_call_id,
+      agentId,
+      conversationId,
+      toolCallId,
       toolName: toolNameFromUrl,
     },
   };
@@ -180,14 +209,34 @@ router.post(
     const sigHeader = req.headers["elevenlabs-signature"];
     const nowSecs = Math.floor(Date.now() / 1000);
 
-    const sigResult = verifySignature(rawBody, sigHeader, secret, nowSecs);
-    if (!sigResult.ok) {
-      logger.warn("Voice tool callback rejected", {
-        toolName,
-        reason: sigResult.reason,
-      });
-      res.status(400).json({ ok: false, message: "Invalid signature" });
-      return;
+    // Two auth paths. ElevenLabs signs POST-CALL webhooks with the HMAC
+    // `ElevenLabs-Signature` header, but authenticates convai SERVER TOOLS with
+    // a static secret header you configure on the tool — NOT the HMAC. So: if a
+    // signature header is present, verify the HMAC (back-compat + the existing
+    // test suite); otherwise require a constant-time match on the tool secret
+    // header. Requiring the HMAC on tool calls is what 400'd every real call.
+    if (sigHeader) {
+      const sigResult = verifySignature(rawBody, sigHeader, secret, nowSecs);
+      if (!sigResult.ok) {
+        logger.warn("Voice tool callback rejected", {
+          toolName,
+          reason: sigResult.reason,
+        });
+        res.status(400).json({ ok: false, message: "Invalid signature" });
+        return;
+      }
+    } else {
+      const toolSecret = process.env.ELEVENLABS_TOOL_SECRET || secret;
+      const providedRaw = req.headers["x-elevenlabs-tool-secret"];
+      const provided = Array.isArray(providedRaw) ? providedRaw[0] : providedRaw;
+      if (!provided || !constantTimeStrEqual(String(provided), toolSecret)) {
+        logger.warn("Voice tool callback rejected", {
+          toolName,
+          reason: "bad-tool-secret",
+        });
+        res.status(400).json({ ok: false, message: "Invalid tool secret" });
+        return;
+      }
     }
 
     const body = parseBody(rawBody);
@@ -254,9 +303,18 @@ router.post(
       return;
     }
 
+    // Server tools post the params flat at the top level (matching the tool's
+    // request_body_schema), not nested under `parameters`. Prefer an explicit
+    // `parameters` object if one is ever present, else hand the handler the
+    // whole body — handlers pickString the specific keys they need.
+    const parameters: Record<string, unknown> =
+      body.parameters && typeof body.parameters === "object"
+        ? (body.parameters as Record<string, unknown>)
+        : (body as Record<string, unknown>);
+
     let handlerResult: ToolCallbackResult;
     try {
-      handlerResult = await handler(body.parameters ?? {}, ctx);
+      handlerResult = await handler(parameters, ctx);
     } catch (err) {
       const errMsg = (err as Error).message;
       logger.error("Voice tool callback handler threw", {

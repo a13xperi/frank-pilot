@@ -147,7 +147,11 @@ describe("voice tool callbacks — auth layer", () => {
     expect(res.status).toBe(400);
   });
 
-  it("rejects payload missing tool_call_id with 400", async () => {
+  it("tolerates a missing tool_call_id (defaults it) and proceeds to dispatch", async () => {
+    // ElevenLabs convai server tools post only the request_body_schema fields,
+    // not a {tool_call_id, agent_id} wrapper — so a missing tool_call_id must be
+    // defaulted, NOT rejected. Requiring it 400'd every real tool call.
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // alreadyProcessed → no
     const bad = { ...TOOL_PAYLOAD, tool_call_id: undefined };
     const { body, header } = signedBody(bad as Record<string, unknown>);
     const res = await request(buildApp())
@@ -155,8 +159,37 @@ describe("voice tool callbacks — auth layer", () => {
       .set("Content-Type", "application/json")
       .set("ElevenLabs-Signature", header)
       .send(body);
+    // No handler registered for send_app_link in this suite → Phase-A default,
+    // but crucially it got PAST the auth/validate gate (200, not 400).
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(false);
+    expect(mockQuery).toHaveBeenCalled();
+  });
+
+  it("rejects an unsigned call lacking the tool secret with 400", async () => {
+    // The server-tool auth path: no HMAC signature AND no valid secret header.
+    const res = await request(buildApp())
+      .post("/api/webhooks/elevenlabs/tools/send_app_link")
+      .set("Content-Type", "application/json")
+      .set("x-elevenlabs-tool-secret", "wrong-secret")
+      .send(JSON.stringify(TOOL_PAYLOAD));
     expect(res.status).toBe(400);
-    expect(mockQuery).not.toHaveBeenCalled();
+    expect(res.body.message).toBe("Invalid tool secret");
+  });
+
+  it("accepts an unsigned server-tool call carrying the valid secret header", async () => {
+    // How real ElevenLabs server tools authenticate: no HMAC, a static secret
+    // header. ELEVENLABS_TOOL_SECRET is unset here so it falls back to the
+    // webhook secret (SECRET).
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // alreadyProcessed → no
+    const res = await request(buildApp())
+      .post("/api/webhooks/elevenlabs/tools/send_app_link")
+      .set("Content-Type", "application/json")
+      .set("x-elevenlabs-tool-secret", SECRET)
+      .send(JSON.stringify(TOOL_PAYLOAD));
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(false); // unknown tool (no handler) — but authed + dispatched
+    expect(mockQuery).toHaveBeenCalled();
   });
 
   it("rejects body tool_name mismatching URL with 400", async () => {
