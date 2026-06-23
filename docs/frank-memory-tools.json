@@ -1,0 +1,67 @@
+{
+  "$comment": "ElevenLabs Conversational AI server-tool (webhook) configs for Frank's caller-memory slice. Register all three on BOTH the inbound agent (ELEVENLABS_AGENT_ID, aka frank-inbound / the 725 number) and the outbound agent (ELEVENLABS_OUTBOUND_AGENT_ID, aka frank-outbound / Donna Louise validation). Each tool POSTs JSON to the shared in-call tool route — src/modules/voice-intake/tool-callbacks.ts dispatches on the URL :tool_name and reads the agent-extracted args from the request body's `parameters` object. The route is flag-gated: it returns 503 until VOICE_TOOLS_ENABLED=true and ELEVENLABS_WEBHOOK_SECRET is set to a real value (the sentinel wsec_changeme is refused). The handler emits { ok, result?, message? } back to the agent (`message` is what Frank reads to the caller). See docs/frank-memory-BUILD.md for the call flow and the inbound caller-ID caveat.",
+  "agents": ["frank-inbound", "frank-outbound"],
+  "method": "POST",
+  "tools": [
+    {
+      "name": "send_pin",
+      "type": "webhook",
+      "description": "Text the caller a short verification PIN so Frank can prove who he is talking to before pulling up any prior-call history. Fire this once, early, when the caller is on a line we have a phone number for and Frank wants to confirm identity. Frank then asks the caller to read the PIN back, and only after verify_pin succeeds should Frank call get_caller_history. Pass the caller's phone in E.164 (for example +17025550123) and the current conversation_id. Returns ok=true with a spoken message telling the caller the PIN is on its way; on a missed or unparseable number returns ok=false with a message asking the caller to repeat it.",
+      "url": "https://api-production-ed89.up.railway.app/api/webhooks/elevenlabs/tools/send_pin",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "phone_e164": {
+            "type": "string",
+            "description": "The caller's phone number in E.164 format, including the leading + and country code (for example +17025550123). On the outbound agent this is the number Frank dialed; on the inbound agent it is the number the caller gives or confirms."
+          },
+          "conversation_id": {
+            "type": "string",
+            "description": "The ElevenLabs conversation_id for this call. Used to dedupe the tool fire and to tie the issued PIN to this session."
+          }
+        },
+        "required": ["phone_e164", "conversation_id"]
+      }
+    },
+    {
+      "name": "verify_pin",
+      "type": "webhook",
+      "description": "Check the PIN the caller just read back against the one send_pin texted to that number. Call this immediately after the caller speaks the digits. Pass the same phone_e164 and conversation_id used for send_pin plus read_back_pin (the digits the caller said). Returns ok=true with a message confirming identity when the PIN matches and is unexpired; returns ok=false with a message asking the caller to try again (or to have Frank resend) on a wrong, expired, or already-used PIN. Only proceed to get_caller_history after this returns ok=true.",
+      "url": "https://api-production-ed89.up.railway.app/api/webhooks/elevenlabs/tools/verify_pin",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "phone_e164": {
+            "type": "string",
+            "description": "The same E.164 phone number that send_pin was issued to (for example +17025550123). Must match the number the PIN was texted to."
+          },
+          "read_back_pin": {
+            "type": "string",
+            "description": "The PIN digits the caller read back, exactly as spoken (digits only, for example 4729). Frank should ask the caller to repeat slowly if unsure."
+          },
+          "conversation_id": {
+            "type": "string",
+            "description": "The ElevenLabs conversation_id for this call, matching the one passed to send_pin."
+          }
+        },
+        "required": ["phone_e164", "read_back_pin", "conversation_id"]
+      }
+    },
+    {
+      "name": "get_caller_history",
+      "type": "webhook",
+      "description": "Pull this caller's prior-call summary so Frank can pick up where they left off and build rapport (their name, what they were applying for, the last thing discussed, any open follow-ups). Call this ONLY after verify_pin has returned ok=true for this caller on this call — it is gated on a verified identity so Frank never reads someone else's history to the wrong person. Pass the verified phone_e164. Returns ok=true with a result containing the caller's history (or a result indicating no prior calls, in which case Frank greets them as new); the message is a short natural-language recap Frank can weave into the conversation.",
+      "url": "https://api-production-ed89.up.railway.app/api/webhooks/elevenlabs/tools/get_caller_history",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "phone_e164": {
+            "type": "string",
+            "description": "The caller's verified E.164 phone number (for example +17025550123) — the same number that just passed verify_pin. History is keyed on this number."
+          }
+        },
+        "required": ["phone_e164"]
+      }
+    }
+  ]
+}

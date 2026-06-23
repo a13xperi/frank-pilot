@@ -4,13 +4,14 @@ import crypto from "crypto";
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stampTape } from "../tape";
-import { persistConversation, type PostCallPayload } from "./service";
+import { persistConversation, pickField, type PostCallPayload } from "./service";
 import { maybeNotifyInbound } from "./inbound-notify";
 import {
   isOutboundValidationEvent,
   handleOutboundPostCall,
 } from "../outbound-validation/outcome";
 import { isCareLineEvent, handleCareLinePostCall } from "../care-line";
+import { updateCallerHistory } from "../caller-history/service";
 
 /**
  * ElevenLabs Conv. AI post-call webhook receiver.
@@ -287,6 +288,30 @@ async function dispatch(event: ElevenLabsEvent): Promise<void> {
           eventType: event.type,
         },
       });
+
+      // Caller-memory cache ("Frank remembers you"): once the intake row lands,
+      // UPSERT the coarse rapport signals keyed on the phone-of-record. The
+      // phone lives in the `phone` data_collection field (same key the approve
+      // path reads); updateCallerHistory normalizes + PII-minimizes it. The
+      // post_call_audio re-delivery for the same call simply bumps call_count
+      // again — acceptable for a rapport cache and bounded by ElevenLabs'
+      // at-most-two events per conversation. Fire-and-forget: the memory cache
+      // is best-effort and must never fail the webhook (which would DLQ the
+      // event and risk auto-disable). It rides INSIDE the VOICE_INTAKE_ENABLED
+      // branch, so it only runs when intake persistence ran.
+      const phone = pickField(event.data.analysis?.data_collection_results, "phone");
+      if (phone) {
+        updateCallerHistory(phone, {
+          dataCollection: event.data.analysis?.data_collection_results,
+          evaluationCriteria: event.data.analysis?.evaluation_criteria_results,
+          callSuccessful: event.data.analysis?.call_successful ?? null,
+        }).catch((err) =>
+          logger.error("caller-history update failed (non-fatal)", {
+            conversationId: event.data.conversation_id,
+            error: (err as Error).message,
+          })
+        );
+      }
       return;
     }
     default:
