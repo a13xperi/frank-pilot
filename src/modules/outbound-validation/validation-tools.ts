@@ -1,6 +1,5 @@
-import crypto from "crypto";
-import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
+import { recordVerifiedPhone } from "../caller-history/service";
 import { TwilioService } from "../integrations/twilio";
 import { normalizePhone } from "../voice-intake/service";
 import {
@@ -15,10 +14,17 @@ import {
  *
  * Before Frank reads back anything we remembered about a caller, he has to
  * prove the person on the line controls the number on file. Mid-call he fires
- * `send_pin` → we text a one-time 4-digit code to the E.164 phone; the caller
- * reads it back and the agent fires `verify_pin`. On a match the phone is a
- * verified channel for this conversation and the memory layer is allowed to
- * speak.
+ * `send_pin` → we text a one-time code to the E.164 phone; the caller reads it
+ * back and the agent fires `verify_pin`. On a match the phone is a verified
+ * channel for this conversation and the memory layer is allowed to speak.
+ *
+ * Backed by **Twilio Verify** (service TWILIO_VERIFY_SERVICE_SID). Twilio
+ * generates the code, sends the SMS, and owns the code's TTL + attempt limits
+ * server-side. This is deliberate: a raw `messages.create` from an unregistered
+ * local 10-digit number is blocked by A2P 10DLC (error 30034), which is exactly
+ * what killed the first cut. Verify is purpose-built for OTP and carrier-exempt,
+ * so the code actually lands. We never see, generate, or store the code — there
+ * is no PIN table and no local crypto anymore.
  *
  * Mirrors send-app-link.ts / verify-name.ts exactly:
  *   - same handler signature (parameters, context) => Promise<ToolCallbackResult>
@@ -27,24 +33,17 @@ import {
  *     accepted as a belt-and-suspenders fallback only.
  *
  * SECURITY discipline:
- *   - the PIN is NEVER stored in plaintext. We persist a per-row random salt
- *     and sha256(salt + ":" + pin) only.
- *   - verification is a CONSTANT-TIME compare (crypto.timingSafeEqual) against
- *     the recomputed salted hash — no early-exit string compare, no timing
- *     oracle on the code.
- *   - phones are masked to last-4 in every log line; the full E.164 and the
- *     code never hit the logs.
+ *   - the code is owned end-to-end by Twilio Verify; it never enters our DB,
+ *     our logs, or our process memory.
+ *   - phones are masked to last-4 in every log line; the full E.164 never logs.
  *
  * Tape stamp: the parent dispatcher already emits VOICE_TOOL_INVOKED with the
  * ok/handler outcome. We do NOT double-stamp.
  *
  * Returns ToolCallbackResult:
- *   send_pin   → { ok: true,  message: 'Code sent.' } | { ok: false, message }
+ *   send_pin   → { ok: true,  result: { sent: true }, message: 'Code sent.' } | { ok: false, message }
  *   verify_pin → { ok: true,  result: { matched: boolean }, message } | { ok: false, message }
  */
-
-const PIN_TTL_MINUTES = 10;
-const DEFAULT_MAX_ATTEMPTS = 5;
 
 export async function sendPinHandler(
   parameters: Record<string, unknown>,
@@ -61,28 +60,9 @@ export async function sendPinHandler(
     };
   }
 
-  // 4-digit code, uniformly distributed across the full 0000-9999 range.
-  // randomInt is cryptographically strong and avoids modulo bias.
-  const pin = String(crypto.randomInt(0, 10000)).padStart(4, "0");
-  const salt = crypto.randomBytes(16).toString("hex");
-  const pinHash = hashPin(salt, pin);
-  const expiresAt = new Date(Date.now() + PIN_TTL_MINUTES * 60 * 1000);
-
-  await query(
-    `INSERT INTO validation_pins (
-       phone_e164, conversation_id, pin_hash, pin_salt,
-       status, attempt_count, max_attempts, expires_at
-     )
-     VALUES ($1, $2, $3, $4, 'pending', 0, $5, $6)`,
-    [phone, conversationId, pinHash, salt, DEFAULT_MAX_ATTEMPTS, expiresAt]
-  );
-
-  const sms = await getTwilioService().sendSMS(
-    phone,
-    `Your Frank verification code is ${pin}. Read it back when Frank asks.`
-  );
+  const sms = await getTwilioService().startVerification(phone);
   if (!sms.sent) {
-    logger.error("send_pin SMS not sent", {
+    logger.error("send_pin Verify not sent", {
       conversationId,
       phoneMasked: maskPhone(phone),
     });
@@ -124,41 +104,12 @@ export async function verifyPinHandler(
     };
   }
 
-  // Latest pending, non-expired row for this phone. Newest first so a re-sent
-  // code supersedes an earlier one; the WHERE clause fails closed on expiry.
-  const found = await query(
-    `SELECT id, pin_hash, pin_salt, attempt_count, max_attempts
-       FROM validation_pins
-      WHERE phone_e164 = $1
-        AND status = 'pending'
-        AND expires_at > NOW()
-      ORDER BY created_at DESC
-      LIMIT 1`,
-    [phone]
-  );
-
-  if (found.rows.length === 0) {
-    logger.info("verify_pin no live code", {
-      conversationId,
-      phoneMasked: maskPhone(phone),
-    });
-    return {
-      ok: true,
-      result: { matched: false },
-      message: "I don't have a live code for that number. Want me to text you a fresh one?",
-    };
-  }
-
-  const row = found.rows[0];
-  const matched = verifyPinHash(row.pin_salt as string, readBack, row.pin_hash as string);
+  const { matched, exhausted } = await getTwilioService().checkVerification(phone, readBack);
 
   if (matched) {
-    await query(
-      `UPDATE validation_pins
-          SET status = 'verified', verified_at = NOW()
-        WHERE id = $1`,
-      [row.id]
-    );
+    // Drop the verification receipt the caller-memory gate reads. Best-effort:
+    // a failed write never blocks the caller — they're verified on the line.
+    await recordVerifiedPhone(phone, conversationId);
     logger.info("verify_pin verified", {
       conversationId,
       phoneMasked: maskPhone(phone),
@@ -166,25 +117,10 @@ export async function verifyPinHandler(
     return { ok: true, result: { matched: true }, message: "Verified." };
   }
 
-  // Miss: burn an attempt. When the bumped count reaches max_attempts, retire
-  // the row so a brute-force can't keep guessing the same code.
-  const attemptCount = Number(row.attempt_count) + 1;
-  const maxAttempts = Number(row.max_attempts) || DEFAULT_MAX_ATTEMPTS;
-  const exhausted = attemptCount >= maxAttempts;
-
-  await query(
-    `UPDATE validation_pins
-        SET attempt_count = attempt_count + 1,
-            status = CASE WHEN attempt_count + 1 >= max_attempts THEN 'failed' ELSE status END
-      WHERE id = $1`,
-    [row.id]
-  );
-
   logger.info("verify_pin mismatch", {
     conversationId,
     phoneMasked: maskPhone(phone),
-    attemptCount,
-    exhausted,
+    exhausted: Boolean(exhausted),
   });
 
   return {
@@ -194,27 +130,6 @@ export async function verifyPinHandler(
       ? "That code didn't match, and we've used up the tries. Let me text you a new one."
       : "That code didn't match. Can you read me those four digits once more?",
   };
-}
-
-/**
- * Salted sha256 of a PIN. Salt is per-row so two callers with the same code
- * never share a hash, and a leaked table can't be rainbow-tabled.
- */
-function hashPin(salt: string, pin: string): string {
-  return crypto.createHash("sha256").update(`${salt}:${pin}`).digest("hex");
-}
-
-/**
- * Constant-time comparison of a read-back PIN against the stored salted hash.
- * timingSafeEqual requires equal-length buffers; sha256 hex is always 64 chars
- * so the recomputed and stored digests match width by construction.
- */
-function verifyPinHash(salt: string, readBack: string, storedHash: string): boolean {
-  const candidate = hashPin(salt, readBack);
-  const a = Buffer.from(candidate, "hex");
-  const b = Buffer.from(storedHash, "hex");
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
 }
 
 function pickString(parameters: Record<string, unknown>, key: string): string | null {

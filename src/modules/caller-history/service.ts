@@ -315,6 +315,40 @@ export async function hasRecentVerifiedPin(
   return result.rows.length > 0;
 }
 
+/**
+ * Record that a phone just cleared the SMS-verify gate, as a `validation_pins`
+ * receipt that `hasRecentVerifiedPin` reads. The one-time code itself is owned
+ * end-to-end by Twilio Verify and never lands here, so `pin_hash`/`pin_salt`
+ * (NOT NULL in the legacy schema) are written empty — the table is now a
+ * verification *receipt ledger*, not a code store. Called by `verify_pin` on a
+ * Twilio `approved` check. Best-effort: a write failure logs and returns false
+ * rather than failing the caller's verification.
+ */
+export async function recordVerifiedPhone(
+  phoneE164: string | null,
+  conversationId: string
+): Promise<boolean> {
+  const phone = normalizePhone(phoneE164);
+  if (!phone) return false;
+  try {
+    await query(
+      `INSERT INTO validation_pins (
+         phone_e164, conversation_id, pin_hash, pin_salt,
+         status, verified_at
+       )
+       VALUES ($1, $2, '', '', 'verified', NOW())`,
+      [phone, conversationId || null]
+    );
+    return true;
+  } catch (err) {
+    logger.error("recordVerifiedPhone failed (non-fatal)", {
+      phoneMasked: maskPhone(phone),
+      error: (err as Error).message,
+    });
+    return false;
+  }
+}
+
 function rowToProfile(row: Record<string, unknown> | undefined): CallerProfile | null {
   if (!row) return null;
   return {
