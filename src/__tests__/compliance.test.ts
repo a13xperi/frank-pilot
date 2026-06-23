@@ -326,4 +326,68 @@ describe("ComplianceService.runCheck", () => {
     expect(currentYearCall[1]![2]).toBe(3);
     expect(prevYearCall[1]![2]).toBe(3);
   });
+
+  // ── Tier-aware AMI: properties restricted below 60% (DL2 = 40/45% + market) ─
+  //
+  // DL2 is a 40%/45% AMI building plus 6 market-rate units. The check must apply
+  // the property's actual ceiling (its highest affordable tier = 45%), not a
+  // hardcoded 60% — else an applicant over the 45% limit but under 60% would
+  // wrongly pass for a unit they're not income-eligible for. The tier is read
+  // from the property's rent_schedule keys ("1BR_45AMI", "2BR_market").
+
+  function propertyWithSchedule(rentSchedule: Record<string, number>, amiArea = "Las Vegas-NV") {
+    return qr([{ ami_area: amiArea, rent_schedule: rentSchedule }]);
+  }
+  function amiRowFull(fields: Record<string, number>) {
+    const row: Record<string, string> = {};
+    for (const [k, v] of Object.entries(fields)) row[k] = String(v);
+    return qr([row]);
+  }
+
+  it("applies the property's 45% tier (not 60%) for a 40/45% AMI building", async () => {
+    // ami_50 = 40,000 → 45% limit = 36,000. Income 40,000 is under 60% (~48k) but over 45%.
+    mockQuery
+      .mockResolvedValueOnce(propertyWithSchedule({ "1BR_45AMI": 890, "2BR_40AMI": 950 }))
+      .mockResolvedValueOnce(amiRowFull({ ami_50_percent: 40000, ami_60_percent: 48000 }));
+
+    const result = await service.runCheck({ propertyId: "dl2", annualIncome: 40000 });
+
+    expect(result.result).toBe("fail");
+    expect(result.details.applicableAMILimit).toBe(36000);
+    expect(result.details.regulatoryNotes.join(" ")).toMatch(/exceeds 45% AMI limit/i);
+  });
+
+  it("passes an applicant under the 45% tier limit", async () => {
+    mockQuery
+      .mockResolvedValueOnce(propertyWithSchedule({ "1BR_45AMI": 890 }))
+      .mockResolvedValueOnce(amiRowFull({ ami_50_percent: 40000, ami_60_percent: 48000 }));
+
+    const result = await service.runCheck({ propertyId: "dl2", annualIncome: 30000 });
+
+    expect(result.result).toBe("pass");
+    expect(result.details.applicableAMILimit).toBe(36000);
+  });
+
+  it("routes an over-cap applicant to review_required (not fail) when the property has market units", async () => {
+    mockQuery
+      .mockResolvedValueOnce(propertyWithSchedule({ "2BR_45AMI": 1068, "2BR_market": 1634 }))
+      .mockResolvedValueOnce(amiRowFull({ ami_50_percent: 40000, ami_60_percent: 48000 }));
+
+    const result = await service.runCheck({ propertyId: "dl2", annualIncome: 41000 });
+
+    expect(result.result).toBe("review_required"); // 41k > 36k (45%) but property has market units
+    expect(result.details.regulatoryNotes.join(" ")).toMatch(/market-rate units/i);
+  });
+
+  it("is unchanged for a legacy 60% property (rent_schedule keyed at 60AMI)", async () => {
+    // Income 45,000: over 45% (36k) but under 60% (48k) → still passes a 60% building.
+    mockQuery
+      .mockResolvedValueOnce(propertyWithSchedule({ "1BR_60AMI": 995 }))
+      .mockResolvedValueOnce(amiRowFull({ ami_50_percent: 40000, ami_60_percent: 48000 }));
+
+    const result = await service.runCheck({ propertyId: "legacy", annualIncome: 45000 });
+
+    expect(result.result).toBe("pass");
+    expect(result.details.applicableAMILimit).toBe(48000);
+  });
 });
