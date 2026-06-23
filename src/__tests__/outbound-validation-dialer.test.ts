@@ -32,9 +32,11 @@ jest.mock("../modules/tape", () => ({
 
 import {
   runDialerTick,
+  sweepStuckCalls,
   isWithinCallWindow,
   buildDynamicVariables,
 } from "../modules/outbound-validation/dialer";
+import { logger } from "../utils/logger";
 import type { SageApplicant } from "../modules/outbound-validation/sage-client";
 
 const APPLICANT: SageApplicant = {
@@ -120,6 +122,9 @@ beforeEach(() => {
   mockRecordCallOutcome.mockReset().mockResolvedValue(undefined);
   mockResetClaim.mockReset().mockResolvedValue(undefined);
   mockStampTape.mockClear();
+  (logger.info as jest.Mock).mockClear();
+  (logger.warn as jest.Mock).mockClear();
+  (logger.error as jest.Mock).mockClear();
 });
 
 afterEach(() => {
@@ -285,6 +290,59 @@ describe("runDialerTick gate chain", () => {
     expect(inserts[0].params).toContain(true);
   });
 
+  it("a test call releases the applicant claim non-destructively after a successful dial", async () => {
+    process.env.FRANK_OUTBOUND_TEST_NUMBER = "+17025550000";
+    stubFetch({ ok: true, body: { conversation_id: "conv_t" } });
+    routeQueries({ inFlight: false, dialsToday: 0, minsSinceLast: null });
+    mockClaimNextCall.mockResolvedValue(APPLICANT);
+
+    const result = await runDialerTick();
+    expect(result.action).toBe("dialed");
+    expect(mockResetClaim).toHaveBeenCalledWith(APPLICANT.id);
+    // A test call must NEVER disposition the borrowed real applicant.
+    expect(mockRecordCallOutcome).not.toHaveBeenCalled();
+  });
+
+  it("a test call whose resetClaim throws still succeeds and never records an outcome on the applicant", async () => {
+    // FIX 1: the test-call resetClaim runs AFTER a successful dial, so its failure
+    // is post-dial cleanup — it must be caught and logged, never fall into the
+    // dial-failure catch (which would record a bogus no_answer on the REAL applicant).
+    process.env.FRANK_OUTBOUND_TEST_NUMBER = "+17025550000";
+    stubFetch({ ok: true, body: { conversation_id: "conv_t" } });
+    routeQueries({ inFlight: false, dialsToday: 0, minsSinceLast: null });
+    mockClaimNextCall.mockResolvedValue(APPLICANT);
+    mockResetClaim.mockRejectedValueOnce(new Error("sage 503"));
+
+    const result = await runDialerTick();
+    // The dial succeeded; the cleanup failure must not turn it into a dial_failed.
+    expect(result.action).toBe("dialed");
+    expect(result.applicantId).toBe(APPLICANT.id);
+    // The critical guard: no outcome is ever recorded on the borrowed applicant.
+    expect(mockRecordCallOutcome).not.toHaveBeenCalled();
+    // And no dial_failed row was inserted (only the single 'dialed' row).
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0].sql).toContain("'dialed'");
+    expect(inserts.some((i) => i.sql.includes("'dial_failed'"))).toBe(false);
+    // It logged a warning rather than escalating.
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it("a failed TEST-number dial records NO outcome on the borrowed applicant", async () => {
+    // FIX 1b: even when the dial itself fails, a test call must not disposition the
+    // real applicant — the catch handler is guarded by !testNumber.
+    process.env.FRANK_OUTBOUND_TEST_NUMBER = "+17025550000";
+    stubFetch({ ok: false, status: 500, body: { error: "twilio sad" } });
+    routeQueries({ inFlight: false, dialsToday: 0, minsSinceLast: null });
+    mockClaimNextCall.mockResolvedValue(APPLICANT);
+
+    const result = await runDialerTick();
+    expect(result.action).toBe("dial_failed");
+    // dial_failed row still recorded locally...
+    expect(inserts[0].sql).toContain("'dial_failed'");
+    // ...but Sage is NOT touched for the borrowed applicant.
+    expect(mockRecordCallOutcome).not.toHaveBeenCalled();
+  });
+
   it("a failed dial records no_answer on Sage so nothing wedges in_progress", async () => {
     stubFetch({ ok: false, status: 500, body: { error: "twilio sad" } });
     routeQueries({ inFlight: false, dialsToday: 0, minsSinceLast: null });
@@ -300,5 +358,84 @@ describe("runDialerTick gate chain", () => {
         notes: expect.stringContaining("dial failed"),
       })
     );
+  });
+});
+
+// ── sweepStuckCalls idempotency (FIX 3) ──────────────────────────────────────
+// The sweeper must record on Sage FIRST and only mark a row 'expired' once that
+// succeeds. A failed recordCallOutcome must leave the row 'dialed' (next sweep
+// retries) instead of stranding it expired-but-unrecorded (which wedges the
+// applicant). It returns {expired, failed}.
+describe("sweepStuckCalls idempotency", () => {
+  // Route the sweeper's two SQL shapes: the SELECT of stuck rows, and the
+  // per-row guarded expire UPDATE. Captures every expire UPDATE for assertions.
+  function routeSweep(stuckRows: Array<{ id: string; applicant_id: string; conversation_id: string | null }>): {
+    expireUpdates: Array<{ sql: string; params: unknown[] }>;
+  } {
+    const expireUpdates: Array<{ sql: string; params: unknown[] }> = [];
+    mockQuery.mockImplementation((sql: string, params: unknown[]) => {
+      if (sql.includes("SELECT") && sql.includes("status = 'dialed'")) {
+        return Promise.resolve({ rows: stuckRows });
+      }
+      if (sql.includes("UPDATE outbound_validation_calls") && sql.includes("'expired'")) {
+        expireUpdates.push({ sql, params: params as unknown[] });
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+    return { expireUpdates };
+  }
+
+  it("returns {expired:0,failed:0} when the master flag is off and never queries", async () => {
+    process.env.FRANK_OUTBOUND_ENABLED = "false";
+    expect(await sweepStuckCalls()).toEqual({ expired: 0, failed: 0 });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("records on Sage then expires each stuck row", async () => {
+    const { expireUpdates } = routeSweep([
+      { id: "call-a", applicant_id: "appl-a", conversation_id: "conv-a" },
+      { id: "call-b", applicant_id: "appl-b", conversation_id: null },
+    ]);
+
+    const result = await sweepStuckCalls();
+    expect(result).toEqual({ expired: 2, failed: 0 });
+    expect(mockRecordCallOutcome).toHaveBeenCalledTimes(2);
+    expect(mockRecordCallOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({ applicantId: "appl-a", outcome: "no_answer" })
+    );
+    // Each expire UPDATE is guarded on still-'dialed' and targets a single id.
+    expect(expireUpdates).toHaveLength(2);
+    for (const u of expireUpdates) {
+      expect(u.sql).toContain("status = 'dialed'");
+      expect(u.sql).toContain("WHERE id = $1");
+    }
+    expect(expireUpdates.map((u) => u.params[0])).toEqual(["call-a", "call-b"]);
+  });
+
+  it("leaves a row 'dialed' (no expire UPDATE) and counts it failed when its Sage write throws", async () => {
+    const { expireUpdates } = routeSweep([
+      { id: "call-a", applicant_id: "appl-a", conversation_id: "conv-a" },
+      { id: "call-b", applicant_id: "appl-b", conversation_id: "conv-b" },
+    ]);
+    // First row's Sage write fails; second succeeds.
+    mockRecordCallOutcome
+      .mockReset()
+      .mockRejectedValueOnce(new Error("sage down"))
+      .mockResolvedValueOnce(undefined);
+
+    const result = await sweepStuckCalls();
+    expect(result).toEqual({ expired: 1, failed: 1 });
+    // Only the succeeding row (call-b) got an expire UPDATE; the failing one stays dialed.
+    expect(expireUpdates).toHaveLength(1);
+    expect(expireUpdates[0].params[0]).toBe("call-b");
+    // The failure was logged at error level.
+    expect(logger.error).toHaveBeenCalled();
+  });
+
+  it("no stuck rows → no-op", async () => {
+    routeSweep([]);
+    expect(await sweepStuckCalls()).toEqual({ expired: 0, failed: 0 });
+    expect(mockRecordCallOutcome).not.toHaveBeenCalled();
   });
 });
