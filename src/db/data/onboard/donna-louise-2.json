@@ -1,13 +1,10 @@
 {
-  "_status": "DRAFT - PENDING Frank/GPM confirmation. onboard-property.ts ABORTS while this is set. See battlestation docs/frank-dl2-launch-factcheck.md; clear _status only after items 1-4 are confirmed.",
+  "_status": "STAGED - PENDING GPM: rent_schedule (per-AMI-tier rents) + ami_set_aside, and the Frank-owned email. Everything else confirmed 2026-06-22 (Frank/Alex). onboard-property.ts ABORTS while this _status is set; clear it only after the AMI/rents land.",
   "_pending": [
-    "address_line1: confirm 6275 Donna St (Assessor-verified) vs 6225 on the public site",
-    "unit_mix + rent_schedule: the values below are DL1 PLACEHOLDERS; replace with DL2's real bedroom/AMI breakdown",
-    "phone/email: confirm a distinct DL2 line vs shared with DL1",
-    "latitude/longitude: geocode the confirmed address before launch or DL2 will not show on the /discover map",
-    "census_tract 32003003652 per deal docs (not 30C-eligible): confirm",
-    "buildings/BIN: load via seed-buildings.ts once GPMG provides the authoritative BIN (never invent one)"
+    "rent_schedule + ami_set_aside: GPM to provide the % AMI tiers (30/50/60) across the 48 units and the net rent per bedroom per tier (asked Craig 2026-06-22). When they land: fill rent_schedule (e.g. 1BR_60AMI, 2BR_60AMI, ...) + ami_set_aside, then clear _status and run onboard-building.sh donna-louise-2 --apply.",
+    "email: a Frank-owned leasing inbox (part of the email-response feature); the 725 phone is the launch contact, email stays null until the inbox exists."
   ],
+  "_confirmed_2026-06-22": "address 6275 Donna St (Assessor APN 124-26-103-002), 48 units, unit_mix 30x1BR + 18x2BR (6 ADA) per architect sheet A16.00, contact = Frank 725 line (not the leasing line), geocoords set.",
   "name": "Donna Louise Apartments 2",
   "address_line1": "6275 Donna St",
   "city": "North Las Vegas",
@@ -17,16 +14,16 @@
   "ami_area": "North Las Vegas",
   "property_type": "family",
   "jurisdiction": "North Las Vegas",
-  "phone": "702-920-6548",
-  "email": "donnalouise@gpmglv.org",
+  "phone": "725-267-2488",
+  "email": null,
   "census_tract": "32003003652",
   "lihtc_type": null,
   "ami_set_aside": null,
-  "latitude": null,
-  "longitude": null,
+  "latitude": 36.2739742,
+  "longitude": -115.1305018,
   "waiting_list_enabled": true,
   "total_vacancy": 0,
   "unit_status": "available",
-  "unit_mix": { "1BR": 12, "2BR": 24, "3BR": 12 },
-  "rent_schedule": { "1BR_60AMI": 995, "2BR_60AMI": 1194, "3BR_60AMI": 1380 }
+  "unit_mix": { "1BR": 30, "2BR": 18 },
+  "rent_schedule": {}
 }
