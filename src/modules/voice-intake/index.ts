@@ -4,6 +4,7 @@ export { default as voiceBrowserSessionRouter } from "./browser-session";
 export { default as voiceIntakeRoutes } from "./routes";
 export { default as voiceIntakeApplicantRoutes } from "./applicant-routes";
 export { registerVoiceToolHandlers } from "./send-app-link";
+export { registerFunnelToolHandlers } from "./present-options";
 export {
   persistConversation,
   promoteIntakeToApplication,

@@ -18,6 +18,15 @@ import {
 } from "../tape/v2-stamp";
 import { logger } from "../../utils/logger";
 import { shouldReturnDevLink } from "../../utils/demo-link";
+import {
+  qualifyAmiTier,
+  incomeLimit,
+  maxRent,
+  countyForMsa,
+  BEDROOM_KEYS,
+  type MsaKey,
+  type BedroomKey,
+} from "./ami-qualify";
 
 const router: Router = Router();
 const applicationService = new ApplicationService();
@@ -113,6 +122,19 @@ const unitWriteLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
   keyGenerator: userKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, slow down" },
+});
+
+// W0 pre-qual is pre-account (no auth), so the user-keyed limiters above would
+// collapse every anonymous caller into one "anon" bucket. Key on IP instead —
+// the calculator is a cheap, read-only computation, so a generous 60/min/IP
+// leaves real users browsing scenarios plenty of room while capping scrapers.
+const qualifyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, slow down" },
@@ -1069,6 +1091,84 @@ router.post(
       }
       logger.error("Applicant intent failed", { error: msg });
       res.status(500).json({ error: "Failed to save intent" });
+    }
+  }
+);
+
+// W0 AMI pre-qualifier. Pre-account (no auth) so a prospect can size up the
+// program before creating anything. The SERVER computes and enforces the tier
+// from {householdSize, grossAnnualIncome} — a client-supplied tier is never
+// trusted (it would let someone self-assign a cheaper set-aside). `msaKey`
+// defaults to LAS_VEGAS_HENDERSON, the only county ingested today.
+const qualifySchema = z.object({
+  householdSize: z.number().int().min(1).max(12),
+  grossAnnualIncome: z.number().min(0).max(500_000),
+  msaKey: z.enum(["LAS_VEGAS_HENDERSON"]).optional().default("LAS_VEGAS_HENDERSON"),
+});
+
+// Compute the AMI tier + caps for a prospective applicant. Returns:
+//   amiTier          lowest LIHTC tier they qualify for, or null (over-income)
+//   incomeLimit      the income cap for that tier at their household size
+//   maxRentByBedroom rent ceilings by bedroom for that tier (null per bedroom
+//                    with no published figure)
+//   hasHeadroom      true iff they qualify for any affordable tier (amiTier != null)
+router.post(
+  "/qualify",
+  qualifyLimiter,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const parsed = qualifySchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+        return;
+      }
+      const { householdSize, grossAnnualIncome, msaKey } = parsed.data;
+
+      // Server is the authority: derive the tier here, never from the client.
+      const amiTier = qualifyAmiTier(msaKey as MsaKey, householdSize, grossAnnualIncome);
+      const county = countyForMsa(msaKey as MsaKey);
+      if (county == null) {
+        // Unreachable while the enum has one member, but keep the contract
+        // honest if a future MSA is added to the schema before the dataset.
+        res.status(400).json({ error: "Unsupported MSA", msaKey });
+        return;
+      }
+
+      // Over-income for every affordable tier: no cap, no headroom. Surface a
+      // null tier + empty caps rather than 404 so the client can render an
+      // "over the limit" state from a 200.
+      if (amiTier == null) {
+        const emptyRents: Record<BedroomKey, number | null> = {} as Record<
+          BedroomKey,
+          number | null
+        >;
+        for (const bedroom of BEDROOM_KEYS) emptyRents[bedroom] = null;
+        res.json({
+          amiTier: null,
+          incomeLimit: null,
+          maxRentByBedroom: emptyRents,
+          hasHeadroom: false,
+        });
+        return;
+      }
+
+      const maxRentByBedroom: Record<BedroomKey, number | null> = {} as Record<
+        BedroomKey,
+        number | null
+      >;
+      for (const bedroom of BEDROOM_KEYS) {
+        maxRentByBedroom[bedroom] = maxRent(county, amiTier, bedroom);
+      }
+
+      res.json({
+        amiTier,
+        incomeLimit: incomeLimit(county, amiTier, householdSize),
+        maxRentByBedroom,
+        hasHeadroom: true,
+      });
+    } catch (err) {
+      logger.error("Applicant qualify failed", { error: (err as Error).message });
+      res.status(500).json({ error: "Failed to qualify" });
     }
   }
 );
