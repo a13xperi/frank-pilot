@@ -29,6 +29,7 @@ import {
   voiceIntakeRoutes,
   voiceIntakeApplicantRoutes,
   registerVoiceToolHandlers,
+  registerFunnelToolHandlers,
 } from "./modules/voice-intake";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
@@ -367,6 +368,9 @@ registerOutboundApplicationToolHandlers();
 // VOICE_TOOLS_ENABLED flips on, so this is safe to wire unconditionally.
 registerValidationPinHandlers();
 registerCallerHistoryHandler();
+// Funnel voice tools (prequalify + present_options) — same dark-by-flag path;
+// the tool-callback router still 503s until VOICE_TOOLS_ENABLED flips on.
+registerFunnelToolHandlers();
 
 // Outbound waitlist-validation dialer admin surface (DM-FRANK-029).
 // Always mounted; every route 503s while FRANK_OUTBOUND_ENABLED is off
