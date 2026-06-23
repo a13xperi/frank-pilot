@@ -74,6 +74,7 @@ import { cockpitMetricsRoutes } from "./modules/cockpit-metrics";
 import { registerValidationPinHandlers } from "./modules/outbound-validation/validation-tools";
 import { registerCallerHistoryHandler } from "./modules/caller-history/service";
 import { registerStartVerificationHandler } from "./modules/voice-intake/start-verification";
+import { registerCreateApplicationHandler } from "./modules/voice-intake/create-application";
 import { frankContactRoutes } from "./modules/frank-contact";
 import { smsIntakeRoutes } from "./modules/sms-intake";
 import { cobrowseRoutes, registerCobrowseHandlers } from "./modules/cobrowse";
@@ -400,6 +401,7 @@ registerCallerHistoryHandler();
 // the tool-callback router still 503s until VOICE_TOOLS_ENABLED flips on.
 registerFunnelToolHandlers();
 // Phase B paid-conversion tool (start_verification — $35.95 fee → screening).
+registerCreateApplicationHandler();
 registerStartVerificationHandler();
 
 // Phase 2 voice verification + caller history (send_verification,
