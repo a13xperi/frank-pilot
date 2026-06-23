@@ -26,6 +26,12 @@ import request from "supertest";
 import crypto from "crypto";
 import type { Express } from "express";
 
+// loadAppWithFlag() does a cold `require("../index")` — the first one can exceed
+// jest's 5s default on CI and grows with index.ts, so give the suite headroom
+// rather than let it be a load-dependent flake (the documented *-flag.test.ts
+// cold-load flake; mirrors compliance-tape-flag.test.ts).
+jest.setTimeout(30000);
+
 const SECRET = "wsec_test_vv_flag_fixture";
 
 // Twilio + magic-link + the verification service are mocked so the flag test
