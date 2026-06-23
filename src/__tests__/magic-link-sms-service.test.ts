@@ -95,13 +95,30 @@ describe("magic-link SMS delivery — service layer", () => {
     expect(mockSendSMS).toHaveBeenCalledTimes(1);
   });
 
-  it("default channel (none) stays email-only — no SMS call, no phone lookup", async () => {
+  it("default channel (none) is SMS-first — resolves phone + sends SMS, email does NOT fire", async () => {
+    // TEXT-FIRST (#312): sendMagicLink defaults to channel 'sms'. With a userId
+    // present the phone is resolved and the link goes out by SMS; email stays quiet.
+    mockQuery.mockResolvedValueOnce({ rows: [{ phone: "+17025551234" }] } as any);
+
     sendMagicLink("u@example.com", LINK, { firstName: "De", userId: USER_ID });
     await flush();
 
-    expect(mockEmailSendMagicLink).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledWith("SELECT phone FROM users WHERE id = $1", [USER_ID]);
+    expect(mockSendSMS).toHaveBeenCalledTimes(1);
+    expect(mockSendSMS.mock.calls[0][0]).toBe("+17025551234");
+    expect(mockEmailSendMagicLink).not.toHaveBeenCalled();
+  });
+
+  it("default channel (none) with NO userId falls back to email (never strands the link)", async () => {
+    // SMS is the default but there's no userId to resolve a phone — fall back to
+    // email so the magic link still lands.
+    sendMagicLink("u@example.com", LINK, { firstName: "De" });
+    await flush();
+
     expect(mockSendSMS).not.toHaveBeenCalled();
     expect(mockQuery).not.toHaveBeenCalled();
+    expect(mockEmailSendMagicLink).toHaveBeenCalledTimes(1);
+    expect(mockEmailSendMagicLink).toHaveBeenCalledWith("u@example.com", LINK, { firstName: "De" });
   });
 
   it("sendMagicLinkSms accepts a raw phone number directly (no UUID lookup)", async () => {

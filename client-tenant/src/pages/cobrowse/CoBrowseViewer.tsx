@@ -31,7 +31,7 @@ function sessionIdFromPath(): string {
   return m ? m[1] : "";
 }
 
-export default function CoBrowseViewer(): JSX.Element {
+export default function CoBrowseViewer() {
   const id = sessionIdFromPath();
   const token = useQueryToken();
   const [status, setStatus] = useState<"connecting" | "watching" | "done" | "error">("connecting");

@@ -9,4 +9,7 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS conversation_id TEXT;
 CREATE INDEX IF NOT EXISTS idx_applications_conversation
   ON applications (conversation_id);
 
-ALTER TABLE sms_sessions ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id);
+-- NOTE: seam #2 (sms_sessions.user_id) is applied in 2026-06-16-sms-sessions.sql,
+-- co-located with the table create, because the runner applies migrations in
+-- filename order and this file (golden-path-spine) sorts BEFORE sms-sessions —
+-- so an ALTER here would hit a not-yet-created table on a fresh DB.

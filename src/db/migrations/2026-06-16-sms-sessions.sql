@@ -33,3 +33,10 @@ CREATE TABLE IF NOT EXISTS sms_sessions (
 -- The service loads the latest active session by phone on every inbound text.
 CREATE INDEX IF NOT EXISTS idx_sms_sessions_phone_e164
   ON sms_sessions (phone_e164);
+
+-- Golden-path seam (GP-A/B): the SMS-only path creates a phone-keyed user so an
+-- SMS-only resident has an auth path back (was a dead end). Co-located with the
+-- table create so it never runs before this migration regardless of filename
+-- sort order (the runner applies *.sql in lexicographic order, and
+-- golden-path-spine sorts ahead of sms-sessions).
+ALTER TABLE sms_sessions ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id);
