@@ -269,6 +269,114 @@ export class ApprovalService {
   }
 
   /**
+   * Bulk review: run the SAME per-application tier review across many applications
+   * in one call, to relieve the manual one-by-one approval bottleneck (e.g. a
+   * lease-up sprint needing dozens of approvals on a deadline).
+   *
+   * This is a LOOP over the verified single-app path — every application still
+   * goes through separation-of-duties, the status gate, the unresolved-fraud-flag
+   * block, the audit trail, and FCRA adverse-action. Nothing is bypassed. A failure
+   * on one application is captured in its result and does NOT abort the batch.
+   * Sequential by design (ordered audit, no DB burst). Flag-gated at the route.
+   */
+  async bulkReview(
+    tier: 1 | 2 | 3,
+    input: {
+      applicationIds: string[];
+      decision: ApprovalDecision;
+      notes: string;
+      reviewerId: string;
+      reviewerRole: string;
+    }
+  ): Promise<{
+    tier: number;
+    decision: ApprovalDecision;
+    total: number;
+    succeeded: number;
+    failed: number;
+    results: Array<{
+      applicationId: string;
+      ok: boolean;
+      status?: string;
+      requiresTier2?: boolean;
+      requiresTier3?: boolean;
+      error?: string;
+    }>;
+  }> {
+    const review =
+      tier === 1
+        ? this.tier1Review.bind(this)
+        : tier === 2
+          ? this.tier2Review.bind(this)
+          : this.tier3Review.bind(this);
+
+    const results: Array<{
+      applicationId: string;
+      ok: boolean;
+      status?: string;
+      requiresTier2?: boolean;
+      requiresTier3?: boolean;
+      error?: string;
+    }> = [];
+
+    for (const applicationId of input.applicationIds) {
+      try {
+        const r = await review({
+          applicationId,
+          decision: input.decision,
+          notes: input.notes,
+          reviewerId: input.reviewerId,
+          reviewerRole: input.reviewerRole,
+        });
+        results.push({
+          applicationId,
+          ok: true,
+          status: r.status,
+          requiresTier2: r.requiresTier2,
+          requiresTier3: r.requiresTier3,
+        });
+      } catch (err) {
+        results.push({ applicationId, ok: false, error: (err as Error).message });
+      }
+    }
+
+    const succeeded = results.filter((r) => r.ok).length;
+    const failed = results.length - succeeded;
+
+    // Audit the bulk operation itself (each app review also wrote its own entry).
+    await writeAuditLog({
+      action: `bulk_tier${tier}_review`,
+      actorId: input.reviewerId,
+      actorRole: input.reviewerRole,
+      details: {
+        tier,
+        decision: input.decision,
+        total: input.applicationIds.length,
+        succeeded,
+        failed,
+        applicationIds: input.applicationIds,
+      },
+    });
+
+    logger.info("Bulk approval review completed", {
+      tier,
+      decision: input.decision,
+      total: input.applicationIds.length,
+      succeeded,
+      failed,
+    });
+
+    return {
+      tier,
+      decision: input.decision,
+      total: input.applicationIds.length,
+      succeeded,
+      failed,
+      results,
+    };
+  }
+
+  /**
    * Get the current approval status and next required action.
    */
   async getApprovalStatus(applicationId: string): Promise<any> {
