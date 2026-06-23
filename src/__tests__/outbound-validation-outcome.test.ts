@@ -35,6 +35,7 @@ import {
   handleOutboundPostCall,
 } from "../modules/outbound-validation/outcome";
 import { sendMagicLinkSms } from "../modules/auth/magic-link-service";
+import { recordCallOutcome } from "../modules/outbound-validation/sage-client";
 import type { PostCallPayload } from "../modules/voice-intake/service";
 
 const flush = () => new Promise((r) => setTimeout(r, 10));
@@ -206,15 +207,16 @@ describe("handleOutboundPostCall — outbound app-link gate", () => {
     else process.env.FRANK_OUTBOUND_APP_LINK_ENABLED = savedFlag;
   });
 
-  // findLocalCall SELECT → one dialed row; UPDATE; then (if the gate opens)
-  // findOrCreateUserByPhone SELECT returns an existing user (so no INSERT path).
+  // findLocalCall SELECT → one dialed row; atomic-claim UPDATE → wins (RETURNING
+  // one id); then (if the gate opens) findOrCreateUserByPhone SELECT returns an
+  // existing user (so no INSERT path).
   function primeQueries(testCall: boolean) {
     mockQuery.mockReset();
     mockQuery
       .mockResolvedValueOnce({
         rows: [{ id: "call-1", applicant_id: "appl-1", status: "dialed", test_call: testCall }],
       })
-      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "call-1" }] }) // atomic claim wins
       .mockResolvedValueOnce({ rows: [{ id: "u1" }] });
   }
 
@@ -250,5 +252,145 @@ describe("handleOutboundPostCall — outbound app-link gate", () => {
     await handleOutboundPostCall(buildPayload({ data: { still_interested: field("false") } }));
     await flush();
     expect(sendMagicLinkSms).not.toHaveBeenCalled();
+  });
+
+  // ── Sage-write gate: a test call must NEVER disposition the claimed applicant ──
+  it("writes the outcome to Sage on a real call", async () => {
+    primeQueries(false);
+    await handleOutboundPostCall(confirmed());
+    await flush();
+    expect(recordCallOutcome).toHaveBeenCalledTimes(1);
+    expect(recordCallOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({ applicantId: "appl-1", outcome: "confirmed" })
+    );
+  });
+
+  it("does NOT write to Sage on a test call, but still completes the local row", async () => {
+    primeQueries(true);
+    await handleOutboundPostCall(confirmed());
+    await flush();
+    // the critical guard: a test call dialed a test number, so the claimed real
+    // applicant must not be dispositioned by it.
+    expect(recordCallOutcome).not.toHaveBeenCalled();
+    // the local outbound_validation_calls row is still marked completed.
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE outbound_validation_calls"),
+      expect.arrayContaining(["call-1"])
+    );
+  });
+});
+
+// ── FIX 2: webhook idempotency + Sage-failure consistency ────────────────────
+// ElevenLabs delivers post-call events at-least-once. The flip to 'completed' is
+// an atomic compare-and-swap (UPDATE ... WHERE status='dialed' RETURNING id):
+// only the winner records on Sage, so duplicate deliveries can't double-increment
+// call_attempts. If the Sage write throws, the local row is reverted to 'dialed'
+// and the error rethrown so the webhook DLQ re-delivers the whole event.
+describe("handleOutboundPostCall — idempotency + Sage-failure consistency", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.FRANK_OUTBOUND_APP_LINK_ENABLED;
+    (recordCallOutcome as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  const confirmed = () => buildPayload({ data: { still_interested: field(true) } });
+
+  it("fast-path: a row already 'completed' is a no-op (no claim, no Sage write)", async () => {
+    mockQuery.mockReset();
+    // findLocalCall returns a row already completed → early return before any claim.
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: "call-1", applicant_id: "appl-1", status: "completed", test_call: false }],
+    });
+
+    await handleOutboundPostCall(confirmed());
+    await flush();
+
+    expect(recordCallOutcome).not.toHaveBeenCalled();
+    // Only the findLocalCall SELECT ran — no UPDATE was attempted.
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it("duplicate delivery whose atomic claim loses the race is a no-op (Sage recorded at most once)", async () => {
+    mockQuery.mockReset();
+    // findLocalCall still sees 'dialed' (read before the racing webhook committed),
+    // but the atomic-claim UPDATE matches 0 rows → another delivery already won.
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: "call-1", applicant_id: "appl-1", status: "dialed", test_call: false }],
+      })
+      .mockResolvedValueOnce({ rows: [] }); // claim lost: 0 rows returned
+
+    await handleOutboundPostCall(confirmed());
+    await flush();
+
+    // The losing webhook must NOT record on Sage — that would double-increment.
+    expect(recordCallOutcome).not.toHaveBeenCalled();
+    // It attempted exactly the SELECT + the claim UPDATE, then returned.
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    const claimSql = (mockQuery.mock.calls[1] as [string, unknown[]])[0];
+    expect(claimSql).toContain("status = 'dialed'");
+    expect(claimSql).toContain("RETURNING id");
+  });
+
+  it("winner records on Sage exactly once and completes the row", async () => {
+    mockQuery.mockReset();
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: "call-1", applicant_id: "appl-1", status: "dialed", test_call: false }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: "call-1" }] }); // claim wins
+
+    await handleOutboundPostCall(confirmed());
+    await flush();
+
+    expect(recordCallOutcome).toHaveBeenCalledTimes(1);
+    expect(recordCallOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({ applicantId: "appl-1", outcome: "confirmed" })
+    );
+  });
+
+  it("a Sage write that throws reverts the row to 'dialed' and rethrows (DLQ retries)", async () => {
+    mockQuery.mockReset();
+    const revertUpdates: Array<[string, unknown[]]> = [];
+    mockQuery.mockImplementation((sql: string, params: unknown[]) => {
+      if (sql.includes("SELECT") && sql.includes("FROM outbound_validation_calls")) {
+        return Promise.resolve({
+          rows: [{ id: "call-1", applicant_id: "appl-1", status: "dialed", test_call: false }],
+        });
+      }
+      if (sql.includes("UPDATE") && sql.includes("'completed'")) {
+        return Promise.resolve({ rows: [{ id: "call-1" }] }); // claim wins
+      }
+      if (sql.includes("UPDATE") && sql.includes("'dialed'") && sql.includes("outcome = NULL")) {
+        revertUpdates.push([sql, params as unknown[]]);
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+    (recordCallOutcome as jest.Mock).mockRejectedValueOnce(new Error("sage 500"));
+
+    await expect(handleOutboundPostCall(confirmed())).rejects.toThrow("sage 500");
+
+    // The claim was reverted: row back to 'dialed', outcome/completed_at cleared.
+    expect(revertUpdates).toHaveLength(1);
+    expect(revertUpdates[0][0]).toContain("SET status = 'dialed'");
+    expect(revertUpdates[0][0]).toContain("outcome = NULL");
+    expect(revertUpdates[0][0]).toContain("completed_at = NULL");
+    expect(revertUpdates[0][1]).toEqual(["call-1"]);
+  });
+
+  it("a test call never writes to Sage, so a Sage failure can't even occur (no revert, no throw)", async () => {
+    mockQuery.mockReset();
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: "call-1", applicant_id: "appl-1", status: "dialed", test_call: true }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: "call-1" }] }); // claim wins
+    // Even if Sage WOULD throw, the guard skips it for test calls.
+    (recordCallOutcome as jest.Mock).mockRejectedValue(new Error("should never be called"));
+
+    await expect(handleOutboundPostCall(confirmed())).resolves.toBeUndefined();
+    await flush();
+    expect(recordCallOutcome).not.toHaveBeenCalled();
   });
 });
