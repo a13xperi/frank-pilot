@@ -73,6 +73,7 @@ import { cockpitMetricsRoutes } from "./modules/cockpit-metrics";
 // Registered alongside the other in-call server-tool handlers below.
 import { registerValidationPinHandlers } from "./modules/outbound-validation/validation-tools";
 import { registerCallerHistoryHandler } from "./modules/caller-history/service";
+import { registerStartVerificationHandler } from "./modules/voice-intake/start-verification";
 import { frankContactRoutes } from "./modules/frank-contact";
 import { smsIntakeRoutes } from "./modules/sms-intake";
 import { cobrowseRoutes, registerCobrowseHandlers } from "./modules/cobrowse";
@@ -398,6 +399,8 @@ registerCallerHistoryHandler();
 // Funnel voice tools (prequalify + present_options) — same dark-by-flag path;
 // the tool-callback router still 503s until VOICE_TOOLS_ENABLED flips on.
 registerFunnelToolHandlers();
+// Phase B paid-conversion tool (start_verification — $35.95 fee → screening).
+registerStartVerificationHandler();
 
 // Phase 2 voice verification + caller history (send_verification,
 // get_caller_history). Flag-gated: only register when VOICE_VERIFICATION_ENABLED

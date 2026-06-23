@@ -13,6 +13,8 @@ import { getEmailService } from "../integrations/email";
 import { IdentityVerificationService } from "../screening/identity-verification";
 import type { IdentityVerificationResult } from "../screening/identity-verification";
 import { transitionApplicationStatus } from "../screening/state-machine";
+import { hasValidAuthorization } from "../screening/consumer-report-consent";
+import { ScreeningService } from "../screening/service";
 
 /**
  * Stripe webhook receiver.
@@ -601,11 +603,108 @@ async function handleIdentityVerificationSession(event: Stripe.Event): Promise<v
   }
 }
 
+/**
+ * Phase B: a paid application fee landed. Distinct from the rent/deposit path
+ * (handlePaymentIntentSucceeded) — these PaymentIntents carry
+ * `metadata.type = "application_fee"` and have no attemptN. Post the fee to the
+ * ledger, then — gated on a recorded FCRA authorization — fire the full
+ * screening pipeline. The two-key gate (fee PAID + consent ON FILE) lives here:
+ * no consent → no background/credit pull, the application just waits.
+ */
+async function handleApplicationFeeSucceeded(event: Stripe.Event): Promise<void> {
+  const intent = event.data.object as Stripe.PaymentIntent;
+  const md = (intent.metadata ?? {}) as Record<string, string>;
+  const applicationId = md.applicationId;
+  if (!applicationId) {
+    logger.warn("application_fee succeeded missing applicationId", { intentId: intent.id });
+    return;
+  }
+
+  const amountCents = intent.amount_received ?? intent.amount ?? 0;
+  const amountDollars = Math.round(amountCents) / 100;
+
+  const ledgerEntry = await ledgerService.recordPayment(
+    applicationId,
+    amountDollars,
+    intent.id,
+    null,
+    null,
+    `Application fee — Stripe PaymentIntent ${intent.id}`
+  );
+
+  // FCRA + fee gate: only run screening when consent is on file. The actor is
+  // the applicant who submitted; screening needs a real actor id.
+  const consented = await hasValidAuthorization(applicationId);
+  const actorRes = await query(
+    `SELECT submitted_by FROM applications WHERE id = $1`,
+    [applicationId]
+  );
+  const submittedBy = (actorRes.rows[0]?.submitted_by as string) ?? md.actorId ?? "";
+
+  let screeningFired = false;
+  if (consented && submittedBy) {
+    screeningFired = true;
+    // Fire-and-forget: a slow/failed pull must not 500 the webhook (Stripe would
+    // retry and double-post the ledger).
+    void (async () => {
+      try {
+        await new ScreeningService().runFullScreening(applicationId, submittedBy, "applicant");
+      } catch (err) {
+        logger.error("post-fee screening failed", {
+          applicationId,
+          paymentIntentId: intent.id,
+          error: (err as Error).message,
+        });
+      }
+    })();
+  } else {
+    logger.warn("application_fee paid but screening held", {
+      applicationId,
+      paymentIntentId: intent.id,
+      consented,
+      hasActor: Boolean(submittedBy),
+    });
+  }
+
+  void stampTape({
+    kind: "BP08_PAYMENT_SUCCEEDED",
+    actor: "stripe-webhook",
+    sessionId: intent.id,
+    payload: {
+      feeType: "application_fee",
+      applicationId,
+      paymentIntentId: intent.id,
+      amountCents,
+      ledgerEntryId: ledgerEntry.id,
+      screeningFired,
+    },
+  });
+
+  await writeAuditLog({
+    action: "application_fee_succeeded",
+    applicationId,
+    resourceType: "payment_intent",
+    details: {
+      actor: "stripe-webhook",
+      amountCents,
+      paymentIntentId: intent.id,
+      ledgerEntryId: ledgerEntry.id,
+      screeningFired,
+    },
+  });
+}
+
 async function dispatch(event: Stripe.Event): Promise<void> {
   switch (event.type) {
-    case "payment_intent.succeeded":
-      await handlePaymentIntentSucceeded(event);
+    case "payment_intent.succeeded": {
+      const md = ((event.data.object as Stripe.PaymentIntent).metadata ?? {}) as Record<string, string>;
+      if (md.type === "application_fee") {
+        await handleApplicationFeeSucceeded(event);
+      } else {
+        await handlePaymentIntentSucceeded(event);
+      }
       return;
+    }
     case "payment_intent.payment_failed":
       await handlePaymentIntentFailed(event);
       return;
