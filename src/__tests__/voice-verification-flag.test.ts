@@ -121,7 +121,47 @@ function loadAppWithFlag(flag: string | undefined): Express {
   }));
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  return require("../index").default as Express;
+  const app = require("../index").default as Express;
+
+  // ── Test-isolation guard for the shared singleton dispatch table ──────────
+  // The VV handlers (send_verification, get_caller_history) register into a
+  // MODULE-LEVEL singleton Map in voice-intake/tool-callbacks.ts. Unlike the
+  // compliance-tape gate (which mounts ROUTES — torn down with the module),
+  // that Map is shared, mutable state. jest.resetModules() normally gives a
+  // fresh, empty Map per load — but under CI worker memory/heap pressure it can
+  // FAIL to evict the cached module graph, so require("../index") rebinds to a
+  // STALE instance whose Map still carries handlers registered by a prior
+  // flag="true" load (this file's #3/#4) or a neighbor (voice-verification-
+  // handlers.test.ts). That stale registry makes the flag="false"/unset load
+  // dispatch a real get_caller_history result instead of the expected
+  // "Tool not yet implemented" unknown-tool branch — the #332 CI flake.
+  //
+  // Reconcile the VV handlers to a pure function of the flag against the SAME
+  // module instances the loaded app bound to (require here returns index's
+  // bound copies from the current registry, stale or fresh). We surgically
+  // unregister the two VV handlers when the flag is not "true" so the dispatch
+  // table matches a correct fresh flag-off load (the unconditional Phase-B
+  // handlers index always registers are left intact); when it is "true" we
+  // (idempotently) ensure they are present. Mirrors the
+  // clearToolHandlersForTests()/__resetRegistrationForTests() reset that
+  // voice-verification-handlers.test.ts already relies on.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const toolCallbacks = require("../modules/voice-intake/tool-callbacks");
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const toolHandlers = require("../modules/voice-verification/tool-handlers");
+  if (process.env.VOICE_VERIFICATION_ENABLED === "true") {
+    // Reset the one-time registration guard then register, so a stale module
+    // whose guard is already tripped (but whose Map was cleared) still ends up
+    // with both handlers present.
+    toolHandlers.__resetRegistrationForTests();
+    toolHandlers.registerVoiceVerificationHandlers();
+  } else {
+    toolCallbacks.unregisterToolHandler("send_verification");
+    toolCallbacks.unregisterToolHandler("get_caller_history");
+    toolHandlers.__resetRegistrationForTests();
+  }
+
+  return app;
 }
 
 function signedBody(payload: Record<string, unknown>): { body: string; header: string } {
