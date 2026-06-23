@@ -1,7 +1,9 @@
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
+import { stampTape } from "../tape";
 import { pickField, type PostCallPayload } from "../voice-intake/service";
-import { recordCallOutcome, type GpmOutcome } from "./sage-client";
+import { recordCallOutcome, getApplicantPhone, type GpmOutcome } from "./sage-client";
+import { createMagicLinkByUserId, sendMagicLinkSms } from "../auth/magic-link-service";
 
 /**
  * Post-call webhook -> Sage outcome mapping for outbound validation calls.
@@ -134,6 +136,85 @@ async function findLocalCall(payload: PostCallPayload): Promise<LocalCallRow | n
   return null;
 }
 
+/**
+ * Find an active applicant/tenant by phone, else create one with an internal
+ * synthetic email (email is never a user-facing touch on the outbound golden path
+ * — SMS is). Best-effort: returns a user id or null, never throws into the webhook.
+ */
+async function findOrCreateUserByPhone(
+  phoneE164: string,
+  conversationId: string
+): Promise<string | null> {
+  try {
+    const existing = await query(
+      `SELECT id FROM users
+        WHERE phone = $1 AND role IN ('applicant', 'tenant') AND is_active = TRUE
+        ORDER BY created_at DESC LIMIT 1`,
+      [phoneE164]
+    );
+    if (existing.rows[0]?.id) return existing.rows[0].id as string;
+
+    const digits = phoneE164.replace(/[^0-9]/g, "");
+    const email = `voice+${digits}@voice-handoff.invalid`; // RFC 2606 .invalid — never receives mail
+    const inserted = await query(
+      `INSERT INTO users (email, first_name, last_name, phone, role, is_active, password_hash)
+       VALUES ($1, 'Voice', 'Caller', $2, 'applicant', TRUE, '')
+       ON CONFLICT (email) DO UPDATE SET phone = EXCLUDED.phone
+       RETURNING id`,
+      [email, phoneE164]
+    );
+    return (inserted.rows[0]?.id as string) ?? null;
+  } catch (err) {
+    logger.error("Outbound app-link: user create failed", {
+      conversationId,
+      error: (err as Error).message,
+    });
+    return null;
+  }
+}
+
+/**
+ * The send_app_link text handoff: text a magic link so a CONFIRMED outbound call
+ * launches the same call→text→walkthrough chain as inbound. The phone is fetched
+ * fresh from Sage (source of truth) by applicant id — we never persist the full
+ * number on the local call row (it stores only last-4). Best-effort end to end;
+ * a text failure must never affect the already-recorded call outcome.
+ */
+async function sendOutboundAppLink(applicantId: string, conversationId: string): Promise<void> {
+  try {
+    const phone = await getApplicantPhone(applicantId);
+    if (!phone) {
+      logger.warn("Outbound app-link: no phone on the Sage applicant", { conversationId, applicantId });
+      return;
+    }
+    const userId = await findOrCreateUserByPhone(phone, conversationId);
+    if (!userId) return;
+    const magic = await createMagicLinkByUserId(userId);
+    if (!magic) {
+      logger.warn("Outbound app-link: could not mint magic link", { conversationId, userId });
+      return;
+    }
+    // &intake=<conversation_id> self-links the eventual web draft to this call.
+    const link = magic.link.includes("intake=")
+      ? magic.link
+      : `${magic.link}&intake=${encodeURIComponent(conversationId)}`;
+    sendMagicLinkSms(userId, link);
+    void stampTape({
+      kind: "VOICE_TOOL_INVOKED",
+      actor: "outbound-validation",
+      sessionId: conversationId,
+      payload: { tool: "send_app_link", phase: "outbound_post_call", applicantId, userId },
+    });
+    logger.info("Outbound app-link sent", { conversationId, userId });
+  } catch (err) {
+    logger.error("Outbound app-link failed", {
+      conversationId,
+      applicantId,
+      error: (err as Error).message,
+    });
+  }
+}
+
 export async function handleOutboundPostCall(payload: PostCallPayload): Promise<void> {
   const local = await findLocalCall(payload);
   if (!local) {
@@ -174,4 +255,15 @@ export async function handleOutboundPostCall(payload: PostCallPayload): Promise<
     stillInterested: mapped.stillInterested,
     testCall: local.test_call,
   });
+
+  // Golden-path: a CONFIRMED outbound call launches the same text→link→walkthrough
+  // chain as inbound. Dark by default; never fires on test calls (those dial a test
+  // number, not the applicant). Best-effort — a text failure can't affect the call.
+  if (
+    process.env.FRANK_OUTBOUND_APP_LINK_ENABLED === "true" &&
+    mapped.outcome === "confirmed" &&
+    !local.test_call
+  ) {
+    void sendOutboundAppLink(local.applicant_id, payload.conversation_id);
+  }
 }

@@ -68,6 +68,13 @@ export const TAPE_STAMP_KINDS = {
   CARE_LINE_ESCALATED: "care_line.escalated",
   // Permanent opt-out (TCPA DNC). Must feed a do-not-call store before any dial.
   CARE_LINE_OPTOUT: "care_line.optout",
+  // Concierge co-browse (Phase 2): consent + session lifecycle audit anchors.
+  COBROWSE_CONSENT_CAPTURED: "cobrowse.consent_captured",
+  COBROWSE_SESSION_STARTED: "cobrowse.session_started",
+  COBROWSE_FIELD_FILLED: "cobrowse.field_filled",
+  COBROWSE_CONFIRMED: "cobrowse.confirmed",
+  COBROWSE_DENIED: "cobrowse.denied",
+  COBROWSE_HANDED_OFF: "cobrowse.handed_off",
 } as const;
 
 export type TapeStampKind = keyof typeof TAPE_STAMP_KINDS;
@@ -100,6 +107,12 @@ export const TAPE_CITATIONS: Record<TapeStampKind, string> = {
   CARE_LINE_CALL_CAPTURED: "TCPA 47 CFR §64.1200 / Fair Housing 24 CFR Part 100 / NRS 200.620",
   CARE_LINE_ESCALATED: "Anti-retaliation 24 CFR §100.400 / 988 Suicide & Crisis Lifeline",
   CARE_LINE_OPTOUT: "TCPA 47 CFR §64.1200(d) — permanent opt-out / DNC",
+  COBROWSE_CONSENT_CAPTURED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_SESSION_STARTED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_FIELD_FILLED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_CONFIRMED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_DENIED: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
+  COBROWSE_HANDED_OFF: "HUD 4350.3 Ch. 4-6 / NRS 200.620 / TCPA 47 CFR §64.1200",
 };
 
 export interface TapeStampInput {
