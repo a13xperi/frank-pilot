@@ -79,6 +79,17 @@ export function clearToolHandlersForTests(): void {
   handlers.clear();
 }
 
+/**
+ * Test-only: remove a single handler by name. Used by the flag-gate tests to
+ * reconcile the shared singleton dispatch table to the flag state when
+ * jest.resetModules() fails to evict a stale module graph under CI memory
+ * pressure (see src/__tests__/voice-verification-flag.test.ts). Production
+ * never unregisters — handlers are registered once at boot.
+ */
+export function unregisterToolHandler(name: string): void {
+  handlers.delete(name);
+}
+
 export function getRegisteredToolNames(): string[] {
   return Array.from(handlers.keys());
 }

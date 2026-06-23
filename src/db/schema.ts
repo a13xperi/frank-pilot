@@ -350,6 +350,27 @@ CREATE TABLE IF NOT EXISTS magic_link_tokens (
 CREATE INDEX IF NOT EXISTS idx_magic_link_tokens_hash ON magic_link_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_magic_link_tokens_user ON magic_link_tokens(user_id);
 
+-- Voice verification codes (Phase 2 in-call tools — flag VOICE_VERIFICATION_ENABLED).
+-- One row per send_verification call: a SHA-256-hashed short numeric code keyed on
+-- the ElevenLabs conversation_id, with a ~10 min TTL + attempts counter. Mirrors
+-- 2026-06-22-voice-verification.sql. Code is never stored in the clear.
+CREATE TABLE IF NOT EXISTS voice_verification_codes (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id TEXT NOT NULL,
+  code_hash       TEXT NOT NULL,
+  phone           TEXT,
+  applicant_id    UUID,
+  expires_at      TIMESTAMPTZ NOT NULL,
+  used_at         TIMESTAMPTZ,
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  verified_at     TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_voice_verification_codes_conversation
+  ON voice_verification_codes (conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_voice_verification_codes_expires
+  ON voice_verification_codes (expires_at);
+
 -- Properties
 CREATE TABLE IF NOT EXISTS properties (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
