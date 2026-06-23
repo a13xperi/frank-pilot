@@ -1,0 +1,203 @@
+import { query } from "../../config/database";
+import { logger } from "../../utils/logger";
+import { getStripe, isStripeConfigured } from "../../lib/stripe";
+import {
+  recordAuthorization,
+  FCRA_DISCLOSURE_VERSION,
+} from "../screening/consumer-report-consent";
+import {
+  registerToolHandler,
+  type ToolCallbackContext,
+  type ToolCallbackResult,
+} from "./tool-callbacks";
+
+/**
+ * Phase B voice tool: `start_verification` — the paid-conversion keystone.
+ *
+ * Once a caller has seen what they qualify for (prequalify) and the real units
+ * open to them (present_options) and says they're ready to move forward, Frank
+ * fires this. It:
+ *   1. records the caller's FCRA consent (verbal, on a recorded line, after
+ *      Frank read the background/credit disclosure) — only when
+ *      `consent_acknowledged` is true,
+ *   2. opens a Stripe Checkout Session for the $35.95 application fee, stamping
+ *      the PaymentIntent with `type=application_fee` + the applicationId so the
+ *      webhook can route it,
+ *   3. hands back a hosted payment URL Frank can text / the portal can open.
+ *
+ * On payment success, the Stripe webhook (handleApplicationFeeSucceeded) posts
+ * the fee to the ledger and — gated on a recorded FCRA authorization — fires the
+ * full screening pipeline. So the gate is two-key: fee PAID *and* consent ON
+ * FILE before any background/credit pull.
+ *
+ * SOFT-FAIL discipline (matches the other voice tools): every "no" path returns
+ * { ok:false, message } with a spoken line; we never throw at the agent.
+ *
+ * Returns ToolCallbackResult:
+ *   { ok:true, result:{ checkout_url, payment_intent_id, amount:"$35.95" }, message }
+ *   { ok:false, message }   // missing app, no consent, Stripe down
+ */
+
+const APPLICATION_FEE_CENTS = 3595; // $35.95
+
+export async function startVerificationHandler(
+  parameters: Record<string, unknown>,
+  context: ToolCallbackContext
+): Promise<ToolCallbackResult> {
+  const applicationId = pickString(parameters, "application_id");
+  const consentAcknowledged = pickBool(parameters, "consent_acknowledged");
+
+  if (!applicationId) {
+    logger.warn("start_verification missing application_id", {
+      conversationId: context.conversationId,
+    });
+    return {
+      ok: false,
+      message:
+        "I need to have your application started before I can take the fee. Let me get a few details first.",
+    };
+  }
+
+  if (!isStripeConfigured()) {
+    logger.error("start_verification Stripe not configured", {
+      conversationId: context.conversationId,
+    });
+    return {
+      ok: false,
+      message:
+        "I can't take the payment right now, but I've got your information. Someone will follow up with the secure link shortly.",
+    };
+  }
+
+  // The application must exist; pull the applicant (submitted_by) so the
+  // post-payment screening runs under the right actor.
+  const appRes = await query(
+    `SELECT id, submitted_by, status FROM applications WHERE id = $1`,
+    [applicationId]
+  );
+  if (appRes.rows.length === 0) {
+    logger.warn("start_verification unknown application", {
+      conversationId: context.conversationId,
+    });
+    return {
+      ok: false,
+      message:
+        "I couldn't find your application on file yet. Let me finish getting your details first.",
+    };
+  }
+  const submittedBy = (appRes.rows[0].submitted_by as string) ?? "";
+
+  // FCRA gate: only record consent when Frank confirms the caller agreed after
+  // hearing the disclosure. Without it the webhook will NOT run screening.
+  if (consentAcknowledged) {
+    try {
+      await recordAuthorization({
+        applicationId,
+        applicantId: submittedBy || null,
+        applicantRole: "applicant",
+        disclosureVersion: FCRA_DISCLOSURE_VERSION,
+        method: "voice_verbal",
+      });
+    } catch (err) {
+      logger.error("start_verification consent record failed", {
+        conversationId: context.conversationId,
+        error: (err as Error).message,
+      });
+    }
+  } else {
+    logger.info("start_verification without consent ack — screening will hold", {
+      conversationId: context.conversationId,
+    });
+  }
+
+  const portal = process.env.TENANT_PORTAL_URL ?? "https://apply.cdpcnv.org";
+  try {
+    const stripe = getStripe();
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "usd",
+              unit_amount: APPLICATION_FEE_CENTS,
+              product_data: {
+                name: "Rental application fee",
+                description:
+                  "Non-refundable. Covers identity, credit, and background verification.",
+              },
+            },
+          },
+        ],
+        payment_intent_data: {
+          metadata: {
+            type: "application_fee",
+            applicationId,
+            actorId: submittedBy,
+            conversationId: context.conversationId,
+          },
+        },
+        metadata: { type: "application_fee", applicationId },
+        success_url: `${portal}/apply/fee-paid?app=${applicationId}`,
+        cancel_url: `${portal}/apply/fee?app=${applicationId}`,
+      },
+      { idempotencyKey: `appfee:${applicationId}` }
+    );
+
+    logger.info("start_verification checkout created", {
+      conversationId: context.conversationId,
+      sessionId: session.id,
+      consent: consentAcknowledged,
+    });
+
+    return {
+      ok: true,
+      result: {
+        checkout_url: session.url,
+        payment_intent_id:
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : null,
+        amount: "$35.95",
+      },
+      message:
+        "Perfect. The fee to verify everything is thirty-five ninety-five, and once it's paid I run your identity, credit, and background — usually back within a few hours. I'm sending a secure payment link to your phone now.",
+    };
+  } catch (err) {
+    logger.error("start_verification checkout failed", {
+      conversationId: context.conversationId,
+      error: (err as Error).message,
+    });
+    return {
+      ok: false,
+      message:
+        "Sorry, I hit a snag setting up the payment. Let me try that again in a moment.",
+    };
+  }
+}
+
+function pickString(parameters: Record<string, unknown>, key: string): string | null {
+  const value = parameters[key];
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function pickBool(parameters: Record<string, unknown>, key: string): boolean {
+  const v = parameters[key];
+  if (typeof v === "boolean") return v;
+  if (typeof v === "string") return v.trim().toLowerCase() === "true";
+  return false;
+}
+
+let registered = false;
+export function registerStartVerificationHandler(): void {
+  if (registered) return;
+  registerToolHandler("start_verification", startVerificationHandler);
+  registered = true;
+}
+
+export function __resetRegistrationForTests(): void {
+  registered = false;
+}
