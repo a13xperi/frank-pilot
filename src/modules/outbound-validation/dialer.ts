@@ -7,6 +7,7 @@ import {
   resetClaim,
   type SageApplicant,
 } from "./sage-client";
+import { campaignFor } from "./campaigns";
 
 /**
  * Outbound waitlist-validation dialer (DM-FRANK-029).
@@ -67,6 +68,16 @@ function paceMinutes(): number {
   return Number.isFinite(n) && n >= 0 ? n : 5;
 }
 
+/**
+ * Optional building scope for a campaign run. Unset/empty = all buildings (the
+ * historical global behavior). Set to a property code (e.g. "donna-louise-2") to
+ * dial ONLY that building's waitlist — this is how DL2 runs as an isolated batch.
+ */
+function targetProperty(): string | null {
+  const p = flag("FRANK_OUTBOUND_PROPERTY").trim();
+  return p || null;
+}
+
 /** Hour-of-day in America/Los_Angeles (handles DST via Intl, no deps). */
 export function pacificHour(now: Date = new Date()): number {
   const hour = new Intl.DateTimeFormat("en-US", {
@@ -95,6 +106,7 @@ export function buildDynamicVariables(a: SageApplicant): Record<string, string> 
     .join(" and ");
   const aptLabel = (t: string) =>
     t === "studio" ? "studio" : t.replace(/^(\d)br$/, "$1 bedroom");
+  const campaign = campaignFor(a.properties);
   return {
     applicant_id: a.id,
     applicant_name: a.full_name,
@@ -104,6 +116,10 @@ export function buildDynamicVariables(a: SageApplicant): Record<string, string> 
       ? "as soon as possible"
       : a.date_needed ?? "no specific date",
     shared_with: a.phone_shared_with ?? "",
+    // Per-building campaign framing (see campaigns.ts). DL2 = "brand new";
+    // existing buildings = "a unit opened". The script reads {{availability_note}}.
+    availability_note: campaign.availabilityNote,
+    unit_types_available: campaign.unitTypesAvailable ?? "",
   };
 }
 
@@ -239,7 +255,7 @@ export async function runDialerTick(
     return { action: "paced", detail: `${sinceLast.toFixed(1)}m since last dial` };
   }
 
-  const applicant = await claimNextCall("frank");
+  const applicant = await claimNextCall("frank", targetProperty());
   if (!applicant) return { action: "queue_empty" };
 
   const vars = buildDynamicVariables(applicant);

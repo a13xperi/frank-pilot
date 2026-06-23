@@ -92,12 +92,22 @@ async function sageFetch(
   return res;
 }
 
-/** Atomically claim the next applicant in fair order. Null when queue is empty. */
-export async function claimNextCall(agent = "frank"): Promise<SageApplicant | null> {
-  const res = await sageFetch("rpc/gpm_claim_next_call", {
-    method: "POST",
-    body: { p_agent: agent },
-  });
+/**
+ * Atomically claim the next applicant in fair order. Null when queue is empty.
+ *
+ * `property` optionally scopes the claim to one building's waitlist (e.g.
+ * "donna-louise-2"), so a campaign can run a single building as an isolated
+ * batch. `p_property` is only sent when scoping — a global (null) claim uses the
+ * original RPC signature, so it works whether or not the scoped-claim migration
+ * has been applied (zero-regression / decoupled deploy).
+ */
+export async function claimNextCall(
+  agent = "frank",
+  property?: string | null
+): Promise<SageApplicant | null> {
+  const body: Record<string, unknown> = { p_agent: agent };
+  if (property) body.p_property = property;
+  const res = await sageFetch("rpc/gpm_claim_next_call", { method: "POST", body });
   const rows = (await res.json()) as SageApplicant[];
   return rows[0] ?? null;
 }
