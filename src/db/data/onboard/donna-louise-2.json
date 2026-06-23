@@ -1,10 +1,13 @@
 {
-  "_status": "STAGED - PENDING GPM: rent_schedule (per-AMI-tier rents) + ami_set_aside, and the Frank-owned email. Everything else confirmed 2026-06-22 (Frank/Alex). onboard-property.ts ABORTS while this _status is set; clear it only after the AMI/rents land.",
-  "_pending": [
-    "rent_schedule + ami_set_aside: GPM to provide the % AMI tiers (30/50/60) across the 48 units and the net rent per bedroom per tier (asked Craig 2026-06-22). When they land: fill rent_schedule (e.g. 1BR_60AMI, 2BR_60AMI, ...) + ami_set_aside, then clear _status and run onboard-building.sh donna-louise-2 --apply.",
-    "email: a Frank-owned leasing inbox (part of the email-response feature); the 725 phone is the launch contact, email stays null until the inbox exists."
-  ],
-  "_confirmed_2026-06-22": "address 6275 Donna St (Assessor APN 124-26-103-002), 48 units, unit_mix 30x1BR + 18x2BR (6 ADA) per architect sheet A16.00, contact = Frank 725 line (not the leasing line), geocoords set.",
+  "_confirmed_2026-06-22": "address 6275 Donna St (Assessor APN 124-26-103-002), 48 units, unit_mix 30x1BR + 18x2BR (6 ADA) per architect sheet A16.00, contact = Frank 725 line, geocoords set.",
+  "_ami_source": "rent_schedule + ami_set_aside from GPM (Craig), received 2026-06-23. lihtc_type (9% vs 4%) still pending from GPM; null does not block the onboard. The loader creates units by unit_mix; per-unit AMI-tier assignment (the 28/2/10/2/6 split below) is finer than this file models and is set in OneSite at lease-up.",
+  "_ami_breakdown": {
+    "1BR_45AMI": { "units": 28, "income_cap": 33255, "rent": 890 },
+    "1BR_40AMI": { "units": 2, "income_cap": 29560, "rent": 791 },
+    "2BR_45AMI": { "units": 10, "income_cap": 37980, "rent": 1068 },
+    "2BR_40AMI": { "units": 2, "income_cap": 33760, "rent": 950 },
+    "2BR_market": { "units": 6, "income_cap": null, "rent": 1634 }
+  },
   "name": "Donna Louise Apartments 2",
   "address_line1": "6275 Donna St",
   "city": "North Las Vegas",
@@ -18,12 +21,18 @@
   "email": null,
   "census_tract": "32003003652",
   "lihtc_type": null,
-  "ami_set_aside": null,
+  "ami_set_aside": "40%/45% AMI: 30 1BR + 12 2BR affordable; 6 2BR market-rate (GPM 2026-06-23)",
   "latitude": 36.2739742,
   "longitude": -115.1305018,
   "waiting_list_enabled": true,
   "total_vacancy": 0,
   "unit_status": "available",
   "unit_mix": { "1BR": 30, "2BR": 18 },
-  "rent_schedule": {}
+  "rent_schedule": {
+    "1BR_45AMI": 890,
+    "1BR_40AMI": 791,
+    "2BR_45AMI": 1068,
+    "2BR_40AMI": 950,
+    "2BR_market": 1634
+  }
 }
