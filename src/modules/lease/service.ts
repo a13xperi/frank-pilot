@@ -126,6 +126,103 @@ export class LeaseService {
   }
 
   /**
+   * List applications READY for lease generation: fully approved at their required
+   * tier AND income-verified (LIHTC §42). This is exactly the candidate set a bulk
+   * lease-gen would act on — read-only, so an operator can review before firing.
+   */
+  async listReadyForLease(): Promise<
+    Array<{
+      applicationId: string;
+      status: string;
+      tenantName: string;
+      propertyId: string | null;
+      unitNumber: string | null;
+      requestedRent: string | null;
+    }>
+  > {
+    const result = await query(
+      `SELECT id, status, first_name, last_name, property_id, unit_number, requested_rent_amount
+         FROM applications
+        WHERE status IN ('tier1_approved', 'tier2_approved', 'tier3_approved')
+          AND income_verified = true
+        ORDER BY tier1_decided_at ASC NULLS LAST`,
+      []
+    );
+    return result.rows.map((r: any) => ({
+      applicationId: r.id,
+      status: r.status,
+      tenantName: `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim(),
+      propertyId: r.property_id,
+      unitNumber: r.unit_number,
+      requestedRent: r.requested_rent_amount,
+    }));
+  }
+
+  /**
+   * Bulk lease generation: generate leases for many approved + income-verified
+   * applications in one operator-triggered call, to relieve the manual one-by-one
+   * bottleneck during a lease-up sprint.
+   *
+   * A LOOP over the verified single-app generateLease — every application still
+   * passes the approved-status gate AND the LIHTC §42 income-verification gate;
+   * nothing is bypassed. Idempotent: an already-generated application has moved
+   * past the approvable status, so it surfaces as a per-app error and is skipped,
+   * never double-generated. A failure on one application does not abort the batch.
+   * Sequential by design; flag-gated at the route.
+   */
+  async bulkGenerate(
+    applicationIds: string[],
+    actorId: string,
+    actorRole: string
+  ): Promise<{
+    total: number;
+    succeeded: number;
+    failed: number;
+    results: Array<{
+      applicationId: string;
+      ok: boolean;
+      leaseId?: string;
+      documentUrl?: string;
+      error?: string;
+    }>;
+  }> {
+    const results: Array<{
+      applicationId: string;
+      ok: boolean;
+      leaseId?: string;
+      documentUrl?: string;
+      error?: string;
+    }> = [];
+
+    for (const applicationId of applicationIds) {
+      try {
+        const r = await this.generateLease(applicationId, actorId, actorRole);
+        results.push({ applicationId, ok: true, leaseId: r.leaseId, documentUrl: r.documentUrl });
+      } catch (err) {
+        results.push({ applicationId, ok: false, error: (err as Error).message });
+      }
+    }
+
+    const succeeded = results.filter((r) => r.ok).length;
+    const failed = results.length - succeeded;
+
+    await writeAuditLog({
+      action: "bulk_lease_generated",
+      actorId,
+      actorRole,
+      details: { total: applicationIds.length, succeeded, failed, applicationIds },
+    });
+
+    logger.info("Bulk lease generation completed", {
+      total: applicationIds.length,
+      succeeded,
+      failed,
+    });
+
+    return { total: applicationIds.length, succeeded, failed, results };
+  }
+
+  /**
    * Complete tenant onboarding after lease is signed.
    * Creates tenant in Loft (payment platform), syncs to OneSite,
    * and transitions status: lease_generated → onboarded.
