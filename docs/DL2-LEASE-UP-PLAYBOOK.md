@@ -285,7 +285,7 @@ Status key: ✅ **live** (working in prod) · 🟡 **built, off** (code exists, 
 | Consumer / credit + background (Checkr, TransUnion) | 🟡 | `CONSUMER_REPORT_ENABLED` off |
 | Extended checks (eviction/criminal) | 🟡 | `SCREENING_EXTENDED_CHECKS_ENABLED` off |
 | Auto-run screening on submit | 🟡 | `SCREENING_ON_SUBMIT_ENABLED` off |
-| FCRA §1681b consent capture | ❓ | believed built (PR #255) — confirm before arming |
+| FCRA §1681b consent capture | ✅ enforced | `consumer_report_authorizations` (records disclosure text + SHA-256 hash + version `2026-06-01` + IP/UA); **hard precondition** at submit + fee-webhook — no consent, no pull (audited 2026-06-24). Overlay only surfaces when `CONSUMER_REPORT_ENABLED` is on. |
 | §42 income eligibility (income ≤ AMI ceiling) | ⚠️ | engine live; needs income docs + manual confirm |
 | Arming runbook | ✅ | `docs/runbooks/checkr-cra-arming.md` (arming itself ⬜) |
 
@@ -323,8 +323,15 @@ Status key: ✅ **live** (working in prod) · 🟡 **built, off** (code exists, 
 ## 13. Pending — ordered action list
 
 **To unlock a true full validation (capture → screen → approve → lease):**
-1. ⬜ **Arm screening** — confirm FCRA consent (§Gate 2), then flip `IDENTITY_VERIFICATION_ENABLED`, `CONSUMER_REPORT_ENABLED`, `SCREENING_ON_SUBMIT_ENABLED` (+ extended if used) per the arming runbook. *This is the single biggest unlock.*
-2. ⬜ **Grant staff approval permissions** so Gates 3–4 can act on real applicants.
+
+1. ⬜ **Arm screening — the single biggest unlock, but NO-GO for a same-day global flip** (audited 2026-06-24). FCRA consent is *not* the blocker (it's built + enforced, §Gate 2). The blockers are validation + operational, so it's a phased rollout:
+   - **🔴 CRITICAL first — sandbox-validate the vendor report shapes.** The Checkr/TransUnion response mappers are unverified against live sandboxes (`background-check.ts` / `credit-check.ts`, `TODO(credentialing)`). If a report carries reference IDs instead of inline records, a criminal/eviction hit can map to **0 = a silent false-clean PASS**. Must drive sandbox submits with **known non-clean fixtures** (felony, sex-offender, eviction, low score) and assert they produce non-clean verdicts *before* prod.
+   - **Then deploy `main` to prod** (`railway up --service api`) — note this also ships a Stripe v17→v22 major bump; smoke `/health` + a payment round-trip first.
+   - **Set the real CRA identity** (`CRA_NAME/ADDRESS/PHONE` — currently placeholders; adverse-action notices are non-compliant until set) + both vendors' prod keys + webhook secrets, register webhooks → `/api/webhooks/cra`.
+   - **Flip both vendors together, `CONSUMER_REPORT_ENABLED` last**: `SCREENING_ON_SUBMIT_ENABLED=true` + `IDENTITY_VERIFICATION_ENABLED=true` + the keys, then `CONSUMER_REPORT_ENABLED=true`. (Half-armed = every consented submit holds; the `isConfigured()` preflight on `main` makes it a safe no-op, not an orphan.)
+   - Full checklist: `docs/runbooks/checkr-cra-arming.md` — *note the runbook's PR #283 status is stale (that preflight is already on `main`); re-verify its blocker list before using.*
+   - **Single-applicant note:** there is **no** per-applicant real-CRA override in prod — a real pull requires the global flag (or a staging env with sandbox keys). Manual *adjudication* of an already-pulled report is possible anytime via `POST …/screening/:id/screen` (`screening:initiate`, Senior Mgr+).
+2. ⬜ **Grant staff approval permissions** so Gates 3–4 can act on real applicants (`approval:tier1/2/3`, `screening:initiate`, `lease:generate`).
 3. ⬜ **Decide fee posture** for real applicants ($35.95 live; comp / waive / collect).
 
 **Smaller / housekeeping:**
