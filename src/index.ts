@@ -77,6 +77,7 @@ import { registerStartVerificationHandler } from "./modules/voice-intake/start-v
 import { registerTakePaymentHandler } from "./modules/voice-intake/take-payment";
 import { registerGetApplicationStatusHandler } from "./modules/voice-intake/get-application-status";
 import { registerFollowUpHandlers } from "./modules/follow-ups/tools";
+import { registerRequirementHandlers } from "./modules/requirements/tools";
 import { registerCallTimeHandler } from "./modules/follow-ups/call-time";
 import { registerRelationshipHandlers } from "./modules/relationship/tools";
 import { registerCreateApplicationHandler } from "./modules/voice-intake/create-application";
@@ -411,6 +412,10 @@ registerStartVerificationHandler();
 registerTakePaymentHandler();
 registerGetApplicationStatusHandler();
 registerFollowUpHandlers();
+// mark_requirement — record a discrete requirement item as received/verified in
+// call ("here are my pay stubs"); closes the document-chase loop when nothing's
+// left outstanding (requirements/tools.ts).
+registerRequirementHandlers();
 // check_call_time — the call clock. Lets Frank notice he's near the duration
 // cut and warn + schedule_followup + wrap before the line drops (call-time.ts).
 registerCallTimeHandler();

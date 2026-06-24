@@ -101,6 +101,10 @@ export async function getCallContextHandler(
   const parts: string[] = [];
   if (packet.rapport) parts.push(packet.rapport);
   if (packet.application) parts.push(`application status: ${packet.application.status}`);
+  // The exact, deterministic gap — so Frank asks for precisely what's left.
+  if (packet.missing_items.length) {
+    parts.push(`still needs ${packet.missing_items.map((m) => m.label).join(", ")}`);
+  }
   if (packet.open_followups.length) parts.push(`${packet.open_followups.length} open callback(s)`);
   // Lead with where they left off so Frank resumes at the exact step.
   if (packet.resume_checkpoint) parts.unshift(`pick up exactly here — ${packet.resume_checkpoint}`);

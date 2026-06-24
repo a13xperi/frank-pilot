@@ -53,6 +53,10 @@ function packetToDynamicVars(
   packet: Awaited<ReturnType<typeof buildContextPacket>>,
   checkpoint?: string | null
 ): Record<string, string> {
+  // The deterministic gap ("your two most recent pay stubs") — so Frank opens
+  // the callback asking for exactly what's outstanding, not a vague "where were
+  // we". Empty when nothing's missing (or there's no application yet).
+  const missing = packet?.missing_items ?? [];
   return {
     is_followup: "true",
     callback_reason: reason,
@@ -62,6 +66,9 @@ function packetToDynamicVars(
     // Exactly where the prior call left off — Frank opens the callback resuming
     // at this step (the claimed follow-up's checkpoint wins over the packet's).
     resume_checkpoint: checkpoint ?? packet?.resume_checkpoint ?? "",
+    // What Frank still needs to collect, named explicitly.
+    missing_items: missing.map((m) => m.label).join("; "),
+    missing_count: String(missing.length),
   };
 }
 

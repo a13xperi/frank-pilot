@@ -5,6 +5,7 @@ import {
   getCallerHistory,
   buildRapportSummary,
 } from "../caller-history/service";
+import { computeMissingByPhone, type MissingItem } from "../requirements/service";
 
 /**
  * Follow-ups — scheduled callbacks + the context spine that makes a callback a
@@ -96,6 +97,14 @@ export interface ContextPacket {
    * Frank resumes at that step on a callback or re-entry. Null when none.
    */
   resume_checkpoint: string | null;
+  /**
+   * The structured "what's still missing" for the latest application on this
+   * phone (deterministic, derived from the screening columns + any explicit
+   * receipt rows). Drives a callback's exact ask ("your two most recent pay
+   * stubs") instead of leaning on the free-form checkpoint. Empty when nothing
+   * is outstanding or there's no application yet.
+   */
+  missing_items: MissingItem[];
 }
 
 /**
@@ -149,7 +158,16 @@ export async function buildContextPacket(phoneE164: string | null): Promise<Cont
   // Soonest-scheduled open follow-up carries the live "where we left off" state.
   const resume_checkpoint =
     open_followups.find((f) => f.checkpoint && f.checkpoint.trim())?.checkpoint ?? null;
-  return { phone_e164: phone, rapport, application, open_followups, resume_checkpoint };
+
+  // Deterministic "what's still missing" — best-effort, never fails the packet.
+  let missing_items: MissingItem[] = [];
+  try {
+    missing_items = (await computeMissingByPhone(phone)).missing;
+  } catch (err) {
+    logger.warn("context packet missing-items failed", { error: (err as Error).message });
+  }
+
+  return { phone_e164: phone, rapport, application, open_followups, resume_checkpoint, missing_items };
 }
 
 /**

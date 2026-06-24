@@ -15,6 +15,14 @@ import { PropertyService } from "../modules/properties/service";
 import { queryAuditLog } from "../middleware/audit";
 import bcrypt from "bcrypt";
 import { logger } from "../utils/logger";
+import {
+  getAgenda,
+  getBoard,
+  getDetail,
+  renderAgenda,
+  renderBoard,
+  renderDetail,
+} from "../modules/follow-ups/report";
 
 const program = new Command();
 
@@ -505,6 +513,36 @@ program
       logger.info("Property details:", { data: property });
     } catch (err) {
       logger.error("Error:", { message: (err as Error).message });
+    } finally {
+      await pool.end();
+    }
+  });
+
+// ============================================================
+// Follow-ups (scheduled-callback loop) operator report
+// ============================================================
+
+program
+  .command("followups [id]")
+  .description("Follow-up calendar/board: agenda (default), --board, or a detail by id")
+  .option("--board", "Show counts by status instead of the agenda")
+  .option("--json", "Emit JSON instead of the rendered report")
+  .option("-l, --limit <limit>", "Max agenda rows", "100")
+  .action(async (id, opts) => {
+    try {
+      if (id) {
+        const detail = await getDetail(id);
+        console.log(opts.json ? JSON.stringify(detail, null, 2) : renderDetail(detail));
+      } else if (opts.board) {
+        const board = await getBoard();
+        console.log(opts.json ? JSON.stringify(board, null, 2) : renderBoard(board));
+      } else {
+        const agenda = await getAgenda(parseInt(opts.limit, 10) || 100);
+        console.log(opts.json ? JSON.stringify(agenda, null, 2) : renderAgenda(agenda));
+      }
+    } catch (err) {
+      logger.error("Error:", { message: (err as Error).message });
+      process.exit(1);
     } finally {
       await pool.end();
     }
