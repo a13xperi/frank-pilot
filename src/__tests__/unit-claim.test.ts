@@ -253,10 +253,11 @@ describe("GET /applicants/units", () => {
     expect(params).toContain(uuid);
   });
 
-  // The frank-go /dl2 deep link carries the human-shareable slug
-  // (?propertyId=donna-louise-2), not the UUID. The picker must resolve it the
-  // same way /property/:slug does, then scope to the RESOLVED id.
-  it("resolves a slug propertyId to its UUID (frank-go /dl2 deep link)", async () => {
+  // The client + QR links carry the legacy MVP slug (?propertyId=donna-louise-2),
+  // but the backend derives slugs from the property NAME ("Donna Louise
+  // Apartments 2" → donna-louise-apartments-2). The resolver must map the alias
+  // to the name-derived slug, then scope to the RESOLVED id.
+  it("resolves the legacy donna-louise-2 alias to the name slug, then to its UUID", async () => {
     mockUsersRow(applicant, VERIFIED_AT);
     const uuid = "550e8400-e29b-41d4-a716-446655440001";
     mockQuery.mockResolvedValueOnce({ rows: [{ id: uuid }] } as any); // slug → id
@@ -270,13 +271,28 @@ describe("GET /applicants/units", () => {
     expect(mockQuery).toHaveBeenCalledTimes(3);
     const slugSql = mockQuery.mock.calls[1][0] as string;
     expect(slugSql).toContain("FROM properties");
-    expect(mockQuery.mock.calls[1][1]).toEqual(["donna-louise-2"]);
+    // The alias is mapped to the current name-derived slug before the lookup.
+    expect(mockQuery.mock.calls[1][1]).toEqual(["donna-louise-apartments-2"]);
     // The picker scopes to the resolved UUID, never the raw slug.
     const sql = mockQuery.mock.calls[2][0] as string;
     const params = mockQuery.mock.calls[2][1] as unknown[];
     expect(sql).toMatch(/u\.property_id = \$\d+/);
     expect(params).toContain(uuid);
     expect(params).not.toContain("donna-louise-2");
+  });
+
+  // A non-aliased slug passes through to the name-derivation lookup unchanged.
+  it("passes a non-aliased slug through unchanged", async () => {
+    mockUsersRow(applicant, VERIFIED_AT);
+    const uuid = "550e8400-e29b-41d4-a716-446655440002";
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: uuid }] } as any); // slug → id
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // picker
+    const token = generateToken(applicant);
+    const res = await request(app)
+      .get("/applicants/units?propertyId=louise-shell-senior-apartments")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls[1][1]).toEqual(["louise-shell-senior-apartments"]);
   });
 
   it("rejects unverified user", async () => {
