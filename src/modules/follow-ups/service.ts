@@ -24,6 +24,8 @@ export interface FollowUp {
   status: string;
   attempts: number;
   notes: string | null;
+  /** Structured "exactly where we are in the process" so a callback resumes here. */
+  checkpoint: string | null;
 }
 
 export interface CreateFollowUpInput {
@@ -34,6 +36,8 @@ export interface CreateFollowUpInput {
   userId?: string | null;
   consentOutbound?: boolean;
   notes?: string | null;
+  /** Structured resume checkpoint (current step + gathered facts + what's next). */
+  checkpoint?: string | null;
   source?: string;
 }
 
@@ -47,9 +51,9 @@ export async function createFollowUp(input: CreateFollowUpInput): Promise<Follow
   const res = await query(
     `INSERT INTO follow_ups (
        phone_e164, user_id, voice_call_id, reason, scheduled_for,
-       consent_outbound, notes, source
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-     RETURNING id, phone_e164, reason, scheduled_for, status, attempts, notes`,
+       consent_outbound, notes, checkpoint, source
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     RETURNING id, phone_e164, reason, scheduled_for, status, attempts, notes, checkpoint`,
     [
       phone,
       input.userId ?? null,
@@ -58,6 +62,7 @@ export async function createFollowUp(input: CreateFollowUpInput): Promise<Follow
       when.toISOString(),
       input.consentOutbound ?? false,
       input.notes ?? null,
+      input.checkpoint ?? null,
       input.source ?? "voice_intake",
     ]
   );
@@ -69,7 +74,7 @@ export async function getOpenFollowUpsByPhone(phoneE164: string | null): Promise
   const phone = normalizePhone(phoneE164);
   if (!phone) return [];
   const res = await query(
-    `SELECT id, phone_e164, reason, scheduled_for, status, attempts, notes
+    `SELECT id, phone_e164, reason, scheduled_for, status, attempts, notes, checkpoint
        FROM follow_ups
       WHERE phone_e164 = $1 AND status IN ('pending','in_progress')
       ORDER BY scheduled_for ASC`,
@@ -86,6 +91,11 @@ export interface ContextPacket {
     screening: Record<string, string | null>;
   } | null;
   open_followups: FollowUp[];
+  /**
+   * The freshest open follow-up's checkpoint — "exactly where we left off" — so
+   * Frank resumes at that step on a callback or re-entry. Null when none.
+   */
+  resume_checkpoint: string | null;
 }
 
 /**
@@ -136,7 +146,10 @@ export async function buildContextPacket(phoneE164: string | null): Promise<Cont
   }
 
   const open_followups = await getOpenFollowUpsByPhone(phone);
-  return { phone_e164: phone, rapport, application, open_followups };
+  // Soonest-scheduled open follow-up carries the live "where we left off" state.
+  const resume_checkpoint =
+    open_followups.find((f) => f.checkpoint && f.checkpoint.trim())?.checkpoint ?? null;
+  return { phone_e164: phone, rapport, application, open_followups, resume_checkpoint };
 }
 
 /**
@@ -159,7 +172,7 @@ export async function claimNextDueFollowUp(): Promise<ClaimedFollowUp | null> {
          LIMIT 1
       )
       RETURNING id, phone_e164, reason, scheduled_for, status, attempts,
-                notes, consent_outbound, voice_call_id, user_id`,
+                notes, checkpoint, consent_outbound, voice_call_id, user_id`,
     []
   );
   if (res.rows.length === 0) return null;
@@ -170,6 +183,7 @@ export async function claimNextDueFollowUp(): Promise<ClaimedFollowUp | null> {
     reason: r.reason as string,
     attempts: Number(r.attempts ?? 0),
     notes: (r.notes as string) ?? null,
+    checkpoint: (r.checkpoint as string) ?? null,
     consentOutbound: Boolean(r.consent_outbound),
     voiceCallId: (r.voice_call_id as string) ?? null,
   };
@@ -181,6 +195,7 @@ export interface ClaimedFollowUp {
   reason: string;
   attempts: number;
   notes: string | null;
+  checkpoint: string | null;
   consentOutbound: boolean;
   voiceCallId: string | null;
 }
@@ -246,5 +261,6 @@ function rowToFollowUp(row: Record<string, unknown> | undefined): FollowUp | nul
     status: row.status as string,
     attempts: Number(row.attempts ?? 0),
     notes: (row.notes as string) ?? null,
+    checkpoint: (row.checkpoint as string) ?? null,
   };
 }
