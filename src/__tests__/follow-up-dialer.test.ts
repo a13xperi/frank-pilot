@@ -27,6 +27,7 @@ const CLAIMED = {
   reason: "bad_time",
   attempts: 0,
   notes: null,
+  checkpoint: "Stage: application; collected name+DOB; NEXT: employer + income docs",
   consentOutbound: true,
   voiceCallId: "conv_x",
 };
@@ -80,6 +81,8 @@ describe("runFollowupTick", () => {
     const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
     expect(body.conversation_initiation_client_data.dynamic_variables.is_followup).toBe("true");
     expect(body.conversation_initiation_client_data.dynamic_variables.caller_rapport).toContain("Returning");
+    // the callback resumes EXACTLY where the prior call left off
+    expect(body.conversation_initiation_client_data.dynamic_variables.resume_checkpoint).toContain("employer");
     fetchMock.mockRestore();
   });
 });

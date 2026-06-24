@@ -28,6 +28,9 @@ export async function scheduleFollowupHandler(
   const reason = pickString(parameters, "reason") ?? "callback_requested";
   const whenIso = pickString(parameters, "scheduled_for_iso") ?? pickString(parameters, "scheduled_for");
   const notes = pickString(parameters, "notes");
+  // Structured "exactly where we are in the process" so the callback resumes
+  // here instead of starting over (the call-time wrap path fills this).
+  const checkpoint = pickString(parameters, "checkpoint");
 
   if (!phone) {
     return { ok: false, message: "I didn't catch your number — what's the best one for Frank to call you back on?" };
@@ -42,6 +45,7 @@ export async function scheduleFollowupHandler(
     scheduledForIso: whenIso,
     voiceCallId: context.conversationId,
     notes,
+    checkpoint,
     source: "voice_intake",
     // The caller asked Frank to call them back — that request IS the consent to
     // the outbound callback, so the auto-dialer may place it. (Frank only fires
@@ -98,6 +102,8 @@ export async function getCallContextHandler(
   if (packet.rapport) parts.push(packet.rapport);
   if (packet.application) parts.push(`application status: ${packet.application.status}`);
   if (packet.open_followups.length) parts.push(`${packet.open_followups.length} open callback(s)`);
+  // Lead with where they left off so Frank resumes at the exact step.
+  if (packet.resume_checkpoint) parts.unshift(`pick up exactly here — ${packet.resume_checkpoint}`);
   const summary = parts.length ? parts.join("; ") : "No prior history on this number.";
 
   return { ok: true, result: packet as unknown as Record<string, unknown>, message: summary };

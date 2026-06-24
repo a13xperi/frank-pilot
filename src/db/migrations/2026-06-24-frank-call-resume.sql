@@ -1,0 +1,14 @@
+-- Frank call-resume checkpoint.
+--
+-- When a call is about to hit the duration cut (or any time Frank schedules a
+-- callback), he records a STRUCTURED checkpoint of exactly where he is in the
+-- process — which step, what's been gathered, what's next — so the callback
+-- resumes at that step instead of starting over. Freeform `notes` stays for
+-- color; `checkpoint` is the machine-handed "where we are" that:
+--   * get_call_context reads back when a caller re-engages, and
+--   * the Phase-2 dialer hands the callback as the `resume_checkpoint` dynamic
+--     variable so Frank opens the return call already knowing the exact spot.
+--
+-- Sequenced AFTER 2026-06-24-follow-ups.sql (the migrate runner applies deltas
+-- in filename order; "frank-..." sorts after "follow-ups.sql"). Idempotent.
+ALTER TABLE follow_ups ADD COLUMN IF NOT EXISTS checkpoint TEXT;

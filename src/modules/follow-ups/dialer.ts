@@ -48,13 +48,20 @@ export async function placeFollowupCallback(
 }
 
 /** Flatten the context packet into dynamic variables Frank reads on the callback. */
-function packetToDynamicVars(reason: string, packet: Awaited<ReturnType<typeof buildContextPacket>>): Record<string, string> {
+function packetToDynamicVars(
+  reason: string,
+  packet: Awaited<ReturnType<typeof buildContextPacket>>,
+  checkpoint?: string | null
+): Record<string, string> {
   return {
     is_followup: "true",
     callback_reason: reason,
     caller_rapport: packet?.rapport ?? "",
     application_status: packet?.application?.status ?? "",
     open_followups: String(packet?.open_followups?.length ?? 0),
+    // Exactly where the prior call left off — Frank opens the callback resuming
+    // at this step (the claimed follow-up's checkpoint wins over the packet's).
+    resume_checkpoint: checkpoint ?? packet?.resume_checkpoint ?? "",
   };
 }
 
@@ -86,7 +93,10 @@ export async function runFollowupTick(now: Date = new Date()): Promise<FollowupT
 
   try {
     const packet = await buildContextPacket(fu.phoneE164);
-    const { conversationId } = await placeFollowupCallback(fu.phoneE164, packetToDynamicVars(fu.reason, packet));
+    const { conversationId } = await placeFollowupCallback(
+      fu.phoneE164,
+      packetToDynamicVars(fu.reason, packet, fu.checkpoint)
+    );
     await markFollowUpDialed(fu.id, conversationId);
     logger.info("follow-up dialed", { id: fu.id, conversationId });
     return { action: "dialed", id: fu.id, conversationId };
