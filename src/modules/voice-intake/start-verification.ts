@@ -1,6 +1,7 @@
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { getStripe, isStripeConfigured } from "../../lib/stripe";
+import { getEmailService } from "../integrations/email";
 import {
   recordAuthorization,
   FCRA_DISCLOSURE_VERSION,
@@ -72,7 +73,7 @@ export async function startVerificationHandler(
   // The application must exist; pull the applicant (submitted_by) so the
   // post-payment screening runs under the right actor.
   const appRes = await query(
-    `SELECT id, submitted_by, status FROM applications WHERE id = $1`,
+    `SELECT id, submitted_by, status, email, first_name FROM applications WHERE id = $1`,
     [applicationId]
   );
   if (appRes.rows.length === 0) {
@@ -86,6 +87,11 @@ export async function startVerificationHandler(
     };
   }
   const submittedBy = (appRes.rows[0].submitted_by as string) ?? "";
+  const rawEmail = (appRes.rows[0].email as string) ?? "";
+  const firstName = (appRes.rows[0].first_name as string) ?? undefined;
+  // A real, reachable address — not the synth voice-handoff placeholder.
+  const deliverableEmail =
+    rawEmail && !rawEmail.endsWith("@voice-handoff.invalid") ? rawEmail : "";
 
   // FCRA gate: only record consent when Frank confirms the caller agreed after
   // hearing the disclosure. Without it the webhook will NOT run screening.
@@ -145,11 +151,27 @@ export async function startVerificationHandler(
       { idempotencyKey: `appfee:${applicationId}` }
     );
 
+    // Deliver the link by EMAIL (texting an arbitrary link from the local
+    // number is A2P-blocked; email is reliable). Only claim "I emailed it" when
+    // we actually have a real address and the send goes through.
+    let emailed = false;
+    if (deliverableEmail && session.url) {
+      const res = await getEmailService().sendVerificationFeeLink(deliverableEmail, session.url, {
+        firstName,
+      });
+      emailed = res.sent;
+    }
+
     logger.info("start_verification checkout created", {
       conversationId: context.conversationId,
       sessionId: session.id,
       consent: consentAcknowledged,
+      emailed,
     });
+
+    const message = emailed
+      ? "Perfect. The fee to verify everything is thirty-five ninety-five, and once it's paid I run your identity, credit, and background — usually back within a few hours. I just emailed you the secure payment link, so check your inbox."
+      : "Perfect. The fee to verify everything is thirty-five ninety-five, and once it's paid I run your identity, credit, and background. What's the best email for me to send your secure payment link to?";
 
     return {
       ok: true,
@@ -160,9 +182,9 @@ export async function startVerificationHandler(
             ? session.payment_intent
             : null,
         amount: "$35.95",
+        emailed,
       },
-      message:
-        "Perfect. The fee to verify everything is thirty-five ninety-five, and once it's paid I run your identity, credit, and background — usually back within a few hours. I'm sending a secure payment link to your phone now.",
+      message,
     };
   } catch (err) {
     logger.error("start_verification checkout failed", {

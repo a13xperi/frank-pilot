@@ -161,6 +161,59 @@ export class EmailService {
     return this.send({ to, subject, html, text });
   }
 
+  /**
+   * The $35.95 verification-fee payment link, emailed after Frank takes the
+   * caller through start_verification on a voice call. Email — not SMS — because
+   * texting an arbitrary link from the local number is A2P-blocked; email is the
+   * reliable channel until 10DLC is registered. The Stripe Checkout URL is the
+   * single CTA href.
+   */
+  async sendVerificationFeeLink(
+    to: string,
+    payUrl: string,
+    options?: { firstName?: string }
+  ): Promise<EmailSendResult> {
+    const greeting = options?.firstName ? `Hi ${options.firstName},` : "Hi,";
+    const subject = "Your application — one step left ($35.95 to verify)";
+    const html = `<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#FAF8F5;font-family:${FONT_STACK};color:#222;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" style="max-width:520px;background:#fff;border-radius:12px;padding:32px;">
+          <tr><td style="font-size:18px;font-weight:600;color:${BRAND_COLOR};">CDPC Nevada</td></tr>
+          <tr><td style="padding-top:24px;font-size:16px;line-height:1.5;">
+            <p style="margin:0 0 16px;">${greeting}</p>
+            <p style="margin:0 0 16px;">You're almost there. To lock in your application and start verification, complete the one-time <strong>$35.95</strong> fee. It covers your identity, credit, and background checks — results usually come back within a few hours.</p>
+          </td></tr>
+          <tr><td align="center" style="padding:8px 0 24px;">
+            <a href="${payUrl}" style="display:inline-block;background:${BRAND_COLOR};color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;">Pay $35.95 &amp; verify</a>
+          </td></tr>
+          <tr><td style="font-size:13px;color:#666;line-height:1.5;">
+            <p style="margin:0;">This fee is non-refundable. Questions? Just reply to this email or call us back.</p>
+          </td></tr>
+        </table>
+        <p style="margin:16px 0 0;font-size:12px;color:#999;">${COMPANY_NAME}</p>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+    const text = [
+      greeting,
+      "",
+      "You're almost there. To lock in your application and start verification,",
+      "complete the one-time $35.95 fee (identity, credit, and background checks).",
+      "Results usually come back within a few hours.",
+      "",
+      payUrl,
+      "",
+      "This fee is non-refundable.",
+      "",
+      COMPANY_NAME,
+    ].join("\n");
+    return this.send({ to, subject, html, text });
+  }
+
   async sendApplicationSubmitted(to: string, applicantName: string): Promise<EmailSendResult> {
     const subject = "We received your application";
     const html = templateNotice({
