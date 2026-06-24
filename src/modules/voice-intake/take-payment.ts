@@ -104,8 +104,11 @@ export async function takePaymentHandler(
         type: "card",
         card: { number: cardNumber, exp_month: expMonth, exp_year: expYear, cvc },
       },
-      // Keyed telephone order — flags it MOTO so Stripe doesn't expect browser 3DS.
-      payment_method_options: { card: { moto: true } },
+      // NOTE: this needs Stripe "raw card data API access" (PCI SAQ-D) — blocked
+      // by default in test + live (see docs/FRANK-PHONE-PAYMENT-PCI.md). The MOTO
+      // flag (payment_method_options.card.moto) was rejected as an unknown param
+      // on our API version, so it's omitted; revisit telephone-order 3DS handling
+      // when raw-card access is granted and this can be tested for real.
       confirm: true,
       // Stamped for the same webhook the email-link path uses → submitted + screening.
       metadata: {

@@ -76,7 +76,7 @@ describe("takePaymentHandler", () => {
     const arg = mockPiCreate.mock.calls[0][0] as any;
     expect(arg.amount).toBe(3595);
     expect(arg.confirm).toBe(true);
-    expect(arg.payment_method_options.card.moto).toBe(true);
+    expect(arg.payment_method_options).toBeUndefined(); // moto dropped (unknown param)
     expect(arg.metadata.type).toBe("application_fee");
     expect(arg.metadata.applicationId).toBe(APP_ID);
     // card normalized (spaces stripped, 2-digit year expanded)
