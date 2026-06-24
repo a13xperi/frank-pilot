@@ -636,7 +636,7 @@ async function handleApplicationFeeSucceeded(event: Stripe.Event): Promise<void>
   // the applicant who submitted; screening needs a real actor id.
   const consented = await hasValidAuthorization(applicationId);
   const actorRes = await query(
-    `SELECT submitted_by FROM applications WHERE id = $1`,
+    `SELECT submitted_by, status FROM applications WHERE id = $1`,
     [applicationId]
   );
   const submittedBy = (actorRes.rows[0]?.submitted_by as string) ?? md.actorId ?? "";
@@ -648,6 +648,19 @@ async function handleApplicationFeeSucceeded(event: Stripe.Event): Promise<void>
     // retry and double-post the ledger).
     void (async () => {
       try {
+        // Paying the fee submits the application. Flip draft → submitted
+        // (idempotent — only touches a draft) so runFullScreening, which
+        // requires submitted/screening, can run. Mirrors the core of
+        // ApplicationService.submit(); the consent + screening it would
+        // otherwise gate on are already handled on this fee-paid path.
+        await query(
+          `UPDATE applications
+              SET status = 'submitted',
+                  submitted_at = COALESCE(submitted_at, NOW()),
+                  submitted_by = COALESCE(submitted_by, $2)
+            WHERE id = $1 AND status = 'draft'`,
+          [applicationId, submittedBy]
+        );
         await new ScreeningService().runFullScreening(applicationId, submittedBy, "applicant");
       } catch (err) {
         logger.error("post-fee screening failed", {
