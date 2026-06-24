@@ -15,6 +15,7 @@ import type { IdentityVerificationResult } from "../screening/identity-verificat
 import { transitionApplicationStatus } from "../screening/state-machine";
 import { hasValidAuthorization } from "../screening/consumer-report-consent";
 import { ScreeningService } from "../screening/service";
+import { recordLedgerEntry } from "../relationship/ledger";
 
 /**
  * Stripe webhook receiver.
@@ -636,14 +637,28 @@ async function handleApplicationFeeSucceeded(event: Stripe.Event): Promise<void>
   // the applicant who submitted; screening needs a real actor id.
   const consented = await hasValidAuthorization(applicationId);
   const actorRes = await query(
-    `SELECT submitted_by, status FROM applications WHERE id = $1`,
+    `SELECT submitted_by, status, phone FROM applications WHERE id = $1`,
     [applicationId]
   );
   const submittedBy = (actorRes.rows[0]?.submitted_by as string) ?? md.actorId ?? "";
+  const applicantPhone = (actorRes.rows[0]?.phone as string) ?? null;
+
+  void recordLedgerEntry({
+    phoneE164: applicantPhone,
+    eventType: "fee_paid",
+    summary: "Paid the $35.95 verification fee",
+    ref: applicationId,
+  });
 
   let screeningFired = false;
   if (consented && submittedBy) {
     screeningFired = true;
+    void recordLedgerEntry({
+      phoneE164: applicantPhone,
+      eventType: "screening_started",
+      summary: "Identity, credit, and background check started",
+      ref: applicationId,
+    });
     // Fire-and-forget: a slow/failed pull must not 500 the webhook (Stripe would
     // retry and double-post the ledger).
     void (async () => {

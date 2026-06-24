@@ -9,6 +9,7 @@ import {
   getOpenFollowUpsByPhone,
   buildContextPacket,
 } from "./service";
+import { recordLedgerEntry } from "../relationship/ledger";
 
 /**
  * Follow-up voice tools.
@@ -52,6 +53,14 @@ export async function scheduleFollowupHandler(
     return { ok: false, message: "I couldn't get that time down — can you give me a day and time again?" };
   }
 
+  void recordLedgerEntry({
+    phoneE164: phone,
+    eventType: "callback_scheduled",
+    channel: "voice",
+    direction: "outbound",
+    summary: `Callback scheduled (${reason})`,
+    ref: fu.id,
+  });
   logger.info("schedule_followup created", { conversationId: context.conversationId, id: fu.id });
   return {
     ok: true,

@@ -3,6 +3,7 @@ import { logger } from "../../utils/logger";
 import { ApplicationService } from "../application/service";
 import { createApplicationSchema } from "../application/validation";
 import { normalizePhone } from "./service";
+import { recordLedgerEntry } from "../relationship/ledger";
 import {
   registerToolHandler,
   type ToolCallbackContext,
@@ -95,6 +96,12 @@ export async function createApplicationHandler(
 
   try {
     const app = await new ApplicationService().create(parsed.data, submittedBy, "applicant");
+    void recordLedgerEntry({
+      phoneE164: phone,
+      eventType: "application_created",
+      summary: "Application started",
+      ref: app.id as string,
+    });
     logger.info("create_application created", {
       conversationId: context.conversationId,
       status: app.status,
