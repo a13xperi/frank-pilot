@@ -90,6 +90,7 @@ const ENV_KEYS = [
   "FRANK_OUTBOUND_TEST_NUMBER",
   "FRANK_OUTBOUND_BATCH_LIMIT",
   "FRANK_OUTBOUND_PACE_MINUTES",
+  "FRANK_OUTBOUND_PROPERTY",
   "ELEVENLABS_API_KEY",
   "ELEVENLABS_OUTBOUND_AGENT_ID",
   "ELEVENLABS_AGENT_PHONE_NUMBER_ID",
@@ -113,6 +114,7 @@ beforeEach(() => {
   process.env.FRANK_OUTBOUND_TEST_NUMBER = "";
   process.env.FRANK_OUTBOUND_BATCH_LIMIT = "5";
   process.env.FRANK_OUTBOUND_PACE_MINUTES = "5";
+  process.env.FRANK_OUTBOUND_PROPERTY = "";
   process.env.ELEVENLABS_API_KEY = "xi-test";
   process.env.ELEVENLABS_OUTBOUND_AGENT_ID = "agent_outbound_test_123";
   process.env.ELEVENLABS_AGENT_PHONE_NUMBER_ID = "phnum_test_123";
@@ -171,6 +173,9 @@ describe("buildDynamicVariables", () => {
       apt_types: "1 bedroom, 2 bedroom",
       date_needed: "2026-06-30",
       shared_with: "",
+      availability_note:
+        "These are brand-new apartments, ready to move into in about two weeks.",
+      unit_types_available: "one and two bedroom",
     });
   });
 
@@ -186,10 +191,36 @@ describe("buildDynamicVariables", () => {
     expect(vars.apt_types).toBe("studio");
     expect(vars.shared_with).toBe("John Doe");
     expect(vars.property_names).toBe("Donna Louise 1");
+    // donna-louise-1 has no specific campaign → generic availability framing
+    expect(vars.availability_note).toBe("A unit has opened up.");
+  });
+
+  it("uses the DL2 brand-new framing when the applicant is on the DL2 list", () => {
+    const vars = buildDynamicVariables({ ...APPLICANT, properties: ["donna-louise-2"] });
+    expect(vars.availability_note).toMatch(/brand-new/i);
+    expect(vars.unit_types_available).toBe("one and two bedroom");
   });
 });
 
 describe("runDialerTick gate chain", () => {
+  it("scopes the claim to FRANK_OUTBOUND_PROPERTY when set", async () => {
+    process.env.FRANK_OUTBOUND_DRY_RUN = "true";
+    process.env.FRANK_OUTBOUND_PROPERTY = "donna-louise-2";
+    routeQueries({ inFlight: false, dialsToday: 0, minsSinceLast: 60 });
+    mockClaimNextCall.mockResolvedValue(APPLICANT);
+    const result = await runDialerTick();
+    expect(result.action).toBe("dry_run");
+    expect(mockClaimNextCall).toHaveBeenCalledWith("frank", "donna-louise-2");
+  });
+
+  it("claims globally (null scope) when FRANK_OUTBOUND_PROPERTY is unset", async () => {
+    process.env.FRANK_OUTBOUND_DRY_RUN = "true";
+    routeQueries({ inFlight: false, dialsToday: 0, minsSinceLast: 60 });
+    mockClaimNextCall.mockResolvedValue(APPLICANT);
+    await runDialerTick();
+    expect(mockClaimNextCall).toHaveBeenCalledWith("frank", null);
+  });
+
   it("short-circuits when the master flag is off", async () => {
     process.env.FRANK_OUTBOUND_ENABLED = "false";
     expect(await runDialerTick()).toEqual({ action: "disabled" });
