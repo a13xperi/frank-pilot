@@ -20,6 +20,7 @@ import screeningRoutes from "./modules/screening/routes";
 import approvalRoutes from "./modules/approval/routes";
 import paymentRoutes from "./modules/payment/routes";
 import paymentWebhookRouter from "./modules/payment/webhook";
+import payPhoneRouter from "./modules/pay-phone/routes";
 import craWebhookRouter from "./modules/screening/cra-webhook";
 import { assertStripeProdConfig } from "./modules/payment/boot-guard";
 import {
@@ -158,6 +159,11 @@ app.use("/api/webhooks/cra", craWebhookRouter);
 // express.urlencoded on POST /inbound, so it mounts BEFORE the global
 // express.json(). Self-gates 503 until SMS_INTAKE_ENABLED.
 app.use("/api/webhooks/twilio", smsIntakeRoutes);
+
+// On-call DTMF payments (Twilio <Pay> → Stripe Pay Connector). Carries its OWN
+// express.urlencoded, so it mounts BEFORE the global express.json(). DARK until
+// PAY_DTMF_ENABLED=true (see docs/FRANK-PHONE-PAYMENT-PCI.md).
+app.use("/api/pay", payPhoneRouter);
 
 app.use(express.json({ limit: "1mb" }));
 
