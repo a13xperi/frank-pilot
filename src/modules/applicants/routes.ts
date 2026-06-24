@@ -1241,9 +1241,26 @@ router.get(
         params.push(moveInBy);
         conditions.push(`(u.available_from IS NULL OR u.available_from <= $${params.length})`);
       }
-      if (propertyId && /^[0-9a-f-]{36}$/i.test(propertyId)) {
-        params.push(propertyId);
-        conditions.push(`u.property_id = $${params.length}`);
+      // Scope the picker to ONE property when the applicant arrived via a
+      // building deep link (frank-go /dl2 → ?propertyId=donna-louise-2).
+      // Accept EITHER a raw UUID or a slug: the tenant wizard knows the slug
+      // (seeded from the URL) long before it knows the UUID, so a non-UUID value
+      // that looks like a clean slug is resolved through the same derivation
+      // /property/:slug uses. Anything that is neither a UUID nor a clean slug
+      // (e.g. an injection probe) is ignored with no DB hit, and an
+      // unresolvable slug simply leaves the scope off — the picker stays
+      // portfolio-wide rather than 404-ing the whole list.
+      if (propertyId) {
+        let scopedId: string | null = null;
+        if (/^[0-9a-f-]{36}$/i.test(propertyId)) {
+          scopedId = propertyId;
+        } else if (/^[a-z0-9][a-z0-9-]{1,63}$/i.test(propertyId)) {
+          scopedId = await resolvePropertyIdBySlug(propertyId.toLowerCase());
+        }
+        if (scopedId) {
+          params.push(scopedId);
+          conditions.push(`u.property_id = $${params.length}`);
+        }
       }
       if (amiTier) {
         // A property is shown iff the applicant qualifies for at least one of its

@@ -117,12 +117,30 @@ export function StepPick() {
       s.setError(null);
       setIntentSnapshot(snapshot);
 
+      // When the applicant arrived via a building deep link (frank-go /dl2 →
+      // ?propertyId=donna-louise-2, which seeds propertySlug), scope every
+      // relaxation stage to THAT property so the building they came for isn't
+      // buried under the portfolio-wide `ORDER BY rent LIMIT 12`. The backend
+      // `propertyId` param accepts the UUID (known after a claim) or the slug
+      // (known from the URL first), so prefer whichever we have. Portfolio
+      // walk-ins (no slug, no id) get `null` → no scope → today's behavior.
+      const propertyScope: Parameters<typeof fetchUnits>[0] =
+        s.propertyId
+          ? { propertyId: s.propertyId }
+          : s.propertySlug
+            ? { propertyId: s.propertySlug }
+            : {};
+      const scoped = Object.keys(propertyScope).length > 0;
+
       // Progressive relaxation. Try strict first, then loosen one constraint at
       // a time so we always have *something* to show — the claimed-unit-as-
-      // carrot pattern dies if the user hits a dead-end here.
+      // carrot pattern dies if the user hits a dead-end here. Each stage stays
+      // scoped to the arrived-for property; only the final fallback drops the
+      // scope so a deep-link to an (as-yet) empty building still shows options.
       const stages: Array<Parameters<typeof fetchUnits>[0]> = [
         // Strict.
         {
+          ...propertyScope,
           ...bedroomsFilter(snapshot.bedrooms),
           maxRent: snapshot.maxRent,
           moveInBy: snapshot.moveInBy,
@@ -131,21 +149,28 @@ export function StepPick() {
         // Drop AMI tier — show units they may not income-qualify for; PM can
         // still review.
         {
+          ...propertyScope,
           ...bedroomsFilter(snapshot.bedrooms),
           maxRent: snapshot.maxRent,
           moveInBy: snapshot.moveInBy,
         },
         // Also drop budget cap.
         {
+          ...propertyScope,
           ...bedroomsFilter(snapshot.bedrooms),
           moveInBy: snapshot.moveInBy,
         },
         // Also drop move-in date.
         {
+          ...propertyScope,
           ...bedroomsFilter(snapshot.bedrooms),
         },
-        // Drop bedrooms — worst case, show anything.
-        {},
+        // Drop bedrooms — anything in the arrived-for property.
+        { ...propertyScope },
+        // Absolute last resort: drop the property scope too and show anything
+        // portfolio-wide. Skipped when no scope was applied (it would be an
+        // exact duplicate of the prior stage → a wasted fetch).
+        ...(scoped ? [{} as Parameters<typeof fetchUnits>[0]] : []),
       ];
 
       try {
@@ -172,7 +197,7 @@ export function StepPick() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.intentBedrooms, s.intentBudgetMax, s.intentMoveInDate, s.qualifyingAmiTier]);
+  }, [s.intentBedrooms, s.intentBudgetMax, s.intentMoveInDate, s.qualifyingAmiTier, s.propertyId, s.propertySlug]);
 
   async function handleJoinWaitlist() {
     const slug = s.propertySlug ?? 'donna-louise-2';

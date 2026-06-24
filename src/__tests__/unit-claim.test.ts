@@ -236,6 +236,49 @@ describe("GET /applicants/units", () => {
     expect(params ?? []).toEqual([]);
   });
 
+  it("scopes to a valid UUID propertyId without a slug lookup", async () => {
+    mockUsersRow(applicant, VERIFIED_AT);
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    const token = generateToken(applicant);
+    const uuid = "550e8400-e29b-41d4-a716-446655440001";
+    const res = await request(app)
+      .get(`/applicants/units?propertyId=${uuid}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    // A UUID is used directly — no extra slug lookup: just auth row + picker.
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    const sql = mockQuery.mock.calls[1][0] as string;
+    const params = mockQuery.mock.calls[1][1] as unknown[];
+    expect(sql).toMatch(/u\.property_id = \$\d+/);
+    expect(params).toContain(uuid);
+  });
+
+  // The frank-go /dl2 deep link carries the human-shareable slug
+  // (?propertyId=donna-louise-2), not the UUID. The picker must resolve it the
+  // same way /property/:slug does, then scope to the RESOLVED id.
+  it("resolves a slug propertyId to its UUID (frank-go /dl2 deep link)", async () => {
+    mockUsersRow(applicant, VERIFIED_AT);
+    const uuid = "550e8400-e29b-41d4-a716-446655440001";
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: uuid }] } as any); // slug → id
+    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // picker
+    const token = generateToken(applicant);
+    const res = await request(app)
+      .get("/applicants/units?propertyId=donna-louise-2")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    // auth row + slug lookup + picker.
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+    const slugSql = mockQuery.mock.calls[1][0] as string;
+    expect(slugSql).toContain("FROM properties");
+    expect(mockQuery.mock.calls[1][1]).toEqual(["donna-louise-2"]);
+    // The picker scopes to the resolved UUID, never the raw slug.
+    const sql = mockQuery.mock.calls[2][0] as string;
+    const params = mockQuery.mock.calls[2][1] as unknown[];
+    expect(sql).toMatch(/u\.property_id = \$\d+/);
+    expect(params).toContain(uuid);
+    expect(params).not.toContain("donna-louise-2");
+  });
+
   it("rejects unverified user", async () => {
     mockUsersRow(applicant, null);
     const token = generateToken(applicant, { emailVerified: false });
