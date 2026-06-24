@@ -80,6 +80,10 @@ interface OnboardInput {
   rent_schedule?: Record<string, number>; // {"1BR_60AMI":995,...} or {"1BR":995}
   unit_status?: "available" | "leased";
   ami_designation?: "30" | "50" | "60" | "market" | null;
+  // Optional per-tier breakdown (keys like "1BR_45AMI", "2BR_market"). When
+  // present, units are generated at each tier's own rent + designation instead
+  // of the coarse unit_mix-at-first-tier fallback. Must reconcile to unit_mix.
+  _ami_breakdown?: Record<string, { units: number; income_cap?: number | null; rent: number }>;
 }
 
 function loadInput(): OnboardInput {
@@ -99,6 +103,84 @@ function resolveRent(label: string, bedrooms: number, sched?: Record<string, num
     if (k) return sched[k];
   }
   return BEDROOM_META[bedrooms].anchorRent;
+}
+
+export interface PlannedUnit {
+  unit_number: string;
+  bedrooms: number;
+  bathrooms: number;
+  sqft: number;
+  monthly_rent: number;
+  ami_designation: string | null;
+}
+
+// Turn an onboard input into the EXACT list of unit rows to create. When the
+// input carries a per-tier `_ami_breakdown` (keys like "1BR_45AMI" /
+// "2BR_market" → {units, rent}), units are generated at their TIER rent with
+// ami_designation set per tier; otherwise it falls back to the coarse unit_mix
+// at the first matching rent_schedule tier (the original behavior). Unit numbers
+// are assigned sequentially per bedroom letter (A=1BR, B=2BR, S=Studio) so a
+// tier split still yields a contiguous A-101..A-130 with no gaps. Pure (no DB)
+// so it is unit-testable. ami_designation honors the units CHECK
+// (30/50/60/market/null): tiers outside that set (e.g. 40/45) are stored as
+// NULL — their economics live in monthly_rent + the property rent_schedule.
+export function buildUnitPlan(input: OnboardInput): PlannedUnit[] {
+  const mix = input.unit_mix || {};
+  const breakdown = input._ami_breakdown;
+  const seqByLetter: Record<string, number> = {};
+  const plan: PlannedUnit[] = [];
+
+  const emit = (label: string, count: number, rent: number, ami: string | null): void => {
+    const bedrooms = LABEL_TO_BEDROOMS[label.toLowerCase()];
+    if (bedrooms === undefined) {
+      console.warn(`  skip unknown unit label '${label}'`);
+      return;
+    }
+    const meta = BEDROOM_META[bedrooms];
+    for (let i = 0; i < count; i++) {
+      const n = (seqByLetter[meta.letter] = (seqByLetter[meta.letter] || 0) + 1);
+      const unit_number =
+        meta.letter === "S"
+          ? `S-${String(n).padStart(3, "0")}`
+          : `${meta.letter}-${meta.floor}${String(n).padStart(2, "0")}`;
+      plan.push({
+        unit_number,
+        bedrooms,
+        bathrooms: meta.bathrooms,
+        sqft: meta.sqft,
+        monthly_rent: rent,
+        ami_designation: ami,
+      });
+    }
+  };
+
+  if (breakdown && Object.keys(breakdown).length > 0) {
+    // Reconcile the breakdown to unit_mix per label (no silent drift).
+    const perLabel: Record<string, number> = {};
+    for (const [key, spec] of Object.entries(breakdown)) {
+      const label = key.slice(0, key.indexOf("_"));
+      perLabel[label] = (perLabel[label] || 0) + Number(spec.units);
+    }
+    for (const [label, n] of Object.entries(perLabel)) {
+      if (Number(mix[label] ?? -1) !== n) {
+        throw new Error(
+          `_ami_breakdown sums to ${n} ${label} but unit_mix says ${mix[label]} — reconcile (no silent drift).`
+        );
+      }
+    }
+    for (const [key, spec] of Object.entries(breakdown)) {
+      const label = key.slice(0, key.indexOf("_"));
+      const tierRaw = key.slice(key.indexOf("_") + 1); // "45AMI" | "40AMI" | "market"
+      const ami = /market/i.test(tierRaw) ? "market" : null;
+      emit(label, Number(spec.units), Number(spec.rent), ami);
+    }
+  } else {
+    for (const [label, countRaw] of Object.entries(mix)) {
+      const bedrooms = LABEL_TO_BEDROOMS[label.toLowerCase()] ?? 0;
+      emit(label, Number(countRaw), resolveRent(label, bedrooms, input.rent_schedule), input.ami_designation ?? null);
+    }
+  }
+  return plan;
 }
 
 async function run(): Promise<void> {
@@ -222,28 +304,16 @@ async function run(): Promise<void> {
   let unitsCreated = 0;
   if (willGenerateUnits) {
     const status = input.unit_status || "available";
-    for (const [label, countRaw] of Object.entries(mix)) {
-      const bedrooms = LABEL_TO_BEDROOMS[label.toLowerCase()];
-      if (bedrooms === undefined) {
-        console.warn(`  skip unknown unit_mix label '${label}'`);
-        continue;
-      }
-      const meta = BEDROOM_META[bedrooms];
-      const rent = resolveRent(label, bedrooms, input.rent_schedule);
-      const n = Number(countRaw);
-      for (let i = 0; i < n; i++) {
-        const seq = String(i + 1).padStart(2, "0");
-        const unitNumber =
-          meta.letter === "S" ? `S-${String(i + 1).padStart(3, "0")}` : `${meta.letter}-${meta.floor}${seq}`;
-        const res = await query(
-          `INSERT INTO units
-             (property_id, unit_number, bedrooms, bathrooms, sqft, monthly_rent, status, available_from, ami_designation)
-           VALUES ($1,$2,$3,$4,$5,$6,$7, ${status === "available" ? "CURRENT_DATE" : "NULL"}, $8)
-           ON CONFLICT (property_id, unit_number) DO NOTHING`,
-          [propertyId, unitNumber, bedrooms, meta.bathrooms, meta.sqft, rent, status, input.ami_designation ?? null]
-        );
-        unitsCreated += ((res as { rowCount?: number | null }).rowCount ?? 0);
-      }
+    const plan = buildUnitPlan(input);
+    for (const u of plan) {
+      const res = await query(
+        `INSERT INTO units
+           (property_id, unit_number, bedrooms, bathrooms, sqft, monthly_rent, status, available_from, ami_designation)
+         VALUES ($1,$2,$3,$4,$5,$6,$7, ${status === "available" ? "CURRENT_DATE" : "NULL"}, $8)
+         ON CONFLICT (property_id, unit_number) DO NOTHING`,
+        [propertyId, u.unit_number, u.bedrooms, u.bathrooms, u.sqft, u.monthly_rent, status, u.ami_designation]
+      );
+      unitsCreated += ((res as { rowCount?: number | null }).rowCount ?? 0);
     }
   } else {
     console.log("No unit_mix provided -> property row only (units deferred until the confirmed mix is known).");
@@ -261,10 +331,14 @@ async function run(): Promise<void> {
   if (unitsCreated > 0) console.log(`(${unitsCreated} new unit rows this run; re-runs are no-ops at the unit grain)`);
 }
 
-run()
-  .then(() => pool.end())
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error("onboard-property failed:", err);
-    pool.end().finally(() => process.exit(1));
-  });
+// Only execute as a script — importing this module (e.g. to unit-test
+// buildUnitPlan) must not open a DB connection or read argv.
+if (require.main === module) {
+  run()
+    .then(() => pool.end())
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("onboard-property failed:", err);
+      pool.end().finally(() => process.exit(1));
+    });
+}
