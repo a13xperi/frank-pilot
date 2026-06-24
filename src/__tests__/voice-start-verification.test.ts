@@ -27,6 +27,11 @@ jest.mock("../modules/screening/consumer-report-consent", () => ({
   FCRA_DISCLOSURE_VERSION: "2026-06-01",
 }));
 
+const mockSendLink = jest.fn();
+jest.mock("../modules/integrations/email", () => ({
+  getEmailService: () => ({ sendVerificationFeeLink: (...a: unknown[]) => mockSendLink(...a) }),
+}));
+
 import {
   startVerificationHandler,
   registerStartVerificationHandler,
@@ -97,6 +102,31 @@ describe("startVerificationHandler", () => {
 
     expect(r.ok).toBe(true);
     expect(mockRecordAuth).not.toHaveBeenCalled();
+  });
+
+  it("captures the email Frank provides at the fee step — persists it + emails the link", async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: APP_ID, submitted_by: "user-1", status: "submitted", email: "voice+abc@voice-handoff.invalid", first_name: "Jordan" }],
+      })
+      .mockResolvedValueOnce({ rows: [] }); // the UPDATE applications SET email
+    mockСheckoutCreate.mockResolvedValueOnce({ id: "cs_3", url: "https://pay.stripe/cs_3", payment_intent: "pi_3" });
+    mockSendLink.mockResolvedValueOnce({ sent: true });
+
+    const r = await startVerificationHandler(
+      { application_id: APP_ID, consent_acknowledged: true, email: "jordan.banks@example.com" },
+      CTX
+    );
+
+    expect(r.ok).toBe(true);
+    expect(r.result?.emailed).toBe(true);
+    // provided email persisted onto the application (the gap that left the link homeless)
+    const updateCall = mockQuery.mock.calls.find((c) => String(c[0]).includes("UPDATE applications SET email"));
+    expect(updateCall).toBeTruthy();
+    expect(updateCall?.[1]).toContain("jordan.banks@example.com");
+    // link sent to the provided address, and Frank only NOW claims he emailed it
+    expect(mockSendLink).toHaveBeenCalledWith("jordan.banks@example.com", "https://pay.stripe/cs_3", { firstName: "Jordan" });
+    expect(r.message).toContain("emailed you");
   });
 
   it("registers the start_verification handler", () => {

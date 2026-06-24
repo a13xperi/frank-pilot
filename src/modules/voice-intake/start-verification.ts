@@ -47,6 +47,7 @@ export async function startVerificationHandler(
 ): Promise<ToolCallbackResult> {
   const applicationId = pickString(parameters, "application_id");
   const consentAcknowledged = pickBool(parameters, "consent_acknowledged");
+  const providedEmail = pickString(parameters, "email");
 
   if (!applicationId) {
     logger.warn("start_verification missing application_id", {
@@ -90,8 +91,26 @@ export async function startVerificationHandler(
   const rawEmail = (appRes.rows[0].email as string) ?? "";
   const firstName = (appRes.rows[0].first_name as string) ?? undefined;
   // A real, reachable address — not the synth voice-handoff placeholder.
-  const deliverableEmail =
+  let deliverableEmail =
     rawEmail && !rawEmail.endsWith("@voice-handoff.invalid") ? rawEmail : "";
+  // Frank collects the email at the fee step ("where should I send the link?").
+  // Capture it here even if create_application missed it — a valid provided
+  // address wins, and we persist it so the receipt + every later notice reach
+  // the applicant (this was the gap: the pay link had nowhere to go).
+  if (providedEmail && isLikelyEmail(providedEmail) && providedEmail !== deliverableEmail) {
+    deliverableEmail = providedEmail;
+    try {
+      await query(`UPDATE applications SET email = $2 WHERE id = $1`, [
+        applicationId,
+        providedEmail,
+      ]);
+    } catch (err) {
+      logger.warn("start_verification email persist failed", {
+        conversationId: context.conversationId,
+        error: (err as Error).message,
+      });
+    }
+  }
 
   // FCRA gate: only record consent when Frank confirms the caller agreed after
   // hearing the disclosure. Without it the webhook will NOT run screening.
@@ -211,6 +230,12 @@ function pickBool(parameters: Record<string, unknown>, key: string): boolean {
   if (typeof v === "boolean") return v;
   if (typeof v === "string") return v.trim().toLowerCase() === "true";
   return false;
+}
+
+// Light sanity check — Frank dictates emails from speech ("alex dot e dot peri
+// at gmail dot com"), so we only guard against obvious junk, not RFC-perfection.
+function isLikelyEmail(s: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 }
 
 let registered = false;
