@@ -75,6 +75,7 @@ import { registerValidationPinHandlers } from "./modules/outbound-validation/val
 import { registerCallerHistoryHandler } from "./modules/caller-history/service";
 import { registerStartVerificationHandler } from "./modules/voice-intake/start-verification";
 import { registerGetApplicationStatusHandler } from "./modules/voice-intake/get-application-status";
+import { registerFollowUpHandlers } from "./modules/follow-ups/tools";
 import { registerCreateApplicationHandler } from "./modules/voice-intake/create-application";
 import { frankContactRoutes } from "./modules/frank-contact";
 import { smsIntakeRoutes } from "./modules/sms-intake";
@@ -405,6 +406,7 @@ registerFunnelToolHandlers();
 registerCreateApplicationHandler();
 registerStartVerificationHandler();
 registerGetApplicationStatusHandler();
+registerFollowUpHandlers();
 
 // Phase 2 voice verification + caller history (send_verification,
 // get_caller_history). Flag-gated: only register when VOICE_VERIFICATION_ENABLED
