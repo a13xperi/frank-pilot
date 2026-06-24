@@ -139,6 +139,102 @@ export async function buildContextPacket(phoneE164: string | null): Promise<Cont
   return { phone_e164: phone, rapport, application, open_followups };
 }
 
+/**
+ * Atomically claim the next due, pending follow-up (soonest first) and flip it
+ * to in_progress. FOR UPDATE SKIP LOCKED so concurrent ticks never grab the same
+ * row — the local-pg analogue of Sage's gpm_claim_next_call. Returns null when
+ * nothing is due.
+ */
+export async function claimNextDueFollowUp(): Promise<ClaimedFollowUp | null> {
+  const res = await query(
+    `UPDATE follow_ups
+        SET status = 'in_progress', last_attempted_at = NOW(), updated_at = NOW()
+      WHERE id = (
+        SELECT id FROM follow_ups
+         WHERE status = 'pending'
+           AND scheduled_for <= NOW()
+           AND attempts < max_attempts
+         ORDER BY scheduled_for ASC
+         FOR UPDATE SKIP LOCKED
+         LIMIT 1
+      )
+      RETURNING id, phone_e164, reason, scheduled_for, status, attempts,
+                notes, consent_outbound, voice_call_id, user_id`,
+    []
+  );
+  if (res.rows.length === 0) return null;
+  const r = res.rows[0];
+  return {
+    id: r.id as string,
+    phoneE164: r.phone_e164 as string,
+    reason: r.reason as string,
+    attempts: Number(r.attempts ?? 0),
+    notes: (r.notes as string) ?? null,
+    consentOutbound: Boolean(r.consent_outbound),
+    voiceCallId: (r.voice_call_id as string) ?? null,
+  };
+}
+
+export interface ClaimedFollowUp {
+  id: string;
+  phoneE164: string;
+  reason: string;
+  attempts: number;
+  notes: string | null;
+  consentOutbound: boolean;
+  voiceCallId: string | null;
+}
+
+/** Stamp the placed callback's conversation id on a claimed follow-up. */
+export async function markFollowUpDialed(id: string, outboundConversationId: string | null): Promise<void> {
+  await query(
+    `UPDATE follow_ups SET outbound_conversation_id = $2, updated_at = NOW() WHERE id = $1`,
+    [id, outboundConversationId]
+  );
+}
+
+/**
+ * Record a callback's outcome. completed/declined → close; no_answer/voicemail →
+ * bump attempts + reschedule 24h out (until max_attempts → expired). Idempotent
+ * enough for webhook re-delivery (a closed row stays closed).
+ */
+export async function recordFollowUpOutcome(
+  id: string,
+  outcome: "completed" | "declined" | "no_answer"
+): Promise<void> {
+  await query(
+    `UPDATE follow_ups
+        SET attempts = attempts + 1,
+            last_attempted_at = NOW(),
+            updated_at = NOW(),
+            status = CASE
+              WHEN $2 = 'completed' THEN 'completed'
+              WHEN $2 = 'declined'  THEN 'declined'
+              WHEN attempts + 1 >= max_attempts THEN 'expired'
+              ELSE 'pending'
+            END,
+            scheduled_for = CASE
+              WHEN $2 = 'no_answer' AND attempts + 1 < max_attempts THEN NOW() + INTERVAL '24 hours'
+              ELSE scheduled_for
+            END,
+            next_attempt_after = CASE
+              WHEN $2 = 'no_answer' AND attempts + 1 < max_attempts THEN NOW() + INTERVAL '24 hours'
+              ELSE next_attempt_after
+            END
+      WHERE id = $1 AND status = 'in_progress'`,
+    [id, outcome]
+  );
+}
+
+/** Find an in-progress follow-up by the callback's conversation id (webhook). */
+export async function findFollowUpByConversation(conversationId: string): Promise<string | null> {
+  const res = await query(
+    `SELECT id FROM follow_ups WHERE outbound_conversation_id = $1 AND status = 'in_progress' LIMIT 1`,
+    [conversationId]
+  );
+  return res.rows.length ? (res.rows[0].id as string) : null;
+}
+
 function rowToFollowUp(row: Record<string, unknown> | undefined): FollowUp | null {
   if (!row) return null;
   const ts = row.scheduled_for;

@@ -6,6 +6,7 @@ import { createTapeService } from "./modules/tape/service";
 import { PgTapeRepository } from "./modules/tape/repository";
 import { AdverseActionService } from "./modules/adverse-action/service";
 import { runDialerTick, sweepStuckCalls } from "./modules/outbound-validation/dialer";
+import { runFollowupTick } from "./modules/follow-ups/dialer";
 import { pushReportToNotion } from "./modules/outbound-validation/report";
 import { WorkOrderEscalationService } from "./modules/maintenance/escalation";
 import { logger } from "./utils/logger";
@@ -263,6 +264,28 @@ export function startScheduler() {
     logger.info("Outbound validation dialer cron registered (FRANK_OUTBOUND_ENABLED=true)");
   } else {
     logger.info("Outbound validation dialer cron skipped — FRANK_OUTBOUND_ENABLED is off");
+  }
+
+  // Follow-up callback dialer (Phase 2) — gated on FRANK_FOLLOWUP_ENABLED. Every
+  // 5 min, 9am–8pm Pacific: claim the next due follow-up and dial it back as
+  // Frank, with the context packet. Dark until the flag + FRANK_FOLLOWUP_AGENT_ID
+  // are set, so the scheduler is byte-identical otherwise.
+  if (process.env.FRANK_FOLLOWUP_ENABLED === "true") {
+    cron.schedule(
+      "*/5 9-19 * * *",
+      async () => {
+        try {
+          const result = await runFollowupTick();
+          if (result.action !== "queue_empty") {
+            logger.info("Follow-up callback tick", { ...result });
+          }
+        } catch (err) {
+          logger.error("Follow-up callback tick failed", { error: (err as Error).message });
+        }
+      },
+      { timezone: "America/Los_Angeles" }
+    );
+    logger.info("Follow-up callback cron registered (FRANK_FOLLOWUP_ENABLED=true)");
   }
 
   // Work-order stale-sweep + manager escalation (D1) — gated on
