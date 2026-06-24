@@ -42,6 +42,10 @@ export async function scheduleFollowupHandler(
     voiceCallId: context.conversationId,
     notes,
     source: "voice_intake",
+    // The caller asked Frank to call them back — that request IS the consent to
+    // the outbound callback, so the auto-dialer may place it. (Frank only fires
+    // this tool when offering/confirming a callback the caller wants.)
+    consentOutbound: true,
   });
   if (!fu) {
     logger.warn("schedule_followup invalid input", { conversationId: context.conversationId });
