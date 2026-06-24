@@ -26,6 +26,7 @@ import {
   payDtmfEnabled,
   payStripeConnector,
 } from "./config";
+import { applyApplicationFeePaid } from "../payment/apply-fee";
 
 const router = Router();
 // Twilio posts application/x-www-form-urlencoded; parse it here so this router is
@@ -82,10 +83,11 @@ router.get("/twiml", twimlHandler);
  * Twilio sends Result=success plus PaymentConfirmationCode. We correlate the caller
  * (From, E.164) to their application by phone.
  *
- * SLICE 2 (TODO): on success, call the shared applyApplicationFeePaid() that
- * handleApplicationFeeSucceeded will be refactored to expose — ledger + FCRA-gated
- * runFullScreening + draft→submitted — passing this applicationId and the
- * PaymentConfirmationCode as the charge ref.
+ * On success we call the shared applyApplicationFeePaid() — the exact same
+ * post-payment core the Stripe webhook runs (ledger + FCRA-gated runFullScreening
+ * + draft→submitted + tape + audit) — passing this applicationId and the
+ * PaymentConfirmationCode as the charge ref. dedupeOnRef:true guards against
+ * Twilio re-POSTing the action callback (recordPayment does not dedupe).
  */
 router.post("/result", async (req: Request, res: Response): Promise<void> => {
   const body = (req.body ?? {}) as Record<string, unknown>;
@@ -115,8 +117,34 @@ router.post("/result", async (req: Request, res: Response): Promise<void> => {
 
   res.type("text/xml");
   if (result === "success") {
-    // slice 2: await applyApplicationFeePaid({ applicationId, amountDollars: 35.95,
-    //   ref: confirmation, actorIdFallback: undefined });
+    if (applicationId) {
+      try {
+        await applyApplicationFeePaid({
+          applicationId,
+          amountDollars: Number(APPLICATION_FEE_DOLLARS),
+          chargeRef: confirmation || `twilio-pay:${from}`,
+          source: "twilio-pay",
+          notes: `Application fee — Twilio Pay ${confirmation || from}`,
+          dedupeOnRef: true,
+        });
+      } catch (err) {
+        // The card was already charged by Twilio/Stripe; a failure to post the
+        // ledger/screening must not tell the caller their payment failed. Log
+        // loudly for reconciliation and still acknowledge receipt.
+        logger.error("pay/result post-payment apply failed", {
+          applicationId,
+          from,
+          error: (err as Error).message,
+        });
+      }
+    } else {
+      // Money was taken but we couldn't correlate the caller to an application.
+      // Log for manual reconciliation; do not fail the caller.
+      logger.error("pay/result success but no application correlated", {
+        from,
+        hasConfirmation: Boolean(confirmation),
+      });
+    }
     res
       .status(200)
       .send(
