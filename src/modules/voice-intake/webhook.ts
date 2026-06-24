@@ -12,6 +12,7 @@ import {
 } from "../outbound-validation/outcome";
 import { isCareLineEvent, handleCareLinePostCall } from "../care-line";
 import { updateCallerHistory } from "../caller-history/service";
+import { findFollowUpByConversation, recordFollowUpOutcome } from "../follow-ups/service";
 
 /**
  * ElevenLabs Conv. AI post-call webhook receiver.
@@ -312,6 +313,26 @@ async function dispatch(event: ElevenLabsEvent): Promise<void> {
           })
         );
       }
+
+      // Follow-up callbacks (Phase 2): if this conversation was an in-progress
+      // scheduled callback, close the loop — connected → completed; otherwise
+      // (voicemail/no-answer) → no_answer, which reschedules 24h out until the
+      // attempt cap. Fire-and-forget; best-effort; never fails the webhook.
+      void (async () => {
+        const followUpId = await findFollowUpByConversation(event.data.conversation_id);
+        if (!followUpId) return;
+        const ok = event.data.analysis?.call_successful === "success";
+        await recordFollowUpOutcome(followUpId, ok ? "completed" : "no_answer");
+        logger.info("follow-up outcome recorded", {
+          conversationId: event.data.conversation_id,
+          outcome: ok ? "completed" : "no_answer",
+        });
+      })().catch((err) =>
+        logger.error("follow-up outcome record failed (non-fatal)", {
+          conversationId: event.data.conversation_id,
+          error: (err as Error).message,
+        })
+      );
       return;
     }
     default:
