@@ -58,14 +58,25 @@ function rowToSignals(row: Record<string, unknown>): AppSignals {
   };
 }
 
-/** Explicit override rows for an application, keyed by item_key. */
+/**
+ * Explicit override rows for an application, keyed by item_key. Resilient to the
+ * table not existing yet (migrations are filed-not-applied): a query failure
+ * degrades to "no overrides" so computeMissing still works off the screening
+ * columns alone, rather than hard-failing the report / context packet.
+ */
 async function explicitStatuses(applicationId: string): Promise<Map<string, RequirementStatus>> {
-  const res = await query(
-    `SELECT item_key, status FROM application_requirements WHERE application_id = $1`,
-    [applicationId]
-  );
   const map = new Map<string, RequirementStatus>();
-  for (const r of res.rows) map.set(r.item_key as string, r.status as RequirementStatus);
+  try {
+    const res = await query(
+      `SELECT item_key, status FROM application_requirements WHERE application_id = $1`,
+      [applicationId]
+    );
+    for (const r of res.rows) map.set(r.item_key as string, r.status as RequirementStatus);
+  } catch (err) {
+    logger.warn("application_requirements lookup failed — using column-derived only", {
+      error: (err as Error).message,
+    });
+  }
   return map;
 }
 
