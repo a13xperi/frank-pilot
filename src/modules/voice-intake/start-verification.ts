@@ -2,6 +2,7 @@ import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { getStripe, isStripeConfigured } from "../../lib/stripe";
 import { getEmailService } from "../integrations/email";
+import { TwilioService } from "../integrations/twilio";
 import {
   recordAuthorization,
   FCRA_DISCLOSURE_VERSION,
@@ -74,7 +75,7 @@ export async function startVerificationHandler(
   // The application must exist; pull the applicant (submitted_by) so the
   // post-payment screening runs under the right actor.
   const appRes = await query(
-    `SELECT id, submitted_by, status, email, first_name FROM applications WHERE id = $1`,
+    `SELECT id, submitted_by, status, email, first_name, phone FROM applications WHERE id = $1`,
     [applicationId]
   );
   if (appRes.rows.length === 0) {
@@ -90,6 +91,12 @@ export async function startVerificationHandler(
   const submittedBy = (appRes.rows[0].submitted_by as string) ?? "";
   const rawEmail = (appRes.rows[0].email as string) ?? "";
   const firstName = (appRes.rows[0].first_name as string) ?? undefined;
+  // The caller's phone (from the application) — where we text the link for
+  // people who have no email. A real E.164 number, not the placeholder.
+  const rawPhone = (appRes.rows[0].phone as string) ?? "";
+  const applicantPhone = /^\+?\d{10,15}$/.test(rawPhone.replace(/[\s()-]/g, ""))
+    ? rawPhone.replace(/[\s()-]/g, "")
+    : "";
   // A real, reachable address — not the synth voice-handoff placeholder.
   let deliverableEmail =
     rawEmail && !rawEmail.endsWith("@voice-handoff.invalid") ? rawEmail : "";
@@ -170,9 +177,12 @@ export async function startVerificationHandler(
       { idempotencyKey: `appfee:${applicationId}` }
     );
 
-    // Deliver the link by EMAIL (texting an arbitrary link from the local
-    // number is A2P-blocked; email is reliable). Only claim "I emailed it" when
-    // we actually have a real address and the send goes through.
+    // Deliver the link by the best available channel(s): EMAIL to whatever
+    // address they gave, and/or TEXT to their phone for people who have no email.
+    // Only claim a channel when the send actually goes through.
+    //   - Email: needs a verified Resend domain to reach non-owner addresses.
+    //   - SMS: gated on PAY_LINK_SMS_ENABLED (off until the toll-free number is
+    //     A2P-verified; a custom link from an unregistered number bounces 30034).
     let emailed = false;
     if (deliverableEmail && session.url) {
       const res = await getEmailService().sendVerificationFeeLink(deliverableEmail, session.url, {
@@ -181,16 +191,32 @@ export async function startVerificationHandler(
       emailed = res.sent;
     }
 
+    let texted = false;
+    const smsEnabled = process.env.PAY_LINK_SMS_ENABLED === "true";
+    if (smsEnabled && applicantPhone && session.url) {
+      const body = `${firstName ? firstName + ", here" : "Here"}'s your CDPC Nevada application payment link ($35.95): ${session.url} Reply STOP to opt out.`;
+      const sms = await new TwilioService().sendSMS(applicantPhone, body);
+      texted = sms.sent;
+    }
+
     logger.info("start_verification checkout created", {
       conversationId: context.conversationId,
       sessionId: session.id,
       consent: consentAcknowledged,
       emailed,
+      texted,
     });
 
-    const message = emailed
-      ? "Perfect. The fee to verify everything is thirty-five ninety-five, and once it's paid I run your identity, credit, and background — usually back within a few hours. I just emailed you the secure payment link, so check your inbox."
-      : "Perfect. The fee to verify everything is thirty-five ninety-five, and once it's paid I run your identity, credit, and background. What's the best email for me to send your secure payment link to?";
+    let message: string;
+    if (emailed && texted) {
+      message = "Perfect. The fee is thirty-five ninety-five, and once it's paid I run your identity, credit, and background, usually back within a few hours. I just emailed and texted you the secure payment link.";
+    } else if (emailed) {
+      message = "Perfect. The fee is thirty-five ninety-five, and once it's paid I run your identity, credit, and background, usually back within a few hours. I just emailed you the secure payment link, so check your inbox.";
+    } else if (texted) {
+      message = "Perfect. The fee is thirty-five ninety-five, and once it's paid I run your identity, credit, and background, usually back within a few hours. I just texted you the secure payment link.";
+    } else {
+      message = "Perfect. The fee is thirty-five ninety-five, and once it's paid I run your identity, credit, and background. What's the best email or mobile number for me to send your secure payment link to?";
+    }
 
     return {
       ok: true,
@@ -202,6 +228,7 @@ export async function startVerificationHandler(
             : null,
         amount: "$35.95",
         emailed,
+        texted,
       },
       message,
     };
