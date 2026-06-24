@@ -260,12 +260,14 @@ describe("GET /applicants/units", () => {
       expect(res.status).toBe(200);
       const sql = mockQuery.mock.calls[1][0] as string;
       const params = mockQuery.mock.calls[1][1] as unknown[];
-      // Filter is appended as an ANY($n) clause on p.ami_set_aside, with the
-      // market-rate (null/empty) fallback preserved so unaffordable applicants
-      // still see market-rate inventory when no tier matches.
+      // The legacy text whitelist (param $1) is preserved for zero regression,
+      // PLUS a rent_schedule-derived branch (param $2 = the applicant tier as an
+      // int) so a 40/45%/market property — whose ami_set_aside text never matched
+      // the fixed whitelist — is now reachable. Null/empty set-aside stays visible.
       expect(sql).toContain("p.ami_set_aside = ANY($1)");
       expect(sql).toContain("p.ami_set_aside IS NULL OR p.ami_set_aside = ''");
-      expect(params).toEqual([["50% AMI", "60% AMI", "80% AMI"]]);
+      expect(sql).toContain("jsonb_object_keys");
+      expect(params).toEqual([["50% AMI", "60% AMI", "80% AMI"], 50]);
     });
 
     it("with amiTier=30 — includes every higher tier in the whitelist", async () => {
@@ -277,7 +279,7 @@ describe("GET /applicants/units", () => {
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(200);
       const params = mockQuery.mock.calls[1][1] as unknown[];
-      expect(params).toEqual([["30% AMI", "50% AMI", "60% AMI", "80% AMI"]]);
+      expect(params).toEqual([["30% AMI", "50% AMI", "60% AMI", "80% AMI"], 30]);
     });
 
     it("with amiTier=80 — whitelist contains only the top tier", async () => {
@@ -289,7 +291,23 @@ describe("GET /applicants/units", () => {
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(200);
       const params = mockQuery.mock.calls[1][1] as unknown[];
-      expect(params).toEqual([["80% AMI"]]);
+      expect(params).toEqual([["80% AMI"], 80]);
+    });
+
+    it("reaches 40/45% + market properties via rent_schedule (the Donna Louise 2 fix)", async () => {
+      mockUsersRow(applicant, VERIFIED_AT);
+      mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+      const token = generateToken(applicant);
+      const res = await request(app)
+        .get("/applicants/units?amiTier=30")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      const sql = mockQuery.mock.calls[1][0] as string;
+      // A 40/45% building is reached by parsing its rent_schedule keys (the same
+      // source screening/compliance.ts uses), not the fixed whitelist; and any
+      // "*market*" tier keeps uncapped units visible to every applicant.
+      expect(sql).toContain("jsonb_object_keys");
+      expect(sql).toContain("~* 'market'");
     });
 
     it("rejects an invalid amiTier value with 400 (loud, not silent drop)", async () => {

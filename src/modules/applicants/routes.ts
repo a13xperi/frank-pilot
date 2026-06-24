@@ -1246,14 +1246,42 @@ router.get(
         conditions.push(`u.property_id = $${params.length}`);
       }
       if (amiTier) {
-        // Match the property's set-aside text ("60% AMI", "80% AMI", …) to
-        // the tiers at or above the applicant's lowest qualifying tier.
-        // Market-rate properties (null/empty set_aside) stay visible.
+        // A property is shown iff the applicant qualifies for at least one of its
+        // set-aside tiers (their income is within that tier's cap) — i.e.
+        // applicantTier <= the property's highest affordable tier. The property
+        // tier is derived from the rent_schedule keys ("1BR_45AMI", "2BR_40AMI",
+        // "2BR_market", …), the SAME source the compliance check uses
+        // (screening/compliance.ts), so the picker and the screen agree.
+        //
+        // The previous version exact-matched the ami_set_aside *string* against a
+        // fixed {30,50,60,80}% set, which silently hid every 40/45% (or verbose)
+        // set-aside — that is why Donna Louise 2 (40%/45% AMI) never appeared.
+        //
+        // Three ways a property qualifies (any one):
+        //   1. Legacy text — ami_set_aside is exactly "<tier>% AMI" for a tier at
+        //      or above the applicant's, or null/empty (zero regression).
+        //   2. rent_schedule-derived — applicantTier <= max affordable tier parsed
+        //      from the rent_schedule keys.
+        //   3. Market units present — any "*market*" rent_schedule key means
+        //      uncapped units, visible to every applicant.
         const idx = AMI_TIER_ORDER.indexOf(amiTier);
-        const allowedSetAsides = AMI_TIER_ORDER.slice(idx).map(t => `${t}% AMI`);
-        params.push(allowedSetAsides);
+        const allowedSetAsides = AMI_TIER_ORDER.slice(idx).map((t) => `${t}% AMI`);
+        const legacyParam = params.push(allowedSetAsides);
+        const tierParam = params.push(Number(amiTier));
         conditions.push(
-          `(p.ami_set_aside = ANY($${params.length}) OR p.ami_set_aside IS NULL OR p.ami_set_aside = '')`
+          `(
+             p.ami_set_aside = ANY($${legacyParam})
+             OR p.ami_set_aside IS NULL OR p.ami_set_aside = ''
+             OR $${tierParam}::int <= COALESCE((
+                  SELECT max((substring(k from '_(\\d+)\\s*AMI'))::int)
+                    FROM jsonb_object_keys(COALESCE(p.rent_schedule, '{}'::jsonb)) AS k
+                   WHERE k ~* '_\\d+\\s*AMI'
+                ), 0)
+             OR EXISTS (
+                  SELECT 1 FROM jsonb_object_keys(COALESCE(p.rent_schedule, '{}'::jsonb)) AS k
+                   WHERE k ~* 'market'
+                )
+           )`
         );
       }
 
