@@ -274,6 +274,8 @@ export class CreditCheckService {
     collections: number;
     evictions: number;
     bankruptcies: number;
+    // Fail-closed signal — see computation below. evaluateResults() HOLDs when set.
+    indeterminate: boolean;
   } {
     // TODO(credentialing): confirm field paths against a live ShareAble sandbox
     // report. The paths below follow TU ShareAble's documented response sections
@@ -302,6 +304,42 @@ export class CreditCheckService {
         ? report.paymentHistory
         : this.derivePaymentHistory(creditScore);
 
+    // ── Fail-closed guard (credentialing audit 2026-06-24) ──────────────────
+    // A passing credit verdict needs score >= 600 AND evictions==0 AND
+    // bankruptcies==0. If ShareAble returns a good score but its public-record
+    // section carries eviction/bankruptcy entries under a key we don't parse
+    // (references, not the inline shape below), the counts fall to 0 and a real
+    // eviction/bankruptcy slips through as a PASS. Likewise a not-actually-clear
+    // report status must not be read as a verdict. Flag indeterminate when:
+    //  (a) a non-clear status signal is present, or
+    //  (b) a public-record container LOOKS non-empty but we parsed zero
+    //      evictions AND zero bankruptcies (we likely missed records).
+    // Shape-agnostic defense-in-depth: a sandbox-verified mapper that parses the
+    // records sets the counts and never trips (b); an explicitly-empty container
+    // ([] / {evictions:[],bankruptcies:[]}) is not "non-empty" and is safe.
+    const NON_CLEAR = /consider|review|suspend|dispute|pending|escalat|incomplete|unknown|error|fail/;
+    const statusSignals = [
+      report?.status,
+      report?.result,
+      report?.reportStatus,
+      report?.scoreModel?.status,
+    ]
+      .map((v) => String(v ?? "").toLowerCase())
+      .filter(Boolean);
+    const hasNonClearStatus = statusSignals.some((s) => NON_CLEAR.test(s));
+    const publicContainers = [
+      report?.evictions,
+      report?.evictionRecords,
+      report?.publicRecords?.evictions,
+      report?.bankruptcies,
+      report?.bankruptcyRecords,
+      report?.publicRecords?.bankruptcies,
+      report?.publicRecords,
+    ];
+    const unparsedPublicRecords =
+      evictions + bankruptcies === 0 && publicContainers.some((c) => this.looksNonEmpty(c));
+    const indeterminate = hasNonClearStatus || unparsedPublicRecords;
+
     return {
       creditScore,
       paymentHistory,
@@ -309,7 +347,25 @@ export class CreditCheckService {
       collections,
       evictions,
       bankruptcies,
+      indeterminate,
     };
+  }
+
+  /**
+   * Does this value carry actual content (vs. absent / explicitly-empty)?
+   * Recurses objects so a public-records container with records under an
+   * unrecognized sub-key reads as non-empty, while {evictions:[],...} does not.
+   */
+  private looksNonEmpty(v: unknown): boolean {
+    if (v == null) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "number") return v > 0;
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      return s.length > 0 && s !== "none" && s !== "0";
+    }
+    if (typeof v === "object") return Object.values(v as object).some((x) => this.looksNonEmpty(x));
+    return Boolean(v);
   }
 
   /** Coerce a numeric field to a non-negative integer (0 when absent/invalid). */
@@ -398,6 +454,13 @@ export class CreditCheckService {
   }
 
   private evaluateResults(response: any): CreditCheckResult {
+    // Fail-closed: a report the mapper flagged indeterminate (non-clear status,
+    // or public-record content we couldn't parse) must NEVER pass. HOLD it for
+    // staff review. Only the real-vendor mapper sets this; the legacy/mock path
+    // never does, so flag-off behaviour is byte-identical.
+    if (response?.indeterminate === true) {
+      return this.couldNotScreen("report_indeterminate_nonclear_or_unparsed_records");
+    }
     const score = response.creditScore || 0;
     const evictions = response.evictions || 0;
     const bankruptcies = response.bankruptcies || 0;
