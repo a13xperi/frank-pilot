@@ -74,6 +74,7 @@ import { cockpitMetricsRoutes } from "./modules/cockpit-metrics";
 import { registerValidationPinHandlers } from "./modules/outbound-validation/validation-tools";
 import { registerCallerHistoryHandler } from "./modules/caller-history/service";
 import { registerStartVerificationHandler } from "./modules/voice-intake/start-verification";
+import { registerTakePaymentHandler } from "./modules/voice-intake/take-payment";
 import { registerGetApplicationStatusHandler } from "./modules/voice-intake/get-application-status";
 import { registerFollowUpHandlers } from "./modules/follow-ups/tools";
 import { registerRelationshipHandlers } from "./modules/relationship/tools";
@@ -406,6 +407,7 @@ registerFunnelToolHandlers();
 // Phase B paid-conversion tool (start_verification — $35.95 fee → screening).
 registerCreateApplicationHandler();
 registerStartVerificationHandler();
+registerTakePaymentHandler();
 registerGetApplicationStatusHandler();
 registerFollowUpHandlers();
 registerRelationshipHandlers();
