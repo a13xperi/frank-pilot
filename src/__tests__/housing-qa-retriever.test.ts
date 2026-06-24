@@ -361,3 +361,29 @@ describe("housing-qa retriever — tenant_public policy (data scoping)", () => {
     expect(henderson.properties.length).toBeGreaterThan(0);
   });
 });
+
+// ── PR #290 review follow-up pins (lazy index + replacer hardening) ─────────
+describe("housing-qa follow-up pins — tenant surface index independence", () => {
+  it("tenant_public context NEVER resolves the property index", () => {
+    const data = require("../modules/housing-qa/data");
+    const spy = jest.spyOn(data, "getHousingIndex");
+    const { buildContextForSurface } = require("../modules/housing-qa/retriever");
+    const ctx = buildContextForSurface("tenant_public", "how do I pay my rent?");
+    expect(spy).not.toHaveBeenCalled();
+    expect(ctx.scope).toBe("tenant");
+    spy.mockRestore();
+  });
+
+  it("applicant_portal still resolves the index lazily when omitted", () => {
+    const { buildContextForSurface } = require("../modules/housing-qa/retriever");
+    const ctx = buildContextForSurface("applicant_portal", "2 bedroom in Las Vegas");
+    expect(ctx).toHaveProperty("routing");
+  });
+
+  it("buildSystemPromptFor inserts $-substitution patterns verbatim", () => {
+    const { buildSystemPromptFor } = require("../modules/housing-qa/prompt");
+    const payload = { question: "rent due $' and $& and $$ today" };
+    const out = buildSystemPromptFor("tenant_public", payload);
+    expect(out).toContain("$' and $& and $$");
+  });
+});

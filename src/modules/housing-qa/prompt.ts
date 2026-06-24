@@ -280,8 +280,12 @@ export function buildSystemPromptFor(
   surface: QaSurface,
   contextPayload: unknown
 ): string {
-  return SYSTEM_PROMPTS[surface].replace(
-    CONTEXT_PLACEHOLDER,
+  // Function replacer: a string replacement interprets $-patterns ($&, $`,
+  // $') in the serialized context as substitution directives — the applicant
+  // surface echoes user-controlled questions into the payload, so a crafted
+  // question could splice or duplicate prompt sections. A function return is
+  // inserted verbatim.
+  return SYSTEM_PROMPTS[surface].replace(CONTEXT_PLACEHOLDER, () =>
     JSON.stringify(contextPayload, null, 2)
   );
 }

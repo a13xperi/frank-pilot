@@ -606,13 +606,18 @@ export function buildTenantContext(question: string): TenantScopedContext {
 export function buildContextForSurface(
   surface: QaSurface,
   question: string,
-  index: HousingIndex = getHousingIndex()
+  index?: HousingIndex
 ): TenantScopedContext | HousingContext {
   switch (surface) {
     case "tenant_public":
+      // The property index is intentionally NOT resolved on this branch:
+      // a default-arg getHousingIndex() evaluates on EVERY call (JS default
+      // params ignore which switch case runs), which made the tenant surface
+      // hard-depend on property data files it never uses — a missing file on
+      // a deploy would 502 a structurally index-free surface.
       return buildTenantContext(question);
     case "applicant_portal":
-      return buildContext(question, RETRIEVAL_POLICIES[surface], index);
+      return buildContext(question, RETRIEVAL_POLICIES[surface], index ?? getHousingIndex());
     default: {
       const unhandled: never = surface;
       throw new Error(`housing-qa: no context builder for surface ${unhandled}`);
