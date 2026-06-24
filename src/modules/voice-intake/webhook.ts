@@ -12,7 +12,11 @@ import {
 } from "../outbound-validation/outcome";
 import { isCareLineEvent, handleCareLinePostCall } from "../care-line";
 import { updateCallerHistory } from "../caller-history/service";
-import { findFollowUpByConversation, recordFollowUpOutcome } from "../follow-ups/service";
+import {
+  findFollowUpByConversation,
+  recordFollowUpOutcome,
+  maybeCreateCutoffCallback,
+} from "../follow-ups/service";
 
 /**
  * ElevenLabs Conv. AI post-call webhook receiver.
@@ -320,15 +324,25 @@ async function dispatch(event: ElevenLabsEvent): Promise<void> {
       // attempt cap. Fire-and-forget; best-effort; never fails the webhook.
       void (async () => {
         const followUpId = await findFollowUpByConversation(event.data.conversation_id);
-        if (!followUpId) return;
-        const ok = event.data.analysis?.call_successful === "success";
-        await recordFollowUpOutcome(followUpId, ok ? "completed" : "no_answer");
-        logger.info("follow-up outcome recorded", {
+        if (followUpId) {
+          // This conversation WAS a scheduled callback — close its loop.
+          const ok = event.data.analysis?.call_successful === "success";
+          await recordFollowUpOutcome(followUpId, ok ? "completed" : "no_answer");
+          logger.info("follow-up outcome recorded", {
+            conversationId: event.data.conversation_id,
+            outcome: ok ? "completed" : "no_answer",
+          });
+          return; // a callback that itself got cut is handled here — never re-net it (no loop)
+        }
+        // Not a callback. If this inbound call hit the duration cap mid-conversation,
+        // auto-schedule an immediate continuation callback (flag-gated, dedup'd).
+        await maybeCreateCutoffCallback({
           conversationId: event.data.conversation_id,
-          outcome: ok ? "completed" : "no_answer",
+          phoneE164: phone,
+          durationSecs: event.data.metadata?.call_duration_secs ?? null,
         });
       })().catch((err) =>
-        logger.error("follow-up outcome record failed (non-fatal)", {
+        logger.error("follow-up outcome / cutoff-callback failed (non-fatal)", {
           conversationId: event.data.conversation_id,
           error: (err as Error).message,
         })

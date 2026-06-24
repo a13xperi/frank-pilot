@@ -26,7 +26,12 @@ export async function scheduleFollowupHandler(
 ): Promise<ToolCallbackResult> {
   const phone = pickString(parameters, "phone_e164") ?? pickString(parameters, "phone");
   const reason = pickString(parameters, "reason") ?? "callback_requested";
-  const whenIso = pickString(parameters, "scheduled_for_iso") ?? pickString(parameters, "scheduled_for");
+  // A time-cutoff callback continues THIS call right away — it isn't a "what day
+  // works" booking. Schedule it for now so the dialer rings back on its next tick,
+  // ignoring any time the LLM may have passed.
+  const isImmediate = /cutoff|right now|immediately/i.test(reason);
+  let whenIso = pickString(parameters, "scheduled_for_iso") ?? pickString(parameters, "scheduled_for");
+  if (isImmediate) whenIso = new Date().toISOString();
   const notes = pickString(parameters, "notes");
   // Structured "exactly where we are in the process" so the callback resumes
   // here instead of starting over (the call-time wrap path fills this).
