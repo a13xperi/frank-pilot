@@ -595,11 +595,27 @@ router.post(
 // (client-tenant/src/pages/waitlist/Position.tsx) reads the GET summary; the
 // banner and Apply funnel POST/DELETE to manage membership.
 
+// MVP-era hand-mapped slug aliases. The tenant client and the printed QR links
+// still address these two buildings by their original short slugs (see
+// client-tenant/src/api/gpmg-fixtures.ts, the welcome cards, the waitlist page,
+// and the unit-picker deep link `?propertyId=donna-louise-2`). The backend,
+// though, derives a property's slug from its NAME — and the canonical names
+// later gained the word "Apartments", so "donna-louise-2" no longer
+// name-derives to a row. Map the legacy aliases to the current name-derived
+// slug so every client path that uses them keeps resolving. Direct use of the
+// real slug (donna-louise-apartments-2) still works unchanged.
+const SLUG_ALIASES: Record<string, string> = {
+  "donna-louise-1": "donna-louise-apartments",
+  "donna-louise-2": "donna-louise-apartments-2",
+};
+
 // Slug ↔ property lookup. The properties table has no slug column; seed
 // derives the slug from `name` via lowercase + non-alnum-to-dash + trim. We
 // reverse the mapping by normalizing both sides in SQL. Cheap on a 16-row
 // table; if the catalog ever grows we can add a stored slug column.
 async function resolvePropertyIdBySlug(slug: string): Promise<string | null> {
+  // Resolve any legacy alias to its current name-derived slug first.
+  const canonical = SLUG_ALIASES[slug] ?? slug;
   // Mirrors the frontend slugify (gpmg-fixtures.ts) and the map markers SQL:
   // lowercase → collapse runs of non-alnum to "-" → strip leading/trailing
   // dashes. trim(BOTH '-' …) replaces ltrim+rtrim to stay portable.
@@ -617,7 +633,7 @@ async function resolvePropertyIdBySlug(slug: string): Promise<string | null> {
        FROM properties
       WHERE trim(BOTH '-' FROM regexp_replace(LOWER(name), '[^a-z0-9]+', '-', 'g')) = $1
       LIMIT 1`,
-    [slug]
+    [canonical]
   );
   return result.rows[0]?.id ?? null;
 }
