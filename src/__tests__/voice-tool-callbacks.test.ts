@@ -332,3 +332,80 @@ describe("voice tool callbacks — dispatch", () => {
     expect(markCall).toBeUndefined();
   });
 });
+
+describe("voice tool callbacks — EL ConvAI webhook-tool contract (secret header + flat body)", () => {
+  const TOOL_SECRET = "tsec_test_fixture_67890";
+
+  beforeEach(() => {
+    process.env.VOICE_TOOL_SECRET = TOOL_SECRET;
+  });
+  afterEach(() => {
+    delete process.env.VOICE_TOOL_SECRET;
+  });
+
+  it("authenticates via X-Frank-Tool-Secret and passes the FLAT body as params", async () => {
+    const handler: ToolHandler = jest.fn(async (params) => ({
+      ok: true,
+      result: { echoed: (params as { query: string }).query },
+      message: "ok",
+    }));
+    registerToolHandler("web_search", handler);
+
+    const res = await request(buildApp())
+      .post("/api/webhooks/elevenlabs/tools/web_search")
+      .set("Content-Type", "application/json")
+      .set("X-Frank-Tool-Secret", TOOL_SECRET)
+      .send(JSON.stringify({ query: "bus routes near 1700 E Charleston" }));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      ok: true,
+      result: { echoed: "bus routes near 1700 E Charleston" },
+      message: "ok",
+    });
+    // Flat body, no ids → handler gets the params verbatim with empty ctx ids.
+    expect(handler).toHaveBeenCalledWith(
+      { query: "bus routes near 1700 E Charleston" },
+      { agentId: "", conversationId: "", toolCallId: "", toolName: "web_search" }
+    );
+    // No conversation/tool ids → idempotency layer is skipped entirely.
+    expect(
+      mockQuery.mock.calls.find((c) => String(c[0]).includes("elevenlabs_processed_events"))
+    ).toBeUndefined();
+  });
+
+  it("rejects a wrong secret header with 400 (no HMAC present)", async () => {
+    const handler: ToolHandler = jest.fn();
+    registerToolHandler("web_search", handler);
+
+    const res = await request(buildApp())
+      .post("/api/webhooks/elevenlabs/tools/web_search")
+      .set("Content-Type", "application/json")
+      .set("X-Frank-Tool-Secret", "wrong-secret-value-here")
+      .send(JSON.stringify({ query: "x" }));
+
+    expect(res.status).toBe(400);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("still honors a nested `parameters` object when present", async () => {
+    const handler: ToolHandler = jest.fn(async () => ({ ok: true }));
+    registerToolHandler("web_search", handler);
+
+    await request(buildApp())
+      .post("/api/webhooks/elevenlabs/tools/web_search")
+      .set("Content-Type", "application/json")
+      .set("X-Frank-Tool-Secret", TOOL_SECRET)
+      .send(
+        JSON.stringify({
+          conversation_id: "conv_X",
+          parameters: { query: "nested form" },
+        })
+      );
+
+    expect(handler).toHaveBeenCalledWith(
+      { query: "nested form" },
+      expect.objectContaining({ conversationId: "conv_X", toolName: "web_search" })
+    );
+  });
+});

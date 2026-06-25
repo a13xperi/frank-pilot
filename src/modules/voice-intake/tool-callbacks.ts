@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import express from "express";
+import crypto from "crypto";
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stampTape } from "../tape";
@@ -156,7 +157,9 @@ router.post(
     }
 
     const secret = process.env.ELEVENLABS_WEBHOOK_SECRET ?? "";
-    if (!secret || secret === "wsec_changeme") {
+    const toolSecret = process.env.VOICE_TOOL_SECRET ?? "";
+    const hmacConfigured = Boolean(secret) && secret !== "wsec_changeme";
+    if (!hmacConfigured && !toolSecret) {
       res.status(503).json({ ok: false, message: "Webhook secret not configured" });
       return;
     }
@@ -169,15 +172,22 @@ router.post(
     const sigHeader = req.headers["elevenlabs-signature"];
     const nowSecs = Math.floor(Date.now() / 1000);
 
-    const sigResult = verifySignature(rawBody, sigHeader, secret, nowSecs);
-    if (!sigResult.ok) {
-      logger.warn("Voice tool callback rejected", {
-        toolName,
-        reason: sigResult.reason,
-      });
-      res.status(400).json({ ok: false, message: "Invalid signature" });
-      return;
-    }
+    // ── Authentication + body contract ────────────────────────────────────
+    // ElevenLabs ConvAI *webhook tools* (the in-call kind) authenticate with a
+    // custom secret HEADER configured per-tool, and POST a FLAT body of just
+    // the LLM-generated parameters — NOT the HMAC `ElevenLabs-Signature` +
+    // wrapped envelope used by post-call webhooks. We accept that contract
+    // first; the legacy HMAC+envelope path stays as a fallback so any signed
+    // caller (and the existing test suite) keeps working unchanged.
+    const providedSecretRaw = req.headers["x-frank-tool-secret"];
+    const providedSecret = Array.isArray(providedSecretRaw)
+      ? providedSecretRaw[0]
+      : providedSecretRaw;
+    const secretHeaderOk =
+      toolSecret.length > 0 &&
+      typeof providedSecret === "string" &&
+      providedSecret.length === toolSecret.length &&
+      crypto.timingSafeEqual(Buffer.from(providedSecret), Buffer.from(toolSecret));
 
     const body = parseBody(rawBody);
     if (!body) {
@@ -186,20 +196,64 @@ router.post(
       return;
     }
 
-    const validated = validatePayload(toolName, body);
-    if (!validated.ok) {
-      logger.warn("Voice tool callback rejected", {
+    let ctx: ToolCallbackContext;
+    let parameters: Record<string, unknown>;
+
+    if (secretHeaderOk) {
+      // EL ConvAI webhook-tool contract: flat params; ids are best-effort
+      // (EL omits conversation_id/tool_call_id from the body unless configured
+      // as system-provided params, so treat them as optional here).
+      ctx = {
+        agentId: typeof body.agent_id === "string" ? body.agent_id : "",
+        conversationId:
+          typeof body.conversation_id === "string" ? body.conversation_id : "",
+        toolCallId: typeof body.tool_call_id === "string" ? body.tool_call_id : "",
         toolName,
-        reason: validated.reason,
-      });
-      res.status(400).json({ ok: false, message: "Invalid payload" });
-      return;
+      };
+      const reserved = new Set([
+        "tool_call_id",
+        "tool_name",
+        "agent_id",
+        "conversation_id",
+        "parameters",
+      ]);
+      const nested = body.parameters;
+      if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+        parameters = nested as Record<string, unknown>;
+      } else {
+        parameters = Object.fromEntries(
+          Object.entries(body).filter(([k]) => !reserved.has(k))
+        );
+      }
+    } else {
+      const sigResult = verifySignature(rawBody, sigHeader, secret, nowSecs);
+      if (!sigResult.ok) {
+        logger.warn("Voice tool callback rejected", {
+          toolName,
+          reason: sigResult.reason,
+        });
+        res.status(400).json({ ok: false, message: "Invalid signature" });
+        return;
+      }
+      const validated = validatePayload(toolName, body);
+      if (!validated.ok) {
+        logger.warn("Voice tool callback rejected", {
+          toolName,
+          reason: validated.reason,
+        });
+        res.status(400).json({ ok: false, message: "Invalid payload" });
+        return;
+      }
+      ctx = validated.ctx;
+      parameters = (body.parameters ?? {}) as Record<string, unknown>;
     }
 
-    const ctx = validated.ctx;
-    const eventId = buildToolEventId(ctx.conversationId, ctx.toolCallId);
+    const haveIds = Boolean(ctx.conversationId) && Boolean(ctx.toolCallId);
+    const eventId = haveIds
+      ? buildToolEventId(ctx.conversationId, ctx.toolCallId)
+      : "";
 
-    if (await alreadyProcessed(eventId)) {
+    if (haveIds && (await alreadyProcessed(eventId))) {
       logger.info("Voice tool callback duplicate short-circuited", {
         eventId,
         toolName,
@@ -245,7 +299,7 @@ router.post(
 
     let handlerResult: ToolCallbackResult;
     try {
-      handlerResult = await handler(body.parameters ?? {}, ctx);
+      handlerResult = await handler(parameters, ctx);
     } catch (err) {
       const errMsg = (err as Error).message;
       logger.error("Voice tool callback handler threw", {
@@ -289,7 +343,7 @@ router.post(
       },
     });
 
-    await markProcessed(eventId, toolName, ctx.conversationId);
+    if (haveIds) await markProcessed(eventId, toolName, ctx.conversationId);
 
     res.status(200).json(handlerResult);
   }
