@@ -78,6 +78,7 @@ import { registerTakePaymentHandler } from "./modules/voice-intake/take-payment"
 import { registerGetApplicationStatusHandler } from "./modules/voice-intake/get-application-status";
 import { registerGetPropertyDetailsHandler } from "./modules/voice-intake/get-property-details";
 import { registerFollowUpHandlers } from "./modules/follow-ups/tools";
+import { registerEscalationHandler } from "./modules/voice-intake/escalation";
 import { registerCallTimeHandler } from "./modules/follow-ups/call-time";
 import { registerRelationshipHandlers } from "./modules/relationship/tools";
 import { registerCreateApplicationHandler } from "./modules/voice-intake/create-application";
@@ -413,6 +414,7 @@ registerTakePaymentHandler();
 registerGetApplicationStatusHandler();
 registerGetPropertyDetailsHandler();
 registerFollowUpHandlers();
+registerEscalationHandler();
 // check_call_time — the call clock. Lets Frank notice he's near the duration
 // cut and warn + schedule_followup + wrap before the line drops (call-time.ts).
 registerCallTimeHandler();
