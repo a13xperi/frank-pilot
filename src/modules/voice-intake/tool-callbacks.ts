@@ -5,6 +5,7 @@ import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stampTape } from "../tape";
 import { verifySignature } from "./signature";
+import { computeTimeNudge } from "../follow-ups/call-time-core";
 
 /**
  * Constant-time string compare for the server-tool shared secret. Equal-length
@@ -343,6 +344,33 @@ router.post(
         message: "Sorry, something went wrong on our end.",
       });
       return;
+    }
+
+    // Piggyback the live call clock: if this tool carried system__call_duration_secs
+    // (bound on every tool by wire-timenudge.sh) and we're near the cap, append a
+    // wrap instruction to the result so Frank warns + offers a callback even when
+    // he didn't call check_call_time. Rides the existing call — no extra round
+    // trip. check_call_time already messages about time itself, so skip it to
+    // avoid doubling. Never let a clock nudge break a working tool response.
+    if (toolName !== "check_call_time") {
+      try {
+        const nudge = computeTimeNudge(parameters);
+        if (nudge) {
+          handlerResult = {
+            ...handlerResult,
+            message: handlerResult.message
+              ? `${handlerResult.message} ${nudge.message}`
+              : nudge.message,
+            result: {
+              ...(handlerResult.result ?? {}),
+              time_phase: nudge.phase,
+              remaining_secs: nudge.remainingSecs,
+            },
+          };
+        }
+      } catch (err) {
+        logger.warn("time nudge failed", { toolName, error: (err as Error).message });
+      }
     }
 
     void stampTape({
