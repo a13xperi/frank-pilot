@@ -17,6 +17,7 @@ import { CTA } from '@/components/primitives/CTA';
 import { ChatMarkdown } from './ChatMarkdown';
 import { askHousingQa } from '@/api/client';
 import { useConsent } from '@/state/consent';
+import { requestFrankVoice, isVoicePillEnabled, wantsHuman } from '@/lib/frankVoiceBridge';
 
 interface ChatMessage {
   id: string;
@@ -47,6 +48,17 @@ export function HousingChatWidget() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  // Sticky once the visitor signals they want a person / are stuck — surfaces
+  // the live voice hand-off prominently. Only meaningful when the pill is on.
+  const [offerVoice, setOfferVoice] = useState(false);
+  const voiceEnabled = isVoicePillEnabled();
+
+  // Hand off to the live Talk-to-Frank call (the pill owns the session) and
+  // close the chat so the two surfaces don't stack.
+  const handoffToFrank = useCallback(() => {
+    requestFrankVoice();
+    setOpen(false);
+  }, []);
 
   const panelRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -86,6 +98,7 @@ export function HousingChatWidget() {
     if (!question || loading) return;
     setError(false);
     setInput('');
+    if (voiceEnabled && wantsHuman(question)) setOfferVoice(true);
     const userMsg: ChatMessage = { id: nextId(), role: 'user', text: question };
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
@@ -101,7 +114,7 @@ export function HousingChatWidget() {
       setLoading(false);
       inputRef.current?.focus();
     }
-  }, [input, loading]);
+  }, [input, loading, voiceEnabled]);
 
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -211,23 +224,58 @@ export function HousingChatWidget() {
             {t('panel.greeting')}
           </div>
         </div>
-        <button
-          type="button"
-          aria-label={t('panel.close')}
-          onClick={() => setOpen(false)}
-          style={{
-            flexShrink: 0,
-            background: 'transparent',
-            border: 'none',
-            color: HF.paper,
-            cursor: 'pointer',
-            fontSize: 20,
-            lineHeight: 1,
-            padding: 2,
-          }}
-        >
-          ×
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {voiceEnabled && (
+            <button
+              type="button"
+              aria-label={t('talkToFrank.aria')}
+              title={t('talkToFrank.aria')}
+              onClick={handoffToFrank}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                background: 'rgba(255,255,255,0.16)',
+                border: 'none',
+                color: HF.paper,
+                cursor: 'pointer',
+                fontSize: 11.5,
+                fontWeight: 600,
+                fontFamily: HF.body,
+                borderRadius: HF.r.pill,
+                padding: '5px 10px',
+                lineHeight: 1,
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M5.5 4.5a2 2 0 0 1 2-1.5h2.2a1 1 0 0 1 1 .8l.6 3a1 1 0 0 1-.3 1L9.6 9a13 13 0 0 0 5.4 5.4l1.2-1.4a1 1 0 0 1 1-.3l3 .6a1 1 0 0 1 .8 1V16.5a2 2 0 0 1-1.5 2C12.5 19.5 4.5 11.5 5.5 4.5z"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {t('talkToFrank.label')}
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label={t('panel.close')}
+            onClick={() => setOpen(false)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: HF.paper,
+              cursor: 'pointer',
+              fontSize: 20,
+              lineHeight: 1,
+              padding: 2,
+            }}
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* Message list */}
@@ -341,6 +389,29 @@ export function HousingChatWidget() {
             >
               {t('error.retry')}
             </button>
+          </div>
+        )}
+
+        {offerVoice && (
+          <div
+            style={{
+              alignSelf: 'stretch',
+              background: HF.paper,
+              border: `1px solid ${HF.accent}`,
+              borderRadius: HF.r.md,
+              padding: '10px 12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              boxShadow: HF.shadow.xs,
+            }}
+          >
+            <div style={{ fontSize: 12.5, color: HF.ink, lineHeight: 1.4 }}>
+              {t('talkToFrank.nudge')}
+            </div>
+            <CTA tone="primary" size="md" onClick={handoffToFrank} aria-label={t('talkToFrank.aria')}>
+              {t('talkToFrank.label')}
+            </CTA>
           </div>
         )}
 
