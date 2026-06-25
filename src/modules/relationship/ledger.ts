@@ -1,6 +1,7 @@
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { normalizePhone } from "../voice-intake/service";
+import { refreshPersonReport } from "./report";
 
 /**
  * The Relationship Ledger — the applicant-facing "ledger of truth": every
@@ -51,6 +52,8 @@ export async function recordLedgerEntry(input: LedgerEntryInput): Promise<void> 
         input.ref ?? null,
       ]
     );
+    // Refresh the rolling relationship report off the new event (best-effort).
+    void refreshPersonReport(phone);
   } catch (err) {
     logger.warn("relationship ledger write failed (non-fatal)", {
       eventType: input.eventType,
