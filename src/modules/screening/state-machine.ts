@@ -2,6 +2,7 @@ import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
 import { query } from "../../config/database";
 import { stampV2ScreeningStateTransition } from "../tape/v2-stamp";
+import { notifyPersonStep } from "../relationship/notify";
 
 export type ScreeningState =
   | "queued"
@@ -331,6 +332,11 @@ export async function transitionApplicationStatus(
     to,
     trigger,
   });
+
+  // Relationship notifier — email the applicant + record the step on their
+  // ledger of truth. Exactly-once (gated on this changed:true CAS), best-effort
+  // (never throws), dark unless RELATIONSHIP_NOTIFY_ENABLED.
+  void notifyPersonStep({ applicationId, toStatus: to, trigger });
 
   return { changed: true, status: to };
 }
