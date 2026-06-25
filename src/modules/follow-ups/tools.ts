@@ -26,12 +26,28 @@ export async function scheduleFollowupHandler(
 ): Promise<ToolCallbackResult> {
   const phone = pickString(parameters, "phone_e164") ?? pickString(parameters, "phone");
   const reason = pickString(parameters, "reason") ?? "callback_requested";
-  // A time-cutoff callback continues THIS call right away — it isn't a "what day
-  // works" booking. Schedule it for now so the dialer rings back on its next tick,
-  // ignoring any time the LLM may have passed.
-  const isImmediate = /cutoff|right now|immediately/i.test(reason);
+  // A time-cutoff or "call me right back / in a few minutes" callback continues
+  // right away — it isn't a "what day works" booking. Schedule it for now so the
+  // dialer rings on its next tick, ignoring any time the LLM may have passed.
+  const isImmediate = /cutoff|right now|right back|immediately|in a (minute|moment|sec|few)|shortly|soon/i.test(reason);
   let whenIso = pickString(parameters, "scheduled_for_iso") ?? pickString(parameters, "scheduled_for");
   if (isImmediate) whenIso = new Date().toISOString();
+  // Guard against the LLM's date math — it has produced past/garbage timestamps
+  // (e.g. a 2025 date for "9:44pm today"), which drop the callback into a dead
+  // slot. If the given time is in the past or absurdly far out, fall back to now
+  // so the dialer still rings; a correctly-parsed near-future time is kept as-is.
+  if (whenIso) {
+    const when = new Date(whenIso).getTime();
+    const now = Date.now();
+    const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000;
+    if (Number.isNaN(when) || when < now - 60_000 || when > now + NINETY_DAYS) {
+      logger.warn("schedule_followup got an unusable time — scheduling now", {
+        conversationId: context.conversationId,
+        given: whenIso,
+      });
+      whenIso = new Date().toISOString();
+    }
+  }
   const notes = pickString(parameters, "notes");
   // Structured "exactly where we are in the process" so the callback resumes
   // here instead of starting over (the call-time wrap path fills this).
