@@ -672,7 +672,14 @@ async function handleApplicationFeeSucceeded(event: Stripe.Event): Promise<void>
           `UPDATE applications
               SET status = 'submitted',
                   submitted_at = COALESCE(submitted_at, NOW()),
-                  submitted_by = COALESCE(submitted_by, $2)
+                  submitted_by = COALESCE(submitted_by, $2),
+                  -- Stamp the consent marker the web submit() path sets, so the
+                  -- voice fee-paid path is consistent: this block only runs when
+                  -- consent is on file (hasValidAuthorization above), so the app
+                  -- IS authorized — record it. Without this, screening_authorization_at
+                  -- stays null on voice apps and the consented flag + adverse-action
+                  -- code read a false negative.
+                  screening_authorization_at = COALESCE(screening_authorization_at, NOW())
             WHERE id = $1 AND status = 'draft'`,
           [applicationId, submittedBy]
         );
