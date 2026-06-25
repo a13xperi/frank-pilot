@@ -119,8 +119,38 @@ describe("sendAppLinkHandler — happy path", () => {
       "http://localhost:5174/auth/callback?token=ABC&intake=conv_TEST_xyz"
     );
 
+    // The same SMS carries a short onboarding-walkthrough line (default URL).
+    const onboardingLine = mockSendMagicLinkSms.mock.calls[0][2] as string;
+    expect(onboardingLine).toContain("https://frank-go.vercel.app/onboard");
+    expect(onboardingLine).toMatch(/walkthrough/i);
+
     // logMagicLink fired with redact-friendly args.
     expect(mockLogMagicLink).toHaveBeenCalledWith("existing@example.com", linkArg);
+  });
+
+  it("honors the ONBOARDING_VIDEO_URL env override", async () => {
+    const prev = process.env.ONBOARDING_VIDEO_URL;
+    process.env.ONBOARDING_VIDEO_URL = "https://vid.example/onboard";
+    let handler = sendAppLinkHandler;
+    jest.isolateModules(() => {
+      // Re-require so the module-load-time constant picks up the override.
+      handler = require("../modules/voice-intake/send-app-link").sendAppLinkHandler;
+    });
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: "user-uuid-env", email: "env@example.com" }],
+    });
+    mockCreateMagicLink.mockResolvedValueOnce({
+      link: "http://localhost:5174/auth/callback?token=ENV",
+      userId: "user-uuid-env",
+    });
+
+    await handler({ phone: "+17025551212" }, CTX);
+
+    const line = mockSendMagicLinkSms.mock.calls.at(-1)?.[2] as string;
+    expect(line).toContain("https://vid.example/onboard");
+
+    if (prev === undefined) delete process.env.ONBOARDING_VIDEO_URL;
+    else process.env.ONBOARDING_VIDEO_URL = prev;
   });
 
   it("creates a new applicant when no user has this phone", async () => {
@@ -159,7 +189,8 @@ describe("sendAppLinkHandler — happy path", () => {
     );
     expect(mockSendMagicLinkSms).toHaveBeenCalledWith(
       "user-uuid-2",
-      "http://localhost:5174/auth/callback?token=DEF&intake=conv_TEST_xyz"
+      "http://localhost:5174/auth/callback?token=DEF&intake=conv_TEST_xyz",
+      expect.stringContaining("https://frank-go.vercel.app/onboard")
     );
   });
 
