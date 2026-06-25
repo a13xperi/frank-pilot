@@ -178,12 +178,16 @@ export async function claimNextDueFollowUp(): Promise<ClaimedFollowUp | null> {
          WHERE status = 'pending'
            AND scheduled_for <= NOW()
            AND attempts < max_attempts
+           -- Deliver gate: never dial a row still awaiting research/review. Only
+           -- ordinary callbacks ('none') or research that's been approved go out.
+           AND research_status IN ('none','approved')
          ORDER BY scheduled_for ASC
          FOR UPDATE SKIP LOCKED
          LIMIT 1
       )
       RETURNING id, phone_e164, reason, scheduled_for, status, attempts,
-                notes, checkpoint, consent_outbound, voice_call_id, user_id`,
+                notes, checkpoint, consent_outbound, voice_call_id, user_id,
+                question, answer, research_status`,
     []
   );
   if (res.rows.length === 0) return null;
@@ -197,6 +201,9 @@ export async function claimNextDueFollowUp(): Promise<ClaimedFollowUp | null> {
     checkpoint: (r.checkpoint as string) ?? null,
     consentOutbound: Boolean(r.consent_outbound),
     voiceCallId: (r.voice_call_id as string) ?? null,
+    question: (r.question as string) ?? null,
+    answer: (r.answer as string) ?? null,
+    researchStatus: (r.research_status as string) ?? "none",
   };
 }
 
@@ -209,6 +216,9 @@ export interface ClaimedFollowUp {
   checkpoint: string | null;
   consentOutbound: boolean;
   voiceCallId: string | null;
+  question: string | null;
+  answer: string | null;
+  researchStatus: string;
 }
 
 /** Stamp the placed callback's conversation id on a claimed follow-up. */
