@@ -18,6 +18,10 @@ jest.mock("../modules/follow-ups/service", () => ({
 jest.mock("../utils/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
+const mockLedger = jest.fn();
+jest.mock("../modules/relationship/ledger", () => ({
+  recordLedgerEntry: (...a: unknown[]) => mockLedger(...a),
+}));
 
 import { runFollowupTick } from "../modules/follow-ups/dialer";
 
@@ -77,6 +81,16 @@ describe("runFollowupTick", () => {
     expect(r.action).toBe("dialed");
     expect((r as { conversationId: string }).conversationId).toBe("conv_cb");
     expect(mockMarkDialed).toHaveBeenCalledWith("fu-1", "conv_cb");
+    // the callback + its reason are recorded on the person's ledger of truth
+    expect(mockLedger).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phoneE164: "+17025551234",
+        eventType: "callback_placed",
+        direction: "outbound",
+        summary: expect.stringContaining("bad_time"),
+        ref: "conv_cb",
+      })
+    );
     // dynamic vars carried the context packet
     const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
     expect(body.conversation_initiation_client_data.dynamic_variables.is_followup).toBe("true");

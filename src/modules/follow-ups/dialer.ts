@@ -5,6 +5,7 @@ import {
   markFollowUpDialed,
   buildContextPacket,
 } from "./service";
+import { recordLedgerEntry } from "../relationship/ledger";
 
 const ELEVENLABS_API = "https://api.elevenlabs.io/v1";
 
@@ -98,6 +99,18 @@ export async function runFollowupTick(now: Date = new Date()): Promise<FollowupT
       packetToDynamicVars(fu.reason, packet, fu.checkpoint)
     );
     await markFollowUpDialed(fu.id, conversationId);
+    // Record on the person's ledger of truth WHAT Frank called back to review, so
+    // the operator sees "called back about ..." on the timeline — whether the
+    // person answers or it goes to voicemail (Frank leaves a message naming the
+    // same reason). Best-effort; never blocks the dial.
+    void recordLedgerEntry({
+      phoneE164: fu.phoneE164,
+      eventType: "callback_placed",
+      channel: "voice",
+      direction: "outbound",
+      summary: `Called back about ${fu.reason}`,
+      ref: conversationId,
+    });
     logger.info("follow-up dialed", { id: fu.id, conversationId });
     return { action: "dialed", id: fu.id, conversationId };
   } catch (err) {
