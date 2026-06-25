@@ -29,6 +29,7 @@ import { Conversation } from '@elevenlabs/client';
 import { HF } from '@/styles/tokens';
 import { startVoiceSession, type StartVoiceSessionResult } from '@/api/client';
 import { useConsent } from '@/state/consent';
+import { onFrankVoiceRequest } from '@/lib/frankVoiceBridge';
 
 type PillState =
   | { kind: 'idle' }
@@ -158,6 +159,11 @@ export function TalkToFrankPill() {
       setState({ kind: 'error' });
     }
   }, [state.kind]);
+
+  // Bridge: another surface (the housing chat, an "I'm stuck" affordance) can
+  // hand off to a live call. start() self-guards against starting when already
+  // busy/live, so a stray request mid-call is a no-op.
+  useEffect(() => onFrankVoiceRequest(() => void start()), [start]);
 
   const stop = useCallback(async () => {
     const conv = conversationRef.current;

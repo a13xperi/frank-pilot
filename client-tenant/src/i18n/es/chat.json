@@ -11,5 +11,8 @@
   "status.typing": "El asistente está escribiendo…",
   "error.generic": "Algo salió mal. Inténtalo de nuevo.",
   "error.retry": "Reintentar",
-  "empty.hint": "Prueba: «¿Qué documentos necesito?» o «Vivienda para personas mayores en Henderson»."
+  "empty.hint": "Prueba: «¿Qué documentos necesito?» o «Vivienda para personas mayores en Henderson».",
+  "talkToFrank.label": "Hablar con Frank",
+  "talkToFrank.aria": "Hablar con Frank por voz",
+  "talkToFrank.nudge": "¿Prefieres hablarlo? Puedo poner a Frank en la línea ahora mismo."
 }
