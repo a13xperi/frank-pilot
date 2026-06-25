@@ -53,6 +53,37 @@ describe("schedule_followup time_cutoff = immediate", () => {
     expect(r.ok).toBe(false);
     expect(mockQuery).not.toHaveBeenCalled();
   });
+
+  it("schedules NOW when handed a past/garbage time (the 2025-date bug)", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [ROW] });
+    const r = await scheduleFollowupHandler(
+      { phone_e164: PHONE, reason: "callback_requested", scheduled_for: "2025-06-23T03:44:00.000Z" },
+      CTX
+    );
+    expect(r.ok).toBe(true);
+    // the bad past time is discarded — scheduled ~now, not 2025
+    const when = new Date(mockQuery.mock.calls[0][1][4] as string).getTime();
+    expect(when).toBeGreaterThan(Date.now() - 5000);
+  });
+
+  it("keeps a valid near-future time as given", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [ROW] });
+    const future = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(); // 2h out
+    const r = await scheduleFollowupHandler(
+      { phone_e164: PHONE, reason: "callback_requested", scheduled_for: future },
+      CTX
+    );
+    expect(r.ok).toBe(true);
+    expect(mockQuery.mock.calls[0][1][4]).toBe(future);
+  });
+
+  it("treats 'call me right back' as immediate (schedules now, no time needed)", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [ROW] });
+    const r = await scheduleFollowupHandler({ phone_e164: PHONE, reason: "call me right back" }, CTX);
+    expect(r.ok).toBe(true);
+    const when = new Date(mockQuery.mock.calls[0][1][4] as string).getTime();
+    expect(when).toBeGreaterThan(Date.now() - 5000);
+  });
 });
 
 describe("maybeCreateCutoffCallback (post-call safety net)", () => {

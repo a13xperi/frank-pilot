@@ -267,12 +267,13 @@ export function startScheduler() {
   }
 
   // Follow-up callback dialer (Phase 2) — gated on FRANK_FOLLOWUP_ENABLED. Every
-  // 5 min, 9am–8pm Pacific: claim the next due follow-up and dial it back as
-  // Frank, with the context packet. Dark until the flag + FRANK_FOLLOWUP_AGENT_ID
-  // are set, so the scheduler is byte-identical otherwise.
+  // 5 min, 8am–9pm Pacific (hours 8–20 ⇒ last tick ~8:55pm; never dials past 9pm):
+  // claim the next due follow-up and dial it back as Frank, with the context
+  // packet. Dark until the flag + FRANK_FOLLOWUP_AGENT_ID are set, so the
+  // scheduler is byte-identical otherwise.
   if (process.env.FRANK_FOLLOWUP_ENABLED === "true") {
     cron.schedule(
-      "*/5 9-19 * * *",
+      "*/5 8-20 * * *",
       async () => {
         try {
           const result = await runFollowupTick();
