@@ -83,6 +83,13 @@ router.get("/twiml", twimlHandler);
  * Twilio sends Result=success plus PaymentConfirmationCode. We correlate the caller
  * (From, E.164) to their application by phone.
  *
+ * CORRELATION DEPENDS ON A BLIND TRANSFER. Frank reaches this pay line via the
+ * transfer_to_number tool; only a *blind* transfer (native-Twilio) preserves the
+ * caller's original caller ID, so `From` here is the applicant's number. A
+ * conference transfer would dial the pay line FROM the platform number and `From`
+ * would be wrong — the WHERE phone = $1 lookup below would miss. See
+ * battlestation/scripts/wire-pay-transfer.sh (TRANSFER_TYPE=blind).
+ *
  * On success we call the shared applyApplicationFeePaid() — the exact same
  * post-payment core the Stripe webhook runs (ledger + FCRA-gated runFullScreening
  * + draft→submitted + tape + audit) — passing this applicationId and the
