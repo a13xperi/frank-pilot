@@ -277,6 +277,10 @@ export class BackgroundCheckService {
     misdemeanors: unknown[];
     records: unknown[];
     criminalRecords: CriminalRecord[];
+    // Fail-closed signal: the report indicates a non-clear outcome but we could
+    // not parse any structured record from it. evaluateResults() treats this as
+    // could_not_screen (HOLD), never a pass. See computation below.
+    indeterminate: boolean;
   } {
     // TODO(credentialing): confirm field paths against a live Checkr sandbox
     // report. The paths below follow Checkr's published report schema
@@ -323,6 +327,39 @@ export class BackgroundCheckService {
       if (rec.category.startsWith("misdemeanor")) misdemeanors.push({ category: rec.category });
     }
 
+    // ── Fail-closed guard (credentialing audit 2026-06-24) ──────────────────
+    // Inferring "clean" from the ABSENCE of parseable records is unsafe: if
+    // Checkr returns a completed report whose criminal/sex-offender sections
+    // carry a non-clear status (or status references) instead of inline
+    // `records`/`charges`, the loops above extract nothing and felonies/
+    // sexOffenses fall to 0/false — a silent false-clean PASS for a real hit.
+    // Detect any non-clear outcome SIGNAL on the report (across the plausible
+    // field paths, since exact paths are credentialing-gated) and, when one is
+    // present but we parsed zero records, flag the report indeterminate so the
+    // verdict HOLDs. This is shape-agnostic defense-in-depth: a sandbox-verified
+    // mapper that parses the records will set criminalRecords and never trip it.
+    const NON_CLEAR = /consider|review|suspend|dispute|pending|escalat|incomplete|unknown/;
+    const outcomeSignals = [
+      report?.result,
+      report?.assessment,
+      report?.adjudication,
+      report?.status,
+      report?.sex_offender_search?.status,
+      report?.sex_offender_search?.result,
+      report?.national_criminal_search?.status,
+      report?.national_criminal_search?.result,
+      report?.national_criminal_search?.assessment,
+      ...this.asArray(report?.county_criminal_searches).flatMap((s: any) => [
+        s?.status,
+        s?.result,
+        s?.assessment,
+      ]),
+    ]
+      .map((v) => String(v ?? "").toLowerCase())
+      .filter(Boolean);
+    const hasNonClearSignal = outcomeSignals.some((s) => NON_CLEAR.test(s));
+    const indeterminate = hasNonClearSignal && criminalRecords.length === 0;
+
     return {
       felonies,
       sexOffenses,
@@ -332,6 +369,7 @@ export class BackgroundCheckService {
       // engine-authoritative structured list. evaluateWithEngine reads the latter.
       records: criminalRecords,
       criminalRecords,
+      indeterminate,
     };
   }
 
@@ -445,6 +483,13 @@ export class BackgroundCheckService {
   }
 
   private evaluateResults(response: any): BackgroundCheckResult {
+    // Fail-closed: a report the mapper flagged indeterminate (a non-clear signal
+    // with zero parseable records) must NEVER pass. HOLD it for staff review
+    // rather than infer clean from absence. Only the real-vendor mapper sets
+    // this; the legacy/mock path never does, so flag-off stays byte-identical.
+    if (response?.indeterminate === true) {
+      return this.couldNotScreen("report_indeterminate_nonclear_no_records");
+    }
     // CRIMINAL_DECISION_ENGINE_ENABLED gates the HUD/FHA individualized-assessment
     // engine. Default OFF → the pre-engine blanket-ban path runs and
     // `background_check_details` is byte-identical to pre-engine behaviour (none

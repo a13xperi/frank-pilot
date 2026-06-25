@@ -2,6 +2,15 @@
 
 **Status:** Both CRA adapters are built, merged, and **dark**.
 
+> ### ⚠️ Audit 2026-06-24 — read before using this runbook
+> A full readiness audit (see `docs/DL2-LEASE-UP-PLAYBOOK.md` §13) found:
+> - **NO-GO for a same-day global flip.** The blocker is **not** consent.
+> - **🔴 CRITICAL — validate vendor report SHAPES in sandbox first.** The Checkr/TransUnion response mappers are unverified vs live sandboxes (`background-check.ts` / `credit-check.ts`, `TODO(credentialing)`). If a report carries reference IDs instead of inline records, a real hit can map to **0 = a silent false-clean PASS**. Before any prod flag, drive sandbox submits with **known non-clean fixtures** (felony, sex-offender, eviction, low score) and assert each yields a non-clean verdict. This is the top blocker (was "B2").
+> - **FCRA §1681b consent is built and ENFORCED** — `consumer_report_authorizations` (disclosure text + SHA-256 + version `2026-06-01`), a hard precondition at `submit()` (`application/service.ts:312`) and the fee-webhook (`payment/webhook.ts:637`). No consent ⇒ no pull. Consent is *not* a blocker.
+> - **Stale in this doc:** the `isConfigured()` preflight (PR #283) is **already on `main`** (`application/service.ts:369`) despite the table/blocker list below marking it open — re-verify every line below against `main` before trusting it.
+> - **CRA identity:** `CRA_NAME/ADDRESS/PHONE` default to placeholders (`adverse-action/service.ts:28-30`); set the real CRA identity at arm time or adverse-action notices are non-compliant.
+> - **No per-applicant override:** a real-CRA pull in prod requires the global flag (or a staging env with sandbox keys). Manual *adjudication* of an already-pulled report is possible anytime via `POST …/screening/:id/screen` (`screening:initiate`, Senior Mgr+).
+
 | Vendor | Domain | PR | On `main` | In prod |
 |---|---|---|---|---|
 | **Checkr** | background | #276 (`a19b5b0`) | ✅ | ✅ deployed dark 2026-06-09 (host `api-production-ed89.up.railway.app`) |

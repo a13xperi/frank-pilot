@@ -119,6 +119,46 @@ describe("BackgroundCheckService — Checkr CRA mapping", () => {
         expect.arrayContaining(["category"])
       );
     });
+
+    // ── Fail-closed guard (credentialing audit 2026-06-24): a non-clear report
+    // that yields zero parseable records must NOT silently map to clean. ───────
+    it("non-clear status with NO inline records → indeterminate (no false-clean)", () => {
+      // Checkr returns a completed report whose section carries a status, not
+      // inline `records` — the exact silent-false-clean vector the audit flagged.
+      const r = svc.mapCheckrReportToResponse({
+        national_criminal_search: { status: "consider" },
+      });
+      expect(r.felonies).toBe(0); // nothing parsed...
+      expect(r.criminalRecords).toEqual([]);
+      expect(r.indeterminate).toBe(true); // ...so it must NOT be treated as clean
+    });
+
+    it("top-level result=consider with no records → indeterminate", () => {
+      const r = svc.mapCheckrReportToResponse({ result: "consider" });
+      expect(r.indeterminate).toBe(true);
+    });
+
+    it("a genuinely clean report (sections present, explicitly empty) is NOT indeterminate", () => {
+      const r = svc.mapCheckrReportToResponse({
+        result: "clear",
+        sex_offender_search: { status: "clear", records: [] },
+        national_criminal_search: { status: "clear", records: [] },
+        county_criminal_searches: [],
+      });
+      expect(r.indeterminate).toBe(false);
+      expect(r.felonies).toBe(0);
+    });
+
+    it("a non-clear report that DID parse a record is not indeterminate (the record drives the verdict)", () => {
+      const r = svc.mapCheckrReportToResponse({
+        national_criminal_search: {
+          status: "consider",
+          records: [{ classification: "Felony", charge: "theft", disposition: "convicted" }],
+        },
+      });
+      expect(r.indeterminate).toBe(false);
+      expect(r.felonies).toBe(1);
+    });
   });
 
   describe("resolve", () => {
@@ -152,6 +192,29 @@ describe("BackgroundCheckService — Checkr CRA mapping", () => {
       });
       const r = await svc.resolve("app-1");
       expect(r.result).toBe("pass");
+    });
+
+    it("persisted INDETERMINATE report → could_not_screen HOLD (never a false pass)", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            background_report_id: "rep_1",
+            background_check_completed_at: new Date(),
+            background_check_details: {
+              rawResponse: {
+                felonies: 0,
+                sexOffenses: false,
+                violentCrimes: false,
+                misdemeanors: [],
+                records: [],
+                indeterminate: true,
+              },
+            },
+          },
+        ],
+      });
+      const r = await svc.resolve("app-1");
+      expect(r.result).toBe("could_not_screen");
     });
 
     it("persisted felony verdict → fail (legacy blanket-ban path)", async () => {

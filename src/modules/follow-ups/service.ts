@@ -241,6 +241,61 @@ export async function recordFollowUpOutcome(
   );
 }
 
+/**
+ * Post-call SAFETY NET: if an inbound call ran into the duration cap while still
+ * mid-conversation, auto-schedule an immediate callback so Frank rings back and
+ * continues — even when he never managed an in-call wrap (the conv_8001… case:
+ * 901s, zero check_call_time calls, hard-cut mid-Q&A). Deterministic backstop to
+ * the prompt clock, NOT a replacement.
+ *
+ * Flag-gated dark (FRANK_CUTOFF_CALLBACK_ENABLED) and conservative:
+ *   - only fires within 30s of the cap (a real cut, not a normal short call),
+ *   - needs a phone of record,
+ *   - never piles onto an existing open follow-up (dedup),
+ *   - the caller hint to skip callbacks (webhook already maps soft-rejects).
+ * Returns the created follow-up, or null when it does not apply.
+ */
+export async function maybeCreateCutoffCallback(opts: {
+  conversationId: string;
+  phoneE164: string | null;
+  durationSecs: number | null;
+}): Promise<FollowUp | null> {
+  if (process.env.FRANK_CUTOFF_CALLBACK_ENABLED !== "true") return null;
+  const maxSecs = Number(process.env.FRANK_CALL_MAX_SECS ?? 900);
+  const cutoffFloor = maxSecs - 30; // within 30s of the cap = the call was cut, not ended
+  if (!opts.durationSecs || opts.durationSecs < cutoffFloor) return null;
+
+  const phone = normalizePhone(opts.phoneE164);
+  if (!phone) return null;
+
+  // Don't stack callbacks — if they already have an open loop, leave it.
+  const open = await getOpenFollowUpsByPhone(phone);
+  if (open.length) return null;
+
+  const checkpoint =
+    `Call reached the ${Math.round(maxSecs / 60)}-minute limit while still in progress, ` +
+    `mid-conversation. Pick up exactly where you left off and continue — call get_call_context first.`;
+
+  const fu = await createFollowUp({
+    phoneE164: phone,
+    reason: "time_cutoff",
+    scheduledForIso: new Date().toISOString(), // now → dialer rings back next tick
+    voiceCallId: opts.conversationId,
+    consentOutbound: true, // they were actively mid-call with us; continuing is the ask
+    checkpoint,
+    notes: "auto: hit the call-duration cap mid-call",
+    source: "voice_intake_cutoff",
+  });
+  if (fu) {
+    logger.info("cutoff callback auto-scheduled", {
+      conversationId: opts.conversationId,
+      followUpId: fu.id,
+      durationSecs: opts.durationSecs,
+    });
+  }
+  return fu;
+}
+
 /** Find an in-progress follow-up by the callback's conversation id (webhook). */
 export async function findFollowUpByConversation(conversationId: string): Promise<string | null> {
   const res = await query(

@@ -4,6 +4,14 @@ import {
   type ToolCallbackContext,
   type ToolCallbackResult,
 } from "../voice-intake/tool-callbacks";
+import {
+  MAX_CALL_SECS,
+  WRAP_REMAINING_SECS,
+  SOFT_REMAINING_SECS,
+  minutesPhrase,
+  pickElapsed,
+  classifyTime,
+} from "./call-time-core";
 
 /**
  * check_call_time — gives Frank the clock he otherwise lacks.
@@ -16,39 +24,16 @@ import {
  * proven on send_pin/verify_pin (scripts/wire-callerid.sh) — so ElevenLabs
  * injects the live elapsed seconds and the LLM never guesses the number.
  *
- * The handler does the arithmetic deterministically (LLMs are weak at it) and
- * returns a phase + a spoken instruction so Frank knows whether to keep going,
- * start landing the current step, or wrap + schedule a follow-up before the cut.
- *
- * MAX_CALL_SECS MUST equal conversation_config.conversation.max_duration_seconds
- * on the agent (set by scripts/wire-callduration.sh). Both read one number via
- * FRANK_CALL_MAX_SECS so they can't drift — if you bump the cap, set the env.
+ * The arithmetic lives in call-time-core (shared with the dispatch-layer nudge);
+ * this handler just turns the phase into a spoken instruction so Frank knows
+ * whether to keep going, land the current step, or wrap + schedule a follow-up.
  */
-const MAX_CALL_SECS = numFromEnv("FRANK_CALL_MAX_SECS", 900);
-/** Remaining-time threshold at which Frank must warn + schedule_followup + wrap. */
-const WRAP_REMAINING_SECS = numFromEnv("FRANK_CALL_WRAP_SECS", 180);
-/** Earlier heads-up: finish the current step, don't start anything long. */
-const SOFT_REMAINING_SECS = numFromEnv("FRANK_CALL_SOFT_SECS", 300);
-
-function numFromEnv(key: string, fallback: number): number {
-  const v = Number(process.env[key]);
-  return Number.isFinite(v) && v > 0 ? v : fallback;
-}
-
-function minutesPhrase(secs: number): string {
-  const m = Math.round(secs / 60);
-  if (m <= 0) return "less than a minute";
-  return `about ${m} minute${m === 1 ? "" : "s"}`;
-}
 
 export async function checkCallTimeHandler(
   parameters: Record<string, unknown>,
   context: ToolCallbackContext
 ): Promise<ToolCallbackResult> {
-  const elapsed =
-    pickNumber(parameters, "call_duration_secs") ??
-    pickNumber(parameters, "elapsed_secs") ??
-    pickNumber(parameters, "system__call_duration_secs");
+  const elapsed = pickElapsed(parameters);
 
   // If the dynamic-variable binding didn't fill the elapsed value, fail SOFT —
   // never block the call on a missing clock. ok:true + 200 keeps ElevenLabs'
@@ -65,22 +50,19 @@ export async function checkCallTimeHandler(
     };
   }
 
-  const remaining = Math.max(0, MAX_CALL_SECS - elapsed);
-  let phase: "ok" | "soft" | "wrap";
+  const { phase, remainingSecs } = classifyTime(elapsed);
+  const remaining = remainingSecs ?? 0;
   let message: string;
 
-  if (remaining <= WRAP_REMAINING_SECS) {
-    phase = "wrap";
+  if (phase === "wrap") {
     message =
       `You have ${minutesPhrase(remaining)} left before the line drops. ` +
       "Tell the caller you want to make sure you don't get cut off, then call schedule_followup to book a callback to continue — pass a checkpoint of exactly where you are in the process so you pick up right here — and wrap up warmly now. Do NOT start a new long step.";
-  } else if (remaining <= SOFT_REMAINING_SECS) {
-    phase = "soft";
+  } else if (phase === "soft") {
     message =
       `Heads up — ${minutesPhrase(remaining)} left. ` +
       "Finish the current step and don't begin anything long. If what's left won't fit, offer to schedule a callback to continue.";
   } else {
-    phase = "ok";
     message = `Plenty of time — ${minutesPhrase(remaining)} left. Keep going.`;
   }
 
@@ -88,20 +70,13 @@ export async function checkCallTimeHandler(
     ok: true,
     result: {
       elapsed_secs: Math.round(elapsed),
-      remaining_secs: Math.round(remaining),
+      remaining_secs: remaining,
       max_secs: MAX_CALL_SECS,
       phase,
       should_wrap: phase === "wrap",
     },
     message,
   };
-}
-
-function pickNumber(parameters: Record<string, unknown>, key: string): number | null {
-  const v = parameters[key];
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string" && v.trim() && !Number.isNaN(Number(v))) return Number(v);
-  return null;
 }
 
 let registered = false;

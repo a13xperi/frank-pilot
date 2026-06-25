@@ -101,7 +101,8 @@ export async function presentOptionsHandler(
   const result = await query(
     `SELECT u.id, u.property_id, u.unit_number, u.bedrooms, u.bathrooms,
             u.sqft, u.monthly_rent, u.photo_url, u.available_from,
-            p.name AS property_name, p.city AS property_city, p.state AS property_state
+            p.name AS property_name, p.city AS property_city, p.state AS property_state,
+            p.address_line1 AS property_address, p.property_type
        FROM units u
        JOIN properties p ON p.id = u.property_id
       WHERE ${conditions.join(" AND ")}
@@ -114,6 +115,12 @@ export async function presentOptionsHandler(
   const options = result.rows.map((row) => ({
     unit_id: row.id as string,
     property: row.property_name as string | null,
+    // Address + senior/family designation come back FREE on every options call —
+    // so Frank can give the street address on request and steer senior callers
+    // to senior communities, instead of deflecting to "a manager will text you."
+    property_address: row.property_address as string | null,
+    property_type: row.property_type as string | null,
+    is_senior: row.property_type === "senior",
     property_city: row.property_city as string | null,
     property_state: row.property_state as string | null,
     unit_number: row.unit_number as string | null,

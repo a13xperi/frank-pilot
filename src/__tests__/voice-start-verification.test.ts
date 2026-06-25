@@ -32,6 +32,13 @@ jest.mock("../modules/integrations/email", () => ({
   getEmailService: () => ({ sendVerificationFeeLink: (...a: unknown[]) => mockSendLink(...a) }),
 }));
 
+const mockSendSMS = jest.fn();
+jest.mock("../modules/integrations/twilio", () => ({
+  TwilioService: class {
+    sendSMS = (...a: unknown[]) => mockSendSMS(...a);
+  },
+}));
+
 import {
   startVerificationHandler,
   registerStartVerificationHandler,
@@ -127,6 +134,41 @@ describe("startVerificationHandler", () => {
     // link sent to the provided address, and Frank only NOW claims he emailed it
     expect(mockSendLink).toHaveBeenCalledWith("jordan.banks@example.com", "https://pay.stripe/cs_3", { firstName: "Jordan" });
     expect(r.message).toContain("emailed you");
+  });
+
+  it("texts the link to the caller's phone when SMS is enabled and they have no email", async () => {
+    process.env.PAY_LINK_SMS_ENABLED = "true";
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: APP_ID, submitted_by: "user-1", status: "submitted", email: "voice+x@voice-handoff.invalid", first_name: "Dana", phone: "+17025551234" }],
+    });
+    mockСheckoutCreate.mockResolvedValueOnce({ id: "cs_sms", url: "https://pay.stripe/cs_sms", payment_intent: "pi_sms" });
+    mockSendSMS.mockResolvedValueOnce({ sent: true, messageId: "SM1" });
+
+    const r = await startVerificationHandler({ application_id: APP_ID, consent_acknowledged: true }, CTX);
+
+    expect(r.ok).toBe(true);
+    expect(r.result?.texted).toBe(true);
+    expect(r.result?.emailed).toBe(false);
+    // texted to the caller's phone, link in the body, STOP keyword present
+    expect(mockSendSMS).toHaveBeenCalledTimes(1);
+    expect(mockSendSMS.mock.calls[0][0]).toBe("+17025551234");
+    expect(mockSendSMS.mock.calls[0][1]).toContain("https://pay.stripe/cs_sms");
+    expect(mockSendSMS.mock.calls[0][1]).toMatch(/STOP/);
+    expect(r.message).toContain("texted you");
+    delete process.env.PAY_LINK_SMS_ENABLED;
+  });
+
+  it("does NOT text when SMS is disabled (flag off)", async () => {
+    delete process.env.PAY_LINK_SMS_ENABLED;
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: APP_ID, submitted_by: "user-1", status: "submitted", email: "voice+x@voice-handoff.invalid", first_name: "Dana", phone: "+17025551234" }],
+    });
+    mockСheckoutCreate.mockResolvedValueOnce({ id: "cs_n", url: "https://pay.stripe/cs_n", payment_intent: "pi_n" });
+
+    const r = await startVerificationHandler({ application_id: APP_ID, consent_acknowledged: true }, CTX);
+    expect(r.ok).toBe(true);
+    expect(r.result?.texted).toBe(false);
+    expect(mockSendSMS).not.toHaveBeenCalled();
   });
 
   it("registers the start_verification handler", () => {

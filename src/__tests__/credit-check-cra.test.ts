@@ -103,8 +103,45 @@ describe("CreditCheckService — TransUnion ShareAble CRA mapping", () => {
       expect(JSON.stringify(r)).not.toContain("123 Main St");
       expect(r.evictions).toBe(1); // count only
       expect(Object.keys(r).sort()).toEqual(
-        ["bankruptcies", "collections", "creditScore", "evictions", "outstandingDebts", "paymentHistory"].sort()
+        ["bankruptcies", "collections", "creditScore", "evictions", "indeterminate", "outstandingDebts", "paymentHistory"].sort()
       );
+    });
+
+    // ── Fail-closed guard (credentialing audit 2026-06-24): a good score must
+    // not pass when public-records were present but unparseable, or status is
+    // not actually clear. ─────────────────────────────────────────────────────
+    it("good score but public-records under an UNRECOGNIZED key → indeterminate (no false-clean)", () => {
+      const r = svc.mapShareAbleReportToResponse({
+        creditScore: 720,
+        // Real eviction filings under a key the mapper doesn't parse → count 0.
+        publicRecords: { eviction_filings: [{ court: "Clark County" }] },
+      });
+      expect(r.evictions).toBe(0); // we failed to parse it...
+      expect(r.bankruptcies).toBe(0);
+      expect(r.indeterminate).toBe(true); // ...so it must NOT pass on the good score
+    });
+
+    it("non-clear report status → indeterminate", () => {
+      const r = svc.mapShareAbleReportToResponse({ creditScore: 700, status: "pending" });
+      expect(r.indeterminate).toBe(true);
+    });
+
+    it("genuinely clean report (explicitly empty public records) is NOT indeterminate", () => {
+      const r = svc.mapShareAbleReportToResponse({
+        creditScore: 720,
+        status: "complete",
+        publicRecords: { evictions: [], bankruptcies: [] },
+        evictions: [],
+        bankruptcies: [],
+      });
+      expect(r.indeterminate).toBe(false);
+      expect(r.creditScore).toBe(720);
+    });
+
+    it("parsed eviction (recognized shape) is not indeterminate — the count drives the verdict", () => {
+      const r = svc.mapShareAbleReportToResponse({ creditScore: 720, evictions: [{ landlord: "Acme" }] });
+      expect(r.evictions).toBe(1);
+      expect(r.indeterminate).toBe(false);
     });
   });
 
@@ -140,6 +177,30 @@ describe("CreditCheckService — TransUnion ShareAble CRA mapping", () => {
       const r = await svc.resolve("app-1");
       expect(r.result).toBe("pass");
       expect(r.creditScore).toBe(720);
+    });
+
+    it("persisted INDETERMINATE report → could_not_screen HOLD (good score does not pass)", async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            credit_report_id: "tu_1",
+            credit_check_completed_at: new Date(),
+            credit_check_details: {
+              rawResponse: {
+                creditScore: 720,
+                paymentHistory: "excellent",
+                outstandingDebts: 1000,
+                collections: 0,
+                evictions: 0,
+                bankruptcies: 0,
+                indeterminate: true,
+              },
+            },
+          },
+        ],
+      });
+      const r = await svc.resolve("app-1");
+      expect(r.result).toBe("could_not_screen");
     });
 
     it("persisted eviction → fail (auto-fail on eviction)", async () => {

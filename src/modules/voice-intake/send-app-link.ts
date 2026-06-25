@@ -12,6 +12,12 @@ import {
   type ToolCallbackResult,
 } from "./tool-callbacks";
 
+// Short link to the 90-second onboarding walkthrough (frank-go /onboard 302s to
+// the hosted video). Env-configurable so it's swappable per env/property/cut
+// without a code change.
+const ONBOARDING_VIDEO_URL =
+  process.env.ONBOARDING_VIDEO_URL || "https://frank-go.vercel.app/onboard";
+
 /**
  * Phase B voice tool: `send_app_link`.
  *
@@ -80,7 +86,13 @@ export async function sendAppLinkHandler(
 
   const link = appendIntakeQuery(magic.link, context.conversationId);
   logMagicLink(user.email, link);
-  sendMagicLinkSms(magic.userId, link);
+  // One SMS: the resume link + a short line pointing at the onboarding
+  // walkthrough video, so the caller can watch how it works before finishing.
+  sendMagicLinkSms(
+    magic.userId,
+    link,
+    `New here? Here's a 90-second walkthrough of how it works: ${ONBOARDING_VIDEO_URL}`
+  );
 
   logger.info("send_app_link issued", {
     conversationId: context.conversationId,
@@ -92,7 +104,7 @@ export async function sendAppLinkHandler(
     ok: true,
     result: { sent: true },
     message:
-      "Great — I just texted you a link. Tap it and the app will pick up right where we left off.",
+      "Great — I just texted you a link, plus a quick 90-second walkthrough of how it works. Tap the link and the app will pick up right where we left off.",
   };
 }
 

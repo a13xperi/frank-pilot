@@ -230,6 +230,23 @@ export class EmailService {
     return this.send({ to, subject, html, text });
   }
 
+  /**
+   * Generic mid-funnel status update — the "keep the applicant informed at every
+   * step" notice (relationship notifier). Used for non-terminal transitions
+   * (screening started, under review) that don't have a dedicated template.
+   */
+  async sendStatusUpdate(
+    to: string,
+    applicantName: string,
+    heading: string,
+    body: string
+  ): Promise<EmailSendResult> {
+    const subject = heading;
+    const html = templateNotice({ heading, body: escapeHtml(body) });
+    const text = [`Hello ${applicantName},`, "", body, "", COMPANY_NAME].join("\n");
+    return this.send({ to, subject, html, text });
+  }
+
   async sendApproved(to: string, applicantName: string): Promise<EmailSendResult> {
     const subject = "Your application was approved";
     const html = templateNotice({

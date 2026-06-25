@@ -193,7 +193,7 @@ export function sendMagicLink(
  * swallowed and logged — an SMS failure must never crash the server or change
  * the response. The raw token is never logged here.
  */
-export function sendMagicLinkSms(userIdOrPhone: string, link: string): void {
+export function sendMagicLinkSms(userIdOrPhone: string, link: string, extraLine?: string): void {
   void resolvePhone(userIdOrPhone)
     .then((phone) => {
       if (!phone) {
@@ -201,7 +201,12 @@ export function sendMagicLinkSms(userIdOrPhone: string, link: string): void {
         logger.info("magic-link sms skipped — no phone on file");
         return;
       }
-      const body = `Your sign-in link for CDPC Nevada: ${link} (expires in ${TOKEN_TTL_MINUTES} minutes). If you didn't request this, ignore this message.`;
+      // `extraLine` lets a specific flow append one short, non-PII line to the
+      // single SMS (e.g. the voice-intake send_app_link tool appends the
+      // onboarding-video walkthrough link). Auth flows omit it, so their text is
+      // byte-identical to before.
+      const tail = extraLine ? ` ${extraLine}` : "";
+      const body = `Your sign-in link for CDPC Nevada: ${link} (expires in ${TOKEN_TTL_MINUTES} minutes). If you didn't request this, ignore this message.${tail}`;
       return getTwilioService()
         .sendSMS(phone, body)
         .then(() => undefined);

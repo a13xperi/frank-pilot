@@ -11,5 +11,8 @@
   "status.typing": "Assistant is typing…",
   "error.generic": "Something went wrong. Please try again.",
   "error.retry": "Try again",
-  "empty.hint": "Try: “What documents do I need?” or “Senior housing in Henderson”."
+  "empty.hint": "Try: “What documents do I need?” or “Senior housing in Henderson”.",
+  "talkToFrank.label": "Talk to Frank",
+  "talkToFrank.aria": "Talk to Frank by voice instead",
+  "talkToFrank.nudge": "Want to talk it through? I can get Frank on the line right now."
 }
