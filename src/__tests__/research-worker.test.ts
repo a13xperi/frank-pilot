@@ -83,3 +83,27 @@ it("strips ```json fences before parsing", async () => {
   expect(r.action).toBe("answered");
   expect(mockWrite.mock.calls[0][1]).toMatch(/served by RTC/);
 });
+
+it("auto-approves a HIGH-confidence answer when FRANK_RESEARCH_AUTO_APPROVE=true", async () => {
+  process.env.FRANK_RESEARCH_AUTO_APPROVE = "true";
+  mockClaim.mockResolvedValueOnce(TASK);
+  mockCreate.mockResolvedValueOnce({
+    content: [{ type: "text", text: '{"answer":"RTC Route 215.","source":"rtcsnv.com","confidence":"high"}' }],
+  });
+  const r = await runResearchTick();
+  expect(r.action).toBe("auto_approved");
+  expect(mockWrite.mock.calls[0][3]).toBe("approved"); // skips review
+  delete process.env.FRANK_RESEARCH_AUTO_APPROVE;
+});
+
+it("a medium-confidence answer still queues for review even with auto-approve on", async () => {
+  process.env.FRANK_RESEARCH_AUTO_APPROVE = "true";
+  mockClaim.mockResolvedValueOnce(TASK);
+  mockCreate.mockResolvedValueOnce({
+    content: [{ type: "text", text: '{"answer":"Probably RTC.","source":"web","confidence":"medium"}' }],
+  });
+  const r = await runResearchTick();
+  expect(r.action).toBe("answered");
+  expect(mockWrite.mock.calls[0][3]).toBe("ready_for_review");
+  delete process.env.FRANK_RESEARCH_AUTO_APPROVE;
+});

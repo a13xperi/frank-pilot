@@ -364,6 +364,40 @@ export async function writeResearchAnswer(
   );
 }
 
+/** Researched answers awaiting human approval (oldest first) — the review queue. */
+export async function listPendingReview(): Promise<FollowUp[]> {
+  const res = await query(
+    `SELECT id, phone_e164, reason, scheduled_for, status, attempts, notes, checkpoint,
+            question, answer, answer_source, research_status
+       FROM follow_ups
+      WHERE research_status = 'ready_for_review'
+      ORDER BY created_at ASC`,
+    []
+  );
+  return res.rows.map(rowToFollowUp).filter((f): f is FollowUp => f !== null);
+}
+
+/**
+ * Approve a researched answer so the dialer may deliver it (Phase 3 review step).
+ * Optionally replace the answer with an operator-edited version. Guarded on
+ * 'ready_for_review' so a double-click can't re-approve a delivered/other row.
+ */
+export async function approveResearch(id: string, editedAnswer?: string): Promise<void> {
+  if (editedAnswer != null) {
+    await query(
+      `UPDATE follow_ups SET answer = $2, research_status = 'approved', updated_at = NOW()
+        WHERE id = $1 AND research_status = 'ready_for_review'`,
+      [id, editedAnswer]
+    );
+  } else {
+    await query(
+      `UPDATE follow_ups SET research_status = 'approved', updated_at = NOW()
+        WHERE id = $1 AND research_status = 'ready_for_review'`,
+      [id]
+    );
+  }
+}
+
 function rowToFollowUp(row: Record<string, unknown> | undefined): FollowUp | null {
   if (!row) return null;
   const ts = row.scheduled_for;

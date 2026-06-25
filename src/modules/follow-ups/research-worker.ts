@@ -102,14 +102,19 @@ export async function runResearchTick(): Promise<{ action: string; id?: string }
     const json = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
     const parsed = JSON.parse(json) as ResearchAnswer;
     if (!parsed.answer) throw new Error("model returned no answer");
+    // Phase 5 confidence gate (default OFF — human-approve first). When
+    // FRANK_RESEARCH_AUTO_APPROVE=true, a HIGH-confidence cited answer skips
+    // review and goes straight to 'approved'; everything else still queues for a human.
+    const autoApprove =
+      process.env.FRANK_RESEARCH_AUTO_APPROVE === "true" && parsed.confidence === "high";
     await writeResearchAnswer(
       task.id,
       parsed.answer,
       `${parsed.source} [confidence: ${parsed.confidence}]`,
-      "ready_for_review"
+      autoApprove ? "approved" : "ready_for_review"
     );
-    logger.info("research answered", { id: task.id, confidence: parsed.confidence });
-    return { action: "answered", id: task.id };
+    logger.info("research answered", { id: task.id, confidence: parsed.confidence, autoApprove });
+    return { action: autoApprove ? "auto_approved" : "answered", id: task.id };
   } catch (err) {
     logger.error("research worker failed", { id: task.id, error: (err as Error).message });
     // leave it failed (not back to needs_research) so a bad row doesn't hot-loop;
