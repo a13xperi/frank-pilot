@@ -13,9 +13,7 @@ import { getEmailService } from "../integrations/email";
 import { IdentityVerificationService } from "../screening/identity-verification";
 import type { IdentityVerificationResult } from "../screening/identity-verification";
 import { transitionApplicationStatus } from "../screening/state-machine";
-import { hasValidAuthorization } from "../screening/consumer-report-consent";
-import { ScreeningService } from "../screening/service";
-import { recordLedgerEntry } from "../relationship/ledger";
+import { applyApplicationFeePaid } from "./apply-fee";
 
 /**
  * Stripe webhook receiver.
@@ -624,101 +622,19 @@ async function handleApplicationFeeSucceeded(event: Stripe.Event): Promise<void>
   const amountCents = intent.amount_received ?? intent.amount ?? 0;
   const amountDollars = Math.round(amountCents) / 100;
 
-  const ledgerEntry = await ledgerService.recordPayment(
+  // Shared post-payment core (ledger + FCRA-gated screening + draft→submitted +
+  // tape + audit), also used by the on-call DTMF `<Pay>` path. Webhook passes
+  // dedupeOnRef:false — it's already fenced upstream by stripe_processed_events
+  // + payment_idempotency — and its legacy ledger note, to stay byte-for-byte.
+  await applyApplicationFeePaid({
     applicationId,
     amountDollars,
-    intent.id,
-    null,
-    null,
-    `Application fee — Stripe PaymentIntent ${intent.id}`
-  );
-
-  // FCRA + fee gate: only run screening when consent is on file. The actor is
-  // the applicant who submitted; screening needs a real actor id.
-  const consented = await hasValidAuthorization(applicationId);
-  const actorRes = await query(
-    `SELECT submitted_by, status, phone FROM applications WHERE id = $1`,
-    [applicationId]
-  );
-  const submittedBy = (actorRes.rows[0]?.submitted_by as string) ?? md.actorId ?? "";
-  const applicantPhone = (actorRes.rows[0]?.phone as string) ?? null;
-
-  void recordLedgerEntry({
-    phoneE164: applicantPhone,
-    eventType: "fee_paid",
-    summary: "Paid the $35.95 verification fee",
-    ref: applicationId,
-  });
-
-  let screeningFired = false;
-  if (consented && submittedBy) {
-    screeningFired = true;
-    void recordLedgerEntry({
-      phoneE164: applicantPhone,
-      eventType: "screening_started",
-      summary: "Identity, credit, and background check started",
-      ref: applicationId,
-    });
-    // Fire-and-forget: a slow/failed pull must not 500 the webhook (Stripe would
-    // retry and double-post the ledger).
-    void (async () => {
-      try {
-        // Paying the fee submits the application. Flip draft → submitted
-        // (idempotent — only touches a draft) so runFullScreening, which
-        // requires submitted/screening, can run. Mirrors the core of
-        // ApplicationService.submit(); the consent + screening it would
-        // otherwise gate on are already handled on this fee-paid path.
-        await query(
-          `UPDATE applications
-              SET status = 'submitted',
-                  submitted_at = COALESCE(submitted_at, NOW()),
-                  submitted_by = COALESCE(submitted_by, $2)
-            WHERE id = $1 AND status = 'draft'`,
-          [applicationId, submittedBy]
-        );
-        await new ScreeningService().runFullScreening(applicationId, submittedBy, "applicant");
-      } catch (err) {
-        logger.error("post-fee screening failed", {
-          applicationId,
-          paymentIntentId: intent.id,
-          error: (err as Error).message,
-        });
-      }
-    })();
-  } else {
-    logger.warn("application_fee paid but screening held", {
-      applicationId,
-      paymentIntentId: intent.id,
-      consented,
-      hasActor: Boolean(submittedBy),
-    });
-  }
-
-  void stampTape({
-    kind: "BP08_PAYMENT_SUCCEEDED",
-    actor: "stripe-webhook",
+    chargeRef: intent.id,
+    source: "stripe-webhook",
     sessionId: intent.id,
-    payload: {
-      feeType: "application_fee",
-      applicationId,
-      paymentIntentId: intent.id,
-      amountCents,
-      ledgerEntryId: ledgerEntry.id,
-      screeningFired,
-    },
-  });
-
-  await writeAuditLog({
-    action: "application_fee_succeeded",
-    applicationId,
-    resourceType: "payment_intent",
-    details: {
-      actor: "stripe-webhook",
-      amountCents,
-      paymentIntentId: intent.id,
-      ledgerEntryId: ledgerEntry.id,
-      screeningFired,
-    },
+    actorIdFallback: md.actorId,
+    notes: `Application fee — Stripe PaymentIntent ${intent.id}`,
+    dedupeOnRef: false,
   });
 }
 
