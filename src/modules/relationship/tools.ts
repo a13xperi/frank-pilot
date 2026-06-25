@@ -5,6 +5,7 @@ import {
   type ToolCallbackResult,
 } from "../voice-intake/tool-callbacks";
 import { getLedgerByPhone } from "./ledger";
+import { getPersonReport } from "./report";
 
 /**
  * get_ledger — Frank recounts the person's journey ("here's everything that's
@@ -33,6 +34,30 @@ export async function getLedgerHandler(
   };
 }
 
+/**
+ * get_person_summary — the one-line "where do they stand overall" report. Frank
+ * recites it to open a warm re-entry ("Here's where you stand: applied, fee paid,
+ * screening passed."). The running relationship report, one fast read.
+ */
+export async function getPersonSummaryHandler(
+  parameters: Record<string, unknown>,
+  context: ToolCallbackContext
+): Promise<ToolCallbackResult> {
+  const phone = pickString(parameters, "phone_e164") ?? pickString(parameters, "phone");
+  if (!phone) return { ok: false, message: "What number should I pull up?" };
+
+  const report = await getPersonReport(phone);
+  logger.info("get_person_summary", { conversationId: context.conversationId, found: !!report });
+  if (!report || !report.summary) {
+    return { ok: true, result: { summary: null }, message: "I don't have a summary on file for that number yet." };
+  }
+  return {
+    ok: true,
+    result: report as unknown as Record<string, unknown>,
+    message: `Here's where you stand: ${report.summary}`,
+  };
+}
+
 function pickString(parameters: Record<string, unknown>, key: string): string | null {
   const value = parameters[key];
   if (typeof value !== "string") return null;
@@ -44,6 +69,7 @@ let registered = false;
 export function registerRelationshipHandlers(): void {
   if (registered) return;
   registerToolHandler("get_ledger", getLedgerHandler);
+  registerToolHandler("get_person_summary", getPersonSummaryHandler);
   registered = true;
 }
 
