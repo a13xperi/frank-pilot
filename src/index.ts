@@ -30,6 +30,7 @@ import {
   voiceIntakeApplicantRoutes,
   registerVoiceToolHandlers,
   registerNameVerificationHandler,
+  registerWebSearchHandler,
 } from "./modules/voice-intake";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
@@ -365,6 +366,7 @@ if (process.env.VOICE_INTAKE_ENABLED === "true") {
 // router will still 503 until that flag flips on.
 registerVoiceToolHandlers();
 registerNameVerificationHandler();
+registerWebSearchHandler();
 registerCobrowseHandlers();
 
 // Outbound waitlist-validation dialer admin surface (DM-FRANK-029).

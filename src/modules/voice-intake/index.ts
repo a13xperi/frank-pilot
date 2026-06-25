@@ -5,6 +5,7 @@ export { default as voiceIntakeRoutes } from "./routes";
 export { default as voiceIntakeApplicantRoutes } from "./applicant-routes";
 export { registerVoiceToolHandlers } from "./send-app-link";
 export { registerNameVerificationHandler } from "./verify-name";
+export { registerWebSearchHandler } from "./web-search";
 export {
   persistConversation,
   promoteIntakeToApplication,
