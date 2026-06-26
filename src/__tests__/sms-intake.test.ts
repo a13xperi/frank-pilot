@@ -21,6 +21,11 @@ jest.mock("../modules/auth/magic-link-service", () => ({
   createMagicLinkByUserId: jest.fn().mockResolvedValue({ link: "https://x/auth/callback?token=t", userId: "user-9" }),
   sendMagicLinkSms: jest.fn(),
 }));
+const mockValidateRequest = jest.fn().mockReturnValue(true);
+jest.mock("twilio", () => ({
+  __esModule: true,
+  default: { validateRequest: (...a: unknown[]) => mockValidateRequest(...a) },
+}));
 
 import { query } from "../config/database";
 import { stepSms } from "../modules/sms-intake/state-machine";
@@ -135,7 +140,22 @@ describe("POST /inbound — fail-closed", () => {
 describe("POST /inbound — happy path", () => {
   beforeEach(() => {
     process.env.SMS_INTAKE_ENABLED = "true";
+    process.env.TWILIO_AUTH_TOKEN = "test-token";
+    mockValidateRequest.mockReturnValue(true);
     delete process.env.SMS_INTAKE_DEFAULT_PROPERTY_ID;
+  });
+
+  it("rejects 403 when the Twilio signature is invalid (forged inbound)", async () => {
+    mockValidateRequest.mockReturnValue(false);
+    const res = await postInbound({ From: FROM, Body: "hi" });
+    expect(res.status).toBe(403);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("fails closed (503) when TWILIO_AUTH_TOKEN is unset", async () => {
+    delete process.env.TWILIO_AUTH_TOKEN;
+    const res = await postInbound({ From: FROM, Body: "hi" });
+    expect(res.status).toBe(503);
   });
 
   it("fresh texter → greeting TwiML, creates a session, advances to `name`", async () => {
