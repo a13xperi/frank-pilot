@@ -8,6 +8,7 @@ import { ComplianceService } from "./compliance";
 import { FraudDetectionService } from "./fraud-detection";
 import { IdentityVerificationService } from "./identity-verification";
 import type { IdentityVerificationResult } from "./identity-verification";
+import { hasValidAuthorization } from "./consumer-report-consent";
 // Phase 4a — extended screening adapters. Dormant by default; they join the
 // parallel fan-out only behind the SCREENING_EXTENDED_CHECKS_ENABLED dark flag.
 import { PlaidIncomeService } from "./income-verification-plaid";
@@ -345,6 +346,23 @@ export class ScreeningService {
     // Either source returns the IDENTICAL BackgroundCheckResult / CreditCheckResult
     // shape, so the persist + aggregation below are unchanged regardless of source.
     const consumerReportEnabled = process.env.CONSUMER_REPORT_ENABLED === "true";
+
+    // FCRA §1681b permissible-purpose gate (server-side, single chokepoint):
+    // NEVER pull a consumer report (background/credit) without a recorded
+    // authorization on file. runFullScreening is reached from the staff /screen
+    // route, the CLI, the auto-on-submit path, and the CRA webhook — gating it
+    // here covers all of them, where prompt/route gating does not. Only enforced
+    // when consumer reports are actually being pulled.
+    if (consumerReportEnabled && !(await hasValidAuthorization(applicationId))) {
+      logger.error("FCRA: consumer-report pull blocked — no valid authorization", {
+        applicationId,
+        initiatedBy,
+        initiatorRole,
+      });
+      throw new Error(
+        `FCRA: refusing to pull a consumer report for application ${applicationId} — no valid authorization on file`
+      );
+    }
 
     // Run all checks in parallel
     const [backgroundResult, creditResult, complianceResult] = await Promise.all([
