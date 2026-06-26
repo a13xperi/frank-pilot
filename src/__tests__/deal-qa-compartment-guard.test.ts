@@ -13,6 +13,7 @@ import {
   bannedClasses,
   isDealTier,
   GUARD_CLASS_IDS,
+  normalizeBrand,
   type DealTier,
 } from "../modules/deal-qa/compartment-guard";
 
@@ -190,5 +191,27 @@ describe("compartment guard — helpers", () => {
     expect(new Set(GUARD_CLASS_IDS)).toEqual(
       new Set(["names", "cap", "econ", "risk_legal", "tribe"])
     );
+  });
+});
+
+describe("principal-brand normalization (Alex/Craig → Adinkra Labs)", () => {
+  it("rewrites each principal to the brand", () => {
+    expect(normalizeBrand("Alex owns the HoldCo.")).toBe("Adinkra Labs owns the HoldCo.");
+    expect(normalizeBrand("Talk to Craig about it.")).toBe("Talk to Adinkra Labs about it.");
+    expect(normalizeBrand("Decided by Alex Peri.")).toBe("Decided by Adinkra Labs.");
+  });
+  it("collapses both principals named together into one brand", () => {
+    expect(normalizeBrand("Alex and Craig control it.")).toBe("Adinkra Labs control it.");
+  });
+  it("never leaks a principal name in any combination", () => {
+    for (const s of [
+      "Alex", "Craig", "Alex Peri", "Craig Ellins",
+      "Alex & Craig", "Alex/Craig", "Alex, Craig",
+    ]) {
+      expect(normalizeBrand(s)).not.toMatch(/\bAlex\b|\bCraig\b/i);
+    }
+  });
+  it("leaves unrelated text untouched", () => {
+    expect(normalizeBrand("The §48E credit is 40%.")).toBe("The §48E credit is 40%.");
   });
 });

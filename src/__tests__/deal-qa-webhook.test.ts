@@ -129,7 +129,7 @@ describe("dispatch — enrolled partner", () => {
     await __test.processUpdate(mkUpdate("what's the weather"));
     expect(tg.replyLong).not.toHaveBeenCalled();
     expect(tg.sendMessage).toHaveBeenCalledTimes(1);
-    expect((tg.sendMessage as jest.Mock).mock.calls[0][1]).toContain("flagged it for Alex");
+    expect((tg.sendMessage as jest.Mock).mock.calls[0][1]).toContain("flagged it for the team");
   });
 
   it("/start → welcome, no corpus hit", async () => {

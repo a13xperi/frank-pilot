@@ -34,15 +34,15 @@ const COPY = {
     "  (or just type your question)",
   stranger:
     "👋 This is the Deal Room assistant. You're not on the access list yet, so I " +
-    "can't answer just now — I've let Alex know you reached out. Once he gives you " +
+    "can't answer just now — I've let the team know you reached out. Once you're granted " +
     "access, ask me again.",
   smalltalk:
     "📂 Hi! Ask me anything about the deal and I'll answer from the materials, with " +
     'sources — e.g. "What\'s the structure of the token?" or "How do the §48E and ' +
     '§30C credits stack?"',
   empty:
-    "📂 Good question — I don't have that in the deal materials yet. I've flagged it for Alex.",
-  offline: "📂 Sorry, I couldn't get that just now — Alex has been notified.",
+    "📂 Good question — I don't have that in the deal materials yet. I've flagged it for the team.",
+  offline: "📂 Sorry, I couldn't get that just now — the team has been notified.",
   scopedFooter: "\n\n🔒 Some details are scoped out on this channel.",
 };
 

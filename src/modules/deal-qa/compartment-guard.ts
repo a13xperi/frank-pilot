@@ -176,9 +176,35 @@ export function finalizeDealAnswer(eff: DealTier, answer: string): DealVerdict {
   const g = guardAnswer(answer, eff);
   return {
     ok: g.clean,
-    answer: g.masked,
+    answer: normalizeBrand(g.masked),
     tier: eff,
     maskedClasses: g.hits,
     blocked: !!g.blocked,
   };
+}
+
+// ── Principal-brand normalization (operator directive 2026-06-26) ─────────────
+// The bot presents the sponsor as an ENTITY, never the individual principals:
+// "Alex" / "Craig" are rewritten to the principal brand on EVERY answer, at ALL
+// tiers. This is a standing PRESENTATION rule, not a compartment redaction, so it
+// does not count as a withheld hit / boundary alert. Change the brand in one place.
+export const PRINCIPAL_BRAND = "Adinkra Labs";
+
+const PRINCIPAL_NAMES = /\bAlex(?:ander)?(?:\s+Peri)?\b|\bCraig(?:\s+Ellins)?\b/gi;
+
+export function normalizeBrand(text: string): string {
+  if (!text) return text;
+  let out = text.replace(PRINCIPAL_NAMES, PRINCIPAL_BRAND);
+  // Collapse "<brand> and/&/,/+ <brand>" (both principals named together) to one,
+  // iterating until stable so longer chains fold down too.
+  const pair = new RegExp(
+    `${PRINCIPAL_BRAND}\\s*(?:,|and|&|/|\\+)\\s*${PRINCIPAL_BRAND}`,
+    "i"
+  );
+  let prev: string;
+  do {
+    prev = out;
+    out = out.replace(pair, PRINCIPAL_BRAND);
+  } while (out !== prev);
+  return out;
 }

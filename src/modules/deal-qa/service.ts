@@ -8,7 +8,7 @@
  * paraphrase / hallucination risk); generative compose stays a future flag.
  */
 import { searchDealCorpus } from "./corpus";
-import { guardAnswer, type DealTier } from "./compartment-guard";
+import { guardAnswer, normalizeBrand, type DealTier } from "./compartment-guard";
 
 const MAX_PASSAGES = 4;
 const MAX_BODY = 500; // chars per cited passage
@@ -44,7 +44,7 @@ export function groundAnswer(question: string, tier: DealTier): GroundResult {
   const g = guardAnswer(parts.join("\n\n"), tier);
   return {
     ok: true,
-    answer: g.masked,
+    answer: normalizeBrand(g.masked),
     nSources: n,
     withheld: !g.clean,
     maskedClasses: g.hits,
