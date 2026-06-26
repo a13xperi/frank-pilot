@@ -32,6 +32,7 @@ import {
   registerVoiceToolHandlers,
   registerFunnelToolHandlers,
   registerNameVerificationHandler,
+  registerDealDocsToolHandler,
 } from "./modules/voice-intake";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
@@ -62,6 +63,7 @@ import { outboundValidationRoutes } from "./modules/outbound-validation";
 import { callFeedbackRoutes } from "./modules/call-feedback";
 import { waitlistGraduationRoutes } from "./modules/waitlist-graduation";
 import { propertyRouterRoutes } from "./modules/property-router";
+import { dealTelegramWebhookRouter } from "./modules/deal-qa";
 import {
   outboundApplicationRoutes,
   registerOutboundApplicationToolHandlers,
@@ -162,6 +164,12 @@ app.use("/api/webhooks/cra", craWebhookRouter);
 // express.urlencoded on POST /inbound, so it mounts BEFORE the global
 // express.json(). Self-gates 503 until SMS_INTAKE_ENABLED.
 app.use("/api/webhooks/twilio", smsIntakeRoutes);
+
+// Deal-Room Q&A over Telegram (external-partner deal-doc bot, compartment-masked).
+// Carries its OWN express.json on POST /deal, so it mounts BEFORE the global
+// express.json(). Dark by default: the router acks 200 and ignores updates until
+// DEAL_QA_ENABLED=true (Telegram auto-disables a webhook that returns non-2xx).
+app.use("/api/webhooks/telegram", dealTelegramWebhookRouter);
 
 app.use(express.json({ limit: "1mb" }));
 
@@ -418,6 +426,9 @@ if (process.env.VOICE_INTAKE_ENABLED === "true") {
 // router will still 503 until that flag flips on.
 registerVoiceToolHandlers();
 registerNameVerificationHandler();
+// Deal Desk in-call Q&A tool (ask_deal_docs). Dark until VOICE_TOOLS_ENABLED +
+// DEAL_DESK_AGENT_ID + DEAL_QA_VOICE_ALLOWLIST are set; fail-closed otherwise.
+registerDealDocsToolHandler();
 registerCobrowseHandlers();
 
 // Jacqueline's in-call application tools (Frank core C3). Safe to register dark
