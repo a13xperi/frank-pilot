@@ -10,6 +10,35 @@ import { runFollowupTick } from "./modules/follow-ups/dialer";
 import { pushReportToNotion } from "./modules/outbound-validation/report";
 import { WorkOrderEscalationService } from "./modules/maintenance/escalation";
 import { logger } from "./utils/logger";
+import { getClient } from "./config/database";
+
+// Leader election for cluster-wide-singleton cron jobs. node-cron fires on EVERY
+// instance, so a money job (rent/late-fee posting) runs N times across replicas —
+// or twice when an old + new container overlap during a deploy — double-charging
+// every tenant (the check-then-act guards have no DB backstop). A session-level
+// pg_try_advisory_lock keyed on the job name means exactly ONE instance runs it;
+// the others skip the tick. Unlocked in finally; a crashed holder frees it on
+// disconnect.
+async function withJobLock(jobKey: string, fn: () => Promise<void>): Promise<void> {
+  const client = await getClient();
+  try {
+    const { rows } = await client.query(
+      "SELECT pg_try_advisory_lock(hashtext($1)) AS locked",
+      [jobKey]
+    );
+    if (!rows[0]?.locked) {
+      logger.info(`Scheduler: ${jobKey} skipped — another instance holds the lock`);
+      return;
+    }
+    try {
+      await fn();
+    } finally {
+      await client.query("SELECT pg_advisory_unlock(hashtext($1))", [jobKey]);
+    }
+  } finally {
+    client.release();
+  }
+}
 
 const recertService = new RecertificationService();
 const ledgerService = new LedgerService();
@@ -73,30 +102,34 @@ export function startScheduler() {
 
   // 1st of month at 6:00 AM — auto-post monthly rent for all active tenants
   cron.schedule("0 6 1 * *", async () => {
-    logger.info("Scheduler: Running monthly rent postings");
-    try {
-      const stats = await ledgerService.processMonthlyRentPostings();
-      logger.info("Scheduler: Monthly rent postings complete", stats);
-    } catch (err) {
-      logger.error("Scheduler: Monthly rent postings failed", {
-        error: (err as Error).message,
-      });
-    }
+    await withJobLock("ledger:monthly_rent_postings", async () => {
+      logger.info("Scheduler: Running monthly rent postings");
+      try {
+        const stats = await ledgerService.processMonthlyRentPostings();
+        logger.info("Scheduler: Monthly rent postings complete", stats);
+      } catch (err) {
+        logger.error("Scheduler: Monthly rent postings failed", {
+          error: (err as Error).message,
+        });
+      }
+    });
   });
 
   // Daily at 7:00 AM — assess late fees on overdue rent (effective from 6th onward)
   cron.schedule("0 7 * * *", async () => {
     const day = new Date().getDate();
     if (day < 6) return; // Grace period: rent not late until the 6th
-    logger.info("Scheduler: Processing late fees");
-    try {
-      const stats = await ledgerService.processLateFees();
-      logger.info("Scheduler: Late fee processing complete", stats);
-    } catch (err) {
-      logger.error("Scheduler: Late fee processing failed", {
-        error: (err as Error).message,
-      });
-    }
+    await withJobLock("ledger:late_fees", async () => {
+      logger.info("Scheduler: Processing late fees");
+      try {
+        const stats = await ledgerService.processLateFees();
+        logger.info("Scheduler: Late fee processing complete", stats);
+      } catch (err) {
+        logger.error("Scheduler: Late fee processing failed", {
+          error: (err as Error).message,
+        });
+      }
+    });
   });
 
   // Daily at 7:30 AM — process lease renewal offers (auto-generate at 90 days, send reminders)
