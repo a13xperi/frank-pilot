@@ -160,6 +160,7 @@ export class PlaidVendor implements ScreeningVendor {
 
   private async post(base: string, path: string, body: Record<string, unknown>): Promise<unknown> {
     const res = await fetch(`${base}${path}`, {
+      signal: AbortSignal.timeout(10000), // audit #10: never hang on a dead vendor/EL/Sage socket
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

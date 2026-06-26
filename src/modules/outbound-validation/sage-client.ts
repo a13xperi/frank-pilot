@@ -76,6 +76,7 @@ async function sageFetch(
     throw new Error("Sage waitlist client not configured (GPM_SUPABASE_URL / GPM_SUPABASE_SERVICE_ROLE_KEY)");
   }
   const res = await fetch(`${sageUrl()}/rest/v1/${path}`, {
+    signal: AbortSignal.timeout(10000), // audit #10: never hang on a dead vendor/EL/Sage socket
     method: init.method ?? "GET",
     headers: {
       apikey: sageKey(),

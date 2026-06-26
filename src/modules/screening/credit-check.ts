@@ -179,6 +179,7 @@ export class CreditCheckService {
     body: Record<string, unknown>
   ): Promise<unknown> {
     const res = await fetch(`${base}${path}`, {
+      signal: AbortSignal.timeout(10000), // audit #10: never hang on a dead vendor/EL/Sage socket
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
