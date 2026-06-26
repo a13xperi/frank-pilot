@@ -1,0 +1,24 @@
+-- 2026-06-25 — seed the GPM FAMILY/mixed-use communities into properties so
+-- get_property_details answers them too (mirror of the senior seed #382).
+-- Idempotent: INSERT only when the slug is not already present.
+
+INSERT INTO properties (name,address_line1,address_line2,city,state,zip,unit_count,ami_area,phone,email,property_type,amenities,pet_policy,accessibility,total_vacancy,waiting_list_enabled)
+SELECT 'David J. Hoggard Family Community','1120 H Street',NULL,'Las Vegas','NV','89106',0,'Las Vegas','(702) 648-6946','hoggard@gpmglv.org','family','["A children\u2019s water park", "Community library", "Computer lab with internet access", "Fitness center", "Laundry facility (coin operated)", "Spacious one, two, and three bedroom apartments", "Convenient access to neighborhood services"]'::jsonb,NULL,'["ADA accommodations available", "Equal Housing Opportunity"]'::jsonb,0,true
+WHERE NOT EXISTS (SELECT 1 FROM properties WHERE trim(both '-' from regexp_replace(lower(name),'[^a-z0-9]+','-','g'))='david-j-hoggard-family-community');
+
+INSERT INTO properties (name,address_line1,address_line2,city,state,zip,unit_count,ami_area,phone,email,property_type,amenities,pet_policy,accessibility,total_vacancy,waiting_list_enabled)
+SELECT 'Ethel Mae Fletcher Apartments','1503 Laurelhurst Dr.',NULL,'Las Vegas','NV','89108',0,'Las Vegas','(702) 920-6572',NULL,'family','["One & two-bedroom senior apartments", "Elevator access & ADA accommodations", "Community room with activities & programs", "Laundry facilities on site", "Secure entry & on-site management", "Close to groceries & daily essentials", "Convenient access to local services & healthcare", "RTC bus routes nearby"]'::jsonb,NULL,'["Reasonable accommodations available upon request", "ADA accommodations available", "Elevator access", "Equal Housing Opportunity"]'::jsonb,0,true
+WHERE NOT EXISTS (SELECT 1 FROM properties WHERE trim(both '-' from regexp_replace(lower(name),'[^a-z0-9]+','-','g'))='ethel-mae-fletcher-apartments');
+
+INSERT INTO properties (name,address_line1,address_line2,city,state,zip,unit_count,ami_area,phone,email,property_type,amenities,pet_policy,accessibility,total_vacancy,waiting_list_enabled)
+SELECT 'Juan Garcia Garden Apartments','2851 Sunrise Ave.',NULL,'Las Vegas','NV','89101',0,'Las Vegas','(702) 383-6180',NULL,'family','["Comfortable apartment homes in the 89101 area", "Convenient access to neighborhood schools and services", "Community-focused residential setting", "Close to daily shopping and essentials", "Near central and east Las Vegas destinations", "Easy access to nearby parks and recreation", "Well-positioned for family daily routines", "Transit access in the surrounding corridor"]'::jsonb,NULL,'["Reasonable accommodations available upon request", "Equal Housing Opportunity"]'::jsonb,0,true
+WHERE NOT EXISTS (SELECT 1 FROM properties WHERE trim(both '-' from regexp_replace(lower(name),'[^a-z0-9]+','-','g'))='juan-garcia-garden-apartments');
+
+INSERT INTO properties (name,address_line1,address_line2,city,state,zip,unit_count,ami_area,phone,email,property_type,amenities,pet_policy,accessibility,total_vacancy,waiting_list_enabled)
+SELECT 'Governor Mike O''Callaghan Apartments','1502 Laurelhurst Dr.',NULL,'Las Vegas','NV','89108',0,'Las Vegas','(702) 873-8882',NULL,'family','["One & two-bedroom senior apartments", "Elevator access & ADA accommodations", "Community room with activities & programs", "Laundry facilities on site", "Secure entry & on-site management", "Walking distance to groceries & daily essentials", "Near Valley Hospital/UMC & clinics", "RTC bus lines within a few blocks"]'::jsonb,NULL,'["Reasonable accommodations available upon request", "ADA accommodations available", "Elevator access", "Equal Housing Opportunity"]'::jsonb,0,true
+WHERE NOT EXISTS (SELECT 1 FROM properties WHERE trim(both '-' from regexp_replace(lower(name),'[^a-z0-9]+','-','g'))='governor-mike-o-callaghan-apartments');
+
+INSERT INTO properties (name,address_line1,address_line2,city,state,zip,unit_count,ami_area,phone,email,property_type,amenities,pet_policy,accessibility,total_vacancy,waiting_list_enabled)
+SELECT 'Sarann Knight Apartments','1327 H Street',NULL,'Las Vegas','NV','89106',0,'Las Vegas','(702) 538-9031',NULL,'family','["Comfortable apartment homes in Historic West Las Vegas", "Convenient access to neighborhood shopping and services", "Community-focused residential setting", "Close to daily essentials and local retail", "Near parks, schools, and community resources", "Well-located for family daily routines", "Convenient access to nearby medical and support services", "Transit access along nearby west-side corridors"]'::jsonb,NULL,'["Reasonable accommodations available upon request", "Equal Housing Opportunity"]'::jsonb,0,true
+WHERE NOT EXISTS (SELECT 1 FROM properties WHERE trim(both '-' from regexp_replace(lower(name),'[^a-z0-9]+','-','g'))='sarann-knight-apartments');
+
