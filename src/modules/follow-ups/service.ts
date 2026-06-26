@@ -26,6 +26,11 @@ export interface FollowUp {
   notes: string | null;
   /** Structured "exactly where we are in the process" so a callback resumes here. */
   checkpoint: string | null;
+  /** Research loop: the open question, the researched answer + source, and its status. */
+  question: string | null;
+  answer: string | null;
+  answer_source: string | null;
+  research_status: string;
 }
 
 export interface CreateFollowUpInput {
@@ -39,6 +44,9 @@ export interface CreateFollowUpInput {
   /** Structured resume checkpoint (current step + gathered facts + what's next). */
   checkpoint?: string | null;
   source?: string;
+  /** Research loop: an open question to research + its status (default 'none'). */
+  question?: string | null;
+  researchStatus?: string;
 }
 
 /** Insert a pending follow-up. Returns null on a bad phone / time. */
@@ -51,9 +59,10 @@ export async function createFollowUp(input: CreateFollowUpInput): Promise<Follow
   const res = await query(
     `INSERT INTO follow_ups (
        phone_e164, user_id, voice_call_id, reason, scheduled_for,
-       consent_outbound, notes, checkpoint, source
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-     RETURNING id, phone_e164, reason, scheduled_for, status, attempts, notes, checkpoint`,
+       consent_outbound, notes, checkpoint, source, question, research_status
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     RETURNING id, phone_e164, reason, scheduled_for, status, attempts, notes, checkpoint,
+               question, answer, answer_source, research_status`,
     [
       phone,
       input.userId ?? null,
@@ -64,6 +73,8 @@ export async function createFollowUp(input: CreateFollowUpInput): Promise<Follow
       input.notes ?? null,
       input.checkpoint ?? null,
       input.source ?? "voice_intake",
+      input.question ?? null,
+      input.researchStatus ?? "none",
     ]
   );
   return rowToFollowUp(res.rows[0]);
@@ -167,12 +178,16 @@ export async function claimNextDueFollowUp(): Promise<ClaimedFollowUp | null> {
          WHERE status = 'pending'
            AND scheduled_for <= NOW()
            AND attempts < max_attempts
+           -- Deliver gate: never dial a row still awaiting research/review. Only
+           -- ordinary callbacks ('none') or research that's been approved go out.
+           AND research_status IN ('none','approved')
          ORDER BY scheduled_for ASC
          FOR UPDATE SKIP LOCKED
          LIMIT 1
       )
       RETURNING id, phone_e164, reason, scheduled_for, status, attempts,
-                notes, checkpoint, consent_outbound, voice_call_id, user_id`,
+                notes, checkpoint, consent_outbound, voice_call_id, user_id,
+                question, answer, research_status`,
     []
   );
   if (res.rows.length === 0) return null;
@@ -186,6 +201,9 @@ export async function claimNextDueFollowUp(): Promise<ClaimedFollowUp | null> {
     checkpoint: (r.checkpoint as string) ?? null,
     consentOutbound: Boolean(r.consent_outbound),
     voiceCallId: (r.voice_call_id as string) ?? null,
+    question: (r.question as string) ?? null,
+    answer: (r.answer as string) ?? null,
+    researchStatus: (r.research_status as string) ?? "none",
   };
 }
 
@@ -198,6 +216,9 @@ export interface ClaimedFollowUp {
   checkpoint: string | null;
   consentOutbound: boolean;
   voiceCallId: string | null;
+  question: string | null;
+  answer: string | null;
+  researchStatus: string;
 }
 
 /** Stamp the placed callback's conversation id on a claimed follow-up. */
@@ -305,6 +326,78 @@ export async function findFollowUpByConversation(conversationId: string): Promis
   return res.rows.length ? (res.rows[0].id as string) : null;
 }
 
+/**
+ * Atomically claim the next follow-up awaiting research (oldest first) and flip it
+ * to 'researching' — FOR UPDATE SKIP LOCKED so concurrent worker ticks never grab
+ * the same row (same pattern as claimNextDueFollowUp). Null when nothing is queued.
+ */
+export async function claimNextResearchTask(): Promise<FollowUp | null> {
+  const res = await query(
+    `UPDATE follow_ups
+        SET research_status = 'researching', updated_at = NOW()
+      WHERE id = (
+        SELECT id FROM follow_ups
+         WHERE research_status = 'needs_research'
+         ORDER BY created_at ASC
+         FOR UPDATE SKIP LOCKED
+         LIMIT 1
+      )
+      RETURNING id, phone_e164, reason, scheduled_for, status, attempts, notes, checkpoint,
+                question, answer, answer_source, research_status`,
+    []
+  );
+  return res.rows.length ? rowToFollowUp(res.rows[0]) : null;
+}
+
+/** Write a researched answer back to a follow-up and set its research_status. */
+export async function writeResearchAnswer(
+  id: string,
+  answer: string,
+  source: string,
+  status: "ready_for_review" | "approved" | "failed"
+): Promise<void> {
+  await query(
+    `UPDATE follow_ups
+        SET answer = $2, answer_source = $3, research_status = $4, updated_at = NOW()
+      WHERE id = $1`,
+    [id, answer, source, status]
+  );
+}
+
+/** Researched answers awaiting human approval (oldest first) — the review queue. */
+export async function listPendingReview(): Promise<FollowUp[]> {
+  const res = await query(
+    `SELECT id, phone_e164, reason, scheduled_for, status, attempts, notes, checkpoint,
+            question, answer, answer_source, research_status
+       FROM follow_ups
+      WHERE research_status = 'ready_for_review'
+      ORDER BY created_at ASC`,
+    []
+  );
+  return res.rows.map(rowToFollowUp).filter((f): f is FollowUp => f !== null);
+}
+
+/**
+ * Approve a researched answer so the dialer may deliver it (Phase 3 review step).
+ * Optionally replace the answer with an operator-edited version. Guarded on
+ * 'ready_for_review' so a double-click can't re-approve a delivered/other row.
+ */
+export async function approveResearch(id: string, editedAnswer?: string): Promise<void> {
+  if (editedAnswer != null) {
+    await query(
+      `UPDATE follow_ups SET answer = $2, research_status = 'approved', updated_at = NOW()
+        WHERE id = $1 AND research_status = 'ready_for_review'`,
+      [id, editedAnswer]
+    );
+  } else {
+    await query(
+      `UPDATE follow_ups SET research_status = 'approved', updated_at = NOW()
+        WHERE id = $1 AND research_status = 'ready_for_review'`,
+      [id]
+    );
+  }
+}
+
 function rowToFollowUp(row: Record<string, unknown> | undefined): FollowUp | null {
   if (!row) return null;
   const ts = row.scheduled_for;
@@ -317,5 +410,9 @@ function rowToFollowUp(row: Record<string, unknown> | undefined): FollowUp | nul
     attempts: Number(row.attempts ?? 0),
     notes: (row.notes as string) ?? null,
     checkpoint: (row.checkpoint as string) ?? null,
+    question: (row.question as string) ?? null,
+    answer: (row.answer as string) ?? null,
+    answer_source: (row.answer_source as string) ?? null,
+    research_status: (row.research_status as string) ?? "none",
   };
 }
