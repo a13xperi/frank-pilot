@@ -79,20 +79,48 @@ export class LeaseService {
       throw new Error("Application is missing requested rent amount");
     }
 
-    const leaseResult = await this.oneSite.generateLease({
-      applicationId,
-      propertyId: app.property_id,
-      unitNumber: app.unit_number || "TBD",
-      tenantFirstName: app.first_name,
-      tenantLastName: app.last_name,
-      leaseTermMonths: app.requested_lease_term_months || 12,
-      rentAmount: parseFloat(app.requested_rent_amount),
-      moveInDate: app.requested_move_in_date
-        ? app.requested_move_in_date.toISOString().split("T")[0]
-        : new Date().toISOString().split("T")[0],
-      actorId,
-      actorRole,
-    });
+    // CAS-claim the lease generation (audit #5): flip tier*_approved →
+    // lease_generated BEFORE the OneSite call, so a double-click / retry / bulk
+    // overlap can't mint TWO OneSite leases for one applicant. Only the caller
+    // that wins the CAS proceeds; the rest bail. (Also fixes the bug that this
+    // method never advanced the status, so listReadyForLease kept re-firing it.)
+    const claim = await query(
+      `UPDATE applications SET status = 'lease_generated'
+        WHERE id = $1 AND status::text = ANY($2::text[])
+        RETURNING id`,
+      [applicationId, ["tier1_approved", "tier2_approved", "tier3_approved"]]
+    );
+    if (claim.rowCount === 0) {
+      throw new Error(
+        `Lease generation already claimed for application ${applicationId} (status moved); not minting a duplicate.`
+      );
+    }
+
+    let leaseResult: { leaseId: string; documentUrl: string };
+    try {
+      leaseResult = await this.oneSite.generateLease({
+        applicationId,
+        propertyId: app.property_id,
+        unitNumber: app.unit_number || "TBD",
+        tenantFirstName: app.first_name,
+        tenantLastName: app.last_name,
+        leaseTermMonths: app.requested_lease_term_months || 12,
+        rentAmount: parseFloat(app.requested_rent_amount),
+        moveInDate: app.requested_move_in_date
+          ? app.requested_move_in_date.toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
+        actorId,
+        actorRole,
+      });
+    } catch (err) {
+      // OneSite failed AFTER we claimed — release the claim so it's retriable,
+      // instead of stranding the app in lease_generated with no onesite_lease_id.
+      await query(
+        `UPDATE applications SET status = $2 WHERE id = $1 AND status = 'lease_generated'`,
+        [applicationId, app.status]
+      );
+      throw err;
+    }
 
     await writeAuditLog({
       action: "lease_generated",
