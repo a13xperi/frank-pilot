@@ -30,8 +30,12 @@ const poolConfig: PoolConfig = process.env.DATABASE_URL
 export const pool = new Pool(poolConfig);
 
 pool.on("error", (err) => {
-  console.error("Unexpected error on idle database client", err);
-  process.exit(-1);
+  // A transient error on an IDLE pooled client (e.g. Railway's managed-Postgres
+  // proxy dropping an idle socket) is RECOVERABLE — pg evicts + replaces the
+  // client automatically. Do NOT process.exit here: under restartPolicyType=ALWAYS
+  // + migrate-on-boot, exiting turns a routine network blip into a self-inflicted
+  // restart loop that re-runs migrations and drops all in-flight work.
+  console.error("Unexpected error on idle database client (pool will recover)", err);
 });
 
 export async function query(text: string, params?: unknown[]) {

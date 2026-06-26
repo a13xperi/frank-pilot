@@ -530,7 +530,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 // ============================================================
 
 if (process.env.NODE_ENV !== "test") {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     logger.info(`Frank Pilot server running on port ${PORT}`);
     startScheduler();
     console.log(`
@@ -543,6 +543,30 @@ if (process.env.NODE_ENV !== "test") {
   ╚══════════════════════════════════════════════════╝
   `);
   });
+
+  // Graceful shutdown: on a deploy SIGTERM/SIGINT, stop accepting new
+  // connections and let in-flight requests drain instead of being killed
+  // mid-webhook/screening/ledger transaction. Hard-stop after 10s as a backstop.
+  const shutdown = (sig: string): void => {
+    logger.info(`${sig} received — draining connections before exit`);
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 10_000).unref();
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
+
+// Last-resort process handlers so an escaped rejection / throw from a
+// fire-and-forget block is LOGGED, not silently fatal (modern Node exits on an
+// unhandled rejection by default).
+process.on("unhandledRejection", (reason) => {
+  logger.error("unhandledRejection", {
+    reason: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
+});
+process.on("uncaughtException", (err) => {
+  logger.error("uncaughtException", { error: err.message, stack: err.stack });
+});
 
 export default app;
