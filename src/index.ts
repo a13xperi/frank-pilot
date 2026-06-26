@@ -31,6 +31,7 @@ import {
   registerVoiceToolHandlers,
   registerFunnelToolHandlers,
   registerNameVerificationHandler,
+  registerDealDocsToolHandler,
 } from "./modules/voice-intake";
 import decisionMatrixRoutes from "./modules/decision-matrix/routes";
 import leaseRoutes from "./modules/lease/routes";
@@ -401,6 +402,9 @@ if (process.env.VOICE_INTAKE_ENABLED === "true") {
 // router will still 503 until that flag flips on.
 registerVoiceToolHandlers();
 registerNameVerificationHandler();
+// Deal Desk in-call Q&A tool (ask_deal_docs). Dark until VOICE_TOOLS_ENABLED +
+// DEAL_DESK_AGENT_ID + DEAL_QA_VOICE_ALLOWLIST are set; fail-closed otherwise.
+registerDealDocsToolHandler();
 registerCobrowseHandlers();
 
 // Jacqueline's in-call application tools (Frank core C3). Safe to register dark
