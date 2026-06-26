@@ -2,26 +2,26 @@
 # deal-voice-smoke.sh - endpoint smoke test for the ask_deal_docs in-call tool.
 #
 # Hits the DEPLOYED ElevenLabs tool-callback endpoint the way ElevenLabs does
-# (POST flat JSON + the x-frank-tool-secret header) and asserts the compartment
+# (POST flat JSON + the x-elevenlabs-tool-secret header) and asserts the compartment
 # wall holds end to end: an enrolled caller gets a masked answer (no $/cap), a
 # stranger is refused (never answered), a wrong agent is refused, and a bad
 # secret is rejected at the auth layer. Non-zero exit on any failure (CI style).
 #
 # Required env:
 #   BASE_URL            e.g. https://frank-pilot-production.up.railway.app
-#   VOICE_TOOL_SECRET   the deployed VOICE_TOOL_SECRET
+#   ELEVENLABS_TOOL_SECRET   the deployed ELEVENLABS_TOOL_SECRET
 #   DEAL_DESK_AGENT_ID  the deployed deal-desk agent id
 #   ENROLLED_CALLER     a phone ON the deployed DEAL_QA_VOICE_ALLOWLIST (E.164)
 # Optional env:
 #   STRANGER_CALLER     a phone NOT on the allow-list (default +15555550123)
 #
 # Usage:
-#   BASE_URL=https://... VOICE_TOOL_SECRET=... DEAL_DESK_AGENT_ID=agent_... \
+#   BASE_URL=https://... ELEVENLABS_TOOL_SECRET=... DEAL_DESK_AGENT_ID=agent_... \
 #   ENROLLED_CALLER=+1702... bash scripts/deal-voice-smoke.sh
 set -euo pipefail
 
 : "${BASE_URL:?set BASE_URL}"
-: "${VOICE_TOOL_SECRET:?set VOICE_TOOL_SECRET}"
+: "${ELEVENLABS_TOOL_SECRET:?set ELEVENLABS_TOOL_SECRET}"
 : "${DEAL_DESK_AGENT_ID:?set DEAL_DESK_AGENT_ID}"
 : "${ENROLLED_CALLER:?set ENROLLED_CALLER (must be on DEAL_QA_VOICE_ALLOWLIST)}"
 STRANGER_CALLER="${STRANGER_CALLER:-+15555550123}"
@@ -42,7 +42,7 @@ post() {
   code="$(curl -sS -o "$BODYF" -w '%{http_code}' \
     -X POST "$URL" \
     -H 'content-type: application/json' \
-    -H "x-frank-tool-secret: ${secret}" \
+    -H "x-elevenlabs-tool-secret: ${secret}" \
     --data "$body" 2>/dev/null)" || code="000"
   HTTP="$code"
   BODY="$(cat "$BODYF" 2>/dev/null || true)"
@@ -51,7 +51,7 @@ post() {
 echo "ask_deal_docs smoke -> $URL"
 
 # 1. Enrolled caller, economics question: 200 + ok:true + NO $/cent/51%/sentinel.
-post "$VOICE_TOOL_SECRET" \
+post "$ELEVENLABS_TOOL_SECRET" \
   "$(printf '{"question":"what are the economics and the deal size","caller_id":"%s","agent_id":"%s"}' \
     "$ENROLLED_CALLER" "$DEAL_DESK_AGENT_ID")"
 if [ "$HTTP" = "200" ] && printf '%s' "$BODY" | grep -q '"ok":true'; then
@@ -65,7 +65,7 @@ else
 fi
 
 # 2. Stranger caller: refused (ok:false), never answered.
-post "$VOICE_TOOL_SECRET" \
+post "$ELEVENLABS_TOOL_SECRET" \
   "$(printf '{"question":"what is the deal size","caller_id":"%s","agent_id":"%s"}' \
     "$STRANGER_CALLER" "$DEAL_DESK_AGENT_ID")"
 if [ "$HTTP" = "200" ] && printf '%s' "$BODY" | grep -q '"ok":false'; then
@@ -75,7 +75,7 @@ else
 fi
 
 # 3. Wrong agent id: refused by the pin.
-post "$VOICE_TOOL_SECRET" \
+post "$ELEVENLABS_TOOL_SECRET" \
   "$(printf '{"question":"how is it structured","caller_id":"%s","agent_id":"agent_not_the_deal_desk"}' \
     "$ENROLLED_CALLER")"
 if [ "$HTTP" = "200" ] && printf '%s' "$BODY" | grep -q '"ok":false'; then
