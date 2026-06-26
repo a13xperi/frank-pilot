@@ -62,16 +62,23 @@ export class ApprovalService {
 
     const newStatus = input.decision === "pass" ? "tier1_approved" : "tier1_denied";
 
-    await query(
+    // CAS (audit #4): gate the write on the SAME status we checked above, so two
+    // concurrent reviewers can't both pass the stale `.includes` check and
+    // double-approve (or bypass separation-of-duties on a stale read).
+    const casRes = await query(
       `UPDATE applications SET
         status = $2,
         tier1_reviewer_id = $3,
         tier1_decision = $4,
         tier1_notes = $5,
         tier1_decided_at = NOW()
-       WHERE id = $1`,
-      [input.applicationId, newStatus, input.reviewerId, input.decision, input.notes]
+       WHERE id = $1 AND status = ANY($6::text[])
+       RETURNING id`,
+      [input.applicationId, newStatus, input.reviewerId, input.decision, input.notes, ["screening_passed", "tier1_review"]]
     );
+    if (casRes.rowCount === 0) {
+      throw new Error("Tier 1 review lost a concurrent race — the application status changed. Re-fetch and retry.");
+    }
 
     // Check approval speed anomaly
     await this.fraudDetection.checkApprovalSpeed(input.applicationId);
@@ -148,16 +155,21 @@ export class ApprovalService {
 
     const newStatus = input.decision === "pass" ? "tier2_approved" : "tier2_denied";
 
-    await query(
+    // CAS (audit #4) — see tier1Review.
+    const casRes = await query(
       `UPDATE applications SET
         status = $2,
         tier2_reviewer_id = $3,
         tier2_decision = $4,
         tier2_notes = $5,
         tier2_decided_at = NOW()
-       WHERE id = $1`,
-      [input.applicationId, newStatus, input.reviewerId, input.decision, input.notes]
+       WHERE id = $1 AND status = ANY($6::text[])
+       RETURNING id`,
+      [input.applicationId, newStatus, input.reviewerId, input.decision, input.notes, ["tier1_approved", "tier2_review"]]
     );
+    if (casRes.rowCount === 0) {
+      throw new Error("Tier 2 review lost a concurrent race — the application status changed. Re-fetch and retry.");
+    }
 
     // Determine if Tier 3 is required (exceptions only)
     const requiresTier3 = this.requiresTier3(app);
@@ -224,16 +236,21 @@ export class ApprovalService {
 
     const newStatus = input.decision === "pass" ? "tier3_approved" : "tier3_denied";
 
-    await query(
+    // CAS (audit #4) — see tier1Review.
+    const casRes = await query(
       `UPDATE applications SET
         status = $2,
         tier3_reviewer_id = $3,
         tier3_decision = $4,
         tier3_notes = $5,
         tier3_decided_at = NOW()
-       WHERE id = $1`,
-      [input.applicationId, newStatus, input.reviewerId, input.decision, input.notes]
+       WHERE id = $1 AND status = ANY($6::text[])
+       RETURNING id`,
+      [input.applicationId, newStatus, input.reviewerId, input.decision, input.notes, ["tier2_approved", "tier3_review"]]
     );
+    if (casRes.rowCount === 0) {
+      throw new Error("Tier 3 review lost a concurrent race — the application status changed. Re-fetch and retry.");
+    }
 
     await writeAuditLog({
       action: input.decision === "pass" ? "tier3_approved" : "tier3_denied",
