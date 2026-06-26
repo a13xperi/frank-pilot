@@ -6,6 +6,7 @@ export { default as voiceIntakeApplicantRoutes } from "./applicant-routes";
 export { registerVoiceToolHandlers } from "./send-app-link";
 export { registerFunnelToolHandlers } from "./present-options";
 export { registerNameVerificationHandler } from "./verify-name";
+export { registerDealDocsToolHandler } from "./deal-tool";
 export {
   persistConversation,
   promoteIntakeToApplication,
