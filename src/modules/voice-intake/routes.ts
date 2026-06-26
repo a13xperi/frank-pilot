@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { z } from "zod";
 import { authenticate, AuthRequest } from "../../middleware/auth";
+import { sanitizeObject } from "../../utils/pii-filter";
 import { requirePermission } from "../../middleware/rbac";
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
@@ -108,6 +109,12 @@ router.get(
       if (!row) {
         res.status(404).json({ error: "Not found" });
         return;
+      }
+      // Defense-in-depth (audit C1): redact PII from raw_payload on read too, so
+      // rows persisted BEFORE the write-side redaction (or any residual pattern)
+      // never leave the API as plaintext SSN/DOB.
+      if (row.raw_payload && typeof row.raw_payload === "object") {
+        row.raw_payload = sanitizeObject(row.raw_payload as Record<string, unknown>);
       }
       res.json(row);
     } catch (err) {
