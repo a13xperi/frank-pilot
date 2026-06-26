@@ -105,6 +105,7 @@ export class WorkNumberVendor implements ScreeningVendor {
     input: EmploymentVendorInput
   ): Promise<unknown> {
     const res = await fetch(`${apiUrl}/v1/verifications`, {
+      signal: AbortSignal.timeout(10000), // audit #10: never hang on a dead vendor/EL/Sage socket
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,

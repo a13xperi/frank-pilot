@@ -137,6 +137,7 @@ export async function initiateOutboundCall(
     );
   }
   const res = await fetch(`${ELEVENLABS_API}/convai/twilio/outbound-call`, {
+    signal: AbortSignal.timeout(10000), // audit #10: never hang on a dead vendor/EL/Sage socket
     method: "POST",
     headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({
