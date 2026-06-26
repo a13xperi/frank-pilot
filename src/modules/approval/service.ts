@@ -72,7 +72,7 @@ export class ApprovalService {
         tier1_decision = $4,
         tier1_notes = $5,
         tier1_decided_at = NOW()
-       WHERE id = $1 AND status = ANY($6::text[])
+       WHERE id = $1 AND status::text = ANY($6::text[])
        RETURNING id`,
       [input.applicationId, newStatus, input.reviewerId, input.decision, input.notes, ["screening_passed", "tier1_review"]]
     );
@@ -163,7 +163,7 @@ export class ApprovalService {
         tier2_decision = $4,
         tier2_notes = $5,
         tier2_decided_at = NOW()
-       WHERE id = $1 AND status = ANY($6::text[])
+       WHERE id = $1 AND status::text = ANY($6::text[])
        RETURNING id`,
       [input.applicationId, newStatus, input.reviewerId, input.decision, input.notes, ["tier1_approved", "tier2_review"]]
     );
@@ -244,7 +244,7 @@ export class ApprovalService {
         tier3_decision = $4,
         tier3_notes = $5,
         tier3_decided_at = NOW()
-       WHERE id = $1 AND status = ANY($6::text[])
+       WHERE id = $1 AND status::text = ANY($6::text[])
        RETURNING id`,
       [input.applicationId, newStatus, input.reviewerId, input.decision, input.notes, ["tier2_approved", "tier3_review"]]
     );
