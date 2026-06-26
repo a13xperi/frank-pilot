@@ -1,5 +1,6 @@
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
+import { sanitizeObject } from "../../utils/pii-filter";
 import { stampTape } from "../tape";
 import { sendMagicLinkSms } from "../auth/magic-link-service";
 
@@ -109,6 +110,16 @@ export async function persistConversation(payload: PostCallPayload): Promise<Per
   const consentRecording = readConsentFlag(dataResults);
   const callbackRequested = readCallbackFlag(dataResults);
 
+  // PII-safe persist (audit C1): the caller reads their SSN/DOB ALOUD, so the
+  // inline transcript + collected fields would land in raw_payload unencrypted.
+  // Drop the inline transcript (it stays retrievable via transcript_url with the
+  // API key) and redact SSN/email/phone/card patterns from the rest + from the
+  // collected fields before storing.
+  const { transcript: _omitTranscript, ...payloadNoTranscript } =
+    payload as unknown as Record<string, unknown>;
+  const safeRawPayload = sanitizeObject(payloadNoTranscript);
+  const safeDataResults = sanitizeObject((dataResults ?? {}) as Record<string, unknown>);
+
   const result = await query(
     `INSERT INTO voice_intake_calls (
        conversation_id, agent_id, started_at, ended_at, language, call_successful,
@@ -151,13 +162,13 @@ export async function persistConversation(payload: PostCallPayload): Promise<Per
       language,
       callSuccessful,
       JSON.stringify(analysis.evaluation_criteria_results ?? {}),
-      JSON.stringify(dataResults ?? {}),
+      JSON.stringify(safeDataResults),
       payload.transcript_url ?? null,
       payload.audio_url ?? null,
       JSON.stringify(metadata.cost ?? {}),
       consentRecording,
       callbackRequested,
-      JSON.stringify(payload),
+      JSON.stringify(safeRawPayload),
     ]
   );
 
