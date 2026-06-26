@@ -4,6 +4,7 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { logger } from "./utils/logger";
 import { resolveCorsOrigin } from "./utils/cors-origin";
 import { authenticate, login, AuthRequest } from "./middleware/auth";
@@ -302,8 +303,27 @@ if (process.env.TRUTH_TOKEN_ENABLED === "true") {
   logger.info("Truth Token verify routes mounted");
 }
 
-// Password login (staff)
-app.post("/api/auth/login", async (req, res) => {
+// Password login (staff) — rate-limited (audit #7b: carried-over P0). Staff
+// accounts hold the PII-bearing PM roles, so brute-force + user-enumeration here
+// is the soft spot (the tenant magic-link is already limited). Per-(IP,email) +
+// a per-IP bucket so cycling emails from one source doesn't defeat it.
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? "")}:${(req.body?.email ?? "").toLowerCase()}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts, try again in a minute" },
+});
+const loginIpLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts, try again in a minute" },
+});
+app.post("/api/auth/login", loginIpLimiter, loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
