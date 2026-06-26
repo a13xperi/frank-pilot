@@ -126,18 +126,42 @@ export interface VoiceAnswer {
  * before the string ever leaves the server. Returns {empty} when nothing matches
  * and a fail-closed {ok:false} if the guard hard-blocks (unknown tier).
  */
+// Strip markdown + doc noise so the TTS reads a clean sentence, not "---" or
+// "star Tokens star". Corpus passages are written for the eye; none of that
+// (blockquotes, dividers, backtick `file.md` refs, arrows, checks) should be
+// spoken. Learned live: a passage that was a "---" divider got read back as the
+// entire answer. Runs BEFORE masking so the guard still sees figures/names.
+function cleanForSpeech(text: string): string {
+  return (text || "")
+    .replace(/\bhttps?:\/\/\S+/gi, "")
+    .replace(/`[^`]*`/g, "")
+    .replace(/\b[\w-]+\.(?:md|json|ts|tsv|csv|pdf)\b/gi, "")
+    .replace(/\[\d+\]/g, "")
+    .replace(/[*_#>~|]/g, "")
+    .replace(/-{2,}/g, " ")
+    .replace(/[→➔➜]/g, " then ")
+    .replace(/[✓✗•]/g, " ")
+    .replace(/\s+([,.;:])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function voiceGroundAnswer(question: string, tier: DealTier): VoiceAnswer {
   const eff = effectiveTier(tier, voiceFloor()); // floor can only tighten
   const hits = searchDealCorpus(question, 5);
-  if (hits.length === 0) return { ok: true, empty: true };
 
-  // Best single passage, cleaned and capped BEFORE masking. Truncating first is
-  // safe: the mask runs afterward, so a clipped "$5,00" is still neutralized.
-  let raw = (hits[0].entry.answer || "")
-    .replace(/\bhttps?:\/\/\S+/gi, "")
-    .replace(/\[\d+\]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  // Pick the FIRST hit with substantive PROSE after cleaning; skip passages that
+  // are pure formatting (a "---" divider was being read back as the answer).
+  // Clean BEFORE masking so the guard still sees the figures/names to redact.
+  let raw = "";
+  for (const h of hits) {
+    const c = cleanForSpeech(h.entry.answer || "");
+    if (c.replace(/[^a-z0-9]/gi, "").length >= 25) {
+      raw = c;
+      break;
+    }
+  }
+  if (!raw) return { ok: true, empty: true };
   if (raw.length > MAX_PASSAGE_RAW) {
     raw = raw.slice(0, MAX_PASSAGE_RAW).replace(/\s+\S*$/, "") + "…";
   }
