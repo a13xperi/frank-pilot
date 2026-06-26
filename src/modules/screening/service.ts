@@ -115,6 +115,27 @@ export class ScreeningService {
       });
     }
 
+    // Claim the run (audit #7). The manual /screen route and the auto-on-submit
+    // path can both reach here for the SAME app and both fire real (billable)
+    // Checkr/TransUnion pulls — duplicate cost + conflicting verdicts. A claim with
+    // a 5-minute TTL lets exactly one run proceed at a time; a concurrent or
+    // rapid-retry second run bails, while a legitimate re-screen later still works.
+    const claim = await query(
+      `UPDATE applications
+          SET screening_started_at = NOW()
+        WHERE id = $1
+          AND (screening_started_at IS NULL
+               OR screening_started_at < NOW() - INTERVAL '5 minutes')
+        RETURNING id`,
+      [applicationId]
+    );
+    if (claim.rowCount === 0) {
+      logger.warn("screening run skipped — another run already claimed it", { applicationId });
+      throw new Error(
+        `Screening is already in progress for application ${applicationId}; not starting a duplicate run.`
+      );
+    }
+
     await writeAuditLog({
       action: "screening_initiated",
       actorId: initiatedBy,
