@@ -110,6 +110,9 @@ export function buildDynamicVariables(a: SageApplicant): Record<string, string> 
   return {
     applicant_id: a.id,
     applicant_name: a.full_name,
+    // First name only — the opener should greet "Hi Janet", not "Hi Janet Smith".
+    // Falls back to the full name if there's no whitespace to split on.
+    applicant_first_name: a.full_name.trim().split(/\s+/)[0] || a.full_name,
     property_names: propNames || "Donna Louise Apartments",
     apt_types: a.apt_types.map(aptLabel).join(", ") || "an apartment",
     date_needed: a.asap
