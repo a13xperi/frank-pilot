@@ -261,6 +261,7 @@ export class LedgerService {
            (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
             billing_period, reference_id, posted_by, notes)
          VALUES ($1, $2, $3, 'payment', $4, $5, $6, $7, $8, $9, $10)
+         ON CONFLICT (reference_id) WHERE reference_id IS NOT NULL DO NOTHING
          RETURNING *`,
         [
           applicationId,
@@ -276,7 +277,15 @@ export class LedgerService {
         ]
       );
 
-      return insert.rows[0];
+      if (insert.rows[0]) return insert.rows[0];
+      // Idempotent (PER-579): this reference_id was already posted — a concurrent
+      // or redelivered Stripe webhook. Return the ORIGINAL entry, never double-post.
+      const existing = await client.query(
+        `SELECT * FROM tenant_ledger
+          WHERE reference_id = $1 AND entry_type = 'payment' LIMIT 1`,
+        [referenceId]
+      );
+      return existing.rows[0];
     });
 
     await writeAuditLog({
@@ -345,6 +354,7 @@ export class LedgerService {
            (application_id, property_id, unit_id, entry_type, description, amount, balance_after,
             billing_period, reference_id, posted_by, notes)
          VALUES ($1, $2, $3, 'refund', $4, $5, $6, $7, $8, $9, $10)
+         ON CONFLICT (reference_id) WHERE reference_id IS NOT NULL DO NOTHING
          RETURNING *`,
         [
           applicationId,
@@ -360,7 +370,15 @@ export class LedgerService {
         ]
       );
 
-      return insert.rows[0];
+      if (insert.rows[0]) return insert.rows[0];
+      // Idempotent (PER-579): this refund reference_id was already posted — return
+      // the ORIGINAL refund entry, never a second offsetting post.
+      const existing = await client.query(
+        `SELECT * FROM tenant_ledger
+          WHERE reference_id = $1 AND entry_type = 'refund' LIMIT 1`,
+        [referenceId]
+      );
+      return existing.rows[0];
     });
 
     await writeAuditLog({
