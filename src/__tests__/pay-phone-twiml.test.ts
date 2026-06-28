@@ -63,6 +63,13 @@ describe("pay-phone /twiml", () => {
     expect(res.text).toContain("secure payment link");
     expect(res.text).toContain("<Hangup/>");
   });
+
+  it("threads an explicit applicationId from the transfer URL into the <Pay> action", async () => {
+    process.env.PAY_DTMF_ENABLED = "true";
+    const res = await request(app()).get("/api/pay/twiml?applicationId=app-789");
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('action="/api/pay/result?applicationId=app-789"');
+  });
 });
 
 describe("pay-phone /result", () => {
@@ -79,6 +86,21 @@ describe("pay-phone /result", () => {
     const call = mockQuery.mock.calls[0];
     expect(String(call[0])).toMatch(/FROM applications WHERE phone/i);
     expect(call[1]).toEqual(["+17025551234"]);
+  });
+
+  it("prefers an explicit applicationId over the ambiguous phone lookup", async () => {
+    const res = await request(app())
+      .post("/api/pay/result?applicationId=app-456")
+      .type("form")
+      .send({ Result: "success", From: "+17025551234", PaymentConfirmationCode: "ch_test_2" });
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("application fee was received");
+    // explicit id present → must NOT fall back to the WHERE phone LIMIT 1 lookup
+    const phoneLookup = mockQuery.mock.calls.find((c) =>
+      /FROM applications WHERE phone/i.test(String(c[0]))
+    );
+    expect(phoneLookup).toBeUndefined();
   });
 
   it("speaks a fallback (text the link) when the charge did not succeed", async () => {

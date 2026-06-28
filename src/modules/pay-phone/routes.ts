@@ -53,7 +53,7 @@ function sayHangup(message: string): string {
  * the Stripe Pay Connector. Twilio collects + tokenizes the card (SAQ-A) and POSTs
  * the result to PAY_RESULT_ACTION.
  */
-function twimlHandler(_req: Request, res: Response): void {
+function twimlHandler(req: Request, res: Response): void {
   res.type("text/xml");
   if (!payDtmfEnabled()) {
     res
@@ -65,11 +65,20 @@ function twimlHandler(_req: Request, res: Response): void {
       );
     return;
   }
+  // Thread the applicationId (carried on the transfer URL, e.g. /api/pay/twiml?applicationId=…)
+  // through the <Pay> action so /result correlates by an explicit, unambiguous id rather than
+  // only the caller's phone — which is fragile to transfer type AND wrong when two applications
+  // share a number. /result still falls back to the phone lookup when this is absent.
+  const reqBody = (req.body ?? {}) as Record<string, unknown>;
+  const appId = String((req.query.applicationId ?? reqBody.applicationId) ?? "").trim();
+  const action = appId
+    ? `${PAY_RESULT_ACTION}?applicationId=${encodeURIComponent(appId)}`
+    : PAY_RESULT_ACTION;
   const connector = xmlEscape(payStripeConnector());
   const twiml =
     `${XML_DECL}<Response>` +
     `<Pay paymentConnector="${connector}" chargeAmount="${APPLICATION_FEE_DOLLARS}" ` +
-    `currency="usd" action="${PAY_RESULT_ACTION}" description="Rental application fee">` +
+    `currency="usd" action="${xmlEscape(action)}" description="Rental application fee">` +
     `</Pay>` +
     `</Response>`;
   res.status(200).send(twiml);
@@ -81,14 +90,16 @@ router.get("/twiml", twimlHandler);
 /**
  * POST /api/pay/result — Twilio's `<Pay>` action callback. On a successful charge
  * Twilio sends Result=success plus PaymentConfirmationCode. We correlate the caller
- * (From, E.164) to their application by phone.
+ * to their application by an explicit applicationId threaded through the action URL,
+ * falling back to the caller phone (From, E.164) when it's absent.
  *
- * CORRELATION DEPENDS ON A BLIND TRANSFER. Frank reaches this pay line via the
- * transfer_to_number tool; only a *blind* transfer (native-Twilio) preserves the
- * caller's original caller ID, so `From` here is the applicant's number. A
- * conference transfer would dial the pay line FROM the platform number and `From`
- * would be wrong — the WHERE phone = $1 lookup below would miss. See
- * battlestation/scripts/wire-pay-transfer.sh (TRANSFER_TYPE=blind).
+ * PREFER THE EXPLICIT ID. The transfer can carry ?applicationId=… (Frank knows it
+ * from the conversation) → unambiguous, and robust to transfer type. The phone
+ * fallback DEPENDS ON A BLIND TRANSFER: only a *blind* transfer (native-Twilio)
+ * preserves the caller's original caller ID, so `From` is the applicant's number; a
+ * conference transfer would dial FROM the platform number and the phone lookup would
+ * miss (and `WHERE phone LIMIT 1` is ambiguous when two applications share a number).
+ * See battlestation/scripts/wire-pay-transfer.sh (TRANSFER_TYPE=blind).
  *
  * On success we call the shared applyApplicationFeePaid() — the exact same
  * post-payment core the Stripe webhook runs (ledger + FCRA-gated runFullScreening
@@ -102,11 +113,19 @@ router.post("/result", async (req: Request, res: Response): Promise<void> => {
   const from = String(body.From ?? body.from ?? "");
   const confirmation = String(body.PaymentConfirmationCode ?? "");
 
-  let applicationId: string | null = null;
-  if (from) {
+  // Prefer the explicit applicationId threaded through the <Pay> action URL
+  // (?applicationId=…) — unambiguous and robust to transfer type. Fall back to the
+  // caller-phone lookup only when it's absent (which is ambiguous: WHERE phone LIMIT 1
+  // can credit the wrong application when two share a number — log when we lean on it).
+  let applicationId: string | null =
+    String((req.query.applicationId ?? body.applicationId) ?? "").trim() || null;
+  if (!applicationId && from) {
     try {
       const r = await query(`SELECT id FROM applications WHERE phone = $1 LIMIT 1`, [from]);
       applicationId = (r.rows[0]?.id as string) ?? null;
+      if (applicationId) {
+        logger.warn("pay/result correlated by phone fallback (no explicit applicationId)", { from, applicationId });
+      }
     } catch (err) {
       logger.error("pay/result application lookup failed", {
         from,
