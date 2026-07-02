@@ -11,6 +11,7 @@ import { pushReportToNotion } from "./modules/outbound-validation/report";
 import { WorkOrderEscalationService } from "./modules/maintenance/escalation";
 import { logger } from "./utils/logger";
 import { getClient } from "./config/database";
+import { recordHeartbeat, DIALER_HEARTBEAT } from "./utils/heartbeat";
 
 // Leader election for cluster-wide-singleton cron jobs. node-cron fires on EVERY
 // instance, so a money job (rent/late-fee posting) runs N times across replicas —
@@ -252,6 +253,11 @@ export function startScheduler() {
       async () => {
         try {
           const result = await runDialerTick({ trigger: "cron" });
+          // Backlog #12: beat on EVERY successful tick — quiet ones included.
+          // The log line below deliberately suppresses queue_empty/paced, so
+          // without this beat a dead dialer and a quiet one look identical
+          // until the 8pm Notion report. recordHeartbeat never throws.
+          await recordHeartbeat(DIALER_HEARTBEAT, { action: result.action });
           if (result.action !== "queue_empty" && result.action !== "paced") {
             logger.info("Outbound validation dialer tick", { ...result });
           }
@@ -347,4 +353,17 @@ export function startScheduler() {
   }
 
   logger.info("Scheduler started: rent postings (1st @ 6AM) + late fees (7AM) + renewals (7:30AM) + recert reminders (8AM) + TRACS checks (9AM)");
+}
+
+/**
+ * Stop every registered cron task — the deploy-drain half of backlog #11.
+ * node-cron fires on wall-clock regardless of shutdown state; without this a
+ * SIGTERM'd instance can START a new money job (rent posting, dialer tick)
+ * mid-drain and be killed halfway through it. In-flight ticks finish; only
+ * future firings stop.
+ */
+export function stopScheduler(): void {
+  for (const task of cron.getTasks().values()) {
+    void task.stop();
+  }
 }

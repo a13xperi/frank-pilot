@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
+import { fetchWithTimeout } from "../../utils/fetch";
 import { stampTape } from "../tape";
 
 /**
@@ -173,7 +174,7 @@ async function fetchSignedUrl(
   )}`;
   let resp: globalThis.Response;
   try {
-    resp = await fetch(url, {
+    resp = await fetchWithTimeout(url, {
       method: "GET",
       headers: { "xi-api-key": apiKey, accept: "application/json" },
     });
