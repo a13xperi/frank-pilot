@@ -1593,6 +1593,18 @@ CREATE TABLE IF NOT EXISTS consumer_report_authorizations (
   verification_evidence JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
+-- Self-heal for databases whose consumer_report_authorizations predates the
+-- C4 columns above: CREATE TABLE IF NOT EXISTS no-ops on an existing table,
+-- so without these ALTERs the index below dies ("column does not exist") and
+-- aborts ALL of SCHEMA_SQL before the delta that adds the columns
+-- (2026-07-02-consent-evidence.sql) ever runs — which is exactly what took
+-- down migrate-on-boot on prod (Jul 2). Mirrors that delta; both are
+-- IF NOT EXISTS so double-application is safe in either order.
+ALTER TABLE consumer_report_authorizations
+  ADD COLUMN IF NOT EXISTS conversation_id TEXT,
+  ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS verification_evidence JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 -- The post-call verification looks rows up by the minting conversation.
 CREATE INDEX IF NOT EXISTS idx_consumer_report_auth_conversation
   ON consumer_report_authorizations(conversation_id)
