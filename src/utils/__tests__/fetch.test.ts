@@ -51,7 +51,7 @@ describe("fetchWithTimeout", () => {
 
     const pending = fetchWithTimeout("https://vendor.test/hang", {
       signal: controller.signal,
-      timeoutMs: 60_000,
+      timeoutMs: 5_000,
     });
     controller.abort(new Error("caller cancelled"));
 

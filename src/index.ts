@@ -88,7 +88,9 @@ import { frankContactRoutes } from "./modules/frank-contact";
 import { smsIntakeRoutes } from "./modules/sms-intake";
 import { cobrowseRoutes, registerCobrowseHandlers } from "./modules/cobrowse";
 import { truthTokenRoutes } from "./modules/truth-token";
-import { startScheduler } from "./scheduler";
+import { startScheduler, stopScheduler } from "./scheduler";
+import { pool } from "./config/database";
+import { externalReachability, dialerTickStatus } from "./utils/health-checks";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
 // gate auth + at-rest crypto. Crashing here is preferable to silently booting
@@ -179,7 +181,14 @@ app.use((req, _res, next) => {
 // Public routes
 // ============================================================
 
-// Health check — pings the DB so silent outages don't look healthy.
+// Health check — pings the DB so silent outages don't look healthy, plus the
+// backlog #12 signals: Sage/ElevenLabs reachability and dialer tick-freshness
+// (stale >15 min inside the 9am–8pm PT window ⇒ status "degraded").
+//
+// Only a DB failure flips the HTTP status code (503): Railway's deploy
+// healthcheck keys off the code, so gating it on a vendor blip — or on a
+// dialer that was ALREADY stale when its fix deploys — would turn an
+// observability signal into an outage vector. Alerting reads the body.
 app.get("/health", async (_req, res) => {
   let dbStatus = "unknown";
   try {
@@ -197,10 +206,33 @@ app.get("/health", async (_req, res) => {
     });
     return;
   }
+
+  let sage = "unknown";
+  let elevenlabs = "unknown";
+  let dialer: Awaited<ReturnType<typeof dialerTickStatus>> | { state: string; healthy: boolean } =
+    { state: "unknown", healthy: true };
+  try {
+    const [reach, dialerStatus] = await Promise.all([
+      externalReachability(),
+      dialerTickStatus(),
+    ]);
+    sage = reach.sage;
+    elevenlabs = reach.elevenlabs;
+    dialer = dialerStatus;
+  } catch (err) {
+    // Observability must never break the endpoint it rides on.
+    logger.warn("/health extended checks failed", { error: (err as Error).message });
+  }
+
+  const reachBad = (s: string) => s !== "ok" && s !== "not_configured" && s !== "unknown";
+  const degraded = !dialer.healthy || reachBad(sage) || reachBad(elevenlabs);
   res.json({
-    status: "ok",
+    status: degraded ? "degraded" : "ok",
     service: "frank-pilot",
     db: dbStatus,
+    sage,
+    elevenlabs,
+    dialer,
     timestamp: new Date().toISOString(),
   });
 });
@@ -568,12 +600,19 @@ if (process.env.NODE_ENV !== "test") {
   `);
   });
 
-  // Graceful shutdown: on a deploy SIGTERM/SIGINT, stop accepting new
-  // connections and let in-flight requests drain instead of being killed
-  // mid-webhook/screening/ledger transaction. Hard-stop after 10s as a backstop.
+  // Graceful shutdown: on a deploy SIGTERM/SIGINT, stop the cron scheduler
+  // (so no NEW money job starts mid-drain), stop accepting new connections,
+  // let in-flight requests drain, then release the pg pool so exit is clean
+  // rather than mid-query. Hard-stop after 10s as a backstop. Backlog #11.
   const shutdown = (sig: string): void => {
     logger.info(`${sig} received — draining connections before exit`);
-    server.close(() => process.exit(0));
+    stopScheduler();
+    server.close(() => {
+      void pool
+        .end()
+        .catch(() => undefined)
+        .finally(() => process.exit(0));
+    });
     setTimeout(() => process.exit(0), 10_000).unref();
   };
   process.on("SIGTERM", () => shutdown("SIGTERM"));
