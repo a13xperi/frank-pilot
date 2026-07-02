@@ -262,8 +262,8 @@ describe("POST /webhook — identity guards", () => {
 
   it("duplicate event (already processed) → short-circuits before mapping", async () => {
     mockQuery.mockImplementation((sql: any) => {
-      if (/stripe_processed_events/i.test(String(sql)) && /SELECT/i.test(String(sql))) {
-        return Promise.resolve({ rows: [{ event_id: "evt_idv_001" }] }) as any; // already processed
+      if (/stripe_processed_events/i.test(String(sql)) && /INSERT/i.test(String(sql))) {
+        return Promise.resolve({ rows: [], rowCount: 0 }) as any; // claim-first: lost the ON CONFLICT race → duplicate
       }
       return Promise.resolve({ rows: [] }) as any;
     });

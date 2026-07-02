@@ -813,7 +813,24 @@ router.post(
       return;
     }
 
-    if (await alreadyProcessed(event.id)) {
+    // Claim-before-dispatch (audit #6). Previously we checked alreadyProcessed,
+    // dispatched, THEN marked — so a concurrent Stripe redelivery (or a second
+    // server instance) could pass the check before the first marked, and BOTH
+    // dispatch → double-charge / double-receipt. Now we claim the event FIRST,
+    // atomically: only the INSERT that wins the ON CONFLICT proceeds; the loser
+    // short-circuits. (Residual: a hard crash between claim and dispatch leaves
+    // the event claimed-but-unhandled — rare, recoverable via reconciliation, and
+    // closed outright once the ledger UNIQUE constraint makes the handler
+    // idempotent. We prefer that to an at-least-once double-charge.)
+    const meta = (event.data.object as { metadata?: Record<string, string> }).metadata ?? {};
+    const claim = await query(
+      `INSERT INTO stripe_processed_events (event_id, event_type, application_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (event_id) DO NOTHING
+       RETURNING event_id`,
+      [event.id, event.type, meta.applicationId ?? null]
+    );
+    if (claim.rowCount === 0) {
       logger.info("Stripe webhook duplicate event short-circuited", {
         eventId: event.id,
         type: event.type,
@@ -822,22 +839,19 @@ router.post(
       return;
     }
 
-    let dispatchError: Error | null = null;
     try {
       await dispatch(event);
     } catch (err) {
-      dispatchError = err as Error;
+      const dispatchError = err as Error;
       logger.error("Stripe webhook dispatch failed", {
         eventId: event.id,
         type: event.type,
         error: dispatchError.message,
       });
+      // Release the claim so the DLQ retry (and any Stripe re-delivery) re-processes
+      // this event instead of being short-circuited as an already-handled duplicate.
+      await query(`DELETE FROM stripe_processed_events WHERE event_id = $1`, [event.id]);
       await recordDlq(event, event, dispatchError);
-    }
-
-    if (!dispatchError) {
-      const meta = (event.data.object as { metadata?: Record<string, string> }).metadata ?? {};
-      await markProcessed(event.id, event.type, meta.applicationId ?? null);
     }
 
     // Always 200 — see header comment. DLQ is the recovery path, not retry.
