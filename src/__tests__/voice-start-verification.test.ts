@@ -25,6 +25,7 @@ const mockRecordAuth = jest.fn();
 jest.mock("../modules/screening/consumer-report-consent", () => ({
   recordAuthorization: (...a: unknown[]) => mockRecordAuth(...a),
   FCRA_DISCLOSURE_VERSION: "2026-06-01",
+  METHOD_VOICE_VERBAL_UNVERIFIED: "voice_verbal_unverified",
 }));
 
 const mockSendLink = jest.fn();
@@ -92,8 +93,15 @@ describe("startVerificationHandler", () => {
     expect(r.ok).toBe(true);
     expect(r.result?.checkout_url).toBe("https://pay.stripe/cs_1");
     expect(r.result?.amount).toBe("$35.95");
-    // consent recorded
+    // consent recorded — audit C4: minted UNVERIFIED (the tool boolean is
+    // caller-controlled) and anchored to the minting conversation.
     expect(mockRecordAuth).toHaveBeenCalledTimes(1);
+    expect(mockRecordAuth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "voice_verbal_unverified",
+        conversationId: CTX.conversationId,
+      })
+    );
     // fee stamped on the PaymentIntent metadata for the webhook to route
     const arg = mockСheckoutCreate.mock.calls[0][0] as any;
     expect(arg.payment_intent_data.metadata.type).toBe("application_fee");

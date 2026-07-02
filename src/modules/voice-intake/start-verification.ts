@@ -6,6 +6,7 @@ import { TwilioService } from "../integrations/twilio";
 import {
   recordAuthorization,
   FCRA_DISCLOSURE_VERSION,
+  METHOD_VOICE_VERBAL_UNVERIFIED,
 } from "../screening/consumer-report-consent";
 import {
   registerToolHandler,
@@ -121,6 +122,10 @@ export async function startVerificationHandler(
 
   // FCRA gate: only record consent when Frank confirms the caller agreed after
   // hearing the disclosure. Without it the webhook will NOT run screening.
+  // Audit C4: the tool's consent boolean is caller-controlled, so the record
+  // is minted UNVERIFIED and anchored to this conversation — the post-call
+  // transcript verification upgrades it once the read disclosure + the
+  // caller's affirmative are found in the actual turns.
   if (consentAcknowledged) {
     try {
       await recordAuthorization({
@@ -128,7 +133,8 @@ export async function startVerificationHandler(
         applicantId: submittedBy || null,
         applicantRole: "applicant",
         disclosureVersion: FCRA_DISCLOSURE_VERSION,
-        method: "voice_verbal",
+        method: METHOD_VOICE_VERBAL_UNVERIFIED,
+        conversationId: context.conversationId,
       });
     } catch (err) {
       logger.error("start_verification consent record failed", {

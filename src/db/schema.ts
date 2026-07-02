@@ -104,6 +104,7 @@ CREATE TYPE audit_action AS ENUM (
   'background_check_completed',
   'credit_check_completed',
   'consumer_report_authorized',
+  'consumer_report_consent_verified',
   'compliance_check_completed',
   'tier1_approved',
   'tier1_denied',
@@ -1581,8 +1582,21 @@ CREATE TABLE IF NOT EXISTS consumer_report_authorizations (
   authorized_ip      TEXT,
   user_agent         TEXT,
   authorized_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Audit C4 (2026-07-02-consent-evidence.sql): voice-minted authorizations
+  -- are anchored to the ElevenLabs conversation that minted them and start
+  -- as method='voice_verbal_unverified'; the post-call transcript check
+  -- upgrades them to 'voice_verbal_verified', stamping when and on what
+  -- evidence (matcher id + matched disclosure/affirmative snippets).
+  conversation_id       TEXT,
+  verified_at           TIMESTAMPTZ,
+  verification_evidence JSONB NOT NULL DEFAULT '{}'::jsonb
 );
+
+-- The post-call verification looks rows up by the minting conversation.
+CREATE INDEX IF NOT EXISTS idx_consumer_report_auth_conversation
+  ON consumer_report_authorizations(conversation_id)
+  WHERE conversation_id IS NOT NULL;
 
 -- ============================================================
 -- Voice intake — ElevenLabs Conv. AI post-call persistence

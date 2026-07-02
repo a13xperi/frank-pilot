@@ -5,6 +5,7 @@ import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stampTape } from "../tape";
 import { persistConversation, pickField, type PostCallPayload } from "./service";
+import { verifyVoiceAuthorizationForConversation } from "../screening/consumer-report-consent";
 import { maybeNotifyInbound } from "./inbound-notify";
 import {
   isOutboundValidationEvent,
@@ -265,6 +266,22 @@ async function dispatch(event: ElevenLabsEvent): Promise<void> {
         await handleCareLinePostCall(event.data);
         return;
       }
+      // Audit C4: voice-minted FCRA authorizations are recorded UNVERIFIED
+      // (the tool's consent boolean is caller-controlled) — the delivered
+      // transcript is the evidence that upgrades them. Runs BEFORE the
+      // intake-persistence flag gate on purpose: VOICE_TOOLS_ENABLED can mint
+      // consent rows even while intake persistence is dark. Fire-and-forget;
+      // must never fail the webhook (idempotent — the post_call_audio
+      // re-delivery finds nothing left unverified).
+      void verifyVoiceAuthorizationForConversation(
+        event.data.conversation_id,
+        event.data.transcript
+      ).catch((err) =>
+        logger.error("voice consent transcript verification failed (non-fatal)", {
+          conversationId: event.data.conversation_id,
+          error: (err as Error).message,
+        })
+      );
       if (process.env.VOICE_INTAKE_ENABLED !== "true") {
         // Receiver is open because FRANK_OUTBOUND_ENABLED is on, but intake
         // persistence stays dark while its own flag is off.
