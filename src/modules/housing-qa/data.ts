@@ -465,7 +465,24 @@ export function getHousingIndex(): HousingIndex {
   return indexSingleton;
 }
 
-/** Test-only: force a rebuild on next getHousingIndex(). */
+// GPM-only view: the raw GPM corpus normalized, WITHOUT the statewide base or
+// the GPMG↔statewide merge. Use this when you need the canonical GPM community
+// records — clean names ("Donna Louise 2 Apartments"), slugs, lowercase types,
+// full address, amenities/pet policy/accessibility — and must NOT match against
+// the 335 statewide records or their near-duplicate name variants. The voice
+// get_property_details tool resolves against this, not getHousingIndex().
+let gpmgSingleton: NormalizedProperty[] | null = null;
+
+export function getGpmgProperties(): NormalizedProperty[] {
+  if (gpmgSingleton === null) {
+    const { raw, snapshot } = loadGpmg();
+    gpmgSingleton = raw.map((g) => gpmgToNormalized(g, snapshot));
+  }
+  return gpmgSingleton;
+}
+
+/** Test-only: force a rebuild on next getHousingIndex() / getGpmgProperties(). */
 export function _resetIndex(): void {
   indexSingleton = null;
+  gpmgSingleton = null;
 }
