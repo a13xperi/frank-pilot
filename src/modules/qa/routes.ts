@@ -30,6 +30,7 @@ import { authenticate, AuthRequest } from "../../middleware/auth";
 import { requirePermission } from "../../middleware/rbac";
 import { writeAuditLog } from "../../middleware/audit";
 import { logger } from "../../utils/logger";
+import { fetchWithTimeout } from "../../utils/fetch";
 
 export const QA_BUCKET = "frank-qa-screenshots";
 const MAX_BUNDLES = 50;
@@ -219,7 +220,7 @@ async function listStorage(
   env: StorageEnv,
   opts: { prefix?: string; limit?: number } = {}
 ): Promise<StorageObject[]> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${env.url}/storage/v1/object/list/${env.bucket}`,
     {
       method: "POST",
@@ -283,7 +284,7 @@ export async function fetchStorageObject(
   body: ArrayBuffer;
   contentType: string | null;
 } | null> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${env.url}/storage/v1/object/${env.bucket}/${encodeURIComponent(objectName)}`,
     {
       method: "GET",
@@ -291,6 +292,9 @@ export async function fetchStorageObject(
         apikey: env.key,
         Authorization: `Bearer ${env.key}`,
       },
+      // Object bytes can be a multi-MB screenshot PNG; give downloads more
+      // headroom than the API-call default while still bounding them.
+      timeoutMs: 30_000,
     }
   );
   if (res.status === 404) return null;
