@@ -1,7 +1,7 @@
 {
   "source": "docs/intel/tenant-faq-source.txt",
   "generatedBy": "scripts/build-tenant-faq.mjs",
-  "generatedAt": "2026-06-11",
+  "generatedAt": "2026-07-02",
   "entryCount": 190,
   "entries": [
     {
@@ -182,7 +182,7 @@
         "to": 15
       },
       "question": "Can I apply if I already live in another affordable housing property?",
-      "answer": "Yes, but you must disclose it. Properties verify current housing status. Moving may require notice to your current landlord and could affect eligibility if it violates other program rules (e.g., duplicative subsidies). LIHTC does not prohibit it outright if you meet income and other criteria for the new unit."
+      "answer": "Yes, you can apply, but you must disclose it — properties verify current housing status. Applying to a different property is a NEW application, not a transfer: your income and eligibility are verified fresh at the property you are applying to, even if you already qualified where you live now. Being on a waiting list for a new property while living at your current one is allowed and costs you nothing — it does not affect your current lease or housing. If you are offered a unit and accept it, you must give proper notice at your current home per your lease (leaving mid-lease can carry costs, so check your lease terms first). Moving may also be limited by other program rules (for example, duplicate rental subsidies are not allowed), which the new property checks during verification. LIHTC does not prohibit moving between affordable properties if you meet income and other criteria for the new unit."
     },
     {
       "id": "tfaq-016",
@@ -2162,7 +2162,7 @@
         "to": 471
       },
       "question": "How soon after approval? / Choose date? / Cannot move on date / delay / hold fee?",
-      "answer": "Typically within a short window after approval (e.g., 7–30 days). Holds may require a fee. Communicate promptly to avoid losing the unit."
+      "answer": "Typically within a short window after approval (often 7–30 days), so be ready to move once approved. You can usually choose a move-in date inside that window, not beyond it. If you rent somewhere else now, time your application around your current lease: the move-in window after approval is usually shorter than a renewal cycle, so apply before your current lease renews rather than after — and remember you must still give proper notice at your current home per your lease. Holds may require a fee. Communicate promptly with the property to avoid losing the unit."
     },
     {
       "id": "tfaq-472-477",
