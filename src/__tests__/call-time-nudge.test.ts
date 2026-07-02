@@ -84,8 +84,16 @@ describe("tool dispatch appends the nudge", () => {
     process.env.VOICE_TOOLS_ENABLED = "true";
     process.env.ELEVENLABS_WEBHOOK_SECRET = SECRET;
     process.env.ELEVENLABS_TOOL_SECRET = TOOL_SECRET;
-    // alreadyProcessed SELECT → none; markProcessed INSERT → ok.
-    mockQuery.mockResolvedValue({ rows: [] });
+    // alreadyProcessed SELECT → none; markProcessed INSERT → ok. The static-
+    // path replay-nonce claim (C3) is an INSERT … RETURNING and must return
+    // the claimed row, or every call here would read as a suppressed replay.
+    mockQuery.mockImplementation(async (sql: unknown, params?: unknown[]) => {
+      const s = String(sql);
+      if (/INSERT INTO elevenlabs_processed_events/i.test(s) && /RETURNING/i.test(s)) {
+        return { rows: [{ event_id: String((params as unknown[] | undefined)?.[0] ?? "") }] };
+      }
+      return { rows: [] };
+    });
     clearToolHandlersForTests();
     registerToolHandler("present_options", async () => ({
       ok: true,
