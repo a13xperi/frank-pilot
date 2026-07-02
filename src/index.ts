@@ -103,6 +103,20 @@ if (process.env.NODE_ENV === "production") {
     console.error(`Missing required env vars in production: ${missing.join(", ")}`);
     process.exit(1);
   }
+  // Audit C3: the in-call tools receiver refuses static-header auth without a
+  // DEDICATED tool secret (no fallback to the webhook HMAC secret, and equal
+  // values defeat the separation). Fail the boot rather than serve 503s to
+  // every live tool call.
+  if (
+    process.env.VOICE_TOOLS_ENABLED === "true" &&
+    (!process.env.ELEVENLABS_TOOL_SECRET ||
+      process.env.ELEVENLABS_TOOL_SECRET === process.env.ELEVENLABS_WEBHOOK_SECRET)
+  ) {
+    console.error(
+      "VOICE_TOOLS_ENABLED=true requires a dedicated ELEVENLABS_TOOL_SECRET (set, and distinct from ELEVENLABS_WEBHOOK_SECRET) in production"
+    );
+    process.exit(1);
+  }
 }
 
 assertStripeProdConfig(process.env);

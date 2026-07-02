@@ -23,6 +23,9 @@ import request from "supertest";
 import crypto from "crypto";
 
 const SECRET = "wsec_test_fixture_12345";
+// Dedicated static-header tool secret (audit C3) — the receiver refuses the
+// static path unless this is set AND distinct from the webhook secret.
+const TOOL_SECRET = "eltool_test_fixture_67890";
 
 const mockQuery = jest.fn();
 jest.mock("../config/database", () => ({
@@ -84,11 +87,13 @@ beforeEach(() => {
   clearToolHandlersForTests();
   process.env.VOICE_TOOLS_ENABLED = "true";
   process.env.ELEVENLABS_WEBHOOK_SECRET = SECRET;
+  process.env.ELEVENLABS_TOOL_SECRET = TOOL_SECRET;
 });
 
 afterAll(() => {
   delete process.env.VOICE_TOOLS_ENABLED;
   delete process.env.ELEVENLABS_WEBHOOK_SECRET;
+  delete process.env.ELEVENLABS_TOOL_SECRET;
 });
 
 describe("voice tool callbacks — auth layer", () => {
@@ -177,19 +182,45 @@ describe("voice tool callbacks — auth layer", () => {
     expect(res.body.message).toBe("Invalid tool secret");
   });
 
-  it("accepts an unsigned server-tool call carrying the valid secret header", async () => {
+  it("accepts an unsigned server-tool call carrying the valid DEDICATED secret header", async () => {
     // How real ElevenLabs server tools authenticate: no HMAC, a static secret
-    // header. ELEVENLABS_TOOL_SECRET is unset here so it falls back to the
-    // webhook secret (SECRET).
+    // header — which must match ELEVENLABS_TOOL_SECRET (audit C3: no fallback
+    // to the webhook secret).
     mockQuery.mockResolvedValueOnce({ rows: [] }); // alreadyProcessed → no
+    const res = await request(buildApp())
+      .post("/api/webhooks/elevenlabs/tools/send_app_link")
+      .set("Content-Type", "application/json")
+      .set("x-elevenlabs-tool-secret", TOOL_SECRET)
+      .send(JSON.stringify(TOOL_PAYLOAD));
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(false); // unknown tool (no handler) — but authed + dispatched
+    expect(mockQuery).toHaveBeenCalled();
+  });
+
+  it("503s the static path when ELEVENLABS_TOOL_SECRET is unset — the webhook secret is NOT a fallback (C3)", async () => {
+    delete process.env.ELEVENLABS_TOOL_SECRET;
+    // Present the WEBHOOK secret in the tool header — the pre-C3 fallback
+    // accepted exactly this; it must now fail closed.
     const res = await request(buildApp())
       .post("/api/webhooks/elevenlabs/tools/send_app_link")
       .set("Content-Type", "application/json")
       .set("x-elevenlabs-tool-secret", SECRET)
       .send(JSON.stringify(TOOL_PAYLOAD));
-    expect(res.status).toBe(200);
-    expect(res.body.ok).toBe(false); // unknown tool (no handler) — but authed + dispatched
-    expect(mockQuery).toHaveBeenCalled();
+    expect(res.status).toBe(503);
+    expect(res.body.message).toBe("Tool secret not configured");
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("503s the static path when ELEVENLABS_TOOL_SECRET equals the webhook secret (separation defeated) (C3)", async () => {
+    process.env.ELEVENLABS_TOOL_SECRET = SECRET;
+    const res = await request(buildApp())
+      .post("/api/webhooks/elevenlabs/tools/send_app_link")
+      .set("Content-Type", "application/json")
+      .set("x-elevenlabs-tool-secret", SECRET)
+      .send(JSON.stringify(TOOL_PAYLOAD));
+    expect(res.status).toBe(503);
+    expect(res.body.message).toBe("Tool secret not configured");
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it("rejects body tool_name mismatching URL with 400", async () => {
@@ -363,5 +394,144 @@ describe("voice tool callbacks — dispatch", () => {
       String(c[0]).includes("INSERT INTO elevenlabs_processed_events")
     );
     expect(markCall).toBeUndefined();
+  });
+});
+
+describe("voice tool callbacks — static-path replay window (C3)", () => {
+  // Real ElevenLabs server-tool bodies are flat (no tool_call_id), so the
+  // tool_call_id dedup keys them on a random UUID and never fires. The
+  // sha256(body) nonce is what bounds replay on the static-header path.
+  function staticPost(bodyObj: Record<string, unknown>) {
+    return request(buildApp())
+      .post("/api/webhooks/elevenlabs/tools/send_app_link")
+      .set("Content-Type", "application/json")
+      .set("x-elevenlabs-tool-secret", TOOL_SECRET)
+      .send(JSON.stringify(bodyObj));
+  }
+
+  /**
+   * Route mockQuery on SQL shape and model the nonce table with a Set:
+   * claim INSERT … RETURNING → claimed row on first arrival, conflict after;
+   * unconditional DELETE (the handler-throw free) removes the id again.
+   */
+  function mockNonceStore(): Set<string> {
+    const seen = new Set<string>();
+    mockQuery.mockImplementation(async (sql: unknown, params?: unknown[]) => {
+      const s = String(sql);
+      const id = params ? String(params[0]) : "";
+      if (/INSERT INTO elevenlabs_processed_events/i.test(s) && /RETURNING/i.test(s)) {
+        if (seen.has(id)) return { rows: [] }; // conflict — replay suppressed
+        seen.add(id);
+        return { rows: [{ event_id: id }] };
+      }
+      if (/DELETE FROM elevenlabs_processed_events/i.test(s) && !/INTERVAL/i.test(s)) {
+        seen.delete(id);
+        return { rows: [] };
+      }
+      return { rows: [] }; // alreadyProcessed miss, TTL purge, markProcessed
+    });
+    return seen;
+  }
+
+  it("runs the handler once and suppresses a byte-identical replay with no second side effect", async () => {
+    mockNonceStore();
+    const handler: ToolHandler = jest.fn(async () => ({ ok: true, message: "done" }));
+    registerToolHandler("send_app_link", handler);
+
+    const flatBody = { phone: "+17025551212" }; // flat = no tool_call_id, like real EL traffic
+    const first = await staticPost(flatBody);
+    expect(first.status).toBe(200);
+    expect(first.body.ok).toBe(true);
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    const replay = await staticPost(flatBody);
+    expect(replay.status).toBe(200);
+    expect(replay.body).toEqual({
+      ok: true,
+      message: "Already processed",
+      result: { duplicate: true },
+    });
+    expect(handler).toHaveBeenCalledTimes(1); // replay did NOT reach the handler
+
+    // A different body is a different nonce — not suppressed.
+    const different = await staticPost({ phone: "+17025550000" });
+    expect(different.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it("frees the nonce when the handler throws, so a legitimate retry re-runs the tool", async () => {
+    mockNonceStore();
+    let calls = 0;
+    const handler: ToolHandler = jest.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw new Error("transient vendor melt");
+      return { ok: true, message: "recovered" };
+    });
+    registerToolHandler("send_app_link", handler);
+
+    const flatBody = { phone: "+17025551212" };
+    const first = await staticPost(flatBody);
+    expect(first.status).toBe(200);
+    expect(first.body.ok).toBe(false); // soft-fail
+
+    // The unconditional nonce free fired (DELETE without the TTL INTERVAL).
+    const freeCall = mockQuery.mock.calls.find(
+      (c) =>
+        /DELETE FROM elevenlabs_processed_events/i.test(String(c[0])) &&
+        !/INTERVAL/i.test(String(c[0]))
+    );
+    expect(freeCall).toBeDefined();
+    expect(String((freeCall![1] as unknown[])[0])).toMatch(/^toolnonce:send_app_link:/);
+
+    // Retry of the identical body re-runs the handler instead of being suppressed.
+    const retry = await staticPost(flatBody);
+    expect(retry.status).toBe(200);
+    expect(retry.body.ok).toBe(true);
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not consult the nonce store on the HMAC-signed path (timestamp already bounds replay)", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    const handler: ToolHandler = jest.fn(async () => ({ ok: true }));
+    registerToolHandler("send_app_link", handler);
+
+    const { body, header } = signedBody(TOOL_PAYLOAD);
+    const res = await request(buildApp())
+      .post("/api/webhooks/elevenlabs/tools/send_app_link")
+      .set("Content-Type", "application/json")
+      .set("ElevenLabs-Signature", header)
+      .send(body);
+    expect(res.status).toBe(200);
+
+    const nonceCall = mockQuery.mock.calls.find((c) =>
+      String((c[1] as unknown[] | undefined)?.[0] ?? "").startsWith("toolnonce:")
+    );
+    expect(nonceCall).toBeUndefined();
+  });
+});
+
+describe("voice tool callbacks — per-IP rate limit (C3)", () => {
+  afterAll(() => {
+    delete process.env.ELEVENLABS_TOOLS_RATE_LIMIT;
+  });
+
+  it("429s repeated auth failures from one IP once the failure budget is spent", async () => {
+    // The limiter mirrors the staff-login pattern (#7b): enforced in prod,
+    // opt-in elsewhere via ELEVENLABS_TOOLS_RATE_LIMIT (so this test never
+    // mutates NODE_ENV, which other modules read at load time), and
+    // skipSuccessfulRequests means only failure responses (>=400) count — so
+    // legitimate all-200 ElevenLabs traffic is never throttled.
+    process.env.ELEVENLABS_TOOLS_RATE_LIMIT = "2";
+    const app = buildApp();
+    const forged = () =>
+      request(app)
+        .post("/api/webhooks/elevenlabs/tools/send_app_link")
+        .set("Content-Type", "application/json")
+        .set("x-elevenlabs-tool-secret", "wrong-secret")
+        .send(JSON.stringify(TOOL_PAYLOAD));
+
+    expect((await forged()).status).toBe(400);
+    expect((await forged()).status).toBe(400);
+    expect((await forged()).status).toBe(429); // budget of 2 failures exhausted
   });
 });
