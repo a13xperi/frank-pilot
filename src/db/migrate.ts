@@ -42,6 +42,30 @@ import { SCHEMA_SQL, DROP_SCHEMA_SQL } from "./schema";
 
 const MIGRATIONS_DIR = join(__dirname, "migrations");
 
+// Cluster-wide migrate mutex (same hashtext keying as scheduler withJobLock).
+// Railway runs `npm run migrate && node dist/index.js` on EVERY instance, and
+// an old + new container overlap during a deploy — two migrate runs racing the
+// same DDL (notably `ALTER TYPE … ADD VALUE`) deadlock or half-apply. The
+// SECOND instance blocks on pg_advisory_lock until the first finishes, then
+// finds the deltas recorded in schema_migrations and no-ops.
+const MIGRATE_LOCK_KEY = "frank_pilot:migrate";
+
+async function withMigrateLock<T>(fn: () => Promise<T>): Promise<T> {
+  // Session-level lock, so it needs ONE dedicated client held for the whole
+  // run — pool.query() may hop clients between statements. Released in
+  // finally; a crashed holder frees it on disconnect.
+  const lockClient = await pool.connect();
+  try {
+    await lockClient.query("SELECT pg_advisory_lock(hashtext($1))", [MIGRATE_LOCK_KEY]);
+    return await fn();
+  } finally {
+    await lockClient
+      .query("SELECT pg_advisory_unlock(hashtext($1))", [MIGRATE_LOCK_KEY])
+      .catch(() => undefined);
+    lockClient.release();
+  }
+}
+
 function listMigrationFiles(): string[] {
   if (!existsSync(MIGRATIONS_DIR)) return [];
   return readdirSync(MIGRATIONS_DIR)
@@ -116,30 +140,32 @@ async function recordApplied(file: string): Promise<void> {
 
 /** Run SCHEMA_SQL, then apply every not-yet-recorded delta in filename order. */
 async function up(): Promise<void> {
-  console.log("Applying base schema (SCHEMA_SQL)…");
-  await query(SCHEMA_SQL);
+  await withMigrateLock(async () => {
+    console.log("Applying base schema (SCHEMA_SQL)…");
+    await query(SCHEMA_SQL);
 
-  await ensureTrackingTable();
-  const applied = await appliedSet();
-  const all = listMigrationFiles();
-  const pending = all.filter((f) => !applied.has(f));
+    await ensureTrackingTable();
+    const applied = await appliedSet();
+    const all = listMigrationFiles();
+    const pending = all.filter((f) => !applied.has(f));
 
-  if (pending.length === 0) {
+    if (pending.length === 0) {
+      console.log(
+        `Schema synced. Deltas: ${all.length} total, ${applied.size} already applied, 0 pending.`
+      );
+      return;
+    }
+
+    console.log(`Applying ${pending.length} pending delta(s):`);
+    for (const file of pending) {
+      applyDeltaFile(file);
+      await recordApplied(file);
+      console.log(`  ✓ ${file}`);
+    }
     console.log(
-      `Schema synced. Deltas: ${all.length} total, ${applied.size} already applied, 0 pending.`
+      `Schema synced. Deltas: ${all.length} total, ${applied.size} pre-existing, ${pending.length} newly applied.`
     );
-    return;
-  }
-
-  console.log(`Applying ${pending.length} pending delta(s):`);
-  for (const file of pending) {
-    applyDeltaFile(file);
-    await recordApplied(file);
-    console.log(`  ✓ ${file}`);
-  }
-  console.log(
-    `Schema synced. Deltas: ${all.length} total, ${applied.size} pre-existing, ${pending.length} newly applied.`
-  );
+  });
 }
 
 async function status(): Promise<void> {
