@@ -965,3 +965,91 @@ describe("ScreeningService.resolveReview", () => {
     expect(mockAdverseAction.sendNotice).not.toHaveBeenCalled();
   });
 });
+
+// ── Audit C2: FCRA §1681b server-side consent gate ────────────────────────────
+
+describe("runFullScreening — FCRA consent gate (audit C2)", () => {
+  let service: ScreeningService;
+  let mockIdentity: any;
+  let mockBackground: any;
+  let mockCredit: any;
+  let mockCompliance: any;
+
+  const CONSENT_ROW = {
+    application_id: "app-001",
+    applicant_id: "u1",
+    disclosure_version: "2026-06-01", // must equal FCRA_DISCLOSURE_VERSION
+    disclosure_hash: "hash",
+    disclosure_text: "text",
+    method: "in_app_checkbox",
+    authorized_at: new Date("2026-06-01T10:00:00.000Z"),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new ScreeningService();
+    mockIdentity = (service as any).identity;
+    mockBackground = (service as any).backgroundCheck;
+    mockCredit = (service as any).creditCheck;
+    mockCompliance = (service as any).compliance;
+    mockIdentity.resolve.mockResolvedValue(makeIdentityResult("verified"));
+    mockCompliance.runCheck.mockResolvedValue(makeComplianceResult("pass"));
+  });
+
+  afterEach(() => {
+    delete process.env.CONSUMER_REPORT_ENABLED;
+  });
+
+  it("refuses the pull — throws, zero vendor work — when CONSUMER_REPORT_ENABLED and NO authorization is on file", async () => {
+    process.env.CONSUMER_REPORT_ENABLED = "true";
+    mockQuery
+      .mockResolvedValueOnce({ rows: [makeApp()] } as any) // SELECT application
+      // claim + identity persist succeed; the consumer_report_authorizations
+      // lookup comes back EMPTY — no recorded authorization.
+      .mockResolvedValue({ rows: [] } as any);
+
+    await expect(
+      service.runFullScreening("app-001", "user-1", "leasing_agent")
+    ).rejects.toThrow(/FCRA: refusing to pull a consumer report/i);
+
+    // The single chokepoint stopped BOTH source paths before any consumer-report work.
+    expect(mockBackground.runCheck).not.toHaveBeenCalled();
+    expect(mockCredit.runCheck).not.toHaveBeenCalled();
+  });
+
+  it("gate is inert while CONSUMER_REPORT_ENABLED is off (no consent lookup, legacy path unchanged)", async () => {
+    mockBackground.runCheck.mockResolvedValue(makeBackgroundResult("pass"));
+    mockCredit.runCheck.mockResolvedValue(makeCreditResult("pass"));
+    mockQuery
+      .mockResolvedValueOnce({ rows: [makeApp()] } as any)
+      .mockResolvedValue({ rows: [] } as any);
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(result.overallResult).toBe("pass");
+    const consentLookup = mockQuery.mock.calls.find((c) =>
+      String(c[0]).includes("consumer_report_authorizations")
+    );
+    expect(consentLookup).toBeUndefined();
+  });
+
+  it("proceeds past the gate when a current-version authorization IS on file", async () => {
+    process.env.CONSUMER_REPORT_ENABLED = "true";
+    // Flag-on source path reads webhook-persisted CRA verdicts via resolve().
+    mockBackground.resolve = jest.fn().mockResolvedValue(makeBackgroundResult("pass"));
+    mockCredit.resolve = jest.fn().mockResolvedValue(makeCreditResult("pass"));
+
+    mockQuery.mockImplementation(async (sql: unknown) => {
+      const s = String(sql);
+      if (/SELECT \* FROM applications/i.test(s)) return { rows: [makeApp()] } as any;
+      if (/consumer_report_authorizations/i.test(s)) return { rows: [CONSENT_ROW] } as any;
+      return { rows: [] } as any;
+    });
+
+    const result = await service.runFullScreening("app-001", "user-1", "leasing_agent");
+
+    expect(result.overallResult).toBe("pass");
+    expect(mockBackground.resolve).toHaveBeenCalledWith("app-001");
+    expect(mockCredit.resolve).toHaveBeenCalledWith("app-001");
+  });
+});
