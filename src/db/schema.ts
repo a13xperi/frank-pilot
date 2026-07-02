@@ -1593,6 +1593,14 @@ CREATE TABLE IF NOT EXISTS consumer_report_authorizations (
   verification_evidence JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
+-- Existing installs predate the C4 columns above: CREATE TABLE IF NOT EXISTS
+-- no-ops on a live table, so the columns must be added additively BEFORE the
+-- index below can reference them (same idiom as properties/units/buildings).
+ALTER TABLE consumer_report_authorizations
+  ADD COLUMN IF NOT EXISTS conversation_id TEXT,
+  ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS verification_evidence JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 -- The post-call verification looks rows up by the minting conversation.
 CREATE INDEX IF NOT EXISTS idx_consumer_report_auth_conversation
   ON consumer_report_authorizations(conversation_id)
