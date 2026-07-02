@@ -4,10 +4,10 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { logger } from "./utils/logger";
 import { resolveCorsOrigin } from "./utils/cors-origin";
 import { authenticate, login, AuthRequest } from "./middleware/auth";
+import { loginLimiter, loginIpLimiter } from "./middleware/login-rate-limit";
 import { requirePermission } from "./middleware/rbac";
 import {
   setHousingQaDisabled,
@@ -335,30 +335,9 @@ if (process.env.TRUTH_TOKEN_ENABLED === "true") {
   logger.info("Truth Token verify routes mounted");
 }
 
-// Password login (staff) — rate-limited (audit #7b: carried-over P0). Staff
-// accounts hold the PII-bearing PM roles, so brute-force + user-enumeration here
-// is the soft spot (the tenant magic-link is already limited). Per-(IP,email) +
-// a per-IP bucket. Enforced in PRODUCTION only — dev/CI (incl. the pm-console
-// Playwright E2E that logs in repeatedly) bypasses so it isn't throttled.
-const skipNonProd = (): boolean => process.env.NODE_ENV !== "production";
-const loginLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 5,
-  keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? "")}:${(req.body?.email ?? "").toLowerCase()}`,
-  skip: skipNonProd,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many login attempts, try again in a minute" },
-});
-const loginIpLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
-  skip: skipNonProd,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many login attempts, try again in a minute" },
-});
+// Password login (staff) — rate-limited (audit #7b: carried-over P0). The
+// limiter config lives in src/middleware/login-rate-limit.ts so the mounted
+// route and the jest 429 suite exercise the SAME instances.
 app.post("/api/auth/login", loginIpLimiter, loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
