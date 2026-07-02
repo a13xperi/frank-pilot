@@ -18,6 +18,10 @@ import {
   hasValidAuthorization,
   recordAuthorization,
   verifyStoredAuthorization,
+  findDisclosureEvidence,
+  verifyVoiceAuthorizationForConversation,
+  METHOD_VOICE_VERBAL_UNVERIFIED,
+  METHOD_VOICE_VERBAL_VERIFIED,
 } from "../modules/screening/consumer-report-consent";
 import { query } from "../config/database";
 import { writeAuditLog } from "../middleware/audit";
@@ -96,6 +100,7 @@ describe("recordAuthorization", () => {
       "in_app_checkbox",
       "1.2.3.4",
       "UA/1.0",
+      null, // conversation_id — only voice methods anchor to a conversation
     ]);
     // The retained text hashes to the recorded hash — self-provable.
     expect(fcraDisclosureHash(params![5] as string)).toBe(params![4]);
@@ -275,5 +280,160 @@ describe("verifyStoredAuthorization", () => {
       found: false,
       intact: false,
     });
+  });
+});
+
+// ─── Audit C4: voice consent evidence ────────────────────────────────────────
+
+describe("recordAuthorization — voice method anchors the conversation", () => {
+  it("persists conversation_id and the unverified method for a voice-minted authorization", async () => {
+    mockQuery.mockResolvedValueOnce(
+      qr([{ authorized_at: new Date("2026-07-02T10:00:00.000Z") }])
+    );
+
+    await recordAuthorization({
+      applicationId: "app-1",
+      applicantId: "u1",
+      applicantRole: "applicant",
+      method: METHOD_VOICE_VERBAL_UNVERIFIED,
+      conversationId: "conv_voice_1",
+    });
+
+    const [, params] = mockQuery.mock.calls[0];
+    expect(params![6]).toBe(METHOD_VOICE_VERBAL_UNVERIFIED);
+    expect(params![9]).toBe("conv_voice_1");
+    expect(mockWriteAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: expect.objectContaining({
+          method: METHOD_VOICE_VERBAL_UNVERIFIED,
+          conversationId: "conv_voice_1",
+        }),
+      })
+    );
+  });
+});
+
+describe("findDisclosureEvidence", () => {
+  const DISCLOSURE_TURN = {
+    role: "agent",
+    message:
+      "Before I run this I need your OK: we'll pull a background check and a credit report through our screening agencies to evaluate your application. Do you authorize that?",
+  };
+
+  it("finds the read disclosure followed by the caller's affirmative", () => {
+    const evidence = findDisclosureEvidence([
+      { role: "agent", message: "Great, let's get your application going." },
+      DISCLOSURE_TURN,
+      { role: "user", message: "Yes, that's fine, go ahead." },
+    ]);
+    expect(evidence.found).toBe(true);
+    expect(evidence.agentTurn).toBe(1);
+    expect(evidence.userTurn).toBe(2);
+    expect(evidence.agentSnippet).toMatch(/background check and a credit report/);
+    expect(evidence.userSnippet).toMatch(/Yes/);
+  });
+
+  it("does not match when no disclosure was read (agent never named the reports)", () => {
+    const evidence = findDisclosureEvidence([
+      { role: "agent", message: "Ready to pay the fee?" },
+      { role: "user", message: "Yes." },
+    ]);
+    expect(evidence.found).toBe(false);
+  });
+
+  it("does not match when the caller declined the disclosure", () => {
+    const evidence = findDisclosureEvidence([
+      DISCLOSURE_TURN,
+      { role: "user", message: "No, I don't want that." },
+      { role: "user", message: "Actually yes to the apartment tour though." },
+    ]);
+    expect(evidence.found).toBe(false);
+  });
+
+  it("an affirmative BEFORE the disclosure is not evidence", () => {
+    const evidence = findDisclosureEvidence([
+      { role: "user", message: "Yes yes yes." },
+      DISCLOSURE_TURN,
+    ]);
+    expect(evidence.found).toBe(false);
+  });
+
+  it("pii-filters the stored snippets", () => {
+    const evidence = findDisclosureEvidence([
+      DISCLOSURE_TURN,
+      { role: "user", message: "Yes — and my social is 123-45-6789 by the way." },
+    ]);
+    expect(evidence.found).toBe(true);
+    expect(evidence.userSnippet).not.toContain("123-45-6789");
+    expect(evidence.userSnippet).toContain("[SSN-REDACTED]");
+  });
+});
+
+describe("verifyVoiceAuthorizationForConversation", () => {
+  const TRANSCRIPT = [
+    {
+      role: "agent",
+      message:
+        "We'll run a background check and credit report through our screening agencies. Do you authorize that?",
+    },
+    { role: "user", message: "Yes, I authorize it." },
+  ];
+
+  it("upgrades an unverified voice authorization when the transcript shows disclosure + affirmative", async () => {
+    mockQuery
+      .mockResolvedValueOnce(qr([{ application_id: "app-1" }])) // pending lookup
+      .mockResolvedValueOnce(qr([{ application_id: "app-1" }])); // UPDATE ... RETURNING
+
+    const result = await verifyVoiceAuthorizationForConversation("conv_1", TRANSCRIPT);
+
+    expect(result).toEqual({ checked: 1, verified: 1 });
+    const [updateSql, updateParams] = mockQuery.mock.calls[1];
+    expect(updateSql).toMatch(/UPDATE consumer_report_authorizations/i);
+    expect(updateSql).toMatch(/verified_at = NOW\(\)/i);
+    expect(updateParams![0]).toBe("conv_1");
+    expect(updateParams![1]).toBe(METHOD_VOICE_VERBAL_UNVERIFIED);
+    expect(updateParams![2]).toBe(METHOD_VOICE_VERBAL_VERIFIED);
+    const storedEvidence = JSON.parse(String(updateParams![3]));
+    expect(storedEvidence.found).toBe(true);
+    expect(storedEvidence.matcher).toBe("transcript-disclosure-v1");
+
+    expect(mockWriteAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "consumer_report_consent_verified",
+        applicationId: "app-1",
+        details: expect.objectContaining({ conversationId: "conv_1" }),
+      })
+    );
+  });
+
+  it("leaves the row unverified (no UPDATE, no audit) when the transcript lacks evidence", async () => {
+    mockQuery.mockResolvedValueOnce(qr([{ application_id: "app-1" }])); // pending lookup
+
+    const result = await verifyVoiceAuthorizationForConversation("conv_1", [
+      { role: "agent", message: "Want to schedule a tour?" },
+      { role: "user", message: "Yes." },
+    ]);
+
+    expect(result).toEqual({ checked: 1, verified: 0 });
+    expect(mockQuery).toHaveBeenCalledTimes(1); // lookup only — nothing rewritten
+    expect(mockWriteAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("no-ops when the conversation minted no unverified authorization (idempotent re-delivery)", async () => {
+    mockQuery.mockResolvedValueOnce(qr([]));
+
+    const result = await verifyVoiceAuthorizationForConversation("conv_1", TRANSCRIPT);
+
+    expect(result).toEqual({ checked: 0, verified: 0 });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it("tolerates a missing transcript (post_call_audio delivery) — stays unverified", async () => {
+    mockQuery.mockResolvedValueOnce(qr([{ application_id: "app-1" }]));
+
+    const result = await verifyVoiceAuthorizationForConversation("conv_1", undefined);
+
+    expect(result).toEqual({ checked: 1, verified: 0 });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });
