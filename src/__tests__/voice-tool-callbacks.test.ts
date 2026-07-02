@@ -490,6 +490,76 @@ describe("voice tool callbacks — static-path replay window (C3)", () => {
     expect(handler).toHaveBeenCalledTimes(2);
   });
 
+  it("re-runs a byte-identical body once the replay window has elapsed (TTL prune frees the nonce)", async () => {
+    // Clock-aware variant of mockNonceStore: the TTL DELETE (the one WITH the
+    // INTERVAL predicate) only frees the nonce once the simulated window has
+    // elapsed — exactly what `processed_at < NOW() - INTERVAL '600 seconds'`
+    // does against a real table. Within the window it deletes nothing.
+    const seen = new Set<string>();
+    let windowElapsed = false;
+    mockQuery.mockImplementation(async (sql: unknown, params?: unknown[]) => {
+      const s = String(sql);
+      const id = params ? String(params[0]) : "";
+      if (/INSERT INTO elevenlabs_processed_events/i.test(s) && /RETURNING/i.test(s)) {
+        if (seen.has(id)) return { rows: [] };
+        seen.add(id);
+        return { rows: [{ event_id: id }] };
+      }
+      if (/DELETE FROM elevenlabs_processed_events/i.test(s) && /INTERVAL/i.test(s)) {
+        if (windowElapsed) seen.delete(id);
+        return { rows: [] };
+      }
+      if (/DELETE FROM elevenlabs_processed_events/i.test(s)) {
+        seen.delete(id); // handler-throw free (not exercised here)
+        return { rows: [] };
+      }
+      return { rows: [] };
+    });
+
+    const handler: ToolHandler = jest.fn(async () => ({ ok: true, message: "done" }));
+    registerToolHandler("send_app_link", handler);
+    const flatBody = { phone: "+17025551212" };
+
+    const first = await staticPost(flatBody);
+    expect(first.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    // Inside the window: suppressed, even though the TTL prune ran.
+    const withinWindow = await staticPost(flatBody);
+    expect(withinWindow.body.result).toEqual({ duplicate: true });
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    // Past the window: the prune frees the nonce and the same bytes re-run.
+    windowElapsed = true;
+    const afterWindow = await staticPost(flatBody);
+    expect(afterWindow.status).toBe(200);
+    expect(afterWindow.body.ok).toBe(true);
+    expect(afterWindow.body.result).not.toEqual({ duplicate: true });
+    expect(handler).toHaveBeenCalledTimes(2);
+
+    // The prune is issued on EVERY static call, keyed to this nonce, with the
+    // 10-minute window, and always ahead of the claim INSERT.
+    const pruneCalls = mockQuery.mock.calls.filter(
+      (c) =>
+        /DELETE FROM elevenlabs_processed_events/i.test(String(c[0])) &&
+        /INTERVAL '600 seconds'/i.test(String(c[0]))
+    );
+    expect(pruneCalls).toHaveLength(3);
+    for (const c of pruneCalls) {
+      expect(String((c[1] as unknown[])[0])).toMatch(/^toolnonce:send_app_link:/);
+    }
+    const firstPruneIdx = mockQuery.mock.calls.findIndex((c) =>
+      /INTERVAL '600 seconds'/i.test(String(c[0]))
+    );
+    const firstClaimIdx = mockQuery.mock.calls.findIndex(
+      (c) =>
+        /INSERT INTO elevenlabs_processed_events/i.test(String(c[0])) &&
+        /RETURNING/i.test(String(c[0]))
+    );
+    expect(firstPruneIdx).toBeGreaterThanOrEqual(0);
+    expect(firstPruneIdx).toBeLessThan(firstClaimIdx);
+  });
+
   it("does not consult the nonce store on the HMAC-signed path (timestamp already bounds replay)", async () => {
     mockQuery.mockResolvedValue({ rows: [] });
     const handler: ToolHandler = jest.fn(async () => ({ ok: true }));
