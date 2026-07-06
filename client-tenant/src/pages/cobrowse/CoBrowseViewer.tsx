@@ -1,7 +1,7 @@
 /**
  * CoBrowseViewer — the resident's read-only "watch-along" page (Phase 2).
  *
- * Opened from the SMS magic link (`/cobrowse/:id?t=<viewerToken>`). Connects to
+ * Opened from the SMS magic link (`/cobrowse/:id?vt=<viewerToken>`). Connects to
  * the screencast WebSocket and renders the frames of Frank (an Opus computer-use
  * agent) filling the real /apply form, live. It is strictly READ-ONLY: there is
  * no input channel back into the agent's browser — the resident watches and
@@ -22,7 +22,9 @@ type StreamMsg =
 
 function useQueryToken(): string {
   if (typeof window === "undefined") return "";
-  return new URLSearchParams(window.location.search).get("t") ?? "";
+  // Token param is `vt` — must match the link minted by start-cobrowse.ts
+  // (buildViewerLink) and the backend routes (GET /view, POST /step).
+  return new URLSearchParams(window.location.search).get("vt") ?? "";
 }
 
 function sessionIdFromPath(): string {
@@ -47,7 +49,7 @@ export default function CoBrowseViewer(): JSX.Element {
     }
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
     // Tenant proxies /api to the API host (same-origin Vercel rewrite).
-    const url = `${proto}://${window.location.host}/api/cobrowse/${encodeURIComponent(id)}/stream?t=${encodeURIComponent(token)}`;
+    const url = `${proto}://${window.location.host}/api/cobrowse/${encodeURIComponent(id)}/stream?vt=${encodeURIComponent(token)}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
@@ -78,7 +80,7 @@ export default function CoBrowseViewer(): JSX.Element {
   function stop(): void {
     wsRef.current?.close();
     // Best-effort abort; the session also dies on TTL/idle server-side.
-    void fetch(`/api/cobrowse/${encodeURIComponent(id)}/abort?t=${encodeURIComponent(token)}`, { method: "POST" });
+    void fetch(`/api/cobrowse/${encodeURIComponent(id)}/abort?vt=${encodeURIComponent(token)}`, { method: "POST" });
     setStatus("done");
     setCaption("Stopped. No worries — call us back anytime and we'll pick up where we left off.");
   }

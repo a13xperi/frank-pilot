@@ -290,6 +290,23 @@ export async function runDialerTick(
         JSON.stringify(vars),
       ]
     );
+    if (testNumber) {
+      // Test call dialed a test number, not the applicant. Release the claim now so
+      // the real applicant returns to 'pending' and is never held in_progress or
+      // dispositioned by this call (the post-call webhook also skips Sage for test calls).
+      // This runs AFTER the dial already succeeded, so its own failure is post-dial
+      // cleanup, not a dial failure: isolate it in its own try/catch (log a warning)
+      // so it can never fall into the dial-failure catch below and record a bogus
+      // no_answer on the real applicant.
+      try {
+        await resetClaim(applicant.id);
+      } catch (resetErr) {
+        logger.warn("Outbound validation test-call reset claim failed (claim left in_progress; sweeper/Sage TTL recovers)", {
+          applicantId: applicant.id,
+          error: (resetErr as Error).message,
+        });
+      }
+    }
     stampAttempt(applicant, toNumber, {
       dryRun: false,
       testCall: Boolean(testNumber),
@@ -316,13 +333,19 @@ export async function runDialerTick(
        VALUES ($1, $2, $3, 'dial_failed', $4::jsonb, $5)`,
       [applicant.id, last4(toNumber), Boolean(testNumber), JSON.stringify(vars), message.slice(0, 500)]
     );
-    // Consume an attempt so the Sage row re-queues (24h) instead of wedging
-    // in in_progress; three dial failures roll it to unreachable.
-    await recordCallOutcome({
-      applicantId: applicant.id,
-      outcome: "no_answer",
-      notes: `dial failed: ${message.slice(0, 200)}`,
-    });
+    if (!testNumber) {
+      // Consume an attempt so the Sage row re-queues (24h) instead of wedging
+      // in in_progress; three dial failures roll it to unreachable. NEVER do this
+      // for a test call: it dialed a test number, so the claimed applicant's row was
+      // only borrowed to build the script — recording an outcome would corrupt a real
+      // applicant (mirrors the !test_call guard in outcome.ts). The test-call claim is
+      // released non-destructively in the success path (or recovered by the Sage TTL).
+      await recordCallOutcome({
+        applicantId: applicant.id,
+        outcome: "no_answer",
+        notes: `dial failed: ${message.slice(0, 200)}`,
+      });
+    }
     stampAttempt(applicant, toNumber, {
       dryRun: false,
       testCall: Boolean(testNumber),
@@ -340,18 +363,28 @@ export async function runDialerTick(
  * Expire in-flight calls that never produced a post-call webhook. Records
  * no_answer on Sage (bounded by its 3-attempt state machine) and marks the
  * local row expired.
+ *
+ * Idempotent under a failing Sage write: each stuck row is recorded on Sage
+ * FIRST and only marked 'expired' once that succeeds. If recordCallOutcome
+ * throws for a row, the row is left 'dialed' so the next sweep retries it,
+ * rather than being stranded expired-but-never-recorded (which wedges the
+ * applicant: the local row no longer re-queues and Sage never consumed the
+ * attempt). The expire UPDATE is itself guarded on `status='dialed'` so a row
+ * a concurrent webhook just completed is never clobbered to 'expired'.
  */
-export async function sweepStuckCalls(): Promise<{ expired: number }> {
-  if (!isEnabled()) return { expired: 0 };
-  const result = await query(
-    `UPDATE outbound_validation_calls
-        SET status = 'expired', completed_at = NOW()
+export async function sweepStuckCalls(): Promise<{ expired: number; failed: number }> {
+  if (!isEnabled()) return { expired: 0, failed: 0 };
+  // Select (don't mutate) the stuck rows; status flips only after Sage records.
+  const stuck = await query(
+    `SELECT id, applicant_id, conversation_id
+       FROM outbound_validation_calls
       WHERE status = 'dialed'
-        AND dialed_at < NOW() - ($1 || ' minutes')::interval
-      RETURNING applicant_id, conversation_id`,
+        AND dialed_at < NOW() - ($1 || ' minutes')::interval`,
     [String(IN_FLIGHT_TIMEOUT_MINUTES)]
   );
-  for (const row of result.rows) {
+  let expired = 0;
+  let failed = 0;
+  for (const row of stuck.rows) {
     try {
       await recordCallOutcome({
         applicantId: row.applicant_id as string,
@@ -359,16 +392,29 @@ export async function sweepStuckCalls(): Promise<{ expired: number }> {
         notes: `call result not received within ${IN_FLIGHT_TIMEOUT_MINUTES}m (conv:${row.conversation_id ?? "none"})`,
       });
     } catch (err) {
-      logger.error("Outbound validation sweep: outcome record failed", {
+      // Leave the row 'dialed' so the next sweep retries; don't strand it expired.
+      failed += 1;
+      logger.error("Outbound validation sweep: outcome record failed (row left dialed for retry)", {
         applicantId: row.applicant_id,
         error: (err as Error).message,
       });
+      continue;
     }
+    // Sage recorded — now safe to retire the local row. Guard on still-'dialed'
+    // so a concurrent post-call webhook that just completed it isn't reverted.
+    await query(
+      `UPDATE outbound_validation_calls
+          SET status = 'expired', completed_at = NOW()
+        WHERE id = $1 AND status = 'dialed'`,
+      [row.id as string]
+    );
+    expired += 1;
   }
-  if (result.rows.length > 0) {
-    logger.warn("Outbound validation sweep expired stuck calls", {
-      expired: result.rows.length,
-    });
+  if (expired > 0) {
+    logger.warn("Outbound validation sweep expired stuck calls", { expired });
   }
-  return { expired: result.rows.length };
+  if (failed > 0) {
+    logger.error("Outbound validation sweep: stuck calls left dialed after Sage failure", { failed });
+  }
+  return { expired, failed };
 }

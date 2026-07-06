@@ -227,8 +227,15 @@ async function findOrCreateDraft(
   args: FindOrCreateDraftArgs
 ): Promise<{ userId: string; applicationId: string }> {
   if (args.applicationId) {
+    // Ownership lives in the user_applications join (relationship='primary'),
+    // not on applications directly — mirrors applicants/routes.ts. Prefer the
+    // primary applicant when an application has co-applicants/household members.
     const res = await query(
-      `SELECT id, user_id FROM applications WHERE id = $1 LIMIT 1`,
+      `SELECT ua.application_id AS id, ua.user_id
+         FROM user_applications ua
+        WHERE ua.application_id = $1
+        ORDER BY (ua.relationship = 'primary') DESC, ua.created_at ASC
+        LIMIT 1`,
       [args.applicationId]
     );
     if (res.rows.length > 0) {
@@ -248,9 +255,11 @@ async function findOrCreateDraft(
   const userId = String(userRes.rows[0].id);
 
   const draftRes = await query(
-    `SELECT id FROM applications
-      WHERE user_id = $1
-      ORDER BY created_at DESC
+    `SELECT a.id
+       FROM user_applications ua
+       JOIN applications a ON a.id = ua.application_id
+      WHERE ua.user_id = $1
+      ORDER BY a.created_at DESC
       LIMIT 1`,
     [userId]
   );
