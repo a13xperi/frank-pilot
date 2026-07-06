@@ -1,0 +1,26 @@
+{
+  "_comment": "Level 1 (anonymous, unvalidated) PUBLIC teaser for the Frank Deal Desk voice line. This is the ONLY thing an unverified caller can hear. It is intentionally thin and routes toward validation; it must contain nothing that isn't safe to say to a stranger. Edit freely. The real deal corpus (src/db/data/deal-corpus.json) is reachable only after a caller validates (L2/L3).",
+  "default": "I can give you a high-level overview here, and once I verify who you are I can share the specifics with you directly. Are you a partner on the deal?",
+  "entries": [
+    {
+      "q": "what is this who are you frank deal desk what do you do",
+      "a": "This is Frank, the deal desk. I can share a high-level overview on this line, and verified partners get the detail. How can I help?"
+    },
+    {
+      "q": "how do I get more information access verify validate partner unlock",
+      "a": "If you're a partner on the deal, I can verify you right on this call, either with a code I text to the number you're calling from, or a passphrase you've been given, and then I can go deeper."
+    },
+    {
+      "q": "what is the venture about deal high level overview opportunity",
+      "a": "At a high level it's an infrastructure venture. The specifics are shared with verified partners, so if that's you, let's verify you and I'll walk you through it."
+    },
+    {
+      "q": "tell me the numbers economics price cost structure names parties who is involved",
+      "a": "Those details are only for verified partners. If that's you, I can verify you on this call and then we can get into it."
+    },
+    {
+      "q": "can I speak to alex reach the team contact",
+      "a": "I can take a message for Alex and make sure it gets to him. Who should I say is reaching out, and what's it about?"
+    }
+  ]
+}
