@@ -80,4 +80,19 @@ export class TwilioService {
       `Hello ${applicantName}, your lease is ready for review and signing. Please check your email for the document link. — CDPC Nevada`
     );
   }
+
+  /**
+   * Inbound post-call callback handoff (Phase 2): text the caller a link to
+   * schedule a callback / book a time after they reach the front desk. Returns
+   * the sendSMS result so the caller can record the outcome on the tape.
+   */
+  async notifyCallbackQueued(
+    phone: string,
+    link: string
+  ): Promise<{ sent: boolean; messageId?: string }> {
+    return this.sendSMS(
+      phone,
+      `Thanks for calling Frank. To schedule a callback or pick a time that works for you, tap here: ${link} — CDPC Nevada`
+    );
+  }
 }

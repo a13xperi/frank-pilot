@@ -9,6 +9,7 @@ import {
   isOutboundValidationEvent,
   handleOutboundPostCall,
 } from "../outbound-validation/outcome";
+import { isInboundIntakeEvent, handleInboundPostCall } from "./inbound-post-call";
 
 /**
  * ElevenLabs Conv. AI post-call webhook receiver.
