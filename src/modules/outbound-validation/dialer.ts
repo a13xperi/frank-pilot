@@ -78,6 +78,22 @@ function targetProperty(): string | null {
   return p || null;
 }
 
+/**
+ * Opener armor: when enabled, every dial carries a per-call first_message
+ * override so the opener is immune to hosted-prompt drift (agent_6601 has
+ * repeatedly drifted to an inbound-receptionist persona; a drifted prompt
+ * used to open live calls like a front desk). Per-call overrides are only
+ * evaluated on calls that set them, so no new required var lands on the agent.
+ *
+ * OFF by default: ElevenLabs rejects overrides until the agent's
+ * platform_settings permit conversation_config_override.agent.first_message —
+ * promote-outbound.sh (2026-07-06.validate-addendum) enables that. Flip this
+ * flag only after that promote has run.
+ */
+function openerArmorEnabled(): boolean {
+  return flag("FRANK_OUTBOUND_OPENER_ARMOR") === "true";
+}
+
 /** Hour-of-day in America/Los_Angeles (handles DST via Intl, no deps). */
 export function pacificHour(now: Date = new Date()): number {
   const hour = new Intl.DateTimeFormat("en-US", {
@@ -126,10 +142,23 @@ export function buildDynamicVariables(a: SageApplicant): Record<string, string> 
   };
 }
 
+/**
+ * The drift-armored opener. Identity gate FIRST (B5/TCPA: never reveal the
+ * wait-list reason to whoever answers — a shared phone is common); the reason
+ * comes after the callee confirms, from the prompt. Pinning turn 1 to
+ * "may I speak with {first}?" makes the call unmistakably outbound even if
+ * the hosted prompt has drifted to the inbound persona.
+ */
+export function buildFirstMessage(a: SageApplicant): string {
+  const first = a.full_name.trim().split(/\s+/)[0] || a.full_name;
+  return `Hi, may I speak with ${first}? This is Frank with the GPM property team.`;
+}
+
 /** Fire one outbound call through ElevenLabs' native Twilio integration. */
 export async function initiateOutboundCall(
   toNumber: string,
-  dynamicVariables: Record<string, string>
+  dynamicVariables: Record<string, string>,
+  firstMessage?: string | null
 ): Promise<{ conversationId: string | null; callSid: string | null }> {
   const apiKey = process.env.ELEVENLABS_API_KEY ?? "";
   const agentId = process.env.ELEVENLABS_OUTBOUND_AGENT_ID ?? "";
@@ -149,6 +178,9 @@ export async function initiateOutboundCall(
       to_number: toNumber,
       conversation_initiation_client_data: {
         dynamic_variables: dynamicVariables,
+        ...(firstMessage
+          ? { conversation_config_override: { agent: { first_message: firstMessage } } }
+          : {}),
       },
     }),
   });
@@ -296,7 +328,8 @@ export async function runDialerTick(
   }
 
   try {
-    const { conversationId, callSid } = await initiateOutboundCall(toNumber, vars);
+    const firstMessage = openerArmorEnabled() ? buildFirstMessage(applicant) : null;
+    const { conversationId, callSid } = await initiateOutboundCall(toNumber, vars, firstMessage);
     await query(
       `INSERT INTO outbound_validation_calls
          (applicant_id, conversation_id, call_sid, to_number_last4, test_call, status, dynamic_variables)

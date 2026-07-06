@@ -35,6 +35,7 @@ import {
   sweepStuckCalls,
   isWithinCallWindow,
   buildDynamicVariables,
+  buildFirstMessage,
 } from "../modules/outbound-validation/dialer";
 import { logger } from "../utils/logger";
 import type { SageApplicant } from "../modules/outbound-validation/sage-client";
@@ -94,6 +95,7 @@ const ENV_KEYS = [
   "ELEVENLABS_API_KEY",
   "ELEVENLABS_OUTBOUND_AGENT_ID",
   "ELEVENLABS_AGENT_PHONE_NUMBER_ID",
+  "FRANK_OUTBOUND_OPENER_ARMOR",
 ];
 const savedEnv: Record<string, string | undefined> = {};
 
@@ -118,6 +120,7 @@ beforeEach(() => {
   process.env.ELEVENLABS_API_KEY = "xi-test";
   process.env.ELEVENLABS_OUTBOUND_AGENT_ID = "agent_outbound_test_123";
   process.env.ELEVENLABS_AGENT_PHONE_NUMBER_ID = "phnum_test_123";
+  process.env.FRANK_OUTBOUND_OPENER_ARMOR = "";
   inserts.length = 0;
   mockQuery.mockReset();
   mockClaimNextCall.mockReset();
@@ -469,5 +472,44 @@ describe("sweepStuckCalls idempotency", () => {
     routeSweep([]);
     expect(await sweepStuckCalls()).toEqual({ expired: 0, failed: 0 });
     expect(mockRecordCallOutcome).not.toHaveBeenCalled();
+  });
+});
+
+describe("opener armor (per-call first_message override)", () => {
+  it("buildFirstMessage greets by FIRST name and identifies the team, no wait-list detail", () => {
+    expect(buildFirstMessage(APPLICANT)).toBe(
+      "Hi, may I speak with Jane? This is Frank with the GPM property team."
+    );
+    // Identity gate: the opener must never leak WHY we're calling to whoever answers.
+    expect(buildFirstMessage(APPLICANT)).not.toMatch(/wait.?list|apartment|Donna/i);
+  });
+
+  it("FRANK_OUTBOUND_OPENER_ARMOR=true sends the override alongside dynamic variables", async () => {
+    process.env.FRANK_OUTBOUND_OPENER_ARMOR = "true";
+    const fetchMock = stubFetch({ ok: true, body: { conversation_id: "conv_armor" } });
+    routeQueries({ inFlight: false, dialsToday: 0, minsSinceLast: null });
+    mockClaimNextCall.mockResolvedValue(APPLICANT);
+
+    const result = await runDialerTick();
+    expect(result.action).toBe("dialed");
+    const body = JSON.parse((fetchMock.mock.calls[0] as [string, { body: string }])[1].body);
+    expect(
+      body.conversation_initiation_client_data.conversation_config_override.agent.first_message
+    ).toBe("Hi, may I speak with Jane? This is Frank with the GPM property team.");
+    // Dynamic variables still ride along untouched.
+    expect(body.conversation_initiation_client_data.dynamic_variables.applicant_id).toBe(
+      APPLICANT.id
+    );
+  });
+
+  it("armor OFF (default) sends NO conversation_config_override — safe pre-promote", async () => {
+    const fetchMock = stubFetch({ ok: true, body: { conversation_id: "conv_plain" } });
+    routeQueries({ inFlight: false, dialsToday: 0, minsSinceLast: null });
+    mockClaimNextCall.mockResolvedValue(APPLICANT);
+
+    const result = await runDialerTick();
+    expect(result.action).toBe("dialed");
+    const body = JSON.parse((fetchMock.mock.calls[0] as [string, { body: string }])[1].body);
+    expect(body.conversation_initiation_client_data.conversation_config_override).toBeUndefined();
   });
 });
