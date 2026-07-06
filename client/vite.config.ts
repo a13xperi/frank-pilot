@@ -10,10 +10,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    // DEMO TRACK (Jun 11 meeting) — isolated ports; local-only change, never commit from this worktree.
+    // allowedHosts: remote presentation via cloudflared quick tunnel (Jun 11 only — remove after).
+    allowedHosts: ['.trycloudflare.com'],
+    port: 5180,
     proxy: {
       '/api': {
-        target: 'http://localhost:3002',
+        target: 'http://localhost:3010',
         changeOrigin: true,
       },
     },
