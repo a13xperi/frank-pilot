@@ -36,6 +36,7 @@ import adverseActionRoutes from "./modules/adverse-action/routes";
 import userRoutes from "./modules/users/routes";
 import propertyRoutes from "./modules/properties/routes";
 import complianceRoutes from "./modules/compliance/routes";
+import onboardingRoutes from "./modules/onboarding/routes";
 import recertificationRoutes from "./modules/recertification/routes";
 import ledgerRoutes from "./modules/ledger/routes";
 import evictionRoutes from "./modules/eviction/routes";
@@ -181,6 +182,11 @@ app.use("/api/auth", authRoutes);
 
 // Applicant self-service (public register + auth'd apply)
 app.use("/api/applicants", applicantRoutes);
+
+// Onboarding concierge — the conversational, voice-first apply guide (FrankGuide web
+// component) over a cross-channel session. Self-gates to 503 until
+// ONBOARDING_CONCIERGE_ENABLED=true, so it rides into prod dark.
+app.use("/api/onboarding", onboardingRoutes);
 
 // Grounded housing Q&A chat (PUBLIC, per-IP rate-limited). This mount serves
 // the UNAUTHENTICATED tenant-portal widget, so it is pinned to the
