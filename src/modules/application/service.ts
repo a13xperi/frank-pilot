@@ -35,7 +35,9 @@ export class ApplicationService {
           $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29,
           $31,
           'draft', $30
-        ) RETURNING id, status, created_at`,
+        )
+        ON CONFLICT (conversation_id) WHERE conversation_id IS NOT NULL DO NOTHING
+        RETURNING id, status, created_at`,
         [
           input.propertyId, input.unitNumber || null,
           input.firstName, input.lastName, ssnEncrypted, ssnHash, dobEncrypted,
@@ -54,6 +56,21 @@ export class ApplicationService {
           input.conversationId || null,
         ]
       );
+
+      // Idempotent replay (audit #3): a redelivered / second create_application
+      // for the SAME ElevenLabs conversation hit the partial-UNIQUE on
+      // conversation_id, so DO NOTHING returned no row. Return the EXISTING
+      // application rather than minting a duplicate (and a second $35.95 charge
+      // downstream) — and skip the fraud-flag / address side effects, which
+      // already ran on the original create. Only reachable with a non-null
+      // conversation_id (the partial index excludes NULLs).
+      if (res.rows.length === 0) {
+        const existing = await client.query(
+          `SELECT id, status, created_at FROM applications WHERE conversation_id = $1`,
+          [input.conversationId]
+        );
+        return { row: existing.rows[0], idempotent: true };
+      }
 
       const applicationId = res.rows[0].id;
 
@@ -77,16 +94,28 @@ export class ApplicationService {
         });
       }
 
-      return res.rows[0];
+      return { row: res.rows[0], idempotent: false };
     });
+
+    // Idempotent replay short-circuit: return the existing application, no
+    // second create-audit / duplicate side effect (audit #3).
+    if (result.idempotent) {
+      logger.info("Application create idempotent hit — existing returned for conversation", {
+        applicationId: result.row?.id,
+        conversationId: input.conversationId,
+      });
+      return result.row;
+    }
+
+    const created = result.row;
 
     await writeAuditLog({
       action: "application_created",
       actorId: submittedBy,
       actorRole: submitterRole,
-      applicationId: result.id,
+      applicationId: created.id,
       resourceType: "application",
-      resourceId: result.id,
+      resourceId: created.id,
       details: {
         propertyId: input.propertyId,
         applicantName: `${input.firstName} ${input.lastName}`,
@@ -96,11 +125,11 @@ export class ApplicationService {
     });
 
     logger.info("Application created", {
-      applicationId: result.id,
+      applicationId: created.id,
       propertyId: input.propertyId,
     });
 
-    return result;
+    return created;
   }
 
   // Fill an existing applicant-self-serve draft (created by /intent or

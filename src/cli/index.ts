@@ -512,6 +512,44 @@ program
   });
 
 // ============================================================
+// Application maintenance commands
+// ============================================================
+
+program
+  .command("applications-dup-report")
+  .description(
+    "Read-only pre-flight for the audit-#3 UNIQUE(conversation_id) migration: list applications that share an ElevenLabs conversation_id (the migration fails to build if any exist), flagging which duplicate rows carry a succeeded $35.95 charge to reconcile first"
+  )
+  .action(async () => {
+    try {
+      const { reportConversationDuplicates } = await import(
+        "../modules/application/dup-report"
+      );
+      const report = await reportConversationDuplicates();
+      logger.info("\n=== Applications conversation_id duplicate report ===\n");
+      logger.info(
+        `conversations with duplicates=${report.conversationsWithDuplicates} ` +
+          `duplicate rows=${report.duplicateApplications} ` +
+          `duplicates-with-succeeded-payment=${report.duplicatesWithPayment}`
+      );
+      if (report.conversationsWithDuplicates === 0) {
+        logger.info("No duplicates — safe to apply the UNIQUE migration.");
+      } else {
+        logger.warn(
+          "Reconcile before applying the UNIQUE migration. Keeper = earliest per conversation; do NOT delete a duplicate that has a succeeded payment without checking Stripe.",
+          { conversations: report.conversations }
+        );
+        process.exitCode = 1;
+      }
+    } catch (err) {
+      logger.error("Error:", { message: (err as Error).message });
+      process.exitCode = 1;
+    } finally {
+      await pool.end();
+    }
+  });
+
+// ============================================================
 // Voice-intake commands
 // ============================================================
 

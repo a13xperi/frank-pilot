@@ -230,6 +230,41 @@ describe("ApplicationService.create()", () => {
     expect(mockRaiseFraudFlag).not.toHaveBeenCalled();
   });
 
+  it("is idempotent on conversation_id — a conflicting create returns the existing application with no duplicate side effect (audit #3)", async () => {
+    mockCheckDuplicateSSN.mockResolvedValue({
+      isDuplicate: true,
+      existingApplicationIds: ["app-existing"],
+    });
+    const existing = { id: "app-existing", status: "screening", created_at: new Date("2026-07-01T00:00:00.000Z") };
+    // INSERT ... ON CONFLICT (conversation_id) DO NOTHING → no row returned;
+    // the follow-up SELECT returns the application already on file.
+    const clientQuery = jest
+      .fn()
+      .mockResolvedValueOnce(qr([])) // INSERT conflict
+      .mockResolvedValueOnce(qr([existing])); // SELECT existing
+    mockTransaction.mockImplementation(async (fn) => fn(makeClient(clientQuery)));
+
+    const service = makeService();
+    const result = await service.create(
+      { ...minimalInput(), conversationId: "conv_dup_1" },
+      "user-001",
+      "leasing_agent"
+    );
+
+    expect(result).toEqual(existing);
+    // The INSERT carried the conflict clause.
+    expect(String(clientQuery.mock.calls[0][0])).toMatch(/ON CONFLICT \(conversation_id\)/i);
+    // Follow-up SELECT keyed on the minting conversation.
+    expect(String(clientQuery.mock.calls[1][0])).toMatch(
+      /SELECT id, status, created_at FROM applications WHERE conversation_id/i
+    );
+    expect(clientQuery.mock.calls[1][1]).toEqual(["conv_dup_1"]);
+    // No duplicate side effects on the replay — even though the SSN "duplicate"
+    // check returned true, the fraud flag and the create-audit must NOT re-fire.
+    expect(mockRaiseFraudFlag).not.toHaveBeenCalled();
+    expect(mockWriteAuditLog).not.toHaveBeenCalled();
+  });
+
   it("checks address fraud when currentAddressLine1 is provided", async () => {
     mockCheckDuplicateSSN.mockResolvedValue({ isDuplicate: false, existingApplicationIds: [] });
     const mockClient = makeClient(jest.fn().mockResolvedValue(qr([{ id: "app-004", status: "draft", created_at: new Date() }])));
