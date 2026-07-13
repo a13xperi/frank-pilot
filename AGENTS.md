@@ -66,3 +66,6 @@ src/
 - Mock database and external service calls
 - Compliance-aware tests (FCRA notes in test descriptions)
 - Tests in `src/__tests__/` directory
+
+## Architecture doctrine
+Read `~/battlestation/docs/fable-manuals/frank-pilot-platform.md` before extending a module, a route, or a compliance surface. The one organizing principle it extracts: **every consequential act must be provable after the fact, and nothing consequential may happen by silent default** — which is why the compliance tape is hash-chained and UPDATE-trigger-protected, a missing screening API key *throws* instead of returning a clean stub (`src/modules/screening/stub-policy.ts`), every status change appends `{from,to,trigger,actorId,actorRole,at,evidence}` to `status_history`, and the fair-housing report joins denials against adverse-action notices to prove every denial has its paper trail. When you extend the platform, your first question is not "how do I add this feature" but "what immutable evidence must it leave behind, and what is its fail-closed default." Validated 2026-07-13 (4/4 traps) against this repo; the housing-compliance reasoning it points into lives in `~/battlestation/docs/fable-manuals/compliance/INDEX.md`.
