@@ -275,15 +275,21 @@ Two **separate** asks per site: **(1) compute LOAD** → service-capacity **load
 Request" / ESR) against the existing transformer; **(2) 250 kW BESS** → **DER interconnection** under **Rule
 15 South / RE-1 design standard**, filed via the **PowerClerk** portal. Every BESS >25 kW triggers
 engineering review; the gating test is the **15 %-of-feeder-peak-load** screen, and feeder **hosting
-capacity** lives on NV Energy's **DRP map** (Okta-login-gated → not headless-reachable → P5 artifact). A
+capacity** lives on NV Energy's **DRP map** (`drp.nvenergy.com` — **map view is public; address lookup +
+layer toggle + value popups are login-gated** via Azure AD B2C, but **registration is self-service**, so Gate D
+is reachable after a one-time signup — verified 2026-06-08, supersedes the earlier "P5 / not-reachable" read).
+The map carries separate **LHC** (load hosting capacity → the ~180 kW load add) and **GHC** (generation/DER
+hosting capacity → the ~250 kW BESS) layers, tiered 0–1 / 1.1–5 / 5.1+ MW per feeder *section* (not parcel); an
+**"Aggregate Data"** export may allow a bulk pull vs. 17 lookups. A
 **non-export** (behind-the-meter) config is the expediting lever and the design intent here.
 
 **Verdict rubric (honest):** transformer headroom is **Unknown** (kVA in no record) and feeder HCA is
 **login-gated**, so **no site can be GREEN or RED on confirmed data** — every verdict is **provisional
-AMBER**, leaned by inferred service size:
-- **AMBER▲ (leans feasible)** — large service; ~180 kW compute + 250 kW BESS likely absorbable with peak-shave; confirm by load-letter.
-- **AMBER (capacity study)** — mid service; genuine NV Energy study needed.
-- **AMBER▼ (upgrade likely)** — small service; compute+BESS likely exceeds headroom → service upgrade or aggressive peak-shave.
+AMBER**, leaned by inferred service size: **AMBER▲** leans-feasible (large service; ~180 kW compute + 250 kW
+BESS likely absorbable with peak-shave) · **AMBER** capacity-study (mid service) · **AMBER▼** upgrade-likely
+(small service). The deterministic rule that flips these to **GREEN/RED** once NV Energy returns kVA + feeder
+hosting capacity is codified in **`nv-energy-stage4-response.md` §3** (the two-gate load/DER test) — apply it
+verbatim on reply; that file is the receiver kit for the Stage-4 response.
 
 ### The 17-row matrix
 
@@ -320,6 +326,61 @@ exceed headroom on most sites → service upgrades. **The 250 kW BESS + peak-sha
 energy stack) is therefore not polish — it is the mechanism that keeps *net* grid draw inside the existing
 service**, converting most AMBER▼ sites to feasible-without-upgrade. The never-import-on-peak dispatch
 invariant is exactly what an NV Energy load-letter review will want to see.
+
+---
+
+## Stage 4c — CLV permit-status portal, record-level scope capture  ✅ 2026-06-08
+
+A layer the GIS sweep (finding 9) can't reach. The CLV **permit-status portal** (`ProjectsByParcel`
+API on the Vue "check-status" module) carries a per-record **free-text Scope-of-Work field** the
+ArcGIS `BuildingPermits` layer omits. Pulled headless via the portal's own endpoint — **fully public,
+no login** (reCAPTCHA v3 action `CheckStatus` + DNN anti-forgery token from `$.ServicesFramework`).
+**8 of 10 parcels captured; 2 reCAPTCHA-score-throttled → re-pull pending.**
+
+```
+ CLV record sources, what each exposes
+ ───────────────────────────────────────────────────────────────────
+ ArcGIS BuildingPermits  →  vertical permits (Multi-Family-New,        type + class,
+   (P1, finding 9)            Electrical-Only, Master Pkg) by PRCLID    NO scope text, NO kVA
+ Portal ProjectsByParcel →  OffSite + Planning + Agreement records,    full scope text,
+   (Stage 4c, this pass)      civil/water/SDR/ZVL/landscape by APN      ← found "SWG plan"
+ Portal ProjectsByAddress→  vertical Electrical-Only permit SCOPE      ← NEXT probe; only
+   (not yet run)              (filed under address, not parcel)            place amps may appear
+```
+
+**Three findings:**
+1. **🔑 Sarann Knight (`…026`) — switchgear on record.** Permit **L-39899** *"SWG plan for the addition
+   of a 4-story, 82-unit apartment building…"* (workType Utility, status Inspections) + **L-39900**
+   *"Combo utility plan…"*. **SWG = switchgear** — the first CLV *public* record naming a service
+   component. Still **Likely max / `Inferred? = YES`**: the record names the switchgear plan's
+   *existence*, never its **rating** (no amps / voltage / kVA). Does not upgrade the row.
+2. **Parcel pass ≠ address pass.** `ProjectsByParcel` returns **OffSite + Planning + Agreement**
+   records — NOT the vertical **Electrical-Only** permits the P1 GIS sweep counted. Those are filed
+   under the **address** → `ProjectsByAddressKey`. The Electrical-Only permit's scope text is the **one
+   remaining public place an amperage could surface**, and is the next probe (where it exists: Robinson,
+   Sarann, Fletcher, Bryan, Barlow Master Pkg).
+3. **Zero kVA / amps / voltage** in any captured scope field — consistent with finding 9. **Nothing
+   upgrades to Confirmed; NV Energy stays the only Confirmed path.**
+
+| Parcel | Building | Portal records (ProjectsByParcel pass) | Electrical signal | Conf. |
+|--------|----------|-----------------------------------------|-------------------|-------|
+| `…503028` | Aldene Kline Barlow (UT1) | 7: L-33710 civil (4-story 82u +existing 32u), L-44881 water meter, L22-01115 fiber/B100 vault, L-36312/36052/34099/44563 revisions | none (OffSite/Planning only) | Unknown |
+| `…503027` | Ethel Mae Robinson (UT2) | **throttled — re-pull** (P1: 13 commercial incl **2× Electrical-Only**) | pending | Unknown |
+| `…503026` | Sarann Knight (UT3) | 6: **L-39899 "SWG plan"** ⚡, L-39900 combo-utility, L-33704 civil, 34141-SDR (39u senior, APNs …026–028), L-36313 rev, 35100-ZVL | **switchgear plan** (no rating) | Likely · Inferred=YES |
+| `…503022` | David J. Hoggard | 3 (all Planning): 2173-SDR (100u senior), 4571-VAC drainage, 100800-ZVL (2024) | none | Unknown |
+| `…504001` | Ethel Mae Fletcher (1503) | 1: 53808-ZVL (covers `…504001` **and** `…504002`, R-3) | none | Unknown |
+| `…504002` | Fletcher alt (1403, 42u) | **throttled — re-pull** (P1: commercial w/ Electrical-Only) | pending | Unknown |
+| `…518004` | Mike O'Callaghan | **throttled — re-pull** (P1 + finding 9: **0 vertical permits** → vacant-lot/wrong-APN flag) | pending | Unknown |
+| `…402015` | Juan Garcia Garden | 3: A-24085 landscape license, L-27260 LVVWD valve, 77481-ZVL (…015 & 016) | none | Unknown |
+| `…202007` | Louise Shell | 4: A-22155/A-31045 landscape licenses, L-37364/L-45143 LVVWD water main/service | none | Unknown |
+| `…201001` | Senator Harry Reid | 3: A-17316 landscape, A-32810/A-32819 covenants (**alley paving**) | none (reconciles P1 "0 permits" — GIS omits Agreements) | Unknown |
+| `…101022` | Senator Richard Bryan | 1: 37346-ZVL (2651 Searles) | none (P1: 61 permits incl 2× Electrical-Only **under address**) | Unknown |
+
+> **Portal contract (for re-pull / address pass):** `PUT https://www.lasvegasnevada.gov/API/CLVWebApi/v1/Cs/ProjectsByParcel?`
+> · body `{Id:<APN>, Name:"", Num:"", Key:"", CaptchaToken:<tok>}` · headers from `$.ServicesFramework(moduleid)`
+> (`ModuleId`/`TabId`/`RequestVerificationToken=getAntiForgeryValue()`) · token `grecaptcha.execute(siteKey,{action:"CheckStatus"})`.
+> Response `WebStatusProjectcollection[]`. reCAPTCHA v3 is **score-based** — keep cadence ≥3 s and batches small or the
+> score drops and the body returns `null`. Address pass = `ProjectsByAddressKey` (needs an AddressKey from autocomplete).
 
 ---
 
@@ -375,10 +436,11 @@ invariant is exactly what an NV Energy load-letter review will want to see.
 - [x] ✅ **Owner-verified all 17 parcels** via the Assessor detail page (2026-06-03): owner-of-record, situs, use, units, year built. **9 of 14 first-pass APNs were wrong** → corrected (see master table + correction note). Reversed both "collapse" assumptions (Donna = 2 parcels; H St = 3 parcels) → **17 buildings = 17 parcels**. Satisfies the owner-of-record prerequisite for the NV Energy requests.
 - [x] ✅ Stage 2 prerequisite: AHJ resolved for every parcel (centroid vs. county `Cities` layer) — **10 City of Las Vegas, 4 NLV, 2 unincorporated Clark County (Luther Mack, Meacham / Enterprise), 1 Henderson.**
 - [x] ✅ **Re-keyed both sibling files to the corrected APNs** (2026-06-03): [`permit-stage2-worksheet.md`](./permit-stage2-worksheet.md) and [`nv-energy-service-request.md`](./nv-energy-service-request.md) now carry the 17-parcel / owner-verified set — consistent with this master doc.
-- [ ] **GPMG to confirm 3 ownership questions** (block-level ambiguity): Fletcher 1503 `…504001` (18u) vs 1403 `…504002` (42u); O'Callaghan built bldg `…518004` (not the adjacent CDPC vacant lot `…518005`); Smith Williams service-account holder vs fee owner CHURCH COMMUNITY BAPTIST (ground lease?).
+- [x] ✅ **3 ownership questions RESOLVED from public records (2026-06-08)** — no GPMG confirmation needed: **Fletcher** = 1503 `…504001` (18u), VGAS 1 DCATUR LLC — LV business license **G64-00154** names "Ethel Mae Fletcher" on this exact APN; the 1403 `…504002` (42u) is a *separate* VGAS building, not Fletcher. **O'Callaghan** = built bldg `…518004` (1501 LLC), not the vacant `…518005`. **Smith Williams** account/operating entity = **SMITH WILLIAMS, LLC** (Henderson license **#2023321628**, bills to the CDPCN/GPMG address); fee owner CHURCH COMMUNITY BAPTIST. All folded into the NV Energy request + submission email.
 - [~] Stage 2 permit dig — **NLV (4 parcels) DONE 2026-06-03**: public inventories captured (Donna 1 BD145340 + elec BD150889/BD153590; Donna 2 BD145341 + elec BD150892; Owens BD96712 Commercial-New 2008; Yale BD22311 Multi-Family-New 2002 + a lapsed 2020 NV Energy dry-utility permit). **Finding 8 — service size is portal-gated → these rows stay "service Unknown."** **City of LV (10) + Henderson (1) DONE 2026-06-08 via public ArcGIS REST** (queried by APN; existence + commercial class — **no kVA/voltage/phase in the GIS schema**, finding 9). **Only unincorp. Clark Co. (2, Accela) remains** (OAuth-registration-gated → P5, existence-only). Per-building 3φ + interconnect verdict now in **Stage 4b**. Still confirm meter topology on the H St campus (3 parcels) + 2 Donna parcels (via NV Energy).
 - [ ] **NEW lever (NLV + Henderson, finding 8):** GPMG opens its own EnerGov permits **logged in as the record contact/applicant** → unlocks More Info (custom fields) + the approved electrical plan set in Attachments — the only route to NLV/Henderson service size short of NV Energy.
-- [ ] Stage 3: send NV Energy facility request (all owners now verified — authorize per owner entity; see Stage 3 owner list).
+- [x] ✅ **CLV portal record-level pass — DONE 8/10 (2026-06-08, Stage 4c). CLV scrape CLOSED.** Reverse-engineered the CLV `ProjectsByParcel` API (reCAPTCHA action `CheckStatus` + DNN ServicesFramework headers) to read per-permit scope text the GIS layer omits; surfaced **Sarann Knight L-39899 "SWG plan" (switchgear)** — first CLV public record naming a service component (rating still not stated → stays Likely). **0 kVA / amps / voltage across all 8 → nothing upgrades to Confirmed.** Two *optional* follow-ups recorded but **not blocking** (neither can yield kVA → Confirmed; that stays NV Energy-only): (a) re-pull the 3 reCAPTCHA-throttled parcels (Robinson `…027`, Fletcher-alt `…504002`, O'Callaghan `…518004` — all already covered by the P1 GIS sweep); (b) address pass (`ProjectsByAddressKey`) for the vertical Electrical-Only permits. ⚠️ **2026-06-10 — both optional passes confirmed HEADLESS-BLOCKED**: navigated to the correct Vue app page (`/Business/Permits-Licenses/Building-Permits/Permit-Application-Status`), obtained valid DNN ServicesFramework tokens (module 2222, tabId 716) + executed reCAPTCHA v3 (action `CheckStatus`, siteKey `6LfuJkoaAAAAAAmq-V3IK5U-9AXPMTpHDHdJzzj4`) from a playwright session — API returned `null` (reCAPTCHA score too low in headless mode). **These optional passes require a human browser session** to achieve sufficient reCAPTCHA v3 score.
+- [~] **Stage 3: NV Energy facility request — DRAFTED & send-ready (2026-06-08).** Copy-paste email in [`nv-energy-submission-email.md`](./nv-energy-submission-email.md); **clean GPMG send packet** (working-notes stripped, ready to forward) in [`nv-energy-gpmg-handoff.md`](./nv-energy-gpmg-handoff.md). Channel verified = Southern NV **New Development Coordinator** desk `ndc@nvenergy.com` / **(702) 402-8400** (releases transformer kVA via a service-planning/pre-design consultation — the *only* path to Confirmed). All 17 premises + 14 entities + 3 ownership questions resolved. **Blocked only on GPMG requestor identity + one authorization signature** (then send — outbound, needs Alex's go). Self-serve adjuncts now identified: **Property Manager Portal** (meter/account inventory) + **DRP map** `drp.nvenergy.com` (feeder hosting capacity — map view public, but lookups need a **one-time self-service DRP Portal registration**; verified 2026-06-08).
 - [x] ✅ Stage 1 + Stage 2 SOP + Stage 3 request all extended to the full 17-parcel portfolio.
 - [x] ✅ Re-validated the **Senator Richard Bryan** APN: sliver `13925297003` → **`13925101022`** (SOUTHERN NV HOUSING AUTHORITY, 6.08 ac, 165 units, blt 2007). 2026-06-03.
 - [x] ✅ **2026-06-08 — P1 GIS permit sweep (CLV ×10 + Henderson ×1, public ArcGIS REST) + P2 3φ inference + P3 NV Energy interconnection screen → Stage 4b matrix** (all 17): **16/17 Likely 3-phase, 0 Confirmed**; interconnect **all provisional-AMBER** (6 lean-feasible / 4 study / 7 upgrade-likely) pending NV Energy load-letter + DRP feeder hosting-capacity. Fletcher 1φ/3φ ambiguity resolved toward 3φ. Folded into the white paper (new §1.5 + Appendix E).

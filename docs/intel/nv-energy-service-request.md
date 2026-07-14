@@ -5,8 +5,10 @@ southern Nevada, so a single utility request can cover the whole portfolio regar
 **the only thing that splits the request is owner-of-record authorization** (see authorization section).
 
 **Status:** ✅ **All 17 owners-of-record are now verified** against the Clark County Assessor — every parcel is
-authorizable. The portfolio resolves to **14 distinct owning entities** (several SPEs own one parcel each).
-Three parcels carry caveats that affect *who signs* (Fletcher, O'Callaghan, Smith Williams — see ⚠ flags).
+authorizable. The portfolio resolves to **14 distinct owning entities** (several SPEs own one parcel each). The
+three prior who-signs caveats (Fletcher, O'Callaghan, Smith Williams) are now ✅ **resolved from public records
+2026-06-08** (see the ✅ caveat block). **Only the requestor identity + one authorization signature remain** to
+send; channel verified (NDC desk). Ready-to-paste email: [`nv-energy-submission-email.md`](./nv-energy-submission-email.md).
 
 > ⚠️ **APNs corrected 2026-06-03.** The first-pass point-query was wrong for 9 of the original 14 parcels (it
 > hit adjacent slivers / stale "X99" master parcels with no assessment record). Every APN below is owner-verified
@@ -14,8 +16,13 @@ Three parcels carry caveats that affect *who signs* (Fletcher, O'Callaghan, Smit
 > separate parcels**, and the **1327 H St campus = 3 separate parcels** (UT 1/2/3) → **17 buildings = 17 parcels**.
 
 **Why this is the critical path:** NV Energy transformer kVA is in **no** public record. This request is the
-*only* path to a "Confirmed" transformer rating. Send via NV Energy Builder/Developer Services
-(https://www.nvenergy.com/cleanenergy/builders-developers) or your account's service-planning contact.
+*only* path to a "Confirmed" transformer rating. **Send to the Southern Nevada New Development Coordinator (NDC)
+team — `ndc@nvenergy.com` / (702) 402-8400** (the service-planning desk; *not* general customer service). NV
+Energy releases transformer/capacity data as engineering data within a **service-planning (pre-design)
+consultation**, so the letter's job is to *open* that consultation. Parallel track: enroll in the **Property
+Manager Portal** to self-pull meter inventory + account numbers across the 17 premises. Feeder hosting capacity
+(item 6) is on the **public DRP map** (`drp.nvenergy.com/drp-external/DRPWebMap/index.html`) — self-serve. The
+ready-to-paste email is in [`nv-energy-submission-email.md`](./nv-energy-submission-email.md).
 
 ---
 
@@ -46,13 +53,13 @@ generation/storage, and need the as-built service facts to do so.
 | 8 | David J. Hoggard Family | 1100 W Monroe Ave | Las Vegas 89106 | **13928503022** | SOUTHERN NV HOUSING AUTHORITY | 100 |
 | 9 | Luther Mack, Jr. Senior | 8158 Giles St | Las Vegas 89123 (unincorp.) | **17716101027** | MIXED INCOME LLC | 48 |
 | 10 | Dr. Paul Meacham Senior | 65 E Windmill Ln | Las Vegas 89123 (unincorp.) | **17716101026** | MIXED INCOME 2 LLC | 57 |
-| 11 | Ethel Mae Fletcher ⚠ | 1503 Laurelhurst Dr | Las Vegas 89108 | **13825504001** | VGAS 1 DCATUR LLC | 18 |
+| 11 | Ethel Mae Fletcher ✅ | 1503 Laurelhurst Dr | Las Vegas 89108 | **13825504001** | VGAS 1 DCATUR LLC | 18 |
 | 12 | Mike O'Callaghan Legacy ⚠ | 1502 Laurelhurst Dr | Las Vegas 89108 | **13825518004** | 1501 LLC | 40 |
 | 13 | Juan Garcia Garden | 2851 Sunrise Ave | Las Vegas 89101 | **13936402015** | ERNIE CRAGIN LP | 52 |
 | 14 | Louise Shell Senior | 2101 N MLK Blvd | Las Vegas 89106 | **13921202007** | LSHP LP | 100 |
 | 15 | Senator Harry Reid Senior | 334 N 11th St (mail 328) | Las Vegas 89101 | **13935201001** | 11TH STREET LP | 100 |
 | 16 | Senator Richard Bryan Senior | 2651 Searles Ave | Las Vegas 89101 | **13925101022** | SOUTHERN NV HOUSING AUTHORITY | 165 |
-| 17 | Smith Williams Senior ⚠ | 575 E Lake Mead Pkwy | Henderson 89015 | **17908301011** | CHURCH COMMUNITY BAPTIST (fee) | 80 |
+| 17 | Smith Williams Senior ✅ | 575 E Lake Mead Pkwy | Henderson 89015 | **17908301011** | SMITH WILLIAMS, LLC (operator) · fee owner CHURCH COMMUNITY BAPTIST | 80 |
 
 > **~1,157 dwelling units across 17 parcels.** All APNs are Assessor-verified (owner / situs / units / year).
 
@@ -115,20 +122,21 @@ split per entity.
 | **ERNIE CRAGIN LP** | 13936402015 (Juan Garcia) | `[name / title]` | `__________ / ____` |
 | **LSHP LP** | 13921202007 (Louise Shell) | `[name / title]` | `__________ / ____` |
 | **11TH STREET LP** | 13935201001 (Harry Reid) | `[name / title]` | `__________ / ____` |
-| **CHURCH COMMUNITY BAPTIST** ⚠ (fee owner — see note) | 17908301011 (Smith Williams) | `[name / title]` | `__________ / ____` |
+| **SMITH WILLIAMS, LLC** (operator / account entity) ✅ · fee owner CHURCH COMMUNITY BAPTIST | 17908301011 (Smith Williams) | `[name / title]` | `__________ / ____` |
 
 > Authorization wording per entity: *"I, [name], as [title] for [entity], authorize NV Energy to release the
 > existing service and transformer facility information for the parcel(s) listed above to [requestor]."*
 
-### ⚠ Ownership caveats — confirm with GPMG before signing
-- **Fletcher (`13825504001`, VGAS 1 DCATUR LLC, 1503 Laurelhurst, 18u)** — a **same-owner** parcel
-  `13825504002` at **1403** Laurelhurst (42u) also exists. If GPMG's "Fletcher" is the larger 1403 building,
-  authorize that APN instead/also. Leading with the exact situs match (1503).
-- **O'Callaghan (`13825518004`, 1501 LLC, 1502 Laurelhurst, 40u, built 2025)** — this is the operating
-  building. The adjacent `13825518005` (CDPC) is a **vacant** lot — do not authorize it.
-- **Smith Williams (`17908301011`)** — **fee owner of record = CHURCH COMMUNITY BAPTIST**; GPMG likely holds a
-  ground lease/leasehold. NV Energy's **service-account holder may be the GPMG operator, not the fee owner** —
-  confirm which entity holds the meter before authorizing, and authorize accordingly.
+### ✅ Ownership caveats — RESOLVED from public records 2026-06-08
+- **Fletcher (`13825504001`, VGAS 1 DCATUR LLC, 1503 Laurelhurst, 18u)** — ✅ **RESOLVED.** Las Vegas business
+  license **G64-00154** names "Ethel Mae Fletcher" on this exact APN. The same-owner `13825504002` at **1403**
+  Laurelhurst (42u) is a **separate** VGAS building, **not** Fletcher — do not conflate. Authorize **`…504001`**.
+- **O'Callaghan (`13825518004`, 1501 LLC, 1502 Laurelhurst, 40u, built 2025)** — ✅ operating building (locked).
+  The adjacent `13825518005` (CDPC) is a **vacant** lot — do not authorize it.
+- **Smith Williams (`17908301011`)** — ✅ **RESOLVED.** Operating/account entity = **SMITH WILLIAMS, LLC**
+  (Henderson business license **#2023321628**, "80-unit LIHTC development," billing to the CDPCN/GPMG address
+  2009 Alta Dr). Fee owner of record remains **CHURCH COMMUNITY BAPTIST** (classic LIHTC ground-lease split).
+  **Authorize as SMITH WILLIAMS, LLC** (the operator holds the meter), noting the church as fee owner.
 
 ---
 
@@ -139,7 +147,8 @@ split per entity.
 | Requestor identity (`[name]`, `[title]`, `[email]`, `[phone]`) | ⬜ needed |
 | Authorized-agent signature(s) — 14 owning entities | ⬜ needed — one combined signature if a single GPMG agent is authorized across all entities, else per entity |
 | Owner-of-record entity names (all 17 parcels) | ✅ verified 2026-06-03 (Assessor) |
-| Fletcher / O'Callaghan / Smith Williams ownership caveats | ⬜ confirm with GPMG (see ⚠ block) |
+| Fletcher / O'Callaghan / Smith Williams ownership caveats | ✅ resolved from public records 2026-06-08 (see ✅ block) |
+| Submission channel (NDC desk, contacts) | ✅ verified 2026-06-08 — `ndc@nvenergy.com` / (702) 402-8400 |
 
 ## After it sends
 - Log the send date and set each Stage-4 row to **"Likely + NV Energy request pending"** until reply.
@@ -151,7 +160,12 @@ split per entity.
 ## Gated-layer unlock checklist (what public records can't reach — one action each)
 
 The 2026-06-08 permit dig (white-paper §1.5 / Stage-4b matrix) drove every auth-free public source to its ceiling:
-**all 17 Likely 3-phase, 0 Confirmed.** Four gated layers remain — each a one-action unlock GPMG can perform.
+**all 17 Likely 3-phase, 0 Confirmed.** The CLV permit-status portal record-level pass (Stage 4c, 8/10 parcels)
+went one layer deeper than the GIS sweep — reading per-permit scope text — and surfaced the **first CLV public
+record to name a service component** (Sarann Knight, permit **L-39899 "SWG plan" = switchgear**). It still states
+**no kVA / amps / voltage**, so it corroborates the 3φ commercial-service inference but upgrades nothing to
+Confirmed. Conclusion holds: public records top out at Likely. Four gated layers remain — each a one-action unlock
+GPMG can perform.
 
 ### A. NV Energy Stage-4 request — the **only** path to "Confirmed" (all 17)
 The letter above. Converts inferred service → Confirmed kVA + voltage + phase, and opens the load + storage asks.
