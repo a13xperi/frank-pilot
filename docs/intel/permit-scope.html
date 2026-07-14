@@ -82,8 +82,8 @@
 
   <h1>GPMG NV — Electrical Permit Scope</h1>
   <p class="sub">Affordable / senior-housing portfolio · permit validation status &nbsp;·&nbsp;
-    <b>Parcels confirmed ✅ &nbsp; Permit scrape 15/17 ✅ &nbsp; 3φ inference ✅ &nbsp; Transformer kVA pending ⬜</b>
-    &nbsp;·&nbsp; updated 2026-06-10</p>
+    <b>Parcels confirmed ✅ &nbsp; Permit scrape 17/17 ✅ &nbsp; 3φ inference ✅ &nbsp; Transformer kVA pending ⬜</b>
+    &nbsp;·&nbsp; updated 2026-07-14</p>
 
   <div class="stats">
     <div class="stat"><div class="n">17</div><div class="l">buildings</div></div>
@@ -96,8 +96,8 @@
   <div class="pipe">
     <div class="step done"><div class="s">Stage 1 · ✅ Done</div><div class="t">Parcel + owner</div>
       <div class="d">17/17 owner-verified against the County Assessor.</div></div>
-    <div class="step done"><div class="s">Stage 2 · ✅ Done (15/17)</div><div class="t">Permit scrape</div>
-      <div class="d">NLV ×4 + CLV ×10 + Henderson ×1 scraped (ArcGIS REST, 2026-06-08). Service detail gated on NLV/Henderson (contact-login). Clark Co. ×2 pending (Accela OAuth).</div></div>
+    <div class="step done"><div class="s">Stage 2 · ✅ Done (17/17)</div><div class="t">Permit scrape</div>
+      <div class="d">NLV ×4 + CLV ×10 + Henderson ×1 + Clark Co. ×2 (Accela CLARKCO) all scraped — 2026-06-08. Service detail gated on NLV/Henderson (contact-login). <b>0 records state kVA / amps / voltage anywhere.</b></div></div>
     <div class="step wait"><div class="s">Stage 3 · ⬜ Pending</div><div class="t">NV Energy kVA</div>
       <div class="d">The only authoritative source for transformer size. Request drafted — blocked on GPMG requestor identity + signature.</div></div>
     <div class="step now"><div class="s">Stage 4 · 🔄 In progress</div><div class="t">3φ inference + verdicts</div>
@@ -171,12 +171,16 @@
   <!-- UNINCORPORATED CLARK COUNTY -->
   <div class="group">
     <div class="ghead"><h2>Unincorporated Clark County</h2><span class="cnt">2 parcels · 105 units</span>
-      <span class="gstat" style="color:var(--amber)">🔄 Accela OAuth-gated (pending)</span></div>
+      <span class="gstat" style="color:var(--green)">✅ Accela CLARKCO scraped (no elec schema)</span></div>
     <table>
       <thead><tr><th>Building</th><th>Address</th><th class="num">Units</th><th>APN</th><th>Owner of record</th><th>Status</th><th>Permits found</th></tr></thead>
       <tbody>
-        <tr><td class="bld">Luther Mack, Jr. Senior</td><td>8158 Giles St <span class="meta">89123</span></td><td class="num">48</td><td class="apn">17716101027</td><td>MIXED INCOME LLC</td><td><span class="badge b-pend">Pending</span></td><td class="dash meta">Accela CLARKCO — OAuth registration required</td></tr>
-        <tr><td class="bld">Dr. Paul Meacham Senior</td><td>65 E Windmill Ln <span class="meta">89123</span></td><td class="num">57</td><td class="apn">17716101026</td><td>MIXED INCOME 2 LLC</td><td><span class="badge b-pend">Pending</span></td><td class="dash meta">Accela CLARKCO — OAuth registration required</td></tr>
+        <tr><td class="bld">Luther Mack, Jr. Senior</td><td>8158 Giles St <span class="meta">89123</span></td><td class="num">48</td><td class="apn">17716101027</td><td>MIXED INCOME LLC</td>
+          <td><div class="stack"><span class="badge b-done">Accela scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">38 records — Commercial Electric BD13-14515-EL3 + 4-permit Commercial Solar <span class="meta">(on-site PV ⇒ 3φ)</span></td></tr>
+        <tr><td class="bld">Dr. Paul Meacham Senior</td><td>65 E Windmill Ln <span class="meta">89123</span></td><td class="num">57</td><td class="apn">17716101026</td><td>MIXED INCOME 2 LLC</td>
+          <td><div class="stack"><span class="badge b-done">Accela scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">31 records — Commercial Electric BD13-40321-EL3 + <span class="warn">85 kW carport solar</span> BD14-24297-ELRV</td></tr>
       </tbody>
     </table>
   </div>
@@ -202,7 +206,7 @@
     <div class="row"><span class="badge b-done">ArcGIS scraped</span><div><b>Permit existence confirmed</b> via CLV / Henderson public ArcGIS REST permit layers (queried by APN). <b>No amperage / voltage / phase / kVA field in the GIS schema</b> — type + free-text description only. Does not substitute for an NV Energy confirmation.</div></div>
     <div class="row"><span class="badge b-gate">🔒 detail gated</span><div><b>Permit found, but service size is locked.</b> The amps / voltage / kVA tabs require a <i>record-contact login</i>. Two ways to unlock: (a) GPMG logs in as the permit contact, or (b) an NV Energy authorized request.</div></div>
     <div class="row"><span class="badge b-gate">⬜ no elec schema</span><div><b>ArcGIS layer has no electrical fields.</b> Only permit type and description are public; amps/voltage/kVA do not exist in this schema. NV Energy is the only path to these values.</div></div>
-    <div class="row"><span class="badge b-pend">Pending</span><div><b>Portal not yet run</b> for that parcel (Clark Co. Accela requires OAuth registration).</div></div>
+    <div class="row"><span class="badge b-done">Accela scraped</span><div><b>Clark County Citizen Access (<code>CLARKCO</code>) driven by parcel.</b> The CapDetail schema exposes permit type / status / location / job value only — <b>no amps / volts / kVA field exists</b>. Commercial-Electric permits + on-site solar PV corroborate 3φ service, but rate nothing.</div></div>
     <div class="row"><span class="badge b-gate" style="background:rgba(91,140,255,.14);color:var(--blue)">⬜ kVA</span><div><b>Transformer rating is Unknown for every parcel</b> until NV Energy confirms it — that is the only authoritative source, and closing it is the whole point of Stage 3.</div></div>
   </div>
 
