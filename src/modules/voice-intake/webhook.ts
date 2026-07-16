@@ -12,6 +12,7 @@ import {
   handleOutboundPostCall,
 } from "../outbound-validation/outcome";
 import { isCareLineEvent, handleCareLinePostCall } from "../care-line";
+import { enqueueCallReview } from "./call-review-queue";
 import { updateCallerHistory } from "../caller-history/service";
 import {
   findFollowUpByConversation,
@@ -242,6 +243,16 @@ async function dispatch(event: ElevenLabsEvent): Promise<void> {
   switch (event.type) {
     case "post_call_transcription":
     case "post_call_audio": {
+      // Feedback-loop Phase 2: enqueue EVERY call for the operator-side
+      // review pass (flag-gated inside; dark by default). Sits before the
+      // outbound/care-line routing splits on purpose — every line gets
+      // reviewed. Fire-and-forget: a queue failure must never DLQ the event.
+      void enqueueCallReview(event.data, event.type).catch((err) =>
+        logger.error("call-review enqueue failed (non-fatal)", {
+          conversationId: event.data.conversation_id,
+          error: (err as Error).message,
+        })
+      );
       // Outbound waitlist-validation calls share this front door (same
       // signature/idempotency/DLQ stack) but are NOT intakes — route them to
       // the outcome mapper and skip voice_intake_calls persistence.
