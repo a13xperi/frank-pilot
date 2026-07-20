@@ -68,4 +68,38 @@ describe("staff login rate limit (audit #7b)", () => {
       expect(res.status).toBe(401); // never 429 while skip() is true
     }
   });
+
+  it("429s the 31st attempt from one IP spraying DIFFERENT accounts (wide per-IP bucket)", async () => {
+    // The per-(IP,email) bucket (max 5) never trips when every guess targets a
+    // new account — loginIpLimiter (max 30) is the only thing that stops an
+    // enumeration spray. The limiter stores are module-level and shared with
+    // the other tests, so key this test to its own spoofed IP: trust proxy = 1
+    // makes req.ip read X-Forwarded-For, isolating the bucket.
+    process.env.NODE_ENV = "production";
+    try {
+      const app = buildApp();
+      app.set("trust proxy", 1);
+      const SPRAY_IP = "203.0.113.77";
+      const attempt = (ip: string, email: string) =>
+        request(app)
+          .post("/api/auth/login")
+          .set("X-Forwarded-For", ip)
+          .send({ email, password: "guess" });
+
+      for (let i = 1; i <= 30; i++) {
+        const res = await attempt(SPRAY_IP, `account-${i}@example.com`);
+        expect(res.status).toBe(401); // each email bucket sits at 1/5
+      }
+
+      const blocked = await attempt(SPRAY_IP, "account-31@example.com");
+      expect(blocked.status).toBe(429);
+      expect(blocked.body.error).toMatch(/too many login attempts/i);
+
+      // Keyed per IP, not globally: a different host still reaches the handler.
+      const otherHost = await attempt("203.0.113.78", "account-31@example.com");
+      expect(otherHost.status).toBe(401);
+    } finally {
+      process.env.NODE_ENV = SAVED_NODE_ENV;
+    }
+  });
 });

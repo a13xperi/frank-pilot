@@ -7,6 +7,7 @@ import { PgTapeRepository } from "./modules/tape/repository";
 import { AdverseActionService } from "./modules/adverse-action/service";
 import { runDialerTick, sweepStuckCalls } from "./modules/outbound-validation/dialer";
 import { runFollowupTick } from "./modules/follow-ups/dialer";
+import { runResearchTick } from "./modules/follow-ups/research-worker";
 import { pushReportToNotion } from "./modules/outbound-validation/report";
 import { WorkOrderEscalationService } from "./modules/maintenance/escalation";
 import { logger } from "./utils/logger";
@@ -326,6 +327,24 @@ export function startScheduler() {
       { timezone: "America/Los_Angeles" }
     );
     logger.info("Follow-up callback cron registered (FRANK_FOLLOWUP_ENABLED=true)");
+  }
+
+  // Research worker (Frank loop middle) — gated on FRANK_RESEARCH_ENABLED. Every
+  // 2 min: claim one needs_research follow_up, ground an answer (property data +
+  // web search), write it back as ready_for_review. Dark until the flag is set, so
+  // the scheduler is byte-identical otherwise.
+  if (process.env.FRANK_RESEARCH_ENABLED === "true") {
+    cron.schedule("*/2 * * * *", async () => {
+      try {
+        const result = await runResearchTick();
+        if (result.action !== "queue_empty" && result.action !== "disabled") {
+          logger.info("Research worker tick", { ...result });
+        }
+      } catch (err) {
+        logger.error("Research worker tick failed", { error: (err as Error).message });
+      }
+    });
+    logger.info("Research worker cron registered (FRANK_RESEARCH_ENABLED=true)");
   }
 
   // Work-order stale-sweep + manager escalation (D1) — gated on
