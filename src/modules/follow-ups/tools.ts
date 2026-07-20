@@ -52,6 +52,12 @@ export async function scheduleFollowupHandler(
   // Structured "exactly where we are in the process" so the callback resumes
   // here instead of starting over (the call-time wrap path fills this).
   const checkpoint = pickString(parameters, "checkpoint");
+  // Research loop: if Frank is calling back to FIND SOMETHING OUT (a fact he didn't
+  // have), capture the open question so the research worker can answer it before the
+  // callback goes out. Triggered by a `question` arg or a research-y reason.
+  const question = pickString(parameters, "question");
+  const needsResearch = !!question || /research|find out|look ?up|get back to you with|the exact/i.test(reason);
+  const researchStatus = needsResearch ? "needs_research" : "none";
 
   if (!phone) {
     return { ok: false, message: "I didn't catch your number — what's the best one for Frank to call you back on?" };
@@ -72,6 +78,10 @@ export async function scheduleFollowupHandler(
     // the outbound callback, so the auto-dialer may place it. (Frank only fires
     // this tool when offering/confirming a callback the caller wants.)
     consentOutbound: true,
+    // Research loop: stash the open question (or the checkpoint as the task) and
+    // flag it so the research worker answers it before the callback goes out.
+    question: question ?? (needsResearch ? checkpoint : null),
+    researchStatus,
   });
   if (!fu) {
     logger.warn("schedule_followup invalid input", { conversationId: context.conversationId });

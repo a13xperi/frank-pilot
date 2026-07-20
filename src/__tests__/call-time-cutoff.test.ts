@@ -84,6 +84,35 @@ describe("schedule_followup time_cutoff = immediate", () => {
     const when = new Date(mockQuery.mock.calls[0][1][4] as string).getTime();
     expect(when).toBeGreaterThan(Date.now() - 5000);
   });
+
+  it("captures a research task (question arg) as research_status=needs_research", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [ROW] });
+    const future = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    await scheduleFollowupHandler(
+      { phone_e164: PHONE, reason: "callback_requested", scheduled_for: future, question: "RTC bus route Donna Louise to Aliante" },
+      CTX
+    );
+    const params = mockQuery.mock.calls[0][1] as unknown[];
+    expect(params[9]).toBe("RTC bus route Donna Louise to Aliante"); // question column
+    expect(params[10]).toBe("needs_research");                       // research_status column
+  });
+
+  it("a research-y reason ('find out') also flags needs_research", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [ROW] });
+    const future = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    await scheduleFollowupHandler(
+      { phone_e164: PHONE, reason: "find out the pet policy", scheduled_for: future, checkpoint: "caller asked pet policy" },
+      CTX
+    );
+    expect((mockQuery.mock.calls[0][1] as unknown[])[10]).toBe("needs_research");
+  });
+
+  it("an ordinary callback is research_status=none", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [ROW] });
+    const future = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    await scheduleFollowupHandler({ phone_e164: PHONE, reason: "callback_requested", scheduled_for: future }, CTX);
+    expect((mockQuery.mock.calls[0][1] as unknown[])[10]).toBe("none");
+  });
 });
 
 describe("maybeCreateCutoffCallback (post-call safety net)", () => {

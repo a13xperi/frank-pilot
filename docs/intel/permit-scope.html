@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GPMG NV — Permit Scope</title>
 <style>
@@ -81,8 +82,8 @@
 
   <h1>GPMG NV — Electrical Permit Scope</h1>
   <p class="sub">Affordable / senior-housing portfolio · permit validation status &nbsp;·&nbsp;
-    <b>Parcels confirmed ✅ &nbsp; Permit scrape in progress 🔄 &nbsp; Transformer kVA pending ⬜</b>
-    &nbsp;·&nbsp; updated 2026-06-07</p>
+    <b>Parcels confirmed ✅ &nbsp; Permit scrape 17/17 ✅ &nbsp; 3φ inference ✅ &nbsp; Transformer kVA pending ⬜</b>
+    &nbsp;·&nbsp; updated 2026-07-14</p>
 
   <div class="stats">
     <div class="stat"><div class="n">17</div><div class="l">buildings</div></div>
@@ -95,12 +96,12 @@
   <div class="pipe">
     <div class="step done"><div class="s">Stage 1 · ✅ Done</div><div class="t">Parcel + owner</div>
       <div class="d">17/17 owner-verified against the County Assessor.</div></div>
-    <div class="step now"><div class="s">Stage 2 · 🔄 In progress</div><div class="t">Permit scrape</div>
-      <div class="d">4/17 captured (North Las Vegas). 13 pending; service detail gated.</div></div>
+    <div class="step done"><div class="s">Stage 2 · ✅ Done (17/17)</div><div class="t">Permit scrape</div>
+      <div class="d">NLV ×4 + CLV ×10 + Henderson ×1 + Clark Co. ×2 (Accela CLARKCO) all scraped — 2026-06-08. Service detail gated on NLV/Henderson (contact-login). <b>0 records state kVA / amps / voltage anywhere.</b></div></div>
     <div class="step wait"><div class="s">Stage 3 · ⬜ Pending</div><div class="t">NV Energy kVA</div>
-      <div class="d">The only authoritative source for transformer size.</div></div>
-    <div class="step wait"><div class="s">Stage 4 · ⬜ Pending</div><div class="t">Evidence rollup</div>
-      <div class="d">Per-building confidence, fills as Stages 2–3 return.</div></div>
+      <div class="d">The only authoritative source for transformer size. Request drafted — blocked on GPMG requestor identity + signature.</div></div>
+    <div class="step now"><div class="s">Stage 4 · 🔄 In progress</div><div class="t">3φ inference + verdicts</div>
+      <div class="d">Stage 4b ✅ — 16/17 Likely 3φ; all 17 provisional AMBER pending NV Energy kVA + feeder HCA. Stage 4c ✅ — CLV scope pass (8/10). Transformer kVA: Unknown all 17.</div></div>
   </div>
 
   <!-- NORTH LAS VEGAS -->
@@ -129,20 +130,40 @@
   <!-- CITY OF LAS VEGAS -->
   <div class="group">
     <div class="ghead"><h2>City of Las Vegas</h2><span class="cnt">10 parcels · 734 units</span>
-      <span class="gstat" style="color:var(--amber)">🔄 Pending scrape</span></div>
+      <span class="gstat" style="color:var(--green)">✅ ArcGIS scraped (permit existence — no elec schema)</span></div>
     <table>
       <thead><tr><th>Building</th><th>Address</th><th class="num">Units</th><th>APN</th><th>Owner of record</th><th>Status</th><th>Permits found</th></tr></thead>
       <tbody>
-        <tr><td class="bld">Aldene Kline Barlow <span class="meta">(1327 H St UT 1)</span></td><td>1327 H St <span class="meta">89106</span></td><td class="num">39</td><td class="apn">13928503028</td><td>CDPC NL LLC</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
-        <tr><td class="bld">Ethel Mae Robinson <span class="meta">(1327 H St UT 2)</span></td><td>1327 H St <span class="meta">89106</span></td><td class="num">82</td><td class="apn">13928503027</td><td>CDPC NL LLC</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
-        <tr><td class="bld">Sarann Knight <span class="meta">(1327 H St UT 3)</span></td><td>1327 H St <span class="meta">89106</span></td><td class="num">38</td><td class="apn">13928503026</td><td>CDPC NL LLC</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
-        <tr><td class="bld">David J. Hoggard Family</td><td>1100 W Monroe Ave <span class="meta">89106</span></td><td class="num">100</td><td class="apn">13928503022</td><td>SOUTHERN NV HOUSING AUTHORITY</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
-        <tr><td class="bld">Ethel Mae Fletcher <span class="warn">⚠</span></td><td>1503 Laurelhurst Dr <span class="meta">89108</span></td><td class="num">18</td><td class="apn">13825504001</td><td>VGAS 1 DCATUR LLC</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
-        <tr><td class="bld">Mike O'Callaghan Legacy <span class="warn">⚠</span></td><td>1502 Laurelhurst Dr <span class="meta">89108</span></td><td class="num">40</td><td class="apn">13825518004</td><td>1501 LLC</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
-        <tr><td class="bld">Juan Garcia Garden</td><td>2851 Sunrise Ave <span class="meta">89101</span></td><td class="num">52</td><td class="apn">13936402015</td><td>ERNIE CRAGIN LP</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
-        <tr><td class="bld">Louise Shell Senior</td><td>2101 N MLK Blvd <span class="meta">89106</span></td><td class="num">100</td><td class="apn">13921202007</td><td>LSHP LP</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
-        <tr><td class="bld">Senator Harry Reid Senior</td><td>334 N 11th St <span class="meta">89101</span></td><td class="num">100</td><td class="apn">13935201001</td><td>11TH STREET LP</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
-        <tr><td class="bld">Senator Richard Bryan Senior</td><td>2651 Searles Ave <span class="meta">89101</span></td><td class="num">165</td><td class="apn">13925101022</td><td>SOUTHERN NV HOUSING AUTHORITY</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
+        <tr><td class="bld">Aldene Kline Barlow <span class="meta">(1327 H St UT 1)</span></td><td>1327 H St <span class="meta">89106</span></td><td class="num">39</td><td class="apn">13928503028</td><td>CDPC NL LLC</td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">4 commercial (Multi-Family-New + Master Pkg)</td></tr>
+        <tr><td class="bld">Ethel Mae Robinson <span class="meta">(1327 H St UT 2)</span></td><td>1327 H St <span class="meta">89106</span></td><td class="num">82</td><td class="apn">13928503027</td><td>CDPC NL LLC</td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">13 commercial incl 2× Electrical-Only</td></tr>
+        <tr><td class="bld">Sarann Knight <span class="meta">(1327 H St UT 3)</span></td><td>1327 H St <span class="meta">89106</span></td><td class="num">38</td><td class="apn">13928503026</td><td>CDPC NL LLC</td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">17 commercial incl Electrical-Only · <span class="warn">⚡ L-39899 SWG plan (switchgear — no rating)</span></td></tr>
+        <tr><td class="bld">David J. Hoggard Family</td><td>1100 W Monroe Ave <span class="meta">89106</span></td><td class="num">100</td><td class="apn">13928503022</td><td>SOUTHERN NV HOUSING AUTHORITY</td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">wall-fence only on this APN <span class="meta">(main bldg on parent parcel)</span></td></tr>
+        <tr><td class="bld">Ethel Mae Fletcher <span class="warn">⚠</span></td><td>1503 Laurelhurst Dr <span class="meta">89108</span></td><td class="num">18</td><td class="apn">13825504001</td><td>VGAS 1 DCATUR LLC</td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">8 commercial Multi-Family incl Electrical-Only</td></tr>
+        <tr><td class="bld">Mike O'Callaghan Legacy <span class="warn">⚠</span></td><td>1502 Laurelhurst Dr <span class="meta">89108</span></td><td class="num">40</td><td class="apn">13825518004</td><td>1501 LLC</td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits"><span class="warn">0 permits on this APN ⚠</span> <span class="meta">(blt 2025 — may be unfiled or on adjacent parcel)</span></td></tr>
+        <tr><td class="bld">Juan Garcia Garden</td><td>2851 Sunrise Ave <span class="meta">89101</span></td><td class="num">52</td><td class="apn">13936402015</td><td>ERNIE CRAGIN LP</td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">2 residential OTC <span class="meta">(2002 build, pre-digital)</span></td></tr>
+        <tr><td class="bld">Louise Shell Senior</td><td>2101 N MLK Blvd <span class="meta">89106</span></td><td class="num">100</td><td class="apn">13921202007</td><td>LSHP LP</td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">commercial Building Project + Patio</td></tr>
+        <tr><td class="bld">Senator Harry Reid Senior</td><td>334 N 11th St <span class="meta">89101</span></td><td class="num">100</td><td class="apn">13935201001</td><td>11TH STREET LP</td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">0 permits on this APN <span class="meta">(2004 build, pre-digital)</span></td></tr>
+        <tr><td class="bld">Senator Richard Bryan Senior</td><td>2651 Searles Ave <span class="meta">89101</span></td><td class="num">165</td><td class="apn">13925101022</td><td>SOUTHERN NV HOUSING AUTHORITY</td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">61 permits incl 2× Electrical-Only + Pool/Spa</td></tr>
       </tbody>
     </table>
   </div>
@@ -150,12 +171,16 @@
   <!-- UNINCORPORATED CLARK COUNTY -->
   <div class="group">
     <div class="ghead"><h2>Unincorporated Clark County</h2><span class="cnt">2 parcels · 105 units</span>
-      <span class="gstat" style="color:var(--amber)">🔄 Pending scrape</span></div>
+      <span class="gstat" style="color:var(--green)">✅ Accela CLARKCO scraped (no elec schema)</span></div>
     <table>
       <thead><tr><th>Building</th><th>Address</th><th class="num">Units</th><th>APN</th><th>Owner of record</th><th>Status</th><th>Permits found</th></tr></thead>
       <tbody>
-        <tr><td class="bld">Luther Mack, Jr. Senior</td><td>8158 Giles St <span class="meta">89123</span></td><td class="num">48</td><td class="apn">17716101027</td><td>MIXED INCOME LLC</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
-        <tr><td class="bld">Dr. Paul Meacham Senior</td><td>65 E Windmill Ln <span class="meta">89123</span></td><td class="num">57</td><td class="apn">17716101026</td><td>MIXED INCOME 2 LLC</td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
+        <tr><td class="bld">Luther Mack, Jr. Senior</td><td>8158 Giles St <span class="meta">89123</span></td><td class="num">48</td><td class="apn">17716101027</td><td>MIXED INCOME LLC</td>
+          <td><div class="stack"><span class="badge b-done">Accela scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">38 records — Commercial Electric BD13-14515-EL3 + 4-permit Commercial Solar <span class="meta">(on-site PV ⇒ 3φ)</span></td></tr>
+        <tr><td class="bld">Dr. Paul Meacham Senior</td><td>65 E Windmill Ln <span class="meta">89123</span></td><td class="num">57</td><td class="apn">17716101026</td><td>MIXED INCOME 2 LLC</td>
+          <td><div class="stack"><span class="badge b-done">Accela scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">31 records — Commercial Electric BD13-40321-EL3 + <span class="warn">85 kW carport solar</span> BD14-24297-ELRV</td></tr>
       </tbody>
     </table>
   </div>
@@ -163,11 +188,13 @@
   <!-- HENDERSON -->
   <div class="group">
     <div class="ghead"><h2>Henderson</h2><span class="cnt">1 parcel · 80 units</span>
-      <span class="gstat" style="color:var(--amber)">🔄 Pending scrape</span></div>
+      <span class="gstat" style="color:var(--green)">✅ ArcGIS scraped (permit existence — no elec schema)</span></div>
     <table>
       <thead><tr><th>Building</th><th>Address</th><th class="num">Units</th><th>APN</th><th>Owner of record</th><th>Status</th><th>Permits found</th></tr></thead>
       <tbody>
-        <tr><td class="bld">Smith Williams Senior <span class="warn">⚠</span></td><td>575 E Lake Mead Pkwy <span class="meta">89015</span></td><td class="num">80</td><td class="apn">17908301011</td><td>CHURCH COMMUNITY BAPTIST <span class="meta">(fee)</span></td><td><span class="badge b-pend">Pending</span></td><td class="dash">—</td></tr>
+        <tr><td class="bld">Smith Williams Senior <span class="warn">⚠</span></td><td>575 E Lake Mead Pkwy <span class="meta">89015</span></td><td class="num">80</td><td class="apn">17908301011</td><td>CHURCH COMMUNITY BAPTIST <span class="meta">(fee) · SMITH WILLIAMS LLC (operator)</span></td>
+          <td><div class="stack"><span class="badge b-done">ArcGIS scraped</span><span class="badge b-gate">⬜ no elec schema</span></div></td>
+          <td class="permits">carport shade-cover only on this APN <span class="meta">(main bldg likely on adjacent church parcel ⚠)</span></td></tr>
       </tbody>
     </table>
   </div>
@@ -175,18 +202,30 @@
   <!-- LEGEND -->
   <div class="legend">
     <h3>How to read this</h3>
-    <div class="row"><span class="badge b-done">Scraped</span><div><b>Permit record found</b> on the public portal — number, type, status and dates captured.</div></div>
+    <div class="row"><span class="badge b-done">Scraped</span><div><b>Permit record found</b> on the NLV EnerGov portal — number, type, status and dates captured. Service detail behind contact-login.</div></div>
+    <div class="row"><span class="badge b-done">ArcGIS scraped</span><div><b>Permit existence confirmed</b> via CLV / Henderson public ArcGIS REST permit layers (queried by APN). <b>No amperage / voltage / phase / kVA field in the GIS schema</b> — type + free-text description only. Does not substitute for an NV Energy confirmation.</div></div>
     <div class="row"><span class="badge b-gate">🔒 detail gated</span><div><b>Permit found, but service size is locked.</b> The amps / voltage / kVA tabs require a <i>record-contact login</i>. Two ways to unlock: (a) GPMG logs in as the permit contact, or (b) an NV Energy authorized request.</div></div>
-    <div class="row"><span class="badge b-pend">Pending</span><div><b>Portal not yet run</b> for that parcel — next phase of the scrape.</div></div>
-    <div class="row"><span class="badge b-gate" style="background:rgba(91,140,255,.14);color:var(--blue)">⬜ kVA</span><div><b>Transformer rating is Unknown for every parcel</b> until NV Energy confirms it — that is the only authoritative source, and closing it is the whole point of Stages 3–4.</div></div>
+    <div class="row"><span class="badge b-gate">⬜ no elec schema</span><div><b>ArcGIS layer has no electrical fields.</b> Only permit type and description are public; amps/voltage/kVA do not exist in this schema. NV Energy is the only path to these values.</div></div>
+    <div class="row"><span class="badge b-done">Accela scraped</span><div><b>Clark County Citizen Access (<code>CLARKCO</code>) driven by parcel.</b> The CapDetail schema exposes permit type / status / location / job value only — <b>no amps / volts / kVA field exists</b>. Commercial-Electric permits + on-site solar PV corroborate 3φ service, but rate nothing.</div></div>
+    <div class="row"><span class="badge b-gate" style="background:rgba(91,140,255,.14);color:var(--blue)">⬜ kVA</span><div><b>Transformer rating is Unknown for every parcel</b> until NV Energy confirms it — that is the only authoritative source, and closing it is the whole point of Stage 3.</div></div>
   </div>
 
   <!-- NOTES -->
   <div class="notes">
-    <p><span class="h">3 ownership notes</span> &nbsp;(affects <i>who signs</i> the NV Energy request, not the scope):
-      <b>Fletcher</b> — confirm building is 1503 (18u) vs adjacent same-owner 1403 (42u). &nbsp;
-      <b>O'Callaghan</b> — operating parcel <span class="apn">…518004</span>, not the adjacent CDPC vacant lot. &nbsp;
-      <b>Smith Williams</b> — fee owner is a church (likely a GPMG ground lease); confirm who holds the meter.</p>
+    <p><span class="h">Stage 4b — 3φ inference + interconnect (2026-06-08)</span><br>
+      16/17 buildings inferred <b>Likely 3-phase</b> (3 hi-rise → 277/480 V; 13 lo-rise → 120/208 V).
+      Fletcher's 1φ/3φ ambiguity resolved toward 3φ by commercial Electrical-Only permit.
+      All 17 provisional <b>AMBER</b> pending NV Energy transformer kVA + DRP feeder hosting capacity.
+      Tally: <b>6 lean-feasible (AMBER▲)</b> · <b>4 study (AMBER)</b> · <b>7 upgrade-likely (AMBER▼)</b> —
+      the 250 kW peak-shave BESS is the mechanism that converts most AMBER▼ sites to feasible-without-upgrade.</p>
+    <p><span class="h">Ownership confirmed 2026-06-08</span> &nbsp;(public records — no GPMG confirmation needed): &nbsp;
+      <b>Fletcher</b> — 1503 Laurelhurst (18u), LV biz license G64-00154 names "Ethel Mae Fletcher" on APN <span class="apn">…504001</span>. &nbsp;
+      <b>O'Callaghan</b> — operating bldg <span class="apn">…518004</span> (1501 LLC); adjacent <span class="apn">…518005</span> (CDPC) is vacant land. &nbsp;
+      <b>Smith Williams</b> — operator/service-account entity = SMITH WILLIAMS, LLC (Henderson lic #2023321628); fee owner = CHURCH COMMUNITY BAPTIST.</p>
+    <p><span class="h">NV Energy request status</span> &nbsp;
+      Send packet drafted and clean (<a href="nv-energy-gpmg-handoff.md" style="color:var(--blue)">nv-energy-gpmg-handoff.md</a>).
+      Blocked on GPMG requestor identity + authorization signature. Once filled, send to
+      <b>ndc@nvenergy.com</b> / (702) 402-8400. Do NOT use the billing line (702) 402-5555.</p>
     <p class="disc">AI-assisted field intel. Verify against primary sources (County Assessor, permit portals, NV Energy) before relying on any line for a legal or utility filing.</p>
   </div>
 
