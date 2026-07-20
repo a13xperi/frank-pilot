@@ -99,4 +99,28 @@ describe("runFollowupTick", () => {
     expect(body.conversation_initiation_client_data.dynamic_variables.resume_checkpoint).toContain("employer");
     fetchMock.mockRestore();
   });
+
+  it("opens with the grounded answer when research is approved", async () => {
+    mockClaim.mockResolvedValueOnce({ ...CLAIMED, researchStatus: "approved", answer: "RTC Route 215 serves that area roughly every 30 minutes." });
+    mockPacket.mockResolvedValueOnce({ rapport: "", application: null, open_followups: [] });
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ conversation_id: "conv_a" }) });
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+    await runFollowupTick();
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+    const opener = body.conversation_initiation_client_data.conversation_config_override.agent.first_message;
+    expect(opener).toContain("RTC Route 215"); // delivers the grounded answer in the opener
+    expect(body.conversation_initiation_client_data.dynamic_variables.callback_purpose).toContain("RTC Route 215");
+  });
+
+  it("uses an honest opener (never a fabrication placeholder) with no approved answer", async () => {
+    mockClaim.mockResolvedValueOnce({ ...CLAIMED, researchStatus: "none", answer: null });
+    mockPacket.mockResolvedValueOnce({ rapport: "", application: null, open_followups: [] });
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ conversation_id: "conv_b" }) });
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+    await runFollowupTick();
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+    const opener = body.conversation_initiation_client_data.conversation_config_override.agent.first_message;
+    expect(opener).toMatch(/following up/i);
+    expect(opener).not.toMatch(/pulling (that|it) together/i); // anti-fabrication framing
+  });
 });

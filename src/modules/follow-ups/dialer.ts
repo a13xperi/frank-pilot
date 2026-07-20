@@ -20,7 +20,8 @@ const ELEVENLABS_API = "https://api.elevenlabs.io/v1";
  */
 export async function placeFollowupCallback(
   toNumber: string,
-  dynamicVariables: Record<string, string>
+  dynamicVariables: Record<string, string>,
+  firstMessageOverride?: string
 ): Promise<{ conversationId: string | null; callSid: string | null }> {
   const apiKey = process.env.ELEVENLABS_API_KEY ?? "";
   const agentId = process.env.FRANK_FOLLOWUP_AGENT_ID ?? "";
@@ -30,6 +31,13 @@ export async function placeFollowupCallback(
       "Follow-up callbacks not configured (ELEVENLABS_API_KEY / FRANK_FOLLOWUP_AGENT_ID / FRANK_FOLLOWUP_PHONE_NUMBER_ID)"
     );
   }
+  // Per-call first_message override opens Frank AS the caller with the specific
+  // purpose (requires platform_settings.overrides...first_message=true on the
+  // agent). Only set on calls that pass it, so inbound is unaffected.
+  const cicd: Record<string, unknown> = { dynamic_variables: dynamicVariables };
+  if (firstMessageOverride) {
+    cicd.conversation_config_override = { agent: { first_message: firstMessageOverride } };
+  }
   const res = await fetch(`${ELEVENLABS_API}/convai/twilio/outbound-call`, {
     signal: AbortSignal.timeout(10000), // audit #10: never hang on a dead vendor/EL/Sage socket
     method: "POST",
@@ -38,7 +46,7 @@ export async function placeFollowupCallback(
       agent_id: agentId,
       agent_phone_number_id: phoneNumberId,
       to_number: toNumber,
-      conversation_initiation_client_data: { dynamic_variables: dynamicVariables },
+      conversation_initiation_client_data: cicd,
     }),
   });
   if (!res.ok) {
@@ -95,10 +103,23 @@ export async function runFollowupTick(now: Date = new Date()): Promise<FollowupT
 
   try {
     const packet = await buildContextPacket(fu.phoneE164);
-    const { conversationId } = await placeFollowupCallback(
-      fu.phoneE164,
-      packetToDynamicVars(fu.reason, packet, fu.checkpoint)
-    );
+    const dvars = packetToDynamicVars(fu.reason, packet, fu.checkpoint);
+    // Anti-fabrication (conv_2301): only assert an answer when research is APPROVED.
+    // Otherwise the opener is honest ("following up"), never a "pulling it together"
+    // placeholder that invites Frank to guess. The opener feeds the live call; the
+    // *_purpose/ask vars feed the (templated) voicemail.
+    const hasAnswer = fu.researchStatus === "approved" && !!fu.answer;
+    const opener = hasAnswer
+      ? `Hi, it's Frank calling you back with the information you asked for. ${fu.answer} Is there anything else I can help with?`
+      : "Hi, it's Frank following up with you. How can I help?";
+    dvars.caller_first_name = "there";
+    dvars.callback_purpose = hasAnswer
+      ? `I have the information you asked for. ${fu.answer}`
+      : "I wanted to follow up with you.";
+    dvars.callback_ask = hasAnswer
+      ? "Call me back if you have any other questions."
+      : "Call me back anytime and we'll take care of it.";
+    const { conversationId } = await placeFollowupCallback(fu.phoneE164, dvars, opener);
     await markFollowUpDialed(fu.id, conversationId);
     // Record on the person's ledger of truth WHAT Frank called back to review, so
     // the operator sees "called back about ..." on the timeline — whether the

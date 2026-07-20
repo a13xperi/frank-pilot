@@ -38,10 +38,14 @@ const registerSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   phone: z.string().max(20).optional(),
-  // Magic-link delivery channel. Defaults to 'email' so existing clients are
-  // unchanged; 'sms'/'both' route the link through Twilio to the user's phone
-  // of record. SMS delivery is fire-and-forget — it never affects the 202.
-  channel: z.enum(["email", "sms", "both"]).optional(),
+  // Magic-link delivery channel. Defaults to 'email' so a client that omits it
+  // (the apply flow's Step1Register, which collects an email and shows a
+  // "Check your email" screen) delivers by email — NOT by the sendMagicLink()
+  // text-first fallback, which would route an email-only applicant to a phone
+  // they never gave and silently deliver nothing. 'sms'/'both' route the link
+  // through Twilio to the user's phone of record. SMS delivery is
+  // fire-and-forget — it never affects the 202.
+  channel: z.enum(["email", "sms", "both"]).default("email"),
   // wedge #13: Cloudflare Turnstile widget response. Optional in the schema
   // because dev/test bypass the middleware entirely (smoke + unit tests run
   // without TURNSTILE_SECRET_KEY); production fails at verify-turnstile with

@@ -57,6 +57,22 @@ export class EmailService {
     } else {
       this.client = null;
     }
+
+    // Fail-loud on a broken outbound-email config so it can't ship silently.
+    // These land once (singleton) in the Railway log at boot — grep them to
+    // confirm the live delivery state without opening the Resend dashboard.
+    if (!this.client) {
+      logger.warn(
+        "EmailService: RESEND_API_KEY is unset — every email send is a no-op. " +
+          "No applicant will receive a verification link until it is set."
+      );
+    } else if (/resend\.dev/i.test(this.fromAddress)) {
+      logger.warn(
+        "EmailService: RESEND_FROM is the sandbox domain (resend.dev). Resend " +
+          "will ONLY deliver to the account owner's own address, never to real " +
+          "applicants. Verify a sending domain and set RESEND_FROM before launch."
+      );
+    }
   }
 
   /**
