@@ -5,6 +5,8 @@ import { ScreeningService } from "./service";
 import { FraudDetectionService } from "./fraud-detection";
 import { logger } from "../../utils/logger";
 import { param } from "../../utils/params";
+import { query } from "../../config/database";
+import crypto from "crypto";
 
 const router = Router();
 const screeningService = new ScreeningService();
@@ -39,6 +41,71 @@ function toClientShape(row: any) {
     },
   };
 }
+
+// Batch screen — service-secret-gated operator tool for the DL lease-up pilot.
+// Runs runFullScreening over `submitted` applications (the fee-decoupled path:
+// screening is triggered here, not by a Stripe payment). Fail-closed: 503 unless
+// SCREEN_BATCH_ENABLED=true, 401 unless x-frank-screen-secret matches
+// SCREEN_BATCH_SECRET. dryRun (default true) lists targets without screening.
+// runFullScreening is idempotent on status (only acts on submitted/screening),
+// so re-runs are safe. Registered before the "/:applicationId/..." param routes.
+router.post("/batch", async (req: AuthRequest, res: Response): Promise<void> => {
+  if (process.env.SCREEN_BATCH_ENABLED !== "true") {
+    res.status(503).json({ ok: false, message: "Batch screening disabled" });
+    return;
+  }
+  const secret = process.env.SCREEN_BATCH_SECRET ?? "";
+  const provided = String(req.headers["x-frank-screen-secret"] ?? "");
+  const authed =
+    secret.length > 0 &&
+    provided.length === secret.length &&
+    crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(secret));
+  if (!authed) {
+    res.status(401).json({ ok: false, message: "Unauthorized" });
+    return;
+  }
+
+  const dryRun = req.body?.dryRun !== false; // default true — must opt in to real screening
+  const limit = Math.min(Math.max(parseInt(String(req.body?.limit ?? "50"), 10) || 50, 1), 200);
+
+  // Only `submitted` apps with a real submitter — the actor columns are UUID-typed
+  // (mirrors the auto-on-submit path). `screening`-status apps are mid-pipeline.
+  const targets = await query(
+    `SELECT id, submitted_by, submitter_role
+       FROM applications
+      WHERE status = 'submitted' AND submitted_by IS NOT NULL
+      ORDER BY submitted_at ASC NULLS LAST
+      LIMIT $1`,
+    [limit]
+  );
+
+  if (dryRun) {
+    res.json({ ok: true, dryRun: true, eligible: targets.rows.length, ids: targets.rows.map((r: any) => r.id) });
+    return;
+  }
+
+  const screened: Array<{ id: string; overallResult: string }> = [];
+  const errors: Array<{ id: string; error: string }> = [];
+  for (const row of targets.rows) {
+    try {
+      const result: any = await screeningService.runFullScreening(
+        row.id,
+        row.submitted_by,
+        row.submitter_role ?? "applicant"
+      );
+      screened.push({ id: row.id, overallResult: result?.overallResult });
+    } catch (err: any) {
+      errors.push({ id: row.id, error: err.message });
+    }
+  }
+  const summary = screened.reduce((acc: Record<string, number>, s) => {
+    const k = s.overallResult ?? "unknown";
+    acc[k] = (acc[k] ?? 0) + 1;
+    return acc;
+  }, {});
+  logger.info("Batch screening run", { requested: targets.rows.length, screened: screened.length, errors: errors.length, summary });
+  res.json({ ok: true, dryRun: false, requested: targets.rows.length, screened, errors, summary });
+});
 
 // Staff review queue — applications held in `screening_review` (vendor pipeline
 // could not produce a verdict). Registered BEFORE the "/:applicationId/..." param

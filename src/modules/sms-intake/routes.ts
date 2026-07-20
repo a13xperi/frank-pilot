@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import express from "express";
+import twilio from "twilio";
 import { logger } from "../../utils/logger";
 import { handleInbound, SmsIntakeDisabledError } from "./service";
 
@@ -50,6 +51,27 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     if (process.env.SMS_INTAKE_ENABLED !== "true") {
       res.status(503).json({ error: "SMS intake disabled" });
+      return;
+    }
+
+    // Verify the request actually came from Twilio (audit #7). Without this,
+    // anyone with the public URL can forge an inbound SMS as ANY From number —
+    // driving the phone-first funnel and (via the magic-link) receiving a
+    // victim's auth link = account-takeover. Fail CLOSED if we can't verify.
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    if (!authToken) {
+      logger.error("SMS intake: TWILIO_AUTH_TOKEN unset — refusing unsigned inbound");
+      res.status(503).json({ error: "SMS intake misconfigured" });
+      return;
+    }
+    const signature = req.header("X-Twilio-Signature") ?? "";
+    const fwdProto = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0];
+    const url = `${fwdProto || req.protocol}://${req.get("host")}${req.originalUrl}`;
+    if (!twilio.validateRequest(authToken, signature, url, (req.body ?? {}) as Record<string, unknown>)) {
+      logger.warn("SMS intake: invalid Twilio signature — rejected", {
+        from: typeof req.body?.From === "string" ? req.body.From : undefined,
+      });
+      res.status(403).json({ error: "Invalid signature" });
       return;
     }
 

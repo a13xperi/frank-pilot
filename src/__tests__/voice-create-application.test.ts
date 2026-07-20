@@ -18,6 +18,10 @@ jest.mock("../modules/application/service", () => ({
     create = (...a: unknown[]) => mockCreate(...a);
   },
 }));
+const mockVerified = jest.fn();
+jest.mock("../modules/caller-history/service", () => ({
+  hasRecentVerifiedPin: (...a: unknown[]) => mockVerified(...a),
+}));
 
 import {
   createApplicationHandler,
@@ -90,5 +94,43 @@ describe("createApplicationHandler", () => {
     __resetRegistrationForTests();
     registerCreateApplicationHandler();
     expect(getRegisteredToolNames()).toContain("create_application");
+  });
+});
+
+describe("verify-first gate (VERIFY_PHONE_GATE_ENABLED)", () => {
+  afterEach(() => {
+    delete process.env.VERIFY_PHONE_GATE_ENABLED;
+  });
+
+  it("blocks creation for an unverified phone — no application, cues a code", async () => {
+    process.env.VERIFY_PHONE_GATE_ENABLED = "true";
+    mockVerified.mockResolvedValueOnce(false);
+    const r = await createApplicationHandler(GOOD, CTX);
+    expect(r.ok).toBe(false);
+    expect(r.message?.toLowerCase()).toContain("code");
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled(); // gated before the unit lookup
+  });
+
+  it("proceeds when the phone IS verified", async () => {
+    process.env.VERIFY_PHONE_GATE_ENABLED = "true";
+    mockVerified.mockResolvedValueOnce(true);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ property_id: "33333333-3333-3333-3333-333333333333", unit_number: "S-001" }] })
+      .mockResolvedValueOnce({ rows: [{ id: "user-1" }] });
+    mockCreate.mockResolvedValueOnce({ id: "app-1", status: "draft" });
+    const r = await createApplicationHandler(GOOD, CTX);
+    expect(r.ok).toBe(true);
+    expect(mockCreate).toHaveBeenCalled();
+  });
+
+  it("does NOT gate when the flag is off (default)", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ property_id: "33333333-3333-3333-3333-333333333333", unit_number: "S-001" }] })
+      .mockResolvedValueOnce({ rows: [{ id: "user-1" }] });
+    mockCreate.mockResolvedValueOnce({ id: "app-1", status: "draft" });
+    const r = await createApplicationHandler(GOOD, CTX);
+    expect(r.ok).toBe(true);
+    expect(mockVerified).not.toHaveBeenCalled();
   });
 });

@@ -65,7 +65,7 @@ const flush = () => new Promise((resolve) => setImmediate(resolve));
 // and inject the same one into both halves of the test.
 const FAKE_KEY = "sk_test_signing_only_does_not_call_api";
 const WEBHOOK_SECRET = "whsec_test_fixture_secret_abcdef";
-const stripe = new Stripe(FAKE_KEY, { apiVersion: "2026-05-27.dahlia" });
+const stripe = new Stripe(FAKE_KEY, { apiVersion: "2026-06-24.dahlia" });
 
 jest.mock("../lib/stripe", () => {
   // The router imports getStripe() lazily; we return the real instance built
@@ -293,8 +293,8 @@ describe("POST /webhook — payment_intent.succeeded", () => {
     const payload = JSON.stringify(event);
     const sig = signedHeader(payload);
 
-    // alreadyProcessed: SELECT 1 → no row.
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // claim-before-dispatch: INSERT stripe_processed_events ON CONFLICT … RETURNING → won (1 row).
+    mockQuery.mockResolvedValueOnce({ rows: [{ event_id: "evt_test_001" }], rowCount: 1 } as any);
     // recordPayment is mocked; returns a synthetic ledger entry (balanceAfter
     // drives the receipt's newBalanceCents).
     mockRecordPayment.mockResolvedValue({ id: "led-001", applicationId: APP_ID, balanceAfter: 0 });
@@ -304,8 +304,6 @@ describe("POST /webhook — payment_intent.succeeded", () => {
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
     // receipt lookup: SELECT email, first_name FROM applications (fire-and-forget).
     mockQuery.mockResolvedValueOnce({ rows: [{ email: "tenant@example.com", first_name: "Sam" }] } as any);
-    // markProcessed: INSERT stripe_processed_events.
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
 
     const res = await request(app)
       .post("/webhook")
@@ -333,8 +331,9 @@ describe("POST /webhook — payment_intent.succeeded", () => {
         sessionId: `pi:${APP_ID}:1`,
       })
     );
-    // 5 DB calls: alreadyProcessed, markStatus, audit, receipt-lookup, markProcessed.
-    expect(mockQuery).toHaveBeenCalledTimes(5);
+    // 4 DB calls: claim (INSERT processed_events), markStatus, audit, receipt-lookup.
+    // markProcessed is gone — the up-front claim IS the mark.
+    expect(mockQuery).toHaveBeenCalledTimes(4);
 
     // The receipt is fire-and-forget (void IIFE); flush microtasks, then assert
     // the tenant got a receipt for the right amount.
@@ -355,8 +354,8 @@ describe("POST /webhook — payment_intent.succeeded", () => {
     const payload = JSON.stringify(event);
     const sig = signedHeader(payload);
 
-    // alreadyProcessed: SELECT 1 → row exists.
-    mockQuery.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] } as any);
+    // claim: INSERT … ON CONFLICT DO NOTHING → lost the race (0 rows) ⇒ duplicate.
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
     const res = await request(app)
       .post("/webhook")
@@ -369,7 +368,7 @@ describe("POST /webhook — payment_intent.succeeded", () => {
 
     expect(mockRecordPayment).not.toHaveBeenCalled();
     expect(mockStampTape).not.toHaveBeenCalled();
-    // Only the alreadyProcessed lookup ran — no markStatus, no audit, no markProcessed.
+    // Only the claim INSERT ran — it lost the race, so no dispatch, no markStatus/audit.
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });
@@ -382,10 +381,9 @@ describe("POST /webhook — payment_intent.payment_failed", () => {
     const payload = JSON.stringify(event);
     const sig = signedHeader(payload);
 
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // alreadyProcessed
+    mockQuery.mockResolvedValueOnce({ rows: [{ event_id: "evt_test_failed_001" }], rowCount: 1 } as any); // claim won
     mockQuery.mockResolvedValueOnce({ rows: [] } as any); // markStatus
     mockQuery.mockResolvedValueOnce({ rows: [] } as any); // writeAuditLog
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // markProcessed
 
     const res = await request(app)
       .post("/webhook")
@@ -425,8 +423,7 @@ describe("POST /webhook — unknown event", () => {
     const payload = JSON.stringify(event);
     const sig = signedHeader(payload);
 
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // alreadyProcessed
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // markProcessed
+    mockQuery.mockResolvedValueOnce({ rows: [{ event_id: "evt_ignored_001" }], rowCount: 1 } as any); // claim won (unknown type → dispatch no-op)
 
     const res = await request(app)
       .post("/webhook")
@@ -448,10 +445,12 @@ describe("POST /webhook — dispatch failure → DLQ", () => {
     const payload = JSON.stringify(event);
     const sig = signedHeader(payload);
 
-    // alreadyProcessed: no.
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // claim: INSERT stripe_processed_events → won (proceeds to dispatch).
+    mockQuery.mockResolvedValueOnce({ rows: [{ event_id: "evt_dlq_001" }], rowCount: 1 } as any);
     // recordPayment throws — simulates ledger/DB outage.
     mockRecordPayment.mockRejectedValue(new Error("ledger DB connection lost"));
+    // on failure: DELETE stripe_processed_events (release the claim).
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);
     // recordDlq path: (1) alreadyParked SELECT → not yet parked.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
     // (2) activeDlqRowCount → comfortably under cap.
@@ -474,15 +473,19 @@ describe("POST /webhook — dispatch failure → DLQ", () => {
     });
     expect(dlqCall).toBeDefined();
 
-    // The stripe_processed_events INSERT must NOT happen when dispatch failed
-    // — otherwise a replay after the operator fixes the bug would be silently
-    // suppressed. (The alreadyProcessed lookup is a SELECT against the same
-    // table and does happen; we filter to INSERT only.)
-    const processedInsertCall = mockQuery.mock.calls.find((c) => {
+    // Claim-before-dispatch: the event IS claimed up front (INSERT), but on dispatch
+    // failure the claim is RELEASED (DELETE) — net not-marked — so a replay after the
+    // operator fixes the bug reprocesses instead of being silently suppressed.
+    const claimInsert = mockQuery.mock.calls.find((c) => {
       const sql = String(c[0]);
       return sql.includes("stripe_processed_events") && /INSERT/i.test(sql);
     });
-    expect(processedInsertCall).toBeUndefined();
+    expect(claimInsert).toBeDefined();
+    const claimRelease = mockQuery.mock.calls.find((c) => {
+      const sql = String(c[0]);
+      return sql.includes("stripe_processed_events") && /DELETE/i.test(sql);
+    });
+    expect(claimRelease).toBeDefined();
   });
 
   it("skips the DLQ INSERT (still 200) when the active backlog is at the cap", async () => {
@@ -493,9 +496,11 @@ describe("POST /webhook — dispatch failure → DLQ", () => {
     const payload = JSON.stringify(event);
     const sig = signedHeader(payload);
 
-    // alreadyProcessed: no.
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // claim: INSERT stripe_processed_events → won (proceeds to dispatch).
+    mockQuery.mockResolvedValueOnce({ rows: [{ event_id: "evt_dlq_cap_001" }], rowCount: 1 } as any);
     mockRecordPayment.mockRejectedValue(new Error("ledger DB connection lost"));
+    // on failure: DELETE stripe_processed_events (release the claim).
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);
     // recordDlq path: (1) alreadyParked SELECT → not parked.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
     // (2) activeDlqRowCount → AT the cap.
@@ -524,8 +529,10 @@ describe("POST /webhook — dispatch failure → DLQ", () => {
     const payload = JSON.stringify(event);
     const sig = signedHeader(payload);
 
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // alreadyProcessed
+    mockQuery.mockResolvedValueOnce({ rows: [{ event_id: "evt_dlq_parked_001" }], rowCount: 1 } as any); // claim won
     mockRecordPayment.mockRejectedValue(new Error("ledger DB connection lost"));
+    // on failure: DELETE stripe_processed_events (release the claim).
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);
     // recordDlq: alreadyParked SELECT → row exists → skip the cap check.
     mockQuery.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] } as any);
     // the UPSERT (bumps attempt_count).
@@ -610,12 +617,11 @@ describe("POST /webhook — livemode mismatch", () => {
     const payload = JSON.stringify(event); // livemode:false → match
     const sig = signedHeader(payload);
 
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // alreadyProcessed
+    mockQuery.mockResolvedValueOnce({ rows: [{ event_id: "evt_match_001" }], rowCount: 1 } as any); // claim won
     mockRecordPayment.mockResolvedValue({ id: "led-002", applicationId: APP_ID });
     mockQuery.mockResolvedValueOnce({ rows: [] } as any); // markStatus
     mockQuery.mockResolvedValueOnce({ rows: [] } as any); // audit
     mockQuery.mockResolvedValueOnce({ rows: [] } as any); // receipt lookup
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any); // markProcessed
 
     const res = await request(app)
       .post("/webhook")
@@ -639,16 +645,14 @@ describe("POST /webhook — charge.refunded", () => {
     // recordRefund is mocked; balanceAfter drives the refund email.
     mockRecordRefund.mockResolvedValue({ id: "led-refund-001", applicationId: APP_ID, balanceAfter: 0 });
 
-    // alreadyProcessed: no. (applicationId comes from refund.metadata → no lookup query.)
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // claim: INSERT stripe_processed_events → won (proceeds). (applicationId from refund.metadata → no lookup query.)
+    mockQuery.mockResolvedValueOnce({ rows: [{ event_id: "evt_refund_001" }], rowCount: 1 } as any);
     // UPDATE payment_idempotency (refund columns).
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
     // writeAuditLog: INSERT audit_log.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
     // refund-confirmation lookup: SELECT email, first_name FROM applications.
     mockQuery.mockResolvedValueOnce({ rows: [{ email: "tenant@example.com", first_name: "Sam" }] } as any);
-    // markProcessed: INSERT stripe_processed_events.
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
 
     const res = await request(app)
       .post("/webhook")
@@ -687,8 +691,8 @@ describe("POST /webhook — charge.refunded", () => {
 
     mockRecordRefund.mockResolvedValue({ id: "led-refund-002", applicationId: APP_ID, balanceAfter: 0 });
 
-    // alreadyProcessed: no.
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
+    // claim: INSERT stripe_processed_events → won (proceeds).
+    mockQuery.mockResolvedValueOnce({ rows: [{ event_id: "evt_refund_nometa" }], rowCount: 1 } as any);
     // resolveRefundApplication: SELECT application_id FROM payment_idempotency.
     mockQuery.mockResolvedValueOnce({ rows: [{ application_id: APP_ID }] } as any);
     // UPDATE payment_idempotency.
@@ -696,8 +700,6 @@ describe("POST /webhook — charge.refunded", () => {
     // writeAuditLog.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
     // refund-confirmation lookup.
-    mockQuery.mockResolvedValueOnce({ rows: [] } as any);
-    // markProcessed.
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
 
     const res = await request(app)
@@ -716,8 +718,8 @@ describe("POST /webhook — charge.refunded", () => {
     const payload = JSON.stringify(event);
     const sig = signedHeader(payload);
 
-    // alreadyProcessed: row exists.
-    mockQuery.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] } as any);
+    // claim: INSERT … ON CONFLICT DO NOTHING → lost the race (0 rows) ⇒ duplicate.
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
     const res = await request(app)
       .post("/webhook")

@@ -4,6 +4,7 @@ import { ApplicationService } from "../application/service";
 import { createApplicationSchema } from "../application/validation";
 import { normalizePhone } from "./service";
 import { recordLedgerEntry } from "../relationship/ledger";
+import { hasRecentVerifiedPin } from "../caller-history/service";
 import {
   registerToolHandler,
   type ToolCallbackContext,
@@ -36,6 +37,32 @@ export async function createApplicationHandler(
 ): Promise<ToolCallbackResult> {
   const unitId = pickString(parameters, "unit_id");
   const phone = normalizePhone(pickString(parameters, "phone"));
+
+  // Verify-first fence (server-side). Prompt instructions alone don't reliably
+  // make Frank text the code, so when VERIFY_PHONE_GATE_ENABLED is on we REFUSE
+  // to create an application for a phone that hasn't cleared the SMS-verify gate
+  // (the same hasRecentVerifiedPin fence get_caller_history uses). Frank gets a
+  // clear cue to send_pin/verify_pin and retry — and no unverified application
+  // can ever be created. Flag-gated so it rolls out safely.
+  if (process.env.VERIFY_PHONE_GATE_ENABLED === "true") {
+    if (!phone) {
+      return {
+        ok: false,
+        message:
+          "Before I start your application I need the best phone number to reach you. What's a good number?",
+      };
+    }
+    if (!(await hasRecentVerifiedPin(phone))) {
+      logger.info("create_application blocked — phone not verified", {
+        conversationId: context.conversationId,
+      });
+      return {
+        ok: false,
+        message:
+          "Before I lock your application in, I need to confirm this is really your number. Let me text you a quick four-digit code now, read it back to me when it lands, and then I'll finish the application.",
+      };
+    }
+  }
 
   // Resolve the chosen unit → property_id + unit_number. The application is
   // tied to a property; present_options gave the caller a unit_id to pick.

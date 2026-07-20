@@ -47,7 +47,7 @@ const AMOUNT_DOLLARS = 125.0;
 const FAKE_KEY = "sk_test_signing_only_does_not_call_api";
 const WEBHOOK_SECRET = "whsec_test_fixture_secret_abcdef";
 const stripe = new Stripe(FAKE_KEY, {
-  apiVersion: "2026-05-27.dahlia",
+  apiVersion: "2026-06-24.dahlia",
 });
 
 const applicant: AuthUser = {
@@ -150,10 +150,20 @@ async function queryImpl(sql: string, params: any[] = []): Promise<any> {
   if (s.startsWith("SELECT 1 FROM stripe_processed_events")) {
     return { rows: store.processedEvents.has(params[0]) ? [{ "?column?": 1 }] : [] };
   }
-  // webhook.markProcessed(): INSERT INTO stripe_processed_events ... ON CONFLICT DO NOTHING
+  // webhook claim-before-dispatch: INSERT INTO stripe_processed_events ... ON CONFLICT
+  // DO NOTHING RETURNING event_id. Simulate the conflict: a repeat event_id returns
+  // 0 rows (claim lost → short-circuit as duplicate); a fresh one claims (1 row).
   if (s.startsWith("INSERT INTO stripe_processed_events")) {
+    if (store.processedEvents.has(params[0])) {
+      return { rows: [], rowCount: 0 };
+    }
     store.processedEvents.add(params[0]);
-    return { rows: [] };
+    return { rows: [{ event_id: params[0] }], rowCount: 1 };
+  }
+  // webhook claim release on dispatch failure: DELETE FROM stripe_processed_events.
+  if (s.startsWith("DELETE FROM stripe_processed_events")) {
+    store.processedEvents.delete(params[0]);
+    return { rows: [], rowCount: 1 };
   }
 
   // Everything else (audit_log inserts, DLQ probes) — no-op success.

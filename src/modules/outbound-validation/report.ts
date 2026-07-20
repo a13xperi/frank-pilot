@@ -139,6 +139,7 @@ export async function pushReportToNotion(): Promise<boolean> {
   }
 
   const res = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
+    signal: AbortSignal.timeout(10000), // audit #10: never hang on a dead vendor/EL/Sage socket
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,

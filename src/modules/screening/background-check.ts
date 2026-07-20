@@ -177,6 +177,7 @@ export class BackgroundCheckService {
   ): Promise<unknown> {
     const auth = Buffer.from(`${apiKey}:`).toString("base64");
     const res = await fetch(`${base}${path}`, {
+      signal: AbortSignal.timeout(10000), // audit #10: never hang on a dead vendor/EL/Sage socket
       method: "POST",
       headers: {
         Authorization: `Basic ${auth}`,

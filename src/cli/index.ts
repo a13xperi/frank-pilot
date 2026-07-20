@@ -13,6 +13,7 @@ import { LeaseService } from "../modules/lease/service";
 import { UserService } from "../modules/users/service";
 import { PropertyService } from "../modules/properties/service";
 import { queryAuditLog } from "../middleware/audit";
+import { redactExistingVoiceIntakeRows } from "../modules/voice-intake/redact-existing";
 import bcrypt from "bcrypt";
 import { logger } from "../utils/logger";
 
@@ -505,6 +506,39 @@ program
       logger.info("Property details:", { data: property });
     } catch (err) {
       logger.error("Error:", { message: (err as Error).message });
+    } finally {
+      await pool.end();
+    }
+  });
+
+// ============================================================
+// Voice-intake commands
+// ============================================================
+
+program
+  .command("redact-voice-pii")
+  .description(
+    "One-time idempotent sweep (audit C1): redact spoken SSN/DOB from voice_intake_calls rows persisted before the write-side redaction — drops inline transcripts from raw_payload and pii-filters raw_payload + data_collection_results in place"
+  )
+  .option("--dry-run", "Report how many rows would change without writing")
+  .option("-b, --batch-size <n>", "Rows per batch", "200")
+  .action(async (opts) => {
+    try {
+      const result = await redactExistingVoiceIntakeRows({
+        batchSize: Number(opts.batchSize),
+        dryRun: !!opts.dryRun,
+      });
+      logger.info("\n=== Voice-intake PII redact sweep ===\n");
+      logger.info(
+        `${result.dryRun ? "[DRY RUN] " : ""}scanned=${result.scanned} ` +
+          `${result.dryRun ? "would-update" : "updated"}=${result.updated} batches=${result.batches}`
+      );
+      if (!result.dryRun && result.updated === 0) {
+        logger.info("Nothing to redact — sweep is idempotent, all rows already clean.");
+      }
+    } catch (err) {
+      logger.error("Error:", { message: (err as Error).message });
+      process.exitCode = 1;
     } finally {
       await pool.end();
     }

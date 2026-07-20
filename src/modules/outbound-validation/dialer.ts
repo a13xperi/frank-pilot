@@ -110,6 +110,9 @@ export function buildDynamicVariables(a: SageApplicant): Record<string, string> 
   return {
     applicant_id: a.id,
     applicant_name: a.full_name,
+    // First name only — the opener should greet "Hi Janet", not "Hi Janet Smith".
+    // Falls back to the full name if there's no whitespace to split on.
+    applicant_first_name: a.full_name.trim().split(/\s+/)[0] || a.full_name,
     property_names: propNames || "Donna Louise Apartments",
     apt_types: a.apt_types.map(aptLabel).join(", ") || "an apartment",
     date_needed: a.asap
@@ -137,6 +140,7 @@ export async function initiateOutboundCall(
     );
   }
   const res = await fetch(`${ELEVENLABS_API}/convai/twilio/outbound-call`, {
+    signal: AbortSignal.timeout(10000), // audit #10: never hang on a dead vendor/EL/Sage socket
     method: "POST",
     headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({

@@ -13,9 +13,7 @@ import { getEmailService } from "../integrations/email";
 import { IdentityVerificationService } from "../screening/identity-verification";
 import type { IdentityVerificationResult } from "../screening/identity-verification";
 import { transitionApplicationStatus } from "../screening/state-machine";
-import { hasValidAuthorization } from "../screening/consumer-report-consent";
-import { ScreeningService } from "../screening/service";
-import { recordLedgerEntry } from "../relationship/ledger";
+import { applyApplicationFeePaid } from "./apply-fee";
 
 /**
  * Stripe webhook receiver.
@@ -624,108 +622,19 @@ async function handleApplicationFeeSucceeded(event: Stripe.Event): Promise<void>
   const amountCents = intent.amount_received ?? intent.amount ?? 0;
   const amountDollars = Math.round(amountCents) / 100;
 
-  const ledgerEntry = await ledgerService.recordPayment(
+  // Shared post-payment core (ledger + FCRA-gated screening + draft→submitted +
+  // tape + audit), also used by the on-call DTMF `<Pay>` path. Webhook passes
+  // dedupeOnRef:false — it's already fenced upstream by stripe_processed_events
+  // + payment_idempotency — and its legacy ledger note, to stay byte-for-byte.
+  await applyApplicationFeePaid({
     applicationId,
     amountDollars,
-    intent.id,
-    null,
-    null,
-    `Application fee — Stripe PaymentIntent ${intent.id}`
-  );
-
-  // FCRA + fee gate: only run screening when consent is on file. The actor is
-  // the applicant who submitted; screening needs a real actor id.
-  const consented = await hasValidAuthorization(applicationId);
-  const actorRes = await query(
-    `SELECT submitted_by, status, phone FROM applications WHERE id = $1`,
-    [applicationId]
-  );
-  const submittedBy = (actorRes.rows[0]?.submitted_by as string) ?? md.actorId ?? "";
-  const applicantPhone = (actorRes.rows[0]?.phone as string) ?? null;
-
-  void recordLedgerEntry({
-    phoneE164: applicantPhone,
-    eventType: "fee_paid",
-    summary: "Paid the $35.95 verification fee",
-    ref: applicationId,
-  });
-
-  let screeningFired = false;
-  if (consented && submittedBy) {
-    screeningFired = true;
-    void recordLedgerEntry({
-      phoneE164: applicantPhone,
-      eventType: "screening_started",
-      summary: "Identity, credit, and background check started",
-      ref: applicationId,
-    });
-    // Fire-and-forget: a slow/failed pull must not 500 the webhook (Stripe would
-    // retry and double-post the ledger).
-    void (async () => {
-      try {
-        // Paying the fee submits the application. Flip draft → submitted
-        // (idempotent — only touches a draft) so runFullScreening, which
-        // requires submitted/screening, can run. Mirrors the core of
-        // ApplicationService.submit(); the consent + screening it would
-        // otherwise gate on are already handled on this fee-paid path.
-        await query(
-          `UPDATE applications
-              SET status = 'submitted',
-                  submitted_at = COALESCE(submitted_at, NOW()),
-                  submitted_by = COALESCE(submitted_by, $2),
-                  -- Stamp the consent marker the web submit() path sets, so the
-                  -- voice fee-paid path is consistent: this block only runs when
-                  -- consent is on file (hasValidAuthorization above), so the app
-                  -- IS authorized — record it. Without this, screening_authorization_at
-                  -- stays null on voice apps and the consented flag + adverse-action
-                  -- code read a false negative.
-                  screening_authorization_at = COALESCE(screening_authorization_at, NOW())
-            WHERE id = $1 AND status = 'draft'`,
-          [applicationId, submittedBy]
-        );
-        await new ScreeningService().runFullScreening(applicationId, submittedBy, "applicant");
-      } catch (err) {
-        logger.error("post-fee screening failed", {
-          applicationId,
-          paymentIntentId: intent.id,
-          error: (err as Error).message,
-        });
-      }
-    })();
-  } else {
-    logger.warn("application_fee paid but screening held", {
-      applicationId,
-      paymentIntentId: intent.id,
-      consented,
-      hasActor: Boolean(submittedBy),
-    });
-  }
-
-  void stampTape({
-    kind: "BP08_PAYMENT_SUCCEEDED",
-    actor: "stripe-webhook",
+    chargeRef: intent.id,
+    source: "stripe-webhook",
     sessionId: intent.id,
-    payload: {
-      feeType: "application_fee",
-      applicationId,
-      paymentIntentId: intent.id,
-      amountCents,
-      ledgerEntryId: ledgerEntry.id,
-      screeningFired,
-    },
-  });
-
-  await writeAuditLog({
-    action: "application_fee_succeeded",
-    applicationId,
-    resourceType: "payment_intent",
-    details: {
-      actor: "stripe-webhook",
-      amountCents,
-      paymentIntentId: intent.id,
-      ledgerEntryId: ledgerEntry.id,
-      screeningFired,
-    },
+    actorIdFallback: md.actorId,
+    notes: `Application fee — Stripe PaymentIntent ${intent.id}`,
+    dedupeOnRef: false,
   });
 }
 
@@ -813,7 +722,24 @@ router.post(
       return;
     }
 
-    if (await alreadyProcessed(event.id)) {
+    // Claim-before-dispatch (audit #6). Previously we checked alreadyProcessed,
+    // dispatched, THEN marked — so a concurrent Stripe redelivery (or a second
+    // server instance) could pass the check before the first marked, and BOTH
+    // dispatch → double-charge / double-receipt. Now we claim the event FIRST,
+    // atomically: only the INSERT that wins the ON CONFLICT proceeds; the loser
+    // short-circuits. (Residual: a hard crash between claim and dispatch leaves
+    // the event claimed-but-unhandled — rare, recoverable via reconciliation, and
+    // closed outright once the ledger UNIQUE constraint makes the handler
+    // idempotent. We prefer that to an at-least-once double-charge.)
+    const meta = (event.data.object as { metadata?: Record<string, string> }).metadata ?? {};
+    const claim = await query(
+      `INSERT INTO stripe_processed_events (event_id, event_type, application_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (event_id) DO NOTHING
+       RETURNING event_id`,
+      [event.id, event.type, meta.applicationId ?? null]
+    );
+    if (claim.rowCount === 0) {
       logger.info("Stripe webhook duplicate event short-circuited", {
         eventId: event.id,
         type: event.type,
@@ -822,22 +748,19 @@ router.post(
       return;
     }
 
-    let dispatchError: Error | null = null;
     try {
       await dispatch(event);
     } catch (err) {
-      dispatchError = err as Error;
+      const dispatchError = err as Error;
       logger.error("Stripe webhook dispatch failed", {
         eventId: event.id,
         type: event.type,
         error: dispatchError.message,
       });
+      // Release the claim so the DLQ retry (and any Stripe re-delivery) re-processes
+      // this event instead of being short-circuited as an already-handled duplicate.
+      await query(`DELETE FROM stripe_processed_events WHERE event_id = $1`, [event.id]);
       await recordDlq(event, event, dispatchError);
-    }
-
-    if (!dispatchError) {
-      const meta = (event.data.object as { metadata?: Record<string, string> }).metadata ?? {};
-      await markProcessed(event.id, event.type, meta.applicationId ?? null);
     }
 
     // Always 200 — see header comment. DLQ is the recovery path, not retry.

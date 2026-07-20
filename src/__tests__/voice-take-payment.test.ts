@@ -23,6 +23,7 @@ const mockRecordAuth = jest.fn();
 jest.mock("../modules/screening/consumer-report-consent", () => ({
   recordAuthorization: (...a: unknown[]) => mockRecordAuth(...a),
   FCRA_DISCLOSURE_VERSION: "2026-06-01",
+  METHOD_VOICE_VERBAL_UNVERIFIED: "voice_verbal_unverified",
 }));
 
 import {
@@ -73,6 +74,14 @@ describe("takePaymentHandler", () => {
     expect(r.ok).toBe(true);
     expect(r.result?.payment_intent_id).toBe("pi_ok");
     expect(mockRecordAuth).toHaveBeenCalledTimes(1);
+    // Audit C4: voice consent is minted UNVERIFIED (the tool boolean is
+    // caller-controlled) and anchored to the minting conversation.
+    expect(mockRecordAuth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "voice_verbal_unverified",
+        conversationId: CTX.conversationId,
+      })
+    );
     const arg = mockPiCreate.mock.calls[0][0] as any;
     expect(arg.amount).toBe(3595);
     expect(arg.confirm).toBe(true);

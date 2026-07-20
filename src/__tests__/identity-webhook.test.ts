@@ -19,7 +19,7 @@ import Stripe from "stripe";
 
 const FAKE_KEY = "sk_test_signing_only_does_not_call_api";
 const WEBHOOK_SECRET = "whsec_test_fixture_secret_abcdef";
-const stripe = new Stripe(FAKE_KEY, { apiVersion: "2026-05-27.dahlia" });
+const stripe = new Stripe(FAKE_KEY, { apiVersion: "2026-06-24.dahlia" });
 
 const mockRetrieve = jest.fn();
 const mockMapStripeSessionToResult = jest.fn();
@@ -262,8 +262,8 @@ describe("POST /webhook — identity guards", () => {
 
   it("duplicate event (already processed) → short-circuits before mapping", async () => {
     mockQuery.mockImplementation((sql: any) => {
-      if (/stripe_processed_events/i.test(String(sql)) && /SELECT/i.test(String(sql))) {
-        return Promise.resolve({ rows: [{ event_id: "evt_idv_001" }] }) as any; // already processed
+      if (/stripe_processed_events/i.test(String(sql)) && /INSERT/i.test(String(sql))) {
+        return Promise.resolve({ rows: [], rowCount: 0 }) as any; // claim-first: lost the ON CONFLICT race → duplicate
       }
       return Promise.resolve({ rows: [] }) as any;
     });

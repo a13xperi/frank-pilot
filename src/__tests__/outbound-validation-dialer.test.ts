@@ -169,6 +169,7 @@ describe("buildDynamicVariables", () => {
     expect(vars).toEqual({
       applicant_id: APPLICANT.id,
       applicant_name: "Jane Doe",
+      applicant_first_name: "Jane",
       property_names: "Donna Louise 1 and Donna Louise 2",
       apt_types: "1 bedroom, 2 bedroom",
       date_needed: "2026-06-30",

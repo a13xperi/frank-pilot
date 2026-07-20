@@ -30,6 +30,7 @@
 import { createHash } from "crypto";
 import { query } from "../../config/database";
 import { writeAuditLog } from "../../middleware/audit";
+import { redactSensitiveStrings } from "../../utils/pii-filter";
 
 /**
  * Version of the disclosure text below. Bump this string whenever the wording
@@ -72,6 +73,20 @@ export const FCRA_DISCLOSURE_TEXT = [
 export function fcraDisclosureHash(text: string = FCRA_DISCLOSURE_TEXT): string {
   return createHash("sha256").update(text).digest("hex");
 }
+
+/**
+ * Capture-method values for VOICE consent (audit C4). A voice tool call
+ * carries only a caller-controlled `consent_acknowledged` boolean — a forged
+ * or over-eager tool call can assert consent that was never given. So a
+ * voice-minted authorization is recorded as UNVERIFIED, pending transcript
+ * evidence: when the post-call webhook delivers the transcript, the recorded
+ * turns are checked for the read disclosure + the caller's affirmative, and
+ * the row is upgraded to VERIFIED with the matched snippets stamped on it
+ * (see verifyVoiceAuthorizationForConversation). Rows that never verify stay
+ * `voice_verbal_unverified` — the honest, reviewable state.
+ */
+export const METHOD_VOICE_VERBAL_UNVERIFIED = "voice_verbal_unverified";
+export const METHOD_VOICE_VERBAL_VERIFIED = "voice_verbal_verified";
 
 /** The disclosure payload served to the client so it can render + hash-match. */
 export function getDisclosure(): { version: string; text: string; hash: string } {
@@ -162,6 +177,13 @@ export async function recordAuthorization(input: {
   method?: string;
   ip?: string | null;
   userAgent?: string | null;
+  /**
+   * The ElevenLabs conversation that minted this authorization (voice methods
+   * only, audit C4). This is the evidence anchor: the post-call transcript
+   * verification finds the row by it, and a reviewer can pull the exact call
+   * via voice_intake_calls.transcript_url.
+   */
+  conversationId?: string | null;
 }): Promise<{ authorizedAt: string; alreadyRecorded: boolean }> {
   const version = input.disclosureVersion ?? FCRA_DISCLOSURE_VERSION;
   if (version !== FCRA_DISCLOSURE_VERSION) {
@@ -178,8 +200,9 @@ export async function recordAuthorization(input: {
   const inserted = await query(
     `INSERT INTO consumer_report_authorizations
        (application_id, applicant_id, applicant_role, disclosure_version,
-        disclosure_hash, disclosure_text, method, authorized_ip, user_agent)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        disclosure_hash, disclosure_text, method, authorized_ip, user_agent,
+        conversation_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      ON CONFLICT (application_id) DO NOTHING
      RETURNING authorized_at`,
     [
@@ -192,6 +215,7 @@ export async function recordAuthorization(input: {
       method,
       input.ip ?? null,
       input.userAgent ?? null,
+      input.conversationId ?? null,
     ]
   );
 
@@ -203,7 +227,12 @@ export async function recordAuthorization(input: {
       applicationId: input.applicationId,
       resourceType: "consumer_report_authorization",
       resourceId: input.applicationId,
-      details: { disclosureVersion: version, disclosureHash, method },
+      details: {
+        disclosureVersion: version,
+        disclosureHash,
+        method,
+        ...(input.conversationId ? { conversationId: input.conversationId } : {}),
+      },
       ipAddress: input.ip ?? undefined,
       userAgent: input.userAgent ?? undefined,
     });
@@ -222,4 +251,130 @@ export async function recordAuthorization(input: {
     );
   }
   return { authorizedAt: existing.authorizedAt, alreadyRecorded: true };
+}
+
+// ─── Voice consent transcript verification (audit C4) ────────────────────────
+
+/** One turn of the ElevenLabs post-call transcript, as the webhook delivers it. */
+export interface TranscriptTurn {
+  role?: string;
+  message?: string;
+}
+
+export interface DisclosureEvidence {
+  found: boolean;
+  /** Heuristic identifier stamped into verification_evidence for auditability. */
+  matcher: "transcript-disclosure-v1";
+  agentTurn?: number;
+  userTurn?: number;
+  agentSnippet?: string;
+  userSnippet?: string;
+}
+
+// The spoken disclosure necessarily names the report types being pulled.
+const DISCLOSURE_PATTERN = /(background.*credit|credit.*background|consumer report)/is;
+const AFFIRMATIVE_PATTERN =
+  /\b(yes|yeah|yep|yup|sure|correct|absolutely|of course|go ahead|sounds good|that'?s fine|okay|ok|i (do|agree|authorize|consent))\b/i;
+const DECLINE_PATTERN = /\b(no|nope|don'?t|do not|decline|refuse|stop)\b/i;
+
+// Evidence snippets are transcript text — pii-filter them (audit C1) before
+// they land on the authorization row / audit log.
+function snippet(s: string): string {
+  const clean = redactSensitiveStrings(s);
+  return clean.length > 240 ? `${clean.slice(0, 240)}…` : clean;
+}
+
+/**
+ * Scan a post-call transcript for evidence the FCRA disclosure was actually
+ * read and affirmed: an AGENT turn naming the reports (background + credit,
+ * or "consumer report"), followed by a USER turn that affirms before any
+ * user turn that declines. Pure + exported so the heuristic is unit-testable
+ * and its verdict auditable (the matcher id + matched snippets are stamped
+ * onto the authorization row).
+ *
+ * Deliberately conservative: no match → the authorization simply STAYS
+ * `voice_verbal_unverified` for human review. It never downgrades or deletes.
+ */
+export function findDisclosureEvidence(
+  transcript: ReadonlyArray<TranscriptTurn>
+): DisclosureEvidence {
+  const notFound: DisclosureEvidence = { found: false, matcher: "transcript-disclosure-v1" };
+  for (let i = 0; i < transcript.length; i++) {
+    const turn = transcript[i];
+    if (turn.role !== "agent" || !turn.message) continue;
+    if (!DISCLOSURE_PATTERN.test(turn.message)) continue;
+
+    // Disclosure turn found — look for the caller's affirmative after it.
+    for (let j = i + 1; j < transcript.length; j++) {
+      const reply = transcript[j];
+      if (reply.role !== "user" || !reply.message) continue;
+      if (AFFIRMATIVE_PATTERN.test(reply.message)) {
+        return {
+          found: true,
+          matcher: "transcript-disclosure-v1",
+          agentTurn: i,
+          userTurn: j,
+          agentSnippet: snippet(turn.message),
+          userSnippet: snippet(reply.message),
+        };
+      }
+      if (DECLINE_PATTERN.test(reply.message)) break; // declined THIS disclosure — try a later one
+    }
+  }
+  return notFound;
+}
+
+/**
+ * Post-call upgrade for voice-minted authorizations (audit C4). The voice
+ * tools record consent as `voice_verbal_unverified` (the tool's boolean is
+ * caller-controlled); the post-call webhook calls this with the delivered
+ * transcript. When the transcript shows the read disclosure + the caller's
+ * affirmative, the row is upgraded to `voice_verbal_verified` with the
+ * matched snippets stamped in `verification_evidence` and an audit entry.
+ * No evidence → the row stays unverified for review; nothing is downgraded.
+ * Idempotent: only rows still marked unverified are touched, so the second
+ * webhook delivery (post_call_audio) is a no-op.
+ */
+export async function verifyVoiceAuthorizationForConversation(
+  conversationId: string,
+  transcript: ReadonlyArray<TranscriptTurn> | undefined | null
+): Promise<{ checked: number; verified: number }> {
+  const pending = await query(
+    `SELECT application_id FROM consumer_report_authorizations
+      WHERE conversation_id = $1 AND method = $2`,
+    [conversationId, METHOD_VOICE_VERBAL_UNVERIFIED]
+  );
+  if (pending.rows.length === 0) return { checked: 0, verified: 0 };
+
+  const evidence = findDisclosureEvidence(transcript ?? []);
+  if (!evidence.found) {
+    return { checked: pending.rows.length, verified: 0 };
+  }
+
+  const upgraded = await query(
+    `UPDATE consumer_report_authorizations
+        SET method = $3,
+            verified_at = NOW(),
+            verification_evidence = $4::jsonb
+      WHERE conversation_id = $1 AND method = $2
+      RETURNING application_id`,
+    [
+      conversationId,
+      METHOD_VOICE_VERBAL_UNVERIFIED,
+      METHOD_VOICE_VERBAL_VERIFIED,
+      JSON.stringify(evidence),
+    ]
+  );
+
+  for (const row of upgraded.rows as Array<{ application_id: string }>) {
+    await writeAuditLog({
+      action: "consumer_report_consent_verified",
+      applicationId: row.application_id,
+      resourceType: "consumer_report_authorization",
+      resourceId: row.application_id,
+      details: { conversationId, ...evidence },
+    });
+  }
+
+  return { checked: pending.rows.length, verified: upgraded.rows.length };
 }

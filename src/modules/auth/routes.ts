@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
-import { createMagicLink, verifyMagicLink, logMagicLink } from "./magic-link-service";
+import { createMagicLink, sendMagicLink, verifyMagicLink, logMagicLink } from "./magic-link-service";
 import { authenticate, AuthRequest } from "../../middleware/auth";
 import { verifyTurnstile } from "../../middleware/verify-turnstile";
 import { logger } from "../../utils/logger";
@@ -73,6 +73,16 @@ router.post(
       // Always respond with success — don't leak which emails exist.
       if (result) {
         logMagicLink(parsed.data.email, result.link);
+        // Actually deliver the link. This route (the "Resend link" button on
+        // the verify screen + returning-user login) previously created the
+        // token and logged it but never called the mailer, so a resend sent
+        // nothing. Email channel: both callers are email-based screens.
+        // Fire-and-forget (returns synchronously) so the constant-time
+        // response contract above is preserved.
+        sendMagicLink(parsed.data.email, result.link, {
+          channel: "email",
+          userId: result.userId,
+        });
         // Surface the link in the response only when the demo-link gate opens
         // (dev, or a matching x-demo-token under DEMO_LINK_SECRET). This is the
         // returning-user counterpart to /applicants/register's devLink echo, so

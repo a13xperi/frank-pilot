@@ -167,6 +167,9 @@ describe("voice-intake webhook", () => {
     mockQuery
       // alreadyProcessed → no rows
       .mockResolvedValueOnce({ rows: [] })
+      // C4 voice-consent verify lookup (fire-and-forget, fires before the
+      // persist) → nothing pending for this conversation
+      .mockResolvedValueOnce({ rows: [] })
       // persistConversation upsert → returns id
       .mockResolvedValueOnce({ rows: [{ id: "11111111-1111-1111-1111-111111111111" }] })
       // markProcessed
@@ -229,6 +232,7 @@ describe("voice-intake webhook", () => {
   it("parks failures in DLQ and still 200s ElevenLabs", async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // alreadyProcessed
+      .mockResolvedValueOnce({ rows: [] }) // C4 consent-verify lookup (fire-and-forget) → none
       .mockRejectedValueOnce(new Error("simulated upsert failure")) // persistConversation throws
       // DLQ probe: not yet parked
       .mockResolvedValueOnce({ rows: [] })

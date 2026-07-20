@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { Router, Request, Response } from "express";
 import express from "express";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { query } from "../../config/database";
 import { logger } from "../../utils/logger";
 import { stampTape } from "../tape";
@@ -56,6 +57,17 @@ function constantTimeStrEqual(a: string, b: string): boolean {
  */
 
 const ROUTE_PREFIX = "/api/webhooks/elevenlabs/tools";
+
+/**
+ * Replay window for the static-header auth path (audit C3). The static tool
+ * secret carries no timestamp (the HMAC path embeds one that verifySignature
+ * bounds), and real server-tool bodies carry no tool_call_id (the dedup below
+ * keys those on a random UUID) — so without this, a captured request could be
+ * replayed indefinitely. A sha256(body) nonce is claimed before the handler
+ * runs; a byte-identical body arriving again inside the window short-circuits
+ * with no side effects.
+ */
+const STATIC_REPLAY_WINDOW_SECS = 10 * 60;
 
 interface ToolCallbackPayload {
   tool_call_id?: string;
@@ -187,8 +199,33 @@ function validatePayload(
 
 const router = Router();
 
+/**
+ * Per-IP rate limiter on the tools receiver (audit C3). Counts only FAILED
+ * requests — skipSuccessfulRequests refunds anything below 400, and the
+ * status-code policy above answers all legitimate ElevenLabs traffic with
+ * 200s — so real tool calls are never throttled while secret brute-forcing
+ * hits the wall fast. Enforced in production always — and anywhere else only
+ * when ELEVENLABS_TOOLS_RATE_LIMIT is explicitly set (dev/staging/test
+ * opt-in; the 429 test uses it so it never has to mutate NODE_ENV, which
+ * load-time consts like middleware/auth's JWT_SECRET read). Mirrors the
+ * prod-only staff-login limiter (audit #7b): CI and the jest suites hammer
+ * this route with intentional auth failures and must not trip it.
+ */
+const toolsIpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: () => Number(process.env.ELEVENLABS_TOOLS_RATE_LIMIT || 60),
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
+  skip: () =>
+    process.env.NODE_ENV !== "production" && !process.env.ELEVENLABS_TOOLS_RATE_LIMIT,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, message: "Too many requests" },
+});
+
 router.post(
   "/:tool_name",
+  toolsIpLimiter,
   express.raw({ type: "application/json", limit: "2mb" }),
   async (req: Request, res: Response): Promise<void> => {
     if (process.env.VOICE_TOOLS_ENABLED !== "true") {
@@ -216,6 +253,9 @@ router.post(
     // signature header is present, verify the HMAC (back-compat + the existing
     // test suite); otherwise require a constant-time match on the tool secret
     // header. Requiring the HMAC on tool calls is what 400'd every real call.
+    // `staticAuth` marks the weaker path so the replay-nonce guard below only
+    // applies there (the HMAC path already bounds replay via its timestamp).
+    let staticAuth = false;
     if (sigHeader) {
       const sigResult = verifySignature(rawBody, sigHeader, secret, nowSecs);
       if (!sigResult.ok) {
@@ -227,7 +267,20 @@ router.post(
         return;
       }
     } else {
-      const toolSecret = process.env.ELEVENLABS_TOOL_SECRET || secret;
+      // Audit C3: the static path requires the DEDICATED tool secret — never
+      // fall back to the webhook HMAC secret. One value doing double duty
+      // means whoever reads that single config entry can forge unlimited
+      // create_application / take_payment / start_verification calls. Unset —
+      // or set equal to the webhook secret, which defeats the separation —
+      // fails closed like the sentinel-secret 503 above.
+      const toolSecret = process.env.ELEVENLABS_TOOL_SECRET ?? "";
+      if (!toolSecret || toolSecret === secret) {
+        logger.error("Voice tool callback rejected — dedicated ELEVENLABS_TOOL_SECRET not configured", {
+          toolName,
+        });
+        res.status(503).json({ ok: false, message: "Tool secret not configured" });
+        return;
+      }
       const providedRaw = req.headers["x-elevenlabs-tool-secret"];
       const provided = Array.isArray(providedRaw) ? providedRaw[0] : providedRaw;
       if (!provided || !constantTimeStrEqual(String(provided), toolSecret)) {
@@ -238,6 +291,7 @@ router.post(
         res.status(400).json({ ok: false, message: "Invalid tool secret" });
         return;
       }
+      staticAuth = true;
     }
 
     const body = parseBody(rawBody);
@@ -313,6 +367,47 @@ router.post(
         ? (body.parameters as Record<string, unknown>)
         : (body as Record<string, unknown>);
 
+    // Static-path replay window (audit C3): claim a sha256(body) nonce BEFORE
+    // the handler runs — atomic (INSERT … ON CONFLICT DO NOTHING RETURNING),
+    // so two concurrent identical bodies can't both execute. A byte-identical
+    // body inside the window short-circuits exactly like the tool_call_id
+    // dedup above: soft-200, no side effects. (An ElevenLabs transient retry
+    // redelivers the identical bytes — a 4xx here would eat into the webhook
+    // auto-disable budget, so replay answers 200 { duplicate } instead.) Runs
+    // after the handler lookup so an unknown tool stays re-deliverable, and
+    // only on the static path — the HMAC path is replay-bounded by its signed
+    // timestamp and its bodies carry real tool_call_ids for the dedup above.
+    let nonceEventId: string | null = null;
+    if (staticAuth) {
+      const bodySha = crypto.createHash("sha256").update(rawBody).digest("hex");
+      nonceEventId = `toolnonce:${toolName}:${bodySha}`;
+      await query(
+        `DELETE FROM elevenlabs_processed_events
+          WHERE event_id = $1
+            AND processed_at < NOW() - INTERVAL '${STATIC_REPLAY_WINDOW_SECS} seconds'`,
+        [nonceEventId]
+      );
+      const claimed = await query(
+        `INSERT INTO elevenlabs_processed_events (event_id, event_type, conversation_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (event_id) DO NOTHING
+         RETURNING event_id`,
+        [nonceEventId, `toolnonce:${toolName}`, ctx.conversationId]
+      );
+      if (claimed.rows.length === 0) {
+        logger.warn("Voice tool callback replay suppressed (static-path body nonce)", {
+          toolName,
+          conversationId: ctx.conversationId,
+        });
+        res.status(200).json({
+          ok: true,
+          message: "Already processed",
+          result: { duplicate: true },
+        });
+        return;
+      }
+    }
+
     let handlerResult: ToolCallbackResult;
     try {
       handlerResult = await handler(parameters, ctx);
@@ -337,6 +432,13 @@ router.post(
           error: errMsg,
         },
       });
+      // Free the replay nonce so a legitimate retry can re-run the tool —
+      // mirrors the "handler failure does not markProcessed" rule below.
+      if (nonceEventId) {
+        await query(`DELETE FROM elevenlabs_processed_events WHERE event_id = $1`, [
+          nonceEventId,
+        ]).catch(() => undefined);
+      }
       // Soft-fail — do NOT mark the event processed so a manual retry or
       // operator action can re-deliver if needed.
       res.status(200).json({

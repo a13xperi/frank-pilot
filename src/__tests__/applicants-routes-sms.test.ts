@@ -87,7 +87,7 @@ describe("POST /applicants/register — SMS channel wiring", () => {
     });
   });
 
-  it("default (no channel) calls sendMagicLink with channel undefined (email default)", async () => {
+  it("default (no channel) calls sendMagicLink with channel 'email' (schema default)", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] } as any);
     mockQuery.mockResolvedValueOnce({ rows: [{ id: "new-2" }] } as any);
     mockCreateMagicLink.mockResolvedValueOnce({ link: LINK, userId: "new-2" });
@@ -99,9 +99,13 @@ describe("POST /applicants/register — SMS channel wiring", () => {
     });
 
     expect(res.status).toBe(202);
+    // registerSchema.channel now .default("email"), so an omitted channel is
+    // resolved to "email" BEFORE it reaches sendMagicLink — never undefined,
+    // which sendMagicLink would otherwise fall through to its text-first "sms"
+    // default and strand an email-only applicant with no phone.
     expect(mockSendMagicLink).toHaveBeenCalledWith("default@example.com", LINK, {
       firstName: "De",
-      channel: undefined,
+      channel: "email",
       userId: "new-2",
     });
   });

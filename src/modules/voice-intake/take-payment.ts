@@ -5,6 +5,7 @@ import { getStripe, isStripeConfigured } from "../../lib/stripe";
 import {
   recordAuthorization,
   FCRA_DISCLOSURE_VERSION,
+  METHOD_VOICE_VERBAL_UNVERIFIED,
 } from "../screening/consumer-report-consent";
 import {
   registerToolHandler,
@@ -75,6 +76,10 @@ export async function takePaymentHandler(
   const submittedBy = (appRes.rows[0].submitted_by as string) ?? "";
 
   // FCRA: record consent before the charge so the webhook will run screening.
+  // Audit C4: the tool's consent boolean is caller-controlled, so the record
+  // is minted UNVERIFIED and anchored to this conversation — the post-call
+  // transcript verification upgrades it once the read disclosure + the
+  // caller's affirmative are found in the actual turns.
   if (consentAcknowledged) {
     try {
       await recordAuthorization({
@@ -82,7 +87,8 @@ export async function takePaymentHandler(
         applicantId: submittedBy || null,
         applicantRole: "applicant",
         disclosureVersion: FCRA_DISCLOSURE_VERSION,
-        method: "voice_verbal",
+        method: METHOD_VOICE_VERBAL_UNVERIFIED,
+        conversationId: context.conversationId,
       });
     } catch (err) {
       logger.error("take_payment consent record failed", {
