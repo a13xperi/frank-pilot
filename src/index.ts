@@ -88,6 +88,7 @@ import { registerEscalationHandler } from "./modules/voice-intake/escalation";
 import { registerCallTimeHandler } from "./modules/follow-ups/call-time";
 import { registerRelationshipHandlers } from "./modules/relationship/tools";
 import { registerCreateApplicationHandler } from "./modules/voice-intake/create-application";
+import { registerRequestTransferHandler } from "./modules/voice-intake/request-transfer";
 import { frankContactRoutes } from "./modules/frank-contact";
 import { smsIntakeRoutes } from "./modules/sms-intake";
 import { cobrowseRoutes, registerCobrowseHandlers } from "./modules/cobrowse";
@@ -438,6 +439,19 @@ if (process.env.VOICE_VERIFICATION_ENABLED === "true") {
   logger.info("Voice verification tool handlers registered (send_verification, get_caller_history)");
 } else {
   logger.info("Voice verification tool handlers skipped — VOICE_VERIFICATION_ENABLED is off");
+}
+
+// request_transfer — files a unit-transfer request into follow_ups (reused, no
+// migration) and hands the caller a spoken ticket id (FRANK-LAUNCH-ADDENDUM §3.2).
+// DARK: registered only when FRANK_TRANSFER_ENABLED is on; the handler ALSO fails
+// closed on that flag, and the tool receiver still 503s until VOICE_TOOLS_ENABLED.
+// With the flag off, boot is byte-identical to main and the live agent — which is
+// not wired to call the tool — is unaffected.
+if (process.env.FRANK_TRANSFER_ENABLED === "true") {
+  registerRequestTransferHandler();
+  logger.info("request_transfer tool handler registered (FRANK_TRANSFER_ENABLED)");
+} else {
+  logger.info("request_transfer tool handler skipped — FRANK_TRANSFER_ENABLED is off");
 }
 
 // Outbound waitlist-validation dialer admin surface (DM-FRANK-029).
