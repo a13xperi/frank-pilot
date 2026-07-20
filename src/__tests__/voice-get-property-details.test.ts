@@ -70,6 +70,33 @@ describe("getPropertyDetailsHandler (corpus-sourced)", () => {
     expect(r.message).toContain("senior");
   });
 
+  it("a statewide-style name variant ('… Senior 2') still lands on the GPM record, never amenity-less", async () => {
+    // The matcher pool is the 17 GPM records only; a near-duplicate statewide
+    // variant must resolve to the canonical in-pool community (which always
+    // carries amenities), not miss or match an amenity-less off-scope record.
+    const r = await getPropertyDetailsHandler({ property_name: "Ethel Mae Robinson Senior 2" }, CTX);
+    expect(r.ok).toBe(true);
+    expect(r.result?.name).toMatch(/Ethel Mae Robinson/i);
+    expect((r.result?.amenities as string[]).length).toBeGreaterThan(0);
+  });
+
+  it("disambiguates the in-pool siblings: 'Ethel Mae Fletcher' is not stolen by Robinson", async () => {
+    const r = await getPropertyDetailsHandler({ property_name: "Ethel Mae Fletcher" }, CTX);
+    expect(r.ok).toBe(true);
+    expect(r.result?.name).toMatch(/Fletcher/i);
+    expect(r.result?.name).not.toMatch(/Robinson/i);
+    expect(r.result?.type).toBe("family");
+  });
+
+  it("ok:false when the best candidate scores below MATCH_THRESHOLD (partial-similarity, not a match)", async () => {
+    // Shares the "Louise" token with three communities but nothing else (best
+    // candidate scores ~0.54, under the 0.6 threshold) — must decline rather
+    // than guess (Frank then reads back the open options).
+    const r = await getPropertyDetailsHandler({ property_name: "Louise Meadows" }, CTX);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/couldn't find/i);
+  });
+
   it("registers the handler", () => {
     clearToolHandlersForTests();
     __resetRegistrationForTests();

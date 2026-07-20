@@ -1,9 +1,19 @@
 /**
- * /health endpoint — security regression test.
+ * /health endpoint tests — run against the REAL handler
+ * (src/modules/health/route.ts), which index.ts mounts. This file previously
+ * asserted a hand-copied replica of the route, which silently drifted when
+ * backlog #12 (#405) extended the handler; the extraction closes that gap.
  *
- * Asserts that on DB failure the 503 response body does NOT contain any
- * raw pg error message (which can expose hostnames, ports, credentials).
- * The real error is logged server-side; callers receive only a generic body.
+ * Contract under test:
+ *   - only a DB-ping failure flips the HTTP code to 503 (Railway's deploy
+ *     healthcheck keys off the code);
+ *   - Sage/ElevenLabs reachability + dialer staleness degrade the BODY status
+ *     only ("degraded" @ HTTP 200 — alerting reads the body);
+ *   - "not_configured"/"unknown" reachability is NOT degraded;
+ *   - extended-check failures are swallowed (observability must never break
+ *     the endpoint it rides on);
+ *   - a DB failure body never leaks the raw pg error (hostnames, ports,
+ *     credentials) — the security regression this file originally guarded.
  */
 import express from "express";
 import request from "supertest";
@@ -13,78 +23,111 @@ jest.mock("../utils/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-// Simulate a pg-style error with infra details that must NOT appear in the response.
-const PG_ERROR_MSG = "connection refused to db-host:5432 as user 'frank'";
-
+const mockQuery = jest.fn();
 jest.mock("../config/database", () => ({
-  query: jest.fn().mockRejectedValue(new Error(PG_ERROR_MSG)),
+  query: (...args: unknown[]) => mockQuery(...args),
   transaction: jest.fn(),
 }));
 
+const mockReachability = jest.fn();
+const mockDialerStatus = jest.fn();
+jest.mock("../utils/health-checks", () => ({
+  externalReachability: (...args: unknown[]) => mockReachability(...args),
+  dialerTickStatus: (...args: unknown[]) => mockDialerStatus(...args),
+}));
+
+import { healthHandler } from "../modules/health/route";
+
 function buildApp() {
   const app = express();
-  app.use(express.json());
-
-  app.get("/health", async (_req, res) => {
-    let dbStatus = "unknown";
-    try {
-      const { query } = await import("../config/database");
-      const r = await query("SELECT 1 AS ok");
-      dbStatus = (r as any).rows[0]?.ok === 1 ? "ok" : "unexpected";
-    } catch (err) {
-      dbStatus = "error";
-      logger.error("/health DB ping failed", { error: (err as Error).message });
-      res.status(503).json({
-        status: "degraded",
-        service: "frank-pilot",
-        db: dbStatus,
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
-    res.json({
-      status: "ok",
-      service: "frank-pilot",
-      db: dbStatus,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
+  app.get("/health", healthHandler);
   return app;
 }
 
-describe("GET /health — DB failure path", () => {
-  let app: express.Express;
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockQuery.mockResolvedValue({ rows: [{ ok: 1 }] });
+  mockReachability.mockResolvedValue({ sage: "ok", elevenlabs: "ok" });
+  mockDialerStatus.mockResolvedValue({ state: "ticking", healthy: true });
+});
 
-  beforeAll(() => {
-    app = buildApp();
-  });
-
-  it("returns HTTP 503 on DB error", async () => {
-    const res = await request(app).get("/health");
-    expect(res.status).toBe(503);
-  });
-
-  it("returns generic degraded body without raw pg error", async () => {
-    const res = await request(app).get("/health");
-    expect(res.body.status).toBe("degraded");
-    expect(res.body.db).toBe("error");
-    expect(res.body.service).toBe("frank-pilot");
+describe("GET /health", () => {
+  it("200 ok with db + reachability + dialer fields when everything is healthy", async () => {
+    const res = await request(buildApp()).get("/health");
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      status: "ok",
+      service: "frank-pilot",
+      db: "ok",
+      sage: "ok",
+      elevenlabs: "ok",
+      dialer: { state: "ticking", healthy: true },
+    });
     expect(res.body.timestamp).toBeDefined();
-    // The raw pg error message must NOT appear anywhere in the response body.
+  });
+
+  it("degrades the BODY (not the HTTP code) when the dialer is stale", async () => {
+    mockDialerStatus.mockResolvedValue({ state: "stale", healthy: false });
+    const res = await request(buildApp()).get("/health");
+    expect(res.status).toBe(200); // a stale dialer must not fail the deploy healthcheck
+    expect(res.body.status).toBe("degraded");
+    expect(res.body.dialer).toMatchObject({ state: "stale", healthy: false });
+  });
+
+  it("degrades on bad vendor reachability (http_401 / unreachable), still HTTP 200", async () => {
+    mockReachability.mockResolvedValue({ sage: "http_401", elevenlabs: "ok" });
+    const sageBad = await request(buildApp()).get("/health");
+    expect(sageBad.status).toBe(200);
+    expect(sageBad.body.status).toBe("degraded");
+
+    mockReachability.mockResolvedValue({ sage: "ok", elevenlabs: "unreachable" });
+    const elBad = await request(buildApp()).get("/health");
+    expect(elBad.status).toBe(200);
+    expect(elBad.body.status).toBe("degraded");
+  });
+
+  it("treats not_configured/unknown reachability as fine (dark vendors are not outages)", async () => {
+    mockReachability.mockResolvedValue({ sage: "not_configured", elevenlabs: "unknown" });
+    const res = await request(buildApp()).get("/health");
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("ok");
+  });
+
+  it("swallows an extended-check failure: 200 ok with unknown fields, logged as a warning", async () => {
+    mockReachability.mockRejectedValue(new Error("probe melt"));
+    const res = await request(buildApp()).get("/health");
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("ok");
+    expect(res.body.sage).toBe("unknown");
+    expect(res.body.elevenlabs).toBe("unknown");
+    expect(logger.warn).toHaveBeenCalledWith(
+      "/health extended checks failed",
+      expect.objectContaining({ error: "probe melt" })
+    );
+  });
+
+  it("reports db 'unexpected' on a malformed ping row without flipping the HTTP code", async () => {
+    mockQuery.mockResolvedValue({ rows: [{ ok: 2 }] });
+    const res = await request(buildApp()).get("/health");
+    expect(res.status).toBe(200);
+    expect(res.body.db).toBe("unexpected");
+  });
+
+  it("503 degraded on DB failure, without leaking the raw pg error to callers", async () => {
+    const PG_ERROR_MSG = "connection refused to db-host:5432 as user 'frank'";
+    mockQuery.mockRejectedValue(new Error(PG_ERROR_MSG));
+
+    const res = await request(buildApp()).get("/health");
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({ status: "degraded", service: "frank-pilot", db: "error" });
+
+    // The infra details must be logged server-side, never sent to the caller.
     const bodyStr = JSON.stringify(res.body);
     expect(bodyStr).not.toContain(PG_ERROR_MSG);
     expect(bodyStr).not.toContain("db-host");
     expect(bodyStr).not.toContain("5432");
-    // The `error` field must be absent entirely.
     expect(res.body).not.toHaveProperty("error");
-  });
-
-  it("logs the real pg error server-side", async () => {
-    const errorSpy = logger.error as jest.Mock;
-    errorSpy.mockClear();
-    await request(app).get("/health");
-    expect(errorSpy).toHaveBeenCalledWith(
+    expect(logger.error).toHaveBeenCalledWith(
       "/health DB ping failed",
       expect.objectContaining({ error: PG_ERROR_MSG })
     );

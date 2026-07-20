@@ -4,16 +4,21 @@
  * DARK gate, the connector-name override, and the action-callback correlation.
  */
 const mockQuery = jest.fn();
+const mockApplyFee = jest.fn();
 jest.mock("../config/database", () => ({
   query: (...args: unknown[]) => mockQuery(...args),
 }));
 jest.mock("../utils/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
+jest.mock("../modules/payment/apply-fee", () => ({
+  applyApplicationFeePaid: (...args: unknown[]) => mockApplyFee(...args),
+}));
 
 import express from "express";
 import request from "supertest";
 import payPhoneRouter from "../modules/pay-phone/routes";
+import { logger } from "../utils/logger";
 
 function app() {
   const a = express();
@@ -112,5 +117,105 @@ describe("pay-phone /result", () => {
 
     expect(res.status).toBe(200);
     expect(res.text).toContain("weren't able to process");
+  });
+});
+
+describe("pay-phone /result — post-payment core wiring", () => {
+  it("invokes the shared applyApplicationFeePaid with the explicit id, confirmation ref, and dedupeOnRef:true", async () => {
+    mockApplyFee.mockResolvedValueOnce({ ledgerEntryId: "l1", screeningFired: true, deduped: false });
+    const res = await request(app())
+      .post("/api/pay/result?applicationId=app-456")
+      .type("form")
+      .send({ Result: "success", From: "+17025551234", PaymentConfirmationCode: "ch_test_9" });
+
+    expect(res.status).toBe(200);
+    expect(mockApplyFee).toHaveBeenCalledTimes(1);
+    expect(mockApplyFee).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applicationId: "app-456",
+        amountDollars: 35.95,
+        chargeRef: "ch_test_9",
+        source: "twilio-pay",
+        dedupeOnRef: true,
+      })
+    );
+  });
+
+  it("falls back to a twilio-pay:<From> charge ref when Twilio sends no confirmation code", async () => {
+    mockApplyFee.mockResolvedValueOnce({ ledgerEntryId: "l2", screeningFired: false, deduped: false });
+    await request(app())
+      .post("/api/pay/result?applicationId=app-457")
+      .type("form")
+      .send({ Result: "success", From: "+17025551234" });
+
+    expect(mockApplyFee).toHaveBeenCalledWith(
+      expect.objectContaining({ chargeRef: "twilio-pay:+17025551234" })
+    );
+  });
+
+  it("success but uncorrelated (no id, no phone match): acks the caller, never applies, logs for reconciliation", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // phone lookup misses
+    const res = await request(app())
+      .post("/api/pay/result")
+      .type("form")
+      .send({ Result: "success", From: "+17025559999", PaymentConfirmationCode: "ch_orphan" });
+
+    expect(res.status).toBe(200);
+    // money was taken — the caller must still hear success
+    expect(res.text).toContain("application fee was received");
+    expect(mockApplyFee).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      "pay/result success but no application correlated",
+      expect.objectContaining({ from: "+17025559999", hasConfirmation: true })
+    );
+  });
+
+  it("still acknowledges the caller when the post-payment apply throws (card already charged)", async () => {
+    mockApplyFee.mockRejectedValueOnce(new Error("ledger down"));
+    const res = await request(app())
+      .post("/api/pay/result?applicationId=app-458")
+      .type("form")
+      .send({ Result: "success", From: "+17025551234", PaymentConfirmationCode: "ch_test_10" });
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("application fee was received");
+    expect(res.text).not.toContain("weren't able");
+    expect(logger.error).toHaveBeenCalledWith(
+      "pay/result post-payment apply failed",
+      expect.objectContaining({ applicationId: "app-458", error: "ledger down" })
+    );
+  });
+
+  it("a non-success result never invokes the post-payment core, even with an explicit id", async () => {
+    const res = await request(app())
+      .post("/api/pay/result?applicationId=app-459")
+      .type("form")
+      .send({ Result: "payment-connector-error", From: "+17025551234" });
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("weren't able to process");
+    expect(mockApplyFee).not.toHaveBeenCalled();
+  });
+});
+
+describe("pay-phone /twiml — XML escaping", () => {
+  it("escapes XML-hostile characters in the connector name", async () => {
+    process.env.PAY_DTMF_ENABLED = "true";
+    process.env.PAY_STRIPE_CONNECTOR = 'S&<"x>';
+    const res = await request(app()).get("/api/pay/twiml");
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('paymentConnector="S&amp;&lt;&quot;x&gt;"');
+  });
+
+  it("URI-encodes the threaded applicationId so the <Pay> action stays well-formed XML", async () => {
+    process.env.PAY_DTMF_ENABLED = "true";
+    const res = await request(app()).get(
+      `/api/pay/twiml?applicationId=${encodeURIComponent('app&"1')}`
+    );
+
+    expect(res.status).toBe(200);
+    // encodeURIComponent neutralizes the & and " before xmlEscape sees them
+    expect(res.text).toContain('action="/api/pay/result?applicationId=app%26%221"');
   });
 });

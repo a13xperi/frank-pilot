@@ -47,7 +47,7 @@ const AMOUNT_DOLLARS = 125.0;
 const FAKE_KEY = "sk_test_signing_only_does_not_call_api";
 const WEBHOOK_SECRET = "whsec_test_fixture_secret_abcdef";
 const stripe = new Stripe(FAKE_KEY, {
-  apiVersion: "2026-05-27.dahlia",
+  apiVersion: "2026-06-24.dahlia",
 });
 
 const applicant: AuthUser = {
