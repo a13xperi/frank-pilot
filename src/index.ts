@@ -24,6 +24,7 @@ import paymentWebhookRouter from "./modules/payment/webhook";
 import payPhoneRouter from "./modules/pay-phone/routes";
 import craWebhookRouter from "./modules/screening/cra-webhook";
 import { assertStripeProdConfig } from "./modules/payment/boot-guard";
+import { assertVoiceToolSecretConfig } from "./modules/voice-intake/boot-guard";
 import {
   voiceIntakeWebhookRouter,
   voiceToolCallbackRouter,
@@ -93,7 +94,8 @@ import { cobrowseRoutes, registerCobrowseHandlers } from "./modules/cobrowse";
 import { truthTokenRoutes } from "./modules/truth-token";
 import { startScheduler, stopScheduler } from "./scheduler";
 import { pool } from "./config/database";
-import { externalReachability, dialerTickStatus } from "./utils/health-checks";
+import { healthHandler } from "./modules/health/route";
+import { createShutdown } from "./utils/shutdown";
 
 // Boot-time guardrails: in production, refuse to start without the secrets that
 // gate auth + at-rest crypto. Crashing here is preferable to silently booting
@@ -110,16 +112,7 @@ if (process.env.NODE_ENV === "production") {
   // DEDICATED tool secret (no fallback to the webhook HMAC secret, and equal
   // values defeat the separation). Fail the boot rather than serve 503s to
   // every live tool call.
-  if (
-    process.env.VOICE_TOOLS_ENABLED === "true" &&
-    (!process.env.ELEVENLABS_TOOL_SECRET ||
-      process.env.ELEVENLABS_TOOL_SECRET === process.env.ELEVENLABS_WEBHOOK_SECRET)
-  ) {
-    console.error(
-      "VOICE_TOOLS_ENABLED=true requires a dedicated ELEVENLABS_TOOL_SECRET (set, and distinct from ELEVENLABS_WEBHOOK_SECRET) in production"
-    );
-    process.exit(1);
-  }
+  assertVoiceToolSecretConfig(process.env);
 }
 
 assertStripeProdConfig(process.env);
@@ -209,61 +202,8 @@ app.use((req, _res, next) => {
 // Public routes
 // ============================================================
 
-// Health check — pings the DB so silent outages don't look healthy, plus the
-// backlog #12 signals: Sage/ElevenLabs reachability and dialer tick-freshness
-// (stale >15 min inside the 9am–8pm PT window ⇒ status "degraded").
-//
-// Only a DB failure flips the HTTP status code (503): Railway's deploy
-// healthcheck keys off the code, so gating it on a vendor blip — or on a
-// dialer that was ALREADY stale when its fix deploys — would turn an
-// observability signal into an outage vector. Alerting reads the body.
-app.get("/health", async (_req, res) => {
-  let dbStatus = "unknown";
-  try {
-    const { query } = await import("./config/database");
-    const r = await query("SELECT 1 AS ok");
-    dbStatus = r.rows[0]?.ok === 1 ? "ok" : "unexpected";
-  } catch (err) {
-    dbStatus = "error";
-    logger.error("/health DB ping failed", { error: (err as Error).message });
-    res.status(503).json({
-      status: "degraded",
-      service: "frank-pilot",
-      db: dbStatus,
-      timestamp: new Date().toISOString(),
-    });
-    return;
-  }
-
-  let sage = "unknown";
-  let elevenlabs = "unknown";
-  let dialer: Awaited<ReturnType<typeof dialerTickStatus>> | { state: string; healthy: boolean } =
-    { state: "unknown", healthy: true };
-  try {
-    const [reach, dialerStatus] = await Promise.all([
-      externalReachability(),
-      dialerTickStatus(),
-    ]);
-    sage = reach.sage;
-    elevenlabs = reach.elevenlabs;
-    dialer = dialerStatus;
-  } catch (err) {
-    // Observability must never break the endpoint it rides on.
-    logger.warn("/health extended checks failed", { error: (err as Error).message });
-  }
-
-  const reachBad = (s: string) => s !== "ok" && s !== "not_configured" && s !== "unknown";
-  const degraded = !dialer.healthy || reachBad(sage) || reachBad(elevenlabs);
-  res.json({
-    status: degraded ? "degraded" : "ok",
-    service: "frank-pilot",
-    db: dbStatus,
-    sage,
-    elevenlabs,
-    dialer,
-    timestamp: new Date().toISOString(),
-  });
-});
+// Health check — DB ping + backlog #12 extended signals; see modules/health/route.
+app.get("/health", healthHandler);
 
 // Magic-link auth (tenants + applicants)
 app.use("/api/auth", authRoutes);
@@ -614,17 +554,7 @@ if (process.env.NODE_ENV !== "test") {
   // (so no NEW money job starts mid-drain), stop accepting new connections,
   // let in-flight requests drain, then release the pg pool so exit is clean
   // rather than mid-query. Hard-stop after 10s as a backstop. Backlog #11.
-  const shutdown = (sig: string): void => {
-    logger.info(`${sig} received — draining connections before exit`);
-    stopScheduler();
-    server.close(() => {
-      void pool
-        .end()
-        .catch(() => undefined)
-        .finally(() => process.exit(0));
-    });
-    setTimeout(() => process.exit(0), 10_000).unref();
-  };
+  const shutdown = createShutdown({ stopScheduler, server, pool });
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));
 }
