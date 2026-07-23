@@ -76,6 +76,29 @@ const OVERRIDES = {
     answer:
       'The property will attempt contact per its Tenant Selection Plan. It is your responsibility to check the app frequently and respond promptly to avoid removal.',
   },
+  // Transfer truth (DL2 campaign): applying from another affordable property is
+  // a NEW application at the new property — income verified fresh, both
+  // waitlists at once allowed, notice per the current lease. Definitive per
+  // Craig's Section 42 transfer ruling 2026-07-02 (Dispatch #2133233): a move
+  // to any different building or property = brand-new applicant, full new cert.
+  'tfaq-015': {
+    answer:
+      'Yes, you can apply, but you must disclose it — properties verify current housing status. Applying to a different property is a NEW application, not a transfer: your income and eligibility are verified fresh at the property you are applying to, even if you already qualified where you live now. Being on a waiting list for a new property while living at your current one is allowed and costs you nothing — it does not affect your current lease or housing. If you are offered a unit and accept it, you must give proper notice at your current home per your lease (leaving mid-lease can carry costs, so check your lease terms first). Moving may also be limited by other program rules (for example, duplicate rental subsidies are not allowed), which the new property checks during verification. LIHTC does not prohibit moving between affordable properties if you meet income and other criteria for the new unit.',
+  },
+  // Transfer timing (DL2 campaign): the approval-to-move-in window is short —
+  // a renter elsewhere should apply BEFORE their current lease renews.
+  'tfaq-466-471': {
+    answer:
+      'Typically within a short window after approval (often 7–30 days), so be ready to move once approved. You can usually choose a move-in date inside that window, not beyond it. If you rent somewhere else now, time your application around your current lease: the move-in window after approval is usually shorter than a renewal cycle, so apply before your current lease renews rather than after — and remember you must still give proper notice at your current home per your lease. Holds may require a fee. Communicate promptly with the property to avoid losing the unit.',
+  },
+  // Unit-transfer policy (Craig ruling 2026-07-02, Dispatch #2133233): the
+  // boundary is the BUILDING. Same building = transfer (file carries over);
+  // different building or another property = brand-new application, full cert.
+  // Folded into the "Transfer spot? / Multiple lists?" waitlist entry.
+  'tfaq-255-260': {
+    answer:
+      'Positions can shift with preferences or updates, and being on more than one waiting list at a time is usually allowed — separate lists often exist for different unit types and for accessible units, so joining another list does not cost you your place on an existing one. How a move is handled depends on where you are moving: a move to another unit in the SAME building you already live in is treated as a transfer — your existing file carries over with a transfer note, so you do not start a brand-new application. A move to a DIFFERENT building (even a newer building at the same community) or to another property is treated as a brand-new application with full income certification, the same as any new applicant. The property confirms which applies to your situation.',
+  },
 };
 
 // ---------- forbidden patterns (build fails if any survive) ----------
