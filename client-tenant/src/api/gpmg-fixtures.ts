@@ -31,8 +31,10 @@ export interface GPMGProperty {
 export const GPMG_FIXTURES: readonly GPMGProperty[] = [
   { name: 'Aldene Kline Barlow Senior Apartments', addr: '1327 H St.', city: 'Las Vegas', zip: '89106', phone: '(702) 920-6550', email: 'barlow@gpmglv.org', units: 39, type: 'senior' },
   { name: 'David J. Hoggard Family Community', addr: '1100 W. Monroe Ave.', city: 'Las Vegas', zip: '89106', phone: '(702) 631-2281', email: 'hoggard@gpmglv.org', units: 100, type: 'family' },
-  { name: 'Donna Louise Apartments', addr: '6225 Donna St.', city: 'North Las Vegas', zip: '89081', phone: '(702) 920-6548', email: 'donnalouise@gpmglv.org', units: 48, type: 'family' },
-  { name: 'Donna Louise Apartments 2', addr: '6225 Donna St.', city: 'North Las Vegas', zip: '89081', phone: '(702) 920-6548', email: 'donnalouise@gpmglv.org', units: null, type: 'family' },
+  // Donna Louise contact point is the Frank line (operator decision 2026-06-22: GPM leasing
+  // agents don't respond; 702-920-6548 is deprecated). DL2 is 6275 Donna St (6225 is DL1).
+  { name: 'Donna Louise Apartments', addr: '6225 Donna St.', city: 'North Las Vegas', zip: '89081', phone: '(725) 267-2488', email: 'donnalouise@gpmglv.org', units: 48, type: 'family' },
+  { name: 'Donna Louise Apartments 2', addr: '6275 Donna St.', city: 'North Las Vegas', zip: '89081', phone: '(725) 267-2488', email: 'donnalouise@gpmglv.org', units: 48, type: 'family' },
   { name: 'Luther Mack, Jr. Senior Apartments', addr: '8158 Giles St.', city: 'Las Vegas', zip: '89123', phone: '(702) 920-6569', email: 'drluthermack@gpmglv.org', units: 48, type: 'senior' },
   { name: 'Dr. Paul Meacham Senior Community', addr: '65 E Windmill Ln', city: 'Las Vegas', zip: '89123', phone: '(877) 895-8207', email: 'paulmeacham@gpmglv.org', units: 57, type: 'senior' },
   { name: 'Ethel Mae Fletcher Apartments', addr: '1503 Laurelhurst Dr.', city: 'Las Vegas', zip: '89108', phone: '(702) 920-6572', email: 'ethelmaefletcher@gpmglv.org', units: 42, type: 'senior' },
